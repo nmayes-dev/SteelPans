@@ -1,0 +1,39 @@
+﻿@page "/sample-pan"
+@using SteelPans.WebApp.Model
+@using SteelPans.WebApp.Components.Elements
+
+<SteelPanView
+    Pan="_pan"
+    ActiveNotes="_activeNotes"
+    Class="my-pan" />
+
+<button @onclick="ToggleA1">Toggle A1</button>
+<button @onclick="ToggleCSharp1">Toggle C#1</button>
+
+@code {
+    private readonly SteelPan _pan = new()
+    {
+        PanType = PanType.Lead,
+        BaseSvg = "images/pans/sample/base.webp",
+        PanNotes = new Dictionary<PanNoteKind, string>
+        {
+            [PanNoteKind.A1] = "images/pans/sample/notes/a1.webp",
+            [PanNoteKind.CSharp1] = "images/pans/sample/notes/csharp1.webp",
+            [PanNoteKind.E1] = "images/pans/sample/notes/e1.svg",
+        }
+    };
+
+    private readonly HashSet<PanNoteKind> _activeNotes = new();
+
+    private void ToggleA1()
+    {
+        if (!_activeNotes.Add(PanNoteKind.A1))
+            _activeNotes.Remove(PanNoteKind.A1);
+    }
+
+    private void ToggleCSharp1()
+    {
+        if (!_activeNotes.Add(PanNoteKind.CSharp1))
+            _activeNotes.Remove(PanNoteKind.CSharp1);
+    }
+}

@@ -1,0 +1,55 @@
+﻿@using SteelPans.WebApp.Model
+
+@if (Pan is null)
+{
+    <div class="steel-pan steel-pan--empty">
+        No pan loaded.
+    </div>
+}
+else
+{
+    <div class="steel-pan @Class" style="@Style">
+        @if (!string.IsNullOrWhiteSpace(Pan.BaseSvg))
+        {
+            <img class="steel-pan__layer steel-pan__layer--base"
+                 src="@Pan.BaseSvg"
+                 alt="Steel pan base"
+                 draggable="false" />
+        }
+
+        @foreach (var note in GetActiveNotes())
+        {
+            if (Pan.PanNotes.TryGetValue(note, out var noteSvg) && !string.IsNullOrWhiteSpace(noteSvg))
+            {
+                <img class="steel-pan__layer steel-pan__layer--note"
+                     src="@noteSvg"
+                     alt="@note.ToString()"
+                     title="@note.ToString()"
+                     draggable="false" />
+            }
+        }
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public SteelPan? Pan { get; set; }
+
+    [Parameter]
+    public IEnumerable<PanNoteKind>? ActiveNotes { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public string? Style { get; set; }
+
+    private IEnumerable<PanNoteKind> GetActiveNotes()
+    {
+        if (Pan is null || ActiveNotes is null)
+            return Enumerable.Empty<PanNoteKind>();
+
+        // Distinct avoids drawing the same note twice if aliases map to the same enum value
+        return ActiveNotes.Distinct();
+    }
+}

@@ -1,0 +1,11 @@
+.vs/
+
+bin/
+obj/
+
+temp/
+
+App_Data/
+
+# Exclude potentially copyrighted material
+*/wwwroot/audio/
