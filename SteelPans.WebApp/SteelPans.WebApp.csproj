@@ -8,7 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="wwwroot\images\pans\sample\notes\" />
+    <Compile Remove="wwwroot\images\pans\sample\**" />
+    <Content Remove="wwwroot\images\pans\sample\**" />
+    <EmbeddedResource Remove="wwwroot\images\pans\sample\**" />
+    <None Remove="wwwroot\images\pans\sample\**" />
   </ItemGroup>
 
 </Project>

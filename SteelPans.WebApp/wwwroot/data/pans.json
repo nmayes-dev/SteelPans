@@ -1,0 +1,97 @@
+[
+  {
+    "PanType": "DoubleGuitar",
+    "Notes": [
+      {
+        "Pitch": "A",
+        "Accidental": "Natural",
+        "Octave": 3
+      },
+      {
+        "Pitch": "B",
+        "Accidental": "Natural",
+        "Octave": 3
+      },
+      {
+        "Pitch": "C",
+        "Accidental": "Sharp",
+        "Octave": 4
+      },
+      {
+        "Pitch": "D",
+        "Accidental": "Natural",
+        "Octave": 3
+      },
+      {
+        "Pitch": "E",
+        "Accidental": "Natural",
+        "Octave": 3
+      },
+      {
+        "Pitch": "E",
+        "Accidental": "Flat",
+        "Octave": 3
+      },
+      {
+        "Pitch": "F",
+        "Accidental": "Sharp",
+        "Octave": 3
+      },
+      {
+        "Pitch": "F",
+        "Accidental": "Natural",
+        "Octave": 3
+      },
+      {
+        "Pitch": "G",
+        "Accidental": "Natural",
+        "Octave": 3
+      },
+      {
+        "Pitch": "A",
+        "Accidental": "Flat",
+        "Octave": 4
+      },
+      {
+        "Pitch": "B",
+        "Accidental": "Flat",
+        "Octave": 3
+      },
+      {
+        "Pitch": "C",
+        "Accidental": "Natural",
+        "Octave": 4
+      },
+      {
+        "Pitch": "D",
+        "Accidental": "Natural",
+        "Octave": 4
+      },
+      {
+        "Pitch": "E",
+        "Accidental": "Natural",
+        "Octave": 4
+      },
+      {
+        "Pitch": "E",
+        "Accidental": "Flat",
+        "Octave": 4
+      },
+      {
+        "Pitch": "F",
+        "Accidental": "Sharp",
+        "Octave": 4
+      },
+      {
+        "Pitch": "F",
+        "Accidental": "Natural",
+        "Octave": 4
+      },
+      {
+        "Pitch": "G",
+        "Accidental": "Natural",
+        "Octave": 4
+      }
+    ]
+  }
+]

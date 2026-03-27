@@ -1,0 +1,55 @@
+﻿@page "/pans"
+@using SteelPans.WebApp.Model
+@using SteelPans.WebApp.Services
+@inject SteelPanLoader PanLoader
+
+<h3>Steel Pans</h3>
+
+@if (!string.IsNullOrWhiteSpace(_loadError))
+{
+    <div class="alert alert-danger">@_loadError</div>
+}
+else if (_pans.Count == 0)
+{
+    <p>No pans found.</p>
+}
+else
+{
+    <div class="mb-3">
+        <label for="pan-select" class="form-label">Select a pan</label>
+        <select id="pan-select" class="form-select" @bind="_selectedIndex">
+            <option value="-1">@PanType.None</option>
+            @for (var i = 0; i < _pans.Count; i++)
+            {
+                <option value="@i">@_pans[i].PanType</option>
+            }
+        </select>
+    </div>
+
+    <SteelPanView Pan="@SelectedPan" />
+}
+
+@code {
+    private readonly List<SteelPan> _pans = new();
+    private int _selectedIndex;
+    private string? _loadError;
+
+    private SteelPan? SelectedPan =>
+        _selectedIndex >= 0 && _selectedIndex < _pans.Count
+            ? _pans[_selectedIndex]
+            : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _pans.Clear();
+            _pans.AddRange(await PanLoader.LoadAsync());
+            _selectedIndex = -1;
+        }
+        catch (Exception ex)
+        {
+            _loadError = ex.Message;
+        }
+    }
+}

@@ -1,4 +1,6 @@
-﻿@using SteelPans.WebApp.Model
+﻿@inject SteelPanSvgService SvgService
+@inject IJSRuntime JS
+@implements IDisposable
 
 @if (Pan is null)
 {
@@ -8,26 +10,15 @@
 }
 else
 {
-    <div class="steel-pan @Class" style="@Style">
-        @if (!string.IsNullOrWhiteSpace(Pan.BaseSvg))
-        {
-            <img class="steel-pan__layer steel-pan__layer--base"
-                 src="@Pan.BaseSvg"
-                 alt="Steel pan base"
-                 draggable="false" />
-        }
+    <div class="mb-3">
+        <select id="pan-select" class="form-select" @bind="clickType_">
+            <option value="@ClickType.Toggle">@ClickType.Toggle</option>
+            <option value="@ClickType.Hold">@ClickType.Hold</option>
+        </select>
+    </div>
 
-        @foreach (var note in GetActiveNotes())
-        {
-            if (Pan.PanNotes.TryGetValue(note, out var noteSvg) && !string.IsNullOrWhiteSpace(noteSvg))
-            {
-                <img class="steel-pan__layer steel-pan__layer--note"
-                     src="@noteSvg"
-                     alt="@note.ToString()"
-                     title="@note.ToString()"
-                     draggable="false" />
-            }
-        }
+    <div class="steel-pan @Class" style="@Style">
+        @((MarkupString)panSvg_)
     </div>
 }
 
@@ -36,20 +27,104 @@ else
     public SteelPan? Pan { get; set; }
 
     [Parameter]
-    public IEnumerable<PanNoteKind>? ActiveNotes { get; set; }
-
-    [Parameter]
     public string? Class { get; set; }
 
     [Parameter]
     public string? Style { get; set; }
 
-    private IEnumerable<PanNoteKind> GetActiveNotes()
-    {
-        if (Pan is null || ActiveNotes is null)
-            return Enumerable.Empty<PanNoteKind>();
+    private readonly string componentId_ = $"steelpan_{Guid.NewGuid():N}";
+    private DotNetObjectReference<SteelPanView>? selfRef_;
+    private string panSvg_ = string.Empty;
+    private string? basePath_;
 
-        // Distinct avoids drawing the same note twice if aliases map to the same enum value
-        return ActiveNotes.Distinct();
+    private enum ClickType
+    {
+        Toggle,
+        Hold,
+    }
+
+    private ClickType clickType_ = ClickType.Toggle;
+
+    protected override void OnInitialized()
+    {
+        selfRef_ = DotNetObjectReference.Create(this);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Pan is null)
+        {
+            panSvg_ = string.Empty;
+            basePath_ = string.Empty;
+            return;
+        }
+
+        basePath_ = $"images/pans/{Pan.PanType.ToKebabCase()}";
+
+        await SvgService.PrebuildNoteFragmentsAsync(
+            $"{basePath_}/base.svg",
+            Pan.Notes);
+
+        await RebuildSvgAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (selfRef_ is null)
+            return;
+
+        if (firstRender)
+            await JS.InvokeVoidAsync("steelPan.register", componentId_, selfRef_);
+
+        await JS.InvokeVoidAsync("steelPan.setClickType", componentId_, clickType_.ToString());
+    }
+
+    private async Task RebuildSvgAsync()
+    {
+        if (Pan is null || string.IsNullOrWhiteSpace(basePath_))
+        {
+            panSvg_ = string.Empty;
+            return;
+        }
+
+        panSvg_ = await SvgService.BuildPanSvgAsync(
+            $"{basePath_}/base.svg",
+            componentId_,
+            Pan.Notes);
+    }
+
+    [JSInvokable]
+    public async Task ActivateNote(string noteKey)
+    {
+        if (Pan is null)
+            return;
+
+        var note = Pan.Notes.FirstOrDefault(n => n.ToString() == noteKey);
+        if (note is null || note.Active)
+            return;
+
+        note.Active = true;
+        await RebuildSvgAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    [JSInvokable]
+    public async Task DeactivateNote(string noteKey)
+    {
+        if (Pan is null)
+            return;
+
+        var note = Pan.Notes.FirstOrDefault(n => n.ToString() == noteKey);
+        if (note is null || !note.Active)
+            return;
+
+        note.Active = false;
+        await RebuildSvgAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        selfRef_?.Dispose();
     }
 }

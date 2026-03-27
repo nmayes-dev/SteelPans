@@ -1,4 +1,5 @@
 using SteelPans.WebApp.Components;
+using SteelPans.WebApp.Services;
 
 namespace SteelPans.WebApp
 {
@@ -11,6 +12,9 @@ namespace SteelPans.WebApp
             // Add services to the container.
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
+
+            builder.Services.AddScoped<SteelPanLoader>();
+            builder.Services.AddSingleton<SteelPanSvgService>();
 
             var app = builder.Build();
 
