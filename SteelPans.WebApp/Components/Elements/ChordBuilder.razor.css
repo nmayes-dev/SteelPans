@@ -1,0 +1,64 @@
+﻿.steel-pan {
+    width: 100%;
+    max-width: 600px;
+    user-select: none;
+}
+
+.steel-pan--empty {
+    padding: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 0.5rem;
+}
+
+.steel-pan__svg {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.steel-pan__note-shape {
+    cursor: pointer;
+}
+
+.steel-pan__note-label {
+    pointer-events: none;
+}
+
+.steel-pan__controls {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+    .steel-pan__controls .form-select {
+        max-width: 220px;
+    }
+
+.steel-pan__chord-builder {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+    .steel-pan__chord-builder .form-select:nth-child(1) {
+        width: 4.5rem;
+    }
+
+    .steel-pan__chord-builder .form-select:nth-child(2) {
+        width: 4.5rem;
+    }
+
+    .steel-pan__chord-builder .form-select:nth-child(3) {
+        width: 10rem;
+        max-width: none;
+    }
+
+.steel-pan__chord-preview {
+    flex-basis: 100%;
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.25rem;
+}

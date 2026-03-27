@@ -16,14 +16,6 @@
     height: auto;
 }
 
-.steel-pan__note-shape {
-    cursor: pointer;
-}
-
-.steel-pan__note-label {
-    pointer-events: none;
-}
-
 .steel-pan__controls {
     display: flex;
     gap: 0.75rem;
@@ -34,3 +26,16 @@
     .steel-pan__controls .form-select {
         max-width: 220px;
     }
+
+.steel-pan__hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.steel-pan__hint-sep {
+    opacity: 1;
+    font-weight: 600;
+    font-size: 1.5em;
+    margin: 0 0.4rem;
+}

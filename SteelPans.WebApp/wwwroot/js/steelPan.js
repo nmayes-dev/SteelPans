@@ -1,29 +1,13 @@
 ﻿window.steelPan = {
     _refs: {},
-    _clickTypes: {},
-    _heldNotes: {},
     _audioCache: {},
-    _globalPointerUpRegistered: false,
 
     register: function (id, dotNetRef) {
         this._refs[id] = dotNetRef;
-        this._heldNotes[id] = this._heldNotes[id] || new Set();
-
-        if (!this._globalPointerUpRegistered) {
-            document.addEventListener("pointerup", this._handleGlobalPointerUp.bind(this));
-            document.addEventListener("pointercancel", this._handleGlobalPointerUp.bind(this));
-            this._globalPointerUpRegistered = true;
-        }
     },
 
     unregister: function (id) {
         delete this._refs[id];
-        delete this._clickTypes[id];
-        delete this._heldNotes[id];
-    },
-
-    setClickType: function (id, clickType) {
-        this._clickTypes[id] = clickType;
     },
 
     preloadNotes: function (noteKeys) {
@@ -73,30 +57,13 @@
         return `/samples/${encodeURIComponent(normalized)}.wav`;
     },
 
-    _handleGlobalPointerUp: function () {
-        for (const componentId of Object.keys(this._heldNotes)) {
-            const held = this._heldNotes[componentId];
-            const ref = this._refs[componentId];
-
-            if (!held || !ref || held.size === 0)
-                continue;
-
-            for (const noteKey of held) {
-                ref.invokeMethodAsync("DeactivateNote", noteKey);
-            }
-
-            held.clear();
-        }
-    },
     _normalizeEnharmonic: function (noteKey) {
-        // Match: note + accidental + octave (e.g. Eb4, C#3, B3)
         const match = /^([A-G])([#b]?)(\d+)$/.exec(noteKey);
         if (!match)
             return noteKey;
 
         let [, note, accidental, octave] = match;
 
-        // Convert flats to sharps (since your samples are A/C/D#/F# etc)
         if (accidental === "b") {
             const flatToSharp = {
                 "Ab": "G#",
@@ -113,51 +80,33 @@
                 return flatToSharp[key] + octave;
         }
 
-        // Optional: normalize edge cases (E#, B#)
         if (accidental === "#") {
             if (note === "E") return "F" + octave;
-            if (note === "B") return "C" + (parseInt(octave) + 1);
+            if (note === "B") return "C" + (parseInt(octave, 10) + 1);
         }
 
-        // Optional: normalize Cb/Fb already handled above
         return note + accidental + octave;
-    },
-};
-
-window.steelPanToggleClick = function (componentId, action, noteKey, event) {
-    event.stopPropagation();
-
-    if (window.steelPan._clickTypes[componentId] !== "Toggle")
-        return;
-
-    const ref = window.steelPan._refs[componentId];
-    if (!ref)
-        return;
-
-    if (action === "activate") {
-        ref.invokeMethodAsync("ActivateNote", noteKey);
-    } else if (action === "deactivate") {
-        ref.invokeMethodAsync("DeactivateNote", noteKey);
     }
 };
 
-window.steelPanHoldStart = function (componentId, noteKey, event) {
+window.steelPanNoteClick = function (element, componentId, noteKey, event) {
     event.stopPropagation();
-
-    if (window.steelPan._clickTypes[componentId] !== "Hold")
-        return;
 
     const ref = window.steelPan._refs[componentId];
     if (!ref)
         return;
 
-    const held = window.steelPan._heldNotes[componentId] || new Set();
-    window.steelPan._heldNotes[componentId] = held;
+    const shift = !!event.shiftKey;
 
-    if (held.has(noteKey))
-        return;
+    if (!shift && !element.classList.contains("sp-note--active")) {
+        window.steelPan.playNote(noteKey);
 
-    held.add(noteKey);
-    window.steelPan.playNote(noteKey);
-    ref.invokeMethodAsync("ActivateNote", noteKey);
+        element.classList.add("sp-note--flash");
+
+        setTimeout(() => {
+            element.classList.remove("sp-note--flash");
+        }, 120);
+    }
+
+    ref.invokeMethodAsync("HandleNoteInteraction", noteKey, shift);
 };

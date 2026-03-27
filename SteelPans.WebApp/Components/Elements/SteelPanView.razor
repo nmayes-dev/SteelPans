@@ -5,20 +5,22 @@
 @if (Pan is not null)
 {
     <div class="steel-pan__controls mb-3">
-        <select id="pan-select"
-                class="form-select"
-                value="@clickType_"
-                @onchange="OnClickTypeChanged">
-            <option value="@ClickType.Toggle">@ClickType.Toggle</option>
-            <option value="@ClickType.Hold">@ClickType.Hold</option>
-        </select>
+        <ChordBuilder OnChordSelected="SelectChordAsync" />
 
-        <button class="btn btn-primary"
-                type="button"
-                @onclick="PlaySelectedNotesAsync"
-                disabled="@(!CanPlaySelectedNotes)">
-            Play
-        </button>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <button class="btn btn-primary"
+                    type="button"
+                    @onclick="PlaySelectedNotesAsync"
+                    disabled="@(!CanPlaySelectedNotes)">
+                Play
+            </button>
+
+            <span class="steel-pan__hint text-muted small">
+                <span>Click = Play</span>
+                <span class="steel-pan__hint-sep">·</span>
+                <span>Shift + Click = Toggle</span>
+            </span>
+        </div>
     </div>
 
     <div class="steel-pan @Class" style="@Style">
@@ -36,22 +38,12 @@
     [Parameter]
     public string? Style { get; set; }
 
+    private bool CanPlaySelectedNotes => Pan?.Notes.Any(n => n.Active) == true;
+
     private readonly string componentId_ = $"steelpan_{Guid.NewGuid():N}";
     private DotNetObjectReference<SteelPanView>? selfRef_;
     private string panSvg_ = string.Empty;
-    private string? basePath_;
-
-    private enum ClickType
-    {
-        Toggle,
-        Hold,
-    }
-
-    private ClickType clickType_ = ClickType.Hold;
-
-    private bool CanPlaySelectedNotes =>
-        clickType_ == ClickType.Toggle &&
-        Pan?.Notes.Any(n => n.Active) == true;
+    private string svgPath_ = string.Empty;
 
     protected override void OnInitialized()
     {
@@ -63,19 +55,18 @@
         if (Pan is null)
         {
             panSvg_ = string.Empty;
-            basePath_ = string.Empty;
+            svgPath_ = string.Empty;
             return;
         }
 
-        basePath_ = $"images/pans/{Pan.PanType.ToKebabCase()}";
+        svgPath_ = $"images/{Pan.PanType.ToKebabCase()}.svg";
 
         await JS.InvokeVoidAsync(
             "steelPan.preloadNotes",
             (object)Pan.Notes.Select(n => n.ToString()).Distinct().ToArray());
 
-
         await SvgService.PrebuildNoteFragmentsAsync(
-            $"{basePath_}/base.svg",
+            svgPath_,
             Pan.Notes);
 
         await RebuildSvgAsync();
@@ -83,97 +74,67 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (selfRef_ is null)
-            return;
-
-        if (firstRender)
+        if (firstRender && selfRef_ is not null)
         {
             await JS.InvokeVoidAsync("steelPan.register", componentId_, selfRef_);
         }
-
-        await JS.InvokeVoidAsync("steelPan.setClickType", componentId_, clickType_.ToString());
     }
 
     private async Task RebuildSvgAsync()
     {
-        if (Pan is null || string.IsNullOrWhiteSpace(basePath_))
+        if (Pan is null || string.IsNullOrWhiteSpace(svgPath_))
         {
             panSvg_ = string.Empty;
             return;
         }
 
         panSvg_ = await SvgService.BuildPanSvgAsync(
-            $"{basePath_}/base.svg",
+            svgPath_,
             componentId_,
             Pan.Notes);
     }
 
-    private async Task OnClickTypeChanged(ChangeEventArgs e)
-    {
-        if (!Enum.TryParse<ClickType>(e.Value?.ToString(), out var newClickType))
-            return;
-
-        if (newClickType == clickType_)
-            return;
-
-        clickType_ = newClickType;
-
-        if (clickType_ == ClickType.Hold && Pan is not null)
-        {
-            foreach (var note in Pan.Notes)
-            {
-                note.Active = false;
-            }
-
-            await RebuildSvgAsync();
-        }
-
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task PlaySelectedNotesAsync()
-    {
-        if (Pan is null || clickType_ != ClickType.Toggle)
-            return;
-
-        var selectedNotes = Pan.Notes
-            .Where(n => n.Active)
-            .Select(n => n.ToString())
-            .Distinct()
-            .ToArray();
-
-        if (selectedNotes.Length == 0)
-            return;
-
-        await JS.InvokeVoidAsync("steelPan.playNotes", (object)selectedNotes);
-    }
-
     [JSInvokable]
-    public async Task ActivateNote(string noteKey)
+    public async Task HandleNoteInteraction(string noteKey, bool shiftKey)
     {
         if (Pan is null)
             return;
 
         var note = Pan.Notes.FirstOrDefault(n => n.ToString() == noteKey);
-        if (note is null || note.Active)
+        if (note is null)
             return;
 
-        note.Active = true;
+        if (note.Active)
+        {
+            note.Active = false;
+            await RebuildSvgAsync();
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (shiftKey)
+        {
+            note.Active = true;
+            await RebuildSvgAsync();
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        await JS.InvokeVoidAsync("steelPan.playNote", noteKey);
         await RebuildSvgAsync();
         await InvokeAsync(StateHasChanged);
     }
 
-    [JSInvokable]
-    public async Task DeactivateNote(string noteKey)
+    private async Task SelectChordAsync(HashSet<int> pitchClasses)
     {
         if (Pan is null)
             return;
 
-        var note = Pan.Notes.FirstOrDefault(n => n.ToString() == noteKey);
-        if (note is null || !note.Active)
-            return;
+        foreach (var note in Pan.Notes)
+        {
+            note.Active = pitchClasses.Contains(note.Note.PitchClass);
+        }
 
-        note.Active = false;
         await RebuildSvgAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -189,5 +150,22 @@
         }
 
         selfRef_?.Dispose();
+    }
+
+    private async Task PlaySelectedNotesAsync()
+    {
+        if (Pan is null)
+            return;
+
+        var activeNoteKeys = Pan.Notes
+            .Where(n => n.Active)
+            .Select(n => n.ToString())
+            .Distinct()
+            .ToArray();
+
+        if (activeNoteKeys.Length == 0)
+            return;
+
+        await JS.InvokeVoidAsync("steelPan.playNotes", (object)activeNoteKeys);
     }
 }

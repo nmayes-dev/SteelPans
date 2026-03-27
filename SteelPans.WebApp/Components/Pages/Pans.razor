@@ -22,7 +22,7 @@ else
             <option value="-1">@PanType.None</option>
             @for (var i = 0; i < _pans.Count; i++)
             {
-                <option value="@i">@_pans[i].PanType</option>
+                <option value="@i">@_pans[i].PanType.ToSpacedPascal()</option>
             }
         </select>
     </div>

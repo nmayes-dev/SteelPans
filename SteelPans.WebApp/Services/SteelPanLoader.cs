@@ -1,8 +1,8 @@
 ﻿namespace SteelPans.WebApp.Services;
 
+using SteelPans.WebApp.Model;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using SteelPans.WebApp.Model;
 
 public sealed class SteelPanLoader
 {
@@ -19,6 +19,11 @@ public sealed class SteelPanLoader
         };
         _options.Converters.Add(new JsonStringEnumConverter());
     }
+    public class SteelPanDto
+    {
+        public PanType PanType { get; set; }
+        public List<Note> Notes { get; set; } = new();
+    }
 
     public async Task<List<SteelPan>> LoadAsync(string path = "data/pans.json")
     {
@@ -28,7 +33,16 @@ public sealed class SteelPanLoader
             throw new FileNotFoundException(fullPath);
 
         var json = await File.ReadAllTextAsync(fullPath);
-        return JsonSerializer.Deserialize<List<SteelPan>>(json, _options)
+
+        var pansDto = JsonSerializer.Deserialize<List<SteelPanDto>>(json, _options)
                ?? throw new InvalidOperationException("Invalid JSON");
+
+        return pansDto
+            .Select(p => new SteelPan
+            {
+                PanType = p.PanType,
+                Notes = p.Notes.Select(n => new PanNote { Note = n }).ToList()
+            })
+            .ToList();
     }
 }

@@ -23,7 +23,7 @@ public sealed class SteelPanSvgService
 
     public async Task PrebuildNoteFragmentsAsync(
         string relativePath,
-        IEnumerable<Note> notes)
+        IEnumerable<PanNote> notes)
     {
         var masterSvg = await GetMasterSvgAsync(relativePath);
         if (string.IsNullOrWhiteSpace(masterSvg))
@@ -47,7 +47,7 @@ public sealed class SteelPanSvgService
     public async Task<string> BuildPanSvgAsync(
         string relativePath,
         string componentId,
-        IEnumerable<Note> notes)
+        IEnumerable<PanNote> notes)
     {
         var masterSvg = await GetMasterSvgAsync(relativePath);
         if (string.IsNullOrWhiteSpace(masterSvg))
@@ -70,7 +70,7 @@ public sealed class SteelPanSvgService
             if (string.IsNullOrWhiteSpace(template))
                 continue;
 
-            var fragment = BindNoteFragmentToComponent(template, componentId, note.ToString(), note.Active);
+            var fragment = BindNoteFragmentToComponent(template, componentId, note.ToString());
             noteMarkup.Append(fragment);
         }
 
@@ -203,8 +203,8 @@ public sealed class SteelPanSvgService
     {
         var noteId = $"note-{noteKey}";
         var stateClass = isActive
-            ? "steel-pan__note-shape--on"
-            : "steel-pan__note-shape--off";
+            ? "sp-note--active"
+            : "sp-note--inactive";
 
         var pattern =
             $@"<(path|rect|ellipse|circle|polygon|polyline)\b([^>]*\bid\s*=\s*[""']{Regex.Escape(noteId)}[""'][^>]*?)(\s*/?)>";
@@ -231,12 +231,16 @@ public sealed class SteelPanSvgService
                     .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
                     .Where(c =>
                         !string.Equals(c, "st0", StringComparison.Ordinal) &&
-                        !c.StartsWith("steel-pan__note-shape--", StringComparison.Ordinal))
+                        !string.Equals(c, "sp-note", StringComparison.Ordinal) &&
+                        !string.Equals(c, "sp-note--active", StringComparison.Ordinal) &&
+                        !string.Equals(c, "sp-note--inactive", StringComparison.Ordinal) &&
+                        !string.Equals(c, "sp-note--flash", StringComparison.Ordinal) &&
+                        !string.Equals(c, "sp-note--label", StringComparison.Ordinal) &&
+                        !c.StartsWith("steel-pan__note-shape--", StringComparison.Ordinal) &&
+                        !string.Equals(c, "steel-pan__note-shape", StringComparison.Ordinal))
                     .ToList();
 
-                if (!classes.Contains("steel-pan__note-shape"))
-                    classes.Add("steel-pan__note-shape");
-
+                classes.Add("sp-note");
                 classes.Add(stateClass);
 
                 return $""" class="{string.Join(" ", classes.Distinct())}" """;
@@ -245,10 +249,9 @@ public sealed class SteelPanSvgService
 
         if (!Regex.IsMatch(attrs, @"\sclass\s*=", RegexOptions.IgnoreCase))
         {
-            attrs += $""" class="steel-pan__note-shape {stateClass}" """;
+            attrs += $""" class="sp-note {stateClass}" """;
         }
 
-        attrs = Regex.Replace(attrs, @"\sdata-note\s*=\s*[""'][^""']*[""']", "", RegexOptions.IgnoreCase);
         attrs = Regex.Replace(attrs, @"\sonclick\s*=\s*[""'][^""']*[""']", "", RegexOptions.IgnoreCase);
         attrs = Regex.Replace(attrs, @"\sfill\s*=\s*[""'][^""']*[""']", "", RegexOptions.IgnoreCase);
         attrs = Regex.Replace(attrs, @"\sstroke\s*=\s*[""'][^""']*[""']", "", RegexOptions.IgnoreCase);
@@ -278,9 +281,8 @@ public sealed class SteelPanSvgService
             attrs += """ style="cursor:pointer;" """;
         }
 
-        var fill = isActive ? "#e2201c" : "#ffffff";
-        attrs += $""" fill="{fill}" stroke="#000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" """;
-        attrs += """ data-note="__NOTE_KEY__" onclick="__TOGGLE_CLICK__" onpointerdown="__HOLD_START__" """;
+        attrs += """ fill="currentColor" stroke="#000" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" """;
+        attrs += """ data-note="__NOTE_KEY__" onclick="__NOTE_CLICK__" """;
 
         return $"""<{tagName}{attrs}{closing}>""";
     }
@@ -288,21 +290,14 @@ public sealed class SteelPanSvgService
     private static string BindNoteFragmentToComponent(
         string template,
         string componentId,
-        string noteKey,
-        bool isActive)
+        string noteKey)
     {
-        var toggleAction = isActive ? "deactivate" : "activate";
-
-        var toggleClick =
-            $"window.steelPanToggleClick('{EscapeJs(componentId)}','{EscapeJs(toggleAction)}','{EscapeJs(noteKey)}',event)";
-
-        var holdStart =
-            $"window.steelPanHoldStart('{EscapeJs(componentId)}','{EscapeJs(noteKey)}',event)";
+        var noteClick =
+            $"window.steelPanNoteClick(this,'{EscapeJs(componentId)}','{EscapeJs(noteKey)}',event)";
 
         return template
             .Replace("__NOTE_KEY__", EscapeAttribute(noteKey), StringComparison.Ordinal)
-            .Replace("__TOGGLE_CLICK__", EscapeAttribute(toggleClick), StringComparison.Ordinal)
-            .Replace("__HOLD_START__", EscapeAttribute(holdStart), StringComparison.Ordinal);
+            .Replace("__NOTE_CLICK__", EscapeAttribute(noteClick), StringComparison.Ordinal);
     }
 
     private static string MoveLabelsToEnd(string svg, HashSet<string> activeNotes)
@@ -328,11 +323,7 @@ public sealed class SteelPanSvgService
             m =>
             {
                 var noteKey = m.Groups[1].Value;
-                var content = m.Value;
-
-                if (activeNotes.Contains(noteKey))
-                    content = ForceLabelWhite(content);
-
+                var content = RewriteLabelMarkup(m.Value, activeNotes.Contains(noteKey));
                 extracted.Add(content);
                 return string.Empty;
             },
@@ -341,15 +332,11 @@ public sealed class SteelPanSvgService
 
         body = Regex.Replace(
             body,
-            @"<(path|rect|ellipse|circle|polygon|polyline)\b[^>]*\bid\s*=\s*[""']label-([^""']+)[""'][^>]*/?>",
+            @"<(path|rect|ellipse|circle|polygon|polyline|text|tspan)\b[^>]*\bid\s*=\s*[""']label-([^""']+)[""'][^>]*/?>",
             m =>
             {
                 var noteKey = m.Groups[2].Value;
-                var content = m.Value;
-
-                if (activeNotes.Contains(noteKey))
-                    content = ForceLabelWhite(content);
-
+                var content = RewriteLabelMarkup(m.Value, activeNotes.Contains(noteKey));
                 extracted.Add(content);
                 return string.Empty;
             },
@@ -360,6 +347,52 @@ public sealed class SteelPanSvgService
             return svg;
 
         return open + body + string.Join("", extracted) + close;
+    }
+
+    private static string RewriteLabelMarkup(string svg, bool isActive)
+    {
+        svg = Regex.Replace(
+            svg,
+            @"\sclass\s*=\s*[""']([^""']*)[""']",
+            m =>
+            {
+                var classes = m.Groups[1].Value
+                    .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Where(c =>
+                        !string.Equals(c, "sp-note--label", StringComparison.Ordinal))
+                    .ToList();
+
+                classes.Add("sp-note--label");
+
+                return $""" class="{string.Join(" ", classes.Distinct())}" """;
+            },
+            RegexOptions.IgnoreCase);
+
+        if (!Regex.IsMatch(svg, @"\sclass\s*=", RegexOptions.IgnoreCase))
+        {
+            svg = Regex.Replace(
+                svg,
+                @"^<([a-zA-Z][\w:-]*)\b",
+                m => $"""<{m.Groups[1].Value} class="sp-note--label""",
+                RegexOptions.IgnoreCase);
+        }
+
+        svg = Regex.Replace(
+            svg,
+            @"\sfill\s*=\s*[""'][^""']*[""']",
+            "",
+            RegexOptions.IgnoreCase);
+
+        if (isActive)
+        {
+            svg = Regex.Replace(
+                svg,
+                @"<(path|text|tspan|circle|ellipse|polygon|polyline|rect)\b",
+                m => $"{m.Value} fill=\"#ffffff\"",
+                RegexOptions.IgnoreCase);
+        }
+
+        return svg;
     }
 
     private static string EscapeJs(string value)
@@ -374,22 +407,5 @@ public sealed class SteelPanSvgService
         return value
             .Replace("&", "&amp;")
             .Replace("\"", "&quot;");
-    }
-
-    private static string ForceLabelWhite(string svg)
-    {
-        // Remove existing fill
-        svg = Regex.Replace(
-            svg,
-            @"\sfill\s*=\s*[""'][^""']*[""']",
-            "",
-            RegexOptions.IgnoreCase);
-
-        // Inject fill="white" into all drawable elements
-        return Regex.Replace(
-            svg,
-            @"<(path|text|tspan|circle|ellipse|polygon|polyline)\b",
-            m => $"{m.Value} fill=\"#ffffff\"",
-            RegexOptions.IgnoreCase);
     }
 }
