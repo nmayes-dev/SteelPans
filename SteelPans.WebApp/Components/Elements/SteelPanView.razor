@@ -1,20 +1,24 @@
 ﻿@inject SteelPanSvgService SvgService
 @inject IJSRuntime JS
-@implements IDisposable
+@implements IAsyncDisposable
 
-@if (Pan is null)
+@if (Pan is not null)
 {
-    <div class="steel-pan steel-pan--empty">
-        No pan loaded.
-    </div>
-}
-else
-{
-    <div class="mb-3">
-        <select id="pan-select" class="form-select" @bind="clickType_">
+    <div class="steel-pan__controls mb-3">
+        <select id="pan-select"
+                class="form-select"
+                value="@clickType_"
+                @onchange="OnClickTypeChanged">
             <option value="@ClickType.Toggle">@ClickType.Toggle</option>
             <option value="@ClickType.Hold">@ClickType.Hold</option>
         </select>
+
+        <button class="btn btn-primary"
+                type="button"
+                @onclick="PlaySelectedNotesAsync"
+                disabled="@(!CanPlaySelectedNotes)">
+            Play
+        </button>
     </div>
 
     <div class="steel-pan @Class" style="@Style">
@@ -43,7 +47,11 @@ else
         Hold,
     }
 
-    private ClickType clickType_ = ClickType.Toggle;
+    private ClickType clickType_ = ClickType.Hold;
+
+    private bool CanPlaySelectedNotes =>
+        clickType_ == ClickType.Toggle &&
+        Pan?.Notes.Any(n => n.Active) == true;
 
     protected override void OnInitialized()
     {
@@ -61,6 +69,11 @@ else
 
         basePath_ = $"images/pans/{Pan.PanType.ToKebabCase()}";
 
+        await JS.InvokeVoidAsync(
+            "steelPan.preloadNotes",
+            (object)Pan.Notes.Select(n => n.ToString()).Distinct().ToArray());
+
+
         await SvgService.PrebuildNoteFragmentsAsync(
             $"{basePath_}/base.svg",
             Pan.Notes);
@@ -74,7 +87,9 @@ else
             return;
 
         if (firstRender)
+        {
             await JS.InvokeVoidAsync("steelPan.register", componentId_, selfRef_);
+        }
 
         await JS.InvokeVoidAsync("steelPan.setClickType", componentId_, clickType_.ToString());
     }
@@ -91,6 +106,46 @@ else
             $"{basePath_}/base.svg",
             componentId_,
             Pan.Notes);
+    }
+
+    private async Task OnClickTypeChanged(ChangeEventArgs e)
+    {
+        if (!Enum.TryParse<ClickType>(e.Value?.ToString(), out var newClickType))
+            return;
+
+        if (newClickType == clickType_)
+            return;
+
+        clickType_ = newClickType;
+
+        if (clickType_ == ClickType.Hold && Pan is not null)
+        {
+            foreach (var note in Pan.Notes)
+            {
+                note.Active = false;
+            }
+
+            await RebuildSvgAsync();
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task PlaySelectedNotesAsync()
+    {
+        if (Pan is null || clickType_ != ClickType.Toggle)
+            return;
+
+        var selectedNotes = Pan.Notes
+            .Where(n => n.Active)
+            .Select(n => n.ToString())
+            .Distinct()
+            .ToArray();
+
+        if (selectedNotes.Length == 0)
+            return;
+
+        await JS.InvokeVoidAsync("steelPan.playNotes", (object)selectedNotes);
     }
 
     [JSInvokable]
@@ -123,8 +178,16 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
+        try
+        {
+            await JS.InvokeVoidAsync("steelPan.unregister", componentId_);
+        }
+        catch
+        {
+        }
+
         selfRef_?.Dispose();
     }
 }

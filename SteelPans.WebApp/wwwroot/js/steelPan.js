@@ -56,12 +56,21 @@
         const instance = audio.cloneNode();
         instance.currentTime = 0;
         instance.play().catch(() => {
-            // Ignore playback errors such as missing files or browser gesture issues.
         });
     },
 
+    playNotes: function (noteKeys) {
+        if (!Array.isArray(noteKeys))
+            return;
+
+        for (const noteKey of noteKeys) {
+            this.playNote(noteKey);
+        }
+    },
+
     _getSamplePath: function (noteKey) {
-        return `/samples/${noteKey}.wav`;
+        const normalized = this._normalizeEnharmonic(noteKey);
+        return `/samples/${encodeURIComponent(normalized)}.wav`;
     },
 
     _handleGlobalPointerUp: function () {
@@ -78,7 +87,41 @@
 
             held.clear();
         }
-    }
+    },
+    _normalizeEnharmonic: function (noteKey) {
+        // Match: note + accidental + octave (e.g. Eb4, C#3, B3)
+        const match = /^([A-G])([#b]?)(\d+)$/.exec(noteKey);
+        if (!match)
+            return noteKey;
+
+        let [, note, accidental, octave] = match;
+
+        // Convert flats to sharps (since your samples are A/C/D#/F# etc)
+        if (accidental === "b") {
+            const flatToSharp = {
+                "Ab": "G#",
+                "Bb": "A#",
+                "Cb": "B",
+                "Db": "C#",
+                "Eb": "D#",
+                "Fb": "E",
+                "Gb": "F#"
+            };
+
+            const key = note + "b";
+            if (flatToSharp[key])
+                return flatToSharp[key] + octave;
+        }
+
+        // Optional: normalize edge cases (E#, B#)
+        if (accidental === "#") {
+            if (note === "E") return "F" + octave;
+            if (note === "B") return "C" + (parseInt(octave) + 1);
+        }
+
+        // Optional: normalize Cb/Fb already handled above
+        return note + accidental + octave;
+    },
 };
 
 window.steelPanToggleClick = function (componentId, action, noteKey, event) {
@@ -115,5 +158,6 @@ window.steelPanHoldStart = function (componentId, noteKey, event) {
         return;
 
     held.add(noteKey);
+    window.steelPan.playNote(noteKey);
     ref.invokeMethodAsync("ActivateNote", noteKey);
 };

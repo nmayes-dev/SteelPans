@@ -23,3 +23,14 @@
 .steel-pan__note-label {
     pointer-events: none;
 }
+
+.steel-pan__controls {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+    .steel-pan__controls .form-select {
+        max-width: 220px;
+    }
