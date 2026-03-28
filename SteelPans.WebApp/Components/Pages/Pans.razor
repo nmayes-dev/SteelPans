@@ -45,9 +45,20 @@
                 <div class="pans-page__midi">
                     <div class="steel-pan__midi-controls">
                         <div class="steel-pan__midi-row">
-                            <InputFile class="form-control steel-pan__midi-input"
-                                       OnChange="OnMidiSelected"
-                                       accept=".mid,.midi" />
+                            <div class="steel-pan__midi-file-picker">
+                                <InputFile id="midi-file"
+                                           class="steel-pan__midi-file-input"
+                                           OnChange="OnMidiSelected"
+                                           accept=".mid,.midi" />
+
+                                <label for="midi-file" class="steel-pan__midi-file-button">
+                                    Browse
+                                </label>
+
+                                <div class="steel-pan__midi-file-name @(string.IsNullOrWhiteSpace(midiFileName_) ? "steel-pan__midi-file-name--placeholder" : null)">
+                                    @(midiFileName_ ?? "No file selected")
+                                </div>
+                            </div>
 
                             @if (midiTracks_.Count > 0)
                             {
@@ -98,13 +109,14 @@
 
             <aside class="pans-page__sidebar">
                 <Metronome IsPlaying="@isMidiPlaying_"
-                           Bpm="@(midiBpmOverride_ ?? metronomeBpm_)"
+                           Bpm="@metronomeBpm_"
                            BpmChanged="OnMetronomeBpmChanged"
                            BeatsPerBar="@metronomeBeatsPerBar_"
+                           BeatsPerBarChanged="OnMetronomeBeatsPerBarChanged"
                            BeatUnit="@metronomeBeatUnit_"
+                           BeatUnitChanged="OnMetronomeBeatUnitChanged"
                            Enabled="@metronomeEnabled_"
-                           EnabledChanged="@(value => metronomeEnabled_ = value)"
-                           DisableBpmEditing="@(isMidiPlaying_ || selectedTrackInfo_ is null)" />
+                           EnabledChanged="OnMetronomeEnabledChanged" />
             </aside>
         </div>
     }
@@ -139,10 +151,10 @@
             ? pans_[selectedPanIndex_]
             : null;
 
-    private MidiTrackInfo? selectedTrackInfo_ =>
-        selectedTrackIndex_ is null
-            ? null
-            : midiTracks_.FirstOrDefault(t => t.Index == selectedTrackIndex_.Value);
+    private int EffectiveMidiBpm =>
+        midiBpmOverride_
+            ?? midiPlaybackInfo_?.InitialBpm
+            ?? metronomeBpm_;
 
     private sealed class MidiMetronomeChange
     {
@@ -168,6 +180,9 @@
 
     private async Task OnMidiSelected(InputFileChangeEventArgs e)
     {
+        if (e.FileCount == 0)
+            return;
+
         await StopMidiAsync();
 
         midiFile_ = e.File;
@@ -177,6 +192,7 @@
         midiEvents_.Clear();
         selectedTrackIndex_ = null;
         midiPlaybackInfo_ = null;
+        midiBpmOverride_ = null;
 
         await using (var trackInfoStream = midiFile_.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024))
         {
@@ -272,7 +288,7 @@
 
         if (midiPlaybackInfo_ is not null)
         {
-            metronomeBpm_ = midiBpmOverride_ ?? midiPlaybackInfo_.InitialBpm;
+            metronomeBpm_ = EffectiveMidiBpm;
             metronomeBeatsPerBar_ = midiPlaybackInfo_.InitialBeatsPerBar;
             metronomeBeatUnit_ = midiPlaybackInfo_.InitialBeatUnit;
         }
@@ -328,11 +344,11 @@
 
     private IReadOnlyList<MidiPanEvent> GetPlaybackEvents()
     {
-        if (midiPlaybackInfo_ is null || midiBpmOverride_ is null)
+        if (midiPlaybackInfo_ is null)
             return midiEvents_;
 
         var sourceBpm = midiPlaybackInfo_.InitialBpm;
-        var targetBpm = midiBpmOverride_.Value;
+        var targetBpm = EffectiveMidiBpm;
 
         if (sourceBpm <= 0 || targetBpm <= 0 || sourceBpm == targetBpm)
             return midiEvents_;
@@ -352,13 +368,17 @@
     private async Task SyncMetronomeToMidiAsync(MidiPlaybackInfo playbackInfo, CancellationToken cancellationToken)
     {
         var changes = BuildMetronomeChanges(playbackInfo);
+        var previousTime = TimeSpan.Zero;
 
         foreach (var change in changes)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (change.Time > TimeSpan.Zero)
-                await Task.Delay(change.Time, cancellationToken);
+            var delay = change.Time - previousTime;
+            if (delay > TimeSpan.Zero)
+                await Task.Delay(delay, cancellationToken);
+
+            previousTime = change.Time;
 
             if (change.Bpm.HasValue)
                 metronomeBpm_ = change.Bpm.Value;
@@ -377,13 +397,16 @@
     {
         var changes = new List<MidiMetronomeChange>();
 
-        foreach (var tempo in playbackInfo.TempoChanges)
+        if (midiBpmOverride_ is null)
         {
-            changes.Add(new MidiMetronomeChange
+            foreach (var tempo in playbackInfo.TempoChanges)
             {
-                Time = tempo.Time,
-                Bpm = tempo.Bpm,
-            });
+                changes.Add(new MidiMetronomeChange
+                {
+                    Time = tempo.Time,
+                    Bpm = tempo.Bpm,
+                });
+            }
         }
 
         foreach (var ts in playbackInfo.TimeSignatureChanges)
@@ -403,11 +426,29 @@
 
     private Task OnMetronomeBpmChanged(int bpm)
     {
-        if (midiPlaybackInfo_ is null || !isMidiPlaying_)
+        metronomeBpm_ = bpm;
+
+        if (!isMidiPlaying_ && midiPlaybackInfo_ is not null)
             midiBpmOverride_ = bpm;
 
-        metronomeBpm_ = bpm;
-        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private Task OnMetronomeBeatsPerBarChanged(int beatsPerBar)
+    {
+        metronomeBeatsPerBar_ = beatsPerBar;
+        return Task.CompletedTask;
+    }
+
+    private Task OnMetronomeBeatUnitChanged(int beatUnit)
+    {
+        metronomeBeatUnit_ = beatUnit;
+        return Task.CompletedTask;
+    }
+
+    private Task OnMetronomeEnabledChanged(bool enabled)
+    {
+        metronomeEnabled_ = enabled;
         return Task.CompletedTask;
     }
 }

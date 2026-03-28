@@ -3,41 +3,103 @@
 
 <div class="metronome">
     <div class="metronome__header">
-        <div class="metronome__status">
-            <span class="badge @(IsPlaying && Enabled ? "text-bg-success" : "text-bg-secondary")">
-                @(IsPlaying && Enabled ? "Metronome On" : "Metronome Off")
-            </span>
-            <span class="metronome__status-text">Beat @displayBeat_ / @BeatsPerBar</span>
-        </div>
-
-        <button class="btn btn-outline-primary"
+        <button class="metronome__status-toggle"
                 type="button"
                 @onclick="ToggleEnabledAsync">
-            @(Enabled ? "Disable" : "Enable")
+            <span class="badge @MetronomeStatusClass">
+                <span class="metronome__status-label">@MetronomeStatusText</span>
+            </span>
         </button>
+
+        <div class="metronome__header-actions">
+            <button class="btn btn-outline-secondary metronome__toggle"
+                    type="button"
+                    @onclick="ToggleManualPlayAsync"
+                    disabled="@(IsPlaying || !Enabled)">
+                @(isManualPlaying_ ? "Stop" : "Play")
+            </button>
+        </div>
     </div>
 
-    <div class="metronome__controls">
+    <div class="metronome__inputs">
         <div class="metronome__field">
             <label class="form-label" for="@($"{componentId_}_bpm")">BPM</label>
-            <input id="@($"{componentId_}_bpm")"
-                   class="form-control metronome__bpm-input"
-                   type="number"
-                   min="20"
-                   max="300"
-                   step="1"
-                   value="@Bpm"
-                   @onchange="OnBpmChanged"
-                   disabled="@DisableBpmEditing" />
+
+            <div class="metronome__number-input @(IsPlaying ? "metronome__number-input--disabled" : null)">
+                <input id="@($"{componentId_}_bpm")"
+                       class="form-control metronome__bpm-input metronome__number-input-control"
+                       type="number"
+                       min="20"
+                       max="300"
+                       step="1"
+                       value="@Bpm"
+                       @onchange="OnBpmChanged"
+                       disabled="@IsPlaying" />
+
+                <div class="metronome__number-buttons">
+                    <button class="metronome__number-button metronome__number-button--up"
+                            type="button"
+                            @onclick="IncrementBpmAsync"
+                            disabled="@IsPlaying"
+                            tabindex="-1"
+                            aria-label="Increase BPM"></button>
+
+                    <button class="metronome__number-button metronome__number-button--down"
+                            type="button"
+                            @onclick="DecrementBpmAsync"
+                            disabled="@IsPlaying"
+                            tabindex="-1"
+                            aria-label="Decrease BPM"></button>
+                </div>
+            </div>
         </div>
 
         <div class="metronome__field">
-            <label class="form-label" for="@($"{componentId_}_timeSignature")">Time Signature</label>
-            <input id="@($"{componentId_}_timeSignature")"
-                   class="form-control metronome__time-signature-input"
-                   type="text"
-                   value="@($"{BeatsPerBar}/{BeatUnit}")"
-                   disabled="@true" />
+            <label class="form-label" for="@($"{componentId_}_beatsPerBar")">Beats / Bar</label>
+
+            <div class="metronome__number-input @(IsPlaying ? "metronome__number-input--disabled" : null)">
+                <input id="@($"{componentId_}_beatsPerBar")"
+                       class="form-control metronome__time-signature-input metronome__number-input-control"
+                       type="number"
+                       min="1"
+                       max="32"
+                       step="1"
+                       value="@BeatsPerBar"
+                       @onchange="OnBeatsPerBarChanged"
+                       disabled="@IsPlaying" />
+
+                <div class="metronome__number-buttons">
+                    <button class="metronome__number-button metronome__number-button--up"
+                            type="button"
+                            @onclick="IncrementBeatsPerBarAsync"
+                            disabled="@IsPlaying"
+                            tabindex="-1"
+                            aria-label="Increase beats per bar" />
+
+                    <button class="metronome__number-button metronome__number-button--down"
+                            type="button"
+                            @onclick="DecrementBeatsPerBarAsync"
+                            disabled="@IsPlaying"
+                            tabindex="-1"
+                            aria-label="Decrease beats per bar" />
+                </div>
+            </div>
+        </div>
+
+        <div class="metronome__field">
+            <label class="form-label" for="@($"{componentId_}_beatUnit")">Beat Unit</label>
+            <select id="@($"{componentId_}_beatUnit")"
+                    class="form-select metronome__time-signature-input"
+                    value="@BeatUnit"
+                    @onchange="OnBeatUnitChanged"
+                    disabled="@IsPlaying">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="4">4</option>
+                <option value="8">8</option>
+                <option value="16">16</option>
+                <option value="32">32</option>
+            </select>
         </div>
     </div>
 
@@ -46,9 +108,18 @@
             <div class="metronome__arm-pivot"></div>
 
             <div class="metronome__arm-wrap">
-                <div class="metronome__arm @(swingLeft_ ? "metronome__arm--left" : "metronome__arm--right")">
+                <div class="metronome__arm @ArmCssClass">
                     <div class="metronome__arm-stick"></div>
-                    <div class="metronome__arm-weight"></div>
+
+                    <div class="metronome__arm-weight-track" @ref="weightTrackRef_">
+                        <button class="metronome__arm-weight @(CanDragWeight ? "metronome__arm-weight--draggable" : "metronome__arm-weight--locked")"
+                                type="button"
+                                style="@($"top: {WeightTopPx:F1}px;")"
+                                @onpointerdown="BeginWeightDragAsync"
+                                disabled="@(!CanDragWeight)"
+                                tabindex="-1"
+                                aria-label="Drag to adjust BPM"></button>
+                    </div>
                 </div>
             </div>
 
@@ -82,7 +153,13 @@
     public int BeatsPerBar { get; set; } = 4;
 
     [Parameter]
+    public EventCallback<int> BeatsPerBarChanged { get; set; }
+
+    [Parameter]
     public int BeatUnit { get; set; } = 4;
+
+    [Parameter]
+    public EventCallback<int> BeatUnitChanged { get; set; }
 
     [Parameter]
     public bool Enabled { get; set; } = true;
@@ -90,38 +167,131 @@
     [Parameter]
     public EventCallback<bool> EnabledChanged { get; set; }
 
-    [Parameter]
-    public bool DisableBpmEditing { get; set; }
+    private const int MinBpm = 20;
+    private const int MaxBpm = 200;
+
+    private const double WeightMinTopPx = 0.0;
+    private const double WeightMaxTopPx = 146.0;
+    private const double WeightHeightPx = 21.0;
+
+    private const double LargoTopPx = 14.0;
+    private const double AndanteTopPx = 64.0;
+    private const double AllegroTopPx = 116.0;
+
+    private const int LargoBpm = 52;
+    private const int AndanteBpm = 92;
+    private const int AllegroBpm = 144;
 
     private readonly string componentId_ = $"metronome_{Guid.NewGuid():N}";
     private CancellationTokenSource? loopCts_;
+    private DotNetObjectReference<Metronome>? selfRef_;
+    private ElementReference weightTrackRef_;
+
     private int beatIndex_;
     private int displayBeat_ = 1;
-    private bool previousIsPlaying_;
+    private bool previousMidiIsPlaying_;
 
+    private bool isManualPlaying_;
     private bool swingLeft_ = true;
     private bool tickFlash_;
     private bool accentFlash_;
+
+    private bool jsAvailable_;
+
+    private string MetronomeStatusText =>
+    !Enabled
+        ? "Disabled"
+        : EffectiveIsPlaying
+            ? "On"
+            : "Off";
+
+    private string MetronomeStatusClass =>
+        !Enabled
+            ? "text-bg-secondary"
+            : EffectiveIsPlaying
+                ? "text-bg-success"
+                : "text-bg-secondary";
+
+    private bool EffectiveIsPlaying => IsPlaying || isManualPlaying_;
+    private bool CanDragWeight => Enabled && !IsPlaying;
+    private string ArmCssClass => Enabled && EffectiveIsPlaying
+        ? (swingLeft_ ? "metronome__arm--left" : "metronome__arm--right")
+        : "metronome__arm--center";
+
+    private double WeightTopPx => GetWeightTopPx(Bpm);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            selfRef_ = DotNetObjectReference.Create(this);
+            jsAvailable_ = true;
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
 
     protected override async Task OnParametersSetAsync()
     {
         if (!Enabled)
         {
             await StopLoopAsync();
-            previousIsPlaying_ = IsPlaying;
+            previousMidiIsPlaying_ = IsPlaying;
             return;
         }
 
-        if (IsPlaying && !previousIsPlaying_)
+        var wasEffectivelyPlaying = previousMidiIsPlaying_ || isManualPlaying_;
+        var isEffectivelyPlaying = EffectiveIsPlaying;
+
+        if (isEffectivelyPlaying && !wasEffectivelyPlaying)
         {
             await StartLoopAsync();
         }
-        else if (!IsPlaying && previousIsPlaying_)
+        else if (!isEffectivelyPlaying && wasEffectivelyPlaying)
         {
             await StopLoopAsync();
         }
+        else if (IsPlaying && !previousMidiIsPlaying_ && isManualPlaying_)
+        {
+            isManualPlaying_ = false;
+            await RestartLoopAsync();
+        }
 
-        previousIsPlaying_ = IsPlaying;
+        previousMidiIsPlaying_ = IsPlaying;
+    }
+
+    private async Task BeginWeightDragAsync(PointerEventArgs e)
+    {
+        if (!CanDragWeight || selfRef_ is null)
+            return;
+
+        await JS.InvokeVoidAsync("steelPan.beginMetronomeWeightDrag", weightTrackRef_, selfRef_, e.ClientY);
+    }
+
+    [JSInvokable]
+    public async Task OnMetronomeWeightDragged(double localPointerY)
+    {
+        if (!CanDragWeight)
+            return;
+
+        var bpm = GetBpmFromPointerY(localPointerY);
+        await SetBpmAsync(bpm);
+    }
+
+    private async Task ToggleManualPlayAsync()
+    {
+        if (IsPlaying)
+            return;
+
+        isManualPlaying_ = !isManualPlaying_;
+
+        if (!Enabled)
+            return;
+
+        if (isManualPlaying_)
+            await StartLoopAsync();
+        else
+            await StopLoopAsync();
     }
 
     private async Task ToggleEnabledAsync()
@@ -130,17 +300,41 @@
         await EnabledChanged.InvokeAsync(Enabled);
 
         if (!Enabled)
+        {
+            isManualPlaying_ = false;
             await StopLoopAsync();
-        else if (IsPlaying)
+            return;
+        }
+
+        if (EffectiveIsPlaying)
             await StartLoopAsync();
+        else
+            await InvokeAsync(StateHasChanged);
     }
 
-    private async Task OnBpmChanged(ChangeEventArgs e)
+    private async Task IncrementBpmAsync()
     {
-        if (!int.TryParse(e.Value?.ToString(), out var bpm))
-            return;
+        await SetBpmAsync(Bpm + 1);
+    }
 
-        bpm = Math.Clamp(bpm, 20, 300);
+    private async Task DecrementBpmAsync()
+    {
+        await SetBpmAsync(Bpm - 1);
+    }
+
+    private async Task IncrementBeatsPerBarAsync()
+    {
+        await SetBeatsPerBarAsync(BeatsPerBar + 1);
+    }
+
+    private async Task DecrementBeatsPerBarAsync()
+    {
+        await SetBeatsPerBarAsync(BeatsPerBar - 1);
+    }
+
+    private async Task SetBpmAsync(int bpm)
+    {
+        bpm = Math.Clamp(bpm, MinBpm, MaxBpm);
 
         if (Bpm == bpm)
             return;
@@ -148,8 +342,67 @@
         Bpm = bpm;
         await BpmChanged.InvokeAsync(Bpm);
 
-        if (Enabled && IsPlaying)
+        if (Enabled && EffectiveIsPlaying)
             await RestartLoopAsync();
+        else
+            await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SetBeatsPerBarAsync(int beatsPerBar)
+    {
+        beatsPerBar = Math.Clamp(beatsPerBar, 1, 32);
+
+        if (BeatsPerBar == beatsPerBar)
+            return;
+
+        BeatsPerBar = beatsPerBar;
+        await BeatsPerBarChanged.InvokeAsync(BeatsPerBar);
+
+        if (beatIndex_ >= BeatsPerBar)
+            beatIndex_ = 0;
+
+        displayBeat_ = Math.Clamp(displayBeat_, 1, BeatsPerBar);
+
+        if (Enabled && EffectiveIsPlaying)
+            await RestartLoopAsync();
+        else
+            await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnBpmChanged(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var bpm))
+            return;
+
+        await SetBpmAsync(bpm);
+    }
+
+    private async Task OnBeatsPerBarChanged(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var beatsPerBar))
+            return;
+
+        await SetBeatsPerBarAsync(beatsPerBar);
+    }
+
+    private async Task OnBeatUnitChanged(ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var beatUnit))
+            return;
+
+        if (beatUnit is not (1 or 2 or 4 or 8 or 16 or 32))
+            return;
+
+        if (BeatUnit == beatUnit)
+            return;
+
+        BeatUnit = beatUnit;
+        await BeatUnitChanged.InvokeAsync(BeatUnit);
+
+        if (Enabled && EffectiveIsPlaying)
+            await RestartLoopAsync();
+        else
+            await InvokeAsync(StateHasChanged);
     }
 
     private async Task RestartLoopAsync()
@@ -162,7 +415,7 @@
     {
         await StopLoopAsync();
 
-        if (!Enabled || !IsPlaying)
+        if (!Enabled || !EffectiveIsPlaying)
             return;
 
         loopCts_ = new CancellationTokenSource();
@@ -185,7 +438,7 @@
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                var bpm = Math.Clamp(Bpm, 20, 300);
+                var bpm = Math.Clamp(Bpm, MinBpm, MaxBpm);
                 var beatsPerBar = Math.Max(1, BeatsPerBar);
                 var interval = TimeSpan.FromMinutes(1.0 / bpm);
 
@@ -226,23 +479,86 @@
 
     private async Task StopLoopAsync()
     {
-        if (loopCts_ is null)
-            return;
+        if (loopCts_ is not null)
+        {
+            loopCts_.Cancel();
+            loopCts_.Dispose();
+            loopCts_ = null;
+        }
 
-        loopCts_.Cancel();
-        loopCts_.Dispose();
-        loopCts_ = null;
+        if (jsAvailable_)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("steelPan.stopMetronome");
+            }
+            catch
+            {
+            }
+        }
 
         tickFlash_ = false;
         accentFlash_ = false;
         beatIndex_ = 0;
         displayBeat_ = 1;
+        swingLeft_ = true;
 
         await InvokeAsync(StateHasChanged);
+    }
+
+    private static double GetWeightTopPx(int bpm)
+    {
+        bpm = Math.Clamp(bpm, MinBpm, MaxBpm);
+
+        if (bpm <= LargoBpm)
+            return double.Lerp(WeightMinTopPx, LargoTopPx, InverseLerp(MinBpm, LargoBpm, bpm));
+
+        if (bpm <= AndanteBpm)
+            return double.Lerp(LargoTopPx, AndanteTopPx, InverseLerp(LargoBpm, AndanteBpm, bpm));
+
+        if (bpm <= AllegroBpm)
+            return double.Lerp(AndanteTopPx, AllegroTopPx, InverseLerp(AndanteBpm, AllegroBpm, bpm));
+
+        return double.Lerp(AllegroTopPx, WeightMaxTopPx, InverseLerp(AllegroBpm, MaxBpm, bpm));
+    }
+
+    private static int GetBpmFromPointerY(double localPointerY)
+    {
+        var top = Math.Clamp(localPointerY - (WeightHeightPx / 2.0), WeightMinTopPx, WeightMaxTopPx);
+
+        double bpm;
+
+        if (top <= LargoTopPx)
+        {
+            bpm = double.Lerp(MinBpm, LargoBpm, InverseLerp(WeightMinTopPx, LargoTopPx, top));
+        }
+        else if (top <= AndanteTopPx)
+        {
+            bpm = double.Lerp(LargoBpm, AndanteBpm, InverseLerp(LargoTopPx, AndanteTopPx, top));
+        }
+        else if (top <= AllegroTopPx)
+        {
+            bpm = double.Lerp(AndanteBpm, AllegroBpm, InverseLerp(AndanteTopPx, AllegroTopPx, top));
+        }
+        else
+        {
+            bpm = double.Lerp(AllegroBpm, MaxBpm, InverseLerp(AllegroTopPx, WeightMaxTopPx, top));
+        }
+
+        return (int)Math.Round(Math.Clamp(bpm, MinBpm, MaxBpm));
+    }
+
+    private static double InverseLerp(double start, double end, double value)
+    {
+        if (Math.Abs(end - start) < double.Epsilon)
+            return 0f;
+
+        return Math.Clamp(((value - start) / (end - start)), 0, 1);
     }
 
     public async ValueTask DisposeAsync()
     {
         await StopLoopAsync();
+        selfRef_?.Dispose();
     }
 }

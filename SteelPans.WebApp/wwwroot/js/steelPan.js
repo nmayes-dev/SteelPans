@@ -83,6 +83,28 @@
         }
     },
 
+    steelPanNoteClick: async function (element, componentId, noteKey, event) {
+        event.stopPropagation();
+
+        const ref = this._refs[componentId];
+        if (!ref)
+            return;
+
+        const shift = !!event.shiftKey;
+
+        if (!shift && !element.classList.contains("sp-note--active")) {
+            await this.playNote(noteKey);
+
+            element.classList.add("sp-note--flash");
+
+            setTimeout(() => {
+                element.classList.remove("sp-note--flash");
+            }, 120);
+        }
+
+        ref.invokeMethodAsync("HandleNoteInteraction", noteKey, shift);
+    },
+
     playMidiSchedule: async function (actions) {
         if (!Array.isArray(actions) || actions.length === 0)
             return;
@@ -223,27 +245,34 @@
         }
 
         this._metronomeNodes = [];
+    },
+
+    beginMetronomeWeightDrag: function (trackElement, dotNetRef, initialClientY) {
+        if (!trackElement || !dotNetRef) {
+            return;
+        }
+
+        const rect = trackElement.getBoundingClientRect();
+
+        const update = (clientY) => {
+            const localY = clientY - rect.top;
+            dotNetRef.invokeMethodAsync("OnMetronomeWeightDragged", localY);
+        };
+
+        const onPointerMove = (event) => {
+            update(event.clientY);
+        };
+
+        const stop = () => {
+            window.removeEventListener("pointermove", onPointerMove);
+            window.removeEventListener("pointerup", stop);
+            window.removeEventListener("pointercancel", stop);
+        };
+
+        window.addEventListener("pointermove", onPointerMove);
+        window.addEventListener("pointerup", stop);
+        window.addEventListener("pointercancel", stop);
+
+        update(initialClientY);
     }
-};
-
-window.steelPanNoteClick = function (element, componentId, noteKey, event) {
-    event.stopPropagation();
-
-    const ref = window.steelPan._refs[componentId];
-    if (!ref)
-        return;
-
-    const shift = !!event.shiftKey;
-
-    if (!shift && !element.classList.contains("sp-note--active")) {
-        window.steelPan.playNote(noteKey);
-
-        element.classList.add("sp-note--flash");
-
-        setTimeout(() => {
-            element.classList.remove("sp-note--flash");
-        }, 120);
-    }
-
-    ref.invokeMethodAsync("HandleNoteInteraction", noteKey, shift);
 };

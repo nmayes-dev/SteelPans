@@ -1,40 +1,107 @@
 ﻿.metronome {
     display: grid;
     grid-template-rows: auto auto 1fr;
-    gap: 0.9rem;
+    gap: 1rem;
     min-height: 100%;
+    padding: 1rem;
+    border-radius: 1.35rem;
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(12, 18, 32, 0.98) 100%);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    box-shadow: 0 20px 44px rgba(2, 6, 23, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .metronome__header {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
+    align-items: center;
     gap: 0.75rem;
 }
 
-.metronome__status {
+.metronome__header-actions {
+    display: flex;
+    gap: 0.65rem;
+    justify-self: end;
+}
+
+.metronome__status-toggle {
     display: inline-flex;
-    gap: 0.5rem;
     align-items: center;
     justify-self: start;
-    padding: 0.4rem 0.7rem;
-    border-radius: 999px;
-    background: linear-gradient(135deg, #64748b, #475569);
-    color: white;
-    font-size: 0.8rem;
-    font-weight: 700;
-    line-height: 1;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+    align-self: center;
+    min-height: 2.85rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+}
+
+    .metronome__status-toggle:focus-visible {
+        outline: none;
+    }
+
+    .metronome__status-toggle .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 6rem;
+        min-height: 2.85rem;
+        padding: 0.5rem 1rem;
+        border-radius: 0.95rem;
+        font-size: 1rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+        transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease, background-color 120ms ease, border-color 120ms ease;
+    }
+
+        .metronome__status-toggle .badge.text-bg-success {
+            color: #ecfdf5;
+            background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+            border: 1px solid rgba(134, 239, 172, 0.28);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 10px 24px rgba(34, 197, 94, 0.2), 0 0 0 1px rgba(34, 197, 94, 0.08);
+        }
+
+        .metronome__status-toggle .badge.text-bg-secondary {
+            color: #e2e8f0;
+            background: linear-gradient(135deg, #4f7df0, #2563eb);
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        }
+
+    .metronome__status-toggle:hover .badge {
+        transform: translateY(-1px);
+        filter: brightness(1.04);
+    }
+
+    .metronome__status-toggle:active .badge {
+        transform: translateY(0);
+    }
+
+    .metronome__status-toggle:focus-visible .badge {
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 0 0 0.18rem rgba(37, 99, 235, 0.14);
+    }
+
+.metronome__status-label {
+    display: inline-block;
+    min-width: 100%;
 }
 
 .metronome__toggle {
-    align-self: start;
+    align-self: center;
     white-space: nowrap;
+    min-height: 2.85rem;
+    padding-inline: 1rem;
 }
 
 .metronome__inputs {
     display: grid;
-    grid-template-columns: 100px minmax(0, 1fr);
+    grid-template-columns: 100px minmax(0, 1fr) minmax(0, 1fr);
     gap: 0.85rem;
     align-items: end;
 }
@@ -48,51 +115,191 @@
 
     .metronome__field label {
         margin: 0;
-        font-size: 0.76rem;
+        font-size: 0.74rem;
         font-weight: 800;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: #64748b;
+        color: #94a3b8;
     }
+
+.metronome__number-input {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+}
 
 .metronome__bpm-input,
 .metronome__time-signature-input {
     width: 100%;
+    min-height: 3rem;
+    padding-left: 0.95rem;
+    padding-right: 2.65rem;
+    text-align: left;
+    font-weight: 700;
+    line-height: 1;
+    color: #e2e8f0;
+    background: rgba(15, 23, 42, 0.72);
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.28);
+}
+
+.metronome__number-input-control {
+    -moz-appearance: textfield;
+}
+
+    .metronome__number-input-control::-webkit-outer-spin-button,
+    .metronome__number-input-control::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+.metronome__bpm-input:disabled,
+.metronome__time-signature-input:disabled {
+    color: #cbd5e1;
+    opacity: 1;
+    background: rgba(15, 23, 42, 0.62);
+}
+
+.metronome__number-buttons {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    bottom: 1px;
+    width: 2.4rem;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    pointer-events: none;
+    border-left: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 0 0.95rem 0.95rem 0;
+    overflow: hidden;
+}
+
+.metronome__number-button {
+    pointer-events: auto;
+    position: relative;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 0;
+    min-height: 0;
+    width: 100%;
+    border: 0;
+    border-radius: 0;
+    background: linear-gradient(180deg, rgba(51, 65, 85, 0.96) 0%, rgba(30, 41, 59, 0.96) 100%);
+    color: #cbd5e1;
+    appearance: none;
+    -webkit-appearance: none;
+    box-shadow: none;
+    transition: background-color 120ms ease, color 120ms ease, filter 120ms ease;
+}
+
+.metronome__number-button--up {
+    position: relative;
+}
+
+    .metronome__number-button--up::before {
+        transform: translateY(1px) rotate(-135deg);
+    }
+
+    .metronome__number-button--up::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 1px;
+        background: rgba(148, 163, 184, 0.14);
+        pointer-events: none;
+    }
+
+.metronome__number-button::before {
+    content: "";
+    display: block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+}
+
+.metronome__number-button--down::before {
+    transform: translateY(-0.5px) rotate(45deg);
+}
+
+.metronome__number-button:hover:not(:disabled) {
+    color: #f8fafc;
+    background: linear-gradient(180deg, rgba(37, 99, 235, 0.96) 0%, rgba(29, 78, 216, 0.96) 100%);
+}
+
+.metronome__number-button:active:not(:disabled) {
+    filter: brightness(0.96);
+}
+
+.metronome__number-button:disabled {
+    opacity: 0.5;
 }
 
 .metronome__visual {
     display: flex;
     justify-content: center;
     align-items: center;
-    flex: 1 1 auto; /* fill remaining height */
+    flex: 1 1 auto;
+    min-height: 330px;
+    padding-top: 0.25rem;
+    transition: opacity 120ms ease, transform 120ms ease;
 }
 
 .metronome__visual--disabled {
-    opacity: 0.58;
+    opacity: 0.46;
+    transform: scale(0.985);
 }
 
 .metronome__case {
     position: relative;
-    width: 190px;
-    height: 290px;
-    clip-path: polygon(50% 0%, 82% 18%, 94% 100%, 6% 100%, 18% 18%);
-    background: linear-gradient(180deg, #9b6a3c 0%, #7b4f2a 45%, #5d391c 100%);
-    border: 3px solid #3e2411;
-    border-radius: 14px;
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 14px 32px rgba(0, 0, 0, 0.2);
+    width: 206px;
+    height: 312px;
+    clip-path: polygon(50% 0%, 81% 17%, 94% 100%, 6% 100%, 19% 17%);
+    background: linear-gradient(180deg, #334155 0%, #1e293b 44%, #0f172a 100%);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 1.1rem;
+    box-shadow: 0 22px 40px rgba(2, 6, 23, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 -14px 26px rgba(0, 0, 0, 0.2);
     overflow: hidden;
 }
+
+    .metronome__case::before {
+        content: "";
+        position: absolute;
+        inset: 10px 12px 12px;
+        clip-path: polygon(50% 0%, 79% 16%, 91% 100%, 9% 100%, 21% 16%);
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.012) 100%);
+        border: 1px solid rgba(255, 255, 255, 0.04);
+        pointer-events: none;
+    }
+
+    .metronome__case::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 12px;
+        width: 96px;
+        height: 24px;
+        transform: translateX(-50%);
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0));
+        filter: blur(1px);
+        pointer-events: none;
+    }
 
 .metronome__arm-pivot {
     position: absolute;
     left: 50%;
     top: 34px;
-    width: 16px;
-    height: 16px;
-    margin-left: -8px;
+    width: 17px;
+    height: 17px;
+    margin-left: -8.5px;
     border-radius: 50%;
-    background: #d7c3a3;
-    border: 2px solid #5a3a20;
+    background: radial-gradient(circle at 35% 35%, #f8fafc, #cbd5e1 58%, #64748b 100%);
+    border: 2px solid rgba(15, 23, 42, 0.8);
+    box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.03), 0 4px 10px rgba(0, 0, 0, 0.4);
     z-index: 3;
 }
 
@@ -101,13 +308,12 @@
     inset: 44px 0 0 0;
     display: flex;
     justify-content: center;
-    pointer-events: none;
 }
 
 .metronome__arm {
     position: relative;
     width: 12px;
-    height: 200px;
+    height: 210px;
     transform-origin: top center;
     transition: transform 90ms ease-out;
 }
@@ -120,95 +326,152 @@
     transform: rotate(22deg);
 }
 
+.metronome__arm--center {
+    transform: rotate(0deg);
+}
+
 .metronome__arm-stick {
     position: absolute;
     left: 50%;
     top: 0;
-    width: 5px;
-    height: 185px;
+    width: 4px;
+    height: 194px;
     transform: translateX(-50%);
     border-radius: 999px;
-    background: linear-gradient(180deg, #eee 0%, #bfc4cc 100%);
-    box-shadow: 0 0 2px rgba(0, 0, 0, 0.35);
+    background: linear-gradient(180deg, #f8fafc 0%, #cbd5e1 52%, #94a3b8 100%);
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.08);
+}
+
+.metronome__arm-weight-track {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 72px;
+    height: 194px;
+    transform: translateX(-50%);
+    touch-action: none;
+    z-index: 2;
 }
 
 .metronome__arm-weight {
     position: absolute;
     left: 50%;
-    top: 70px;
-    width: 34px;
-    height: 20px;
+    width: 36px;
+    height: 21px;
     transform: translateX(-50%);
-    border-radius: 4px;
-    background: linear-gradient(180deg, #f0d56c 0%, #b88d1f 100%);
-    border: 1px solid rgba(70, 48, 8, 0.8);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    border-radius: 0.45rem;
+    background: linear-gradient(180deg, #60a5fa 0%, #2563eb 100%);
+    border: 1px solid rgba(191, 219, 254, 0.28);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: grab;
+    z-index: 2;
+    padding: 0;
+    margin: 0;
+}
+
+    .metronome__arm-weight:disabled {
+        pointer-events: none;
+    }
+
+    .metronome__arm-weight:focus-visible {
+        outline: none;
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 0.18rem rgba(37, 99, 235, 0.18);
+    }
+
+.metronome__arm-weight--draggable:hover:not(:disabled) {
+    filter: brightness(1.06);
+}
+
+.metronome__arm-weight--draggable:active:not(:disabled) {
+    cursor: grabbing;
+}
+
+.metronome__arm-weight--locked {
+    cursor: default;
+    opacity: 0.82;
 }
 
 .metronome__scale {
     position: absolute;
     left: 50%;
     top: 60px;
-    gap: 32px;
-    font-size: 0.75rem;
+    width: 112px;
     transform: translateX(-50%);
-    display: flex;
-    flex-direction: column;
-    color: rgba(255, 248, 235, 0.72);
+    display: grid;
+    gap: 34px;
+    justify-items: center;
+    text-align: center;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: rgba(226, 232, 240, 0.46);
     pointer-events: none;
     user-select: none;
+    text-transform: uppercase;
 }
+
+    .metronome__scale > span {
+        display: block;
+        width: 100%;
+        text-align: center;
+    }
 
 .metronome__light {
     position: absolute;
     left: 50%;
-    bottom: 70px;
-    width: 22px;
-    height: 22px;
+    bottom: 78px;
+    width: 20px;
+    height: 20px;
     transform: translateX(-50%);
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.12);
-    border: 2px solid rgba(60, 35, 17, 0.65);
-    box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.35);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.45), 0 0 0 5px rgba(255, 255, 255, 0.02);
     transition: background-color 60ms ease, box-shadow 60ms ease, transform 60ms ease;
 }
 
 .metronome__light--tick {
-    background: #8fd3ff;
-    box-shadow: 0 0 10px rgba(143, 211, 255, 0.8), inset 0 0 4px rgba(255, 255, 255, 0.4);
+    background: #38bdf8;
+    box-shadow: 0 0 14px rgba(56, 189, 248, 0.8), 0 0 28px rgba(56, 189, 248, 0.28), inset 0 0 5px rgba(255, 255, 255, 0.35);
     transform: translateX(-50%) scale(1.08);
 }
 
 .metronome__light--accent {
-    background: #ffb14a;
-    box-shadow: 0 0 12px rgba(255, 177, 74, 0.85), inset 0 0 4px rgba(255, 255, 255, 0.4);
+    background: #f59e0b;
+    box-shadow: 0 0 16px rgba(245, 158, 11, 0.85), 0 0 30px rgba(245, 158, 11, 0.3), inset 0 0 5px rgba(255, 255, 255, 0.35);
     transform: translateX(-50%) scale(1.12);
 }
 
 .metronome__beat-display {
     position: absolute;
     bottom: 18px;
-    min-width: 90px;
-    padding: 8px 12px;
+    min-width: 98px;
+    padding: 0.75rem 0.85rem;
     left: 50%;
     transform: translateX(-50%);
     text-align: center;
-    border-radius: 8px;
-    background: rgba(35, 20, 10, 0.45);
-    color: #fff6e8;
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.9rem;
+    background: rgba(2, 6, 23, 0.72);
+    color: #f8fafc;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 24px rgba(0, 0, 0, 0.24);
     line-height: 1;
 }
 
 .metronome__beat-number {
-    font-size: 1.6rem;
-    font-weight: 700;
+    font-size: 1.85rem;
+    font-weight: 800;
+    letter-spacing: -0.04em;
 }
 
 .metronome__beat-total {
     font-size: 0.78rem;
-    opacity: 0.8;
-    margin-left: 2px;
+    font-weight: 700;
+    color: #cbd5e1;
+    opacity: 0.9;
+    margin-left: 0.18rem;
 }
 
 @media (max-width: 1100px) {
@@ -218,8 +481,17 @@
 }
 
 @media (max-width: 576px) {
+    .metronome {
+        padding: 0.9rem;
+    }
+
     .metronome__header {
         grid-template-columns: 1fr;
+    }
+
+    .metronome__header-actions {
+        justify-self: start;
+        flex-wrap: wrap;
     }
 
     .metronome__inputs {
@@ -228,5 +500,26 @@
 
     .metronome__toggle {
         justify-self: start;
+    }
+
+    .metronome__status-toggle {
+        justify-self: start;
+    }
+
+    .metronome__visual {
+        min-height: 300px;
+    }
+
+    .metronome__case {
+        width: 190px;
+        height: 290px;
+    }
+
+    .metronome__arm {
+        height: 200px;
+    }
+
+    .metronome__arm-stick {
+        height: 184px;
     }
 }

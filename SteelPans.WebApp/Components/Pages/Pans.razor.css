@@ -69,6 +69,7 @@
     background: rgba(255, 255, 255, 0.96);
     border: 1px solid rgba(148, 163, 184, 0.16);
     box-shadow: 0 16px 40px rgba(15, 23, 42, 0.07);
+    height: 100%;
 }
 
     .pans-page__field .form-label {
@@ -111,16 +112,84 @@
 
 .steel-pan__midi-row {
     display: grid;
-    grid-template-columns: minmax(260px, 1fr) minmax(240px, 300px) auto;
+    grid-template-columns: minmax(260px, 1fr) auto;
     gap: 0.9rem;
     align-items: center;
 }
 
-.steel-pan__midi-input,
+    .steel-pan__midi-row:has(> :nth-child(3)) {
+        grid-template-columns: minmax(260px, 1fr) minmax(240px, 300px) auto;
+    }
+
+
+
+/* FILE PICKER */
+
+.steel-pan__midi-file-picker {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: center;
+    min-width: 0;
+    position: relative;
+}
+
+/* hide actual input rendered by InputFile */
+::deep input.steel-pan__midi-file-input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.steel-pan__midi-file-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: calc(1.5em + 0.75rem + 2px);
+    padding: 0 1rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 0.75rem;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    color: #0f172a;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+    .steel-pan__midi-file-button:hover {
+        border-color: #94a3b8;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    }
+
+.steel-pan__midi-file-name {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    height: calc(1.5em + 0.75rem + 2px);
+    padding: 0 0.875rem;
+    border: 1px solid #ced4da;
+    border-radius: 0.75rem;
+    background: #fff;
+    color: #475569;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.steel-pan__midi-file-name--placeholder {
+    color: #94a3b8;
+}
+
+.steel-pan__midi-file-picker,
 .steel-pan__midi-track-select {
     min-width: 0;
     max-width: none;
 }
+
+/* ACTIONS */
 
 .steel-pan__midi-actions {
     display: flex;
@@ -153,6 +222,8 @@
     padding: 1rem;
     height: 100%;
 }
+
+/* RESPONSIVE */
 
 @media (max-width: 1100px) {
     .pans-page__content {
@@ -195,6 +266,15 @@
     .pans-page__sidebar {
         padding: 0.9rem;
         border-radius: 1.1rem;
+    }
+
+    .steel-pan__midi-file-picker {
+        grid-template-columns: 1fr;
+    }
+
+    .steel-pan__midi-file-button,
+    .steel-pan__midi-file-name {
+        width: 100%;
     }
 
     .steel-pan__midi-actions {
