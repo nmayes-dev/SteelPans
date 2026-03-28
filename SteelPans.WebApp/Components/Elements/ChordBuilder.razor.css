@@ -1,6 +1,6 @@
 ﻿.steel-pan__chord-builder {
     display: grid;
-    grid-template-columns: auto minmax(220px, 1fr) auto;
+    grid-template-columns: max-content minmax(0, 1fr) auto;
     gap: 1rem;
     align-items: end;
 }
@@ -13,8 +13,14 @@
 }
 
 .steel-pan__chord-group--type {
-    min-width: 14rem;
+    min-width: 0;
+    width: 100%;
 }
+
+    .steel-pan__chord-group--type .steel-pan__chord-select {
+        width: 100%;
+        min-width: 0;
+    }
 
 .steel-pan__chord-label {
     margin: 0;
@@ -41,11 +47,6 @@
     flex: 0 0 4.6rem;
 }
 
-.steel-pan__chord-group--type .steel-pan__chord-select {
-    min-width: 12rem;
-    width: 100%;
-}
-
 .steel-pan__chord-actions {
     display: flex;
     gap: 0.65rem;
@@ -65,29 +66,42 @@
 
 @media (max-width: 900px) {
     .steel-pan__chord-builder {
-        grid-template-columns: 1fr;
-        align-items: stretch;
+        grid-template-columns: max-content minmax(0, 1fr);
+        align-items: end;
     }
 
-    .steel-pan__chord-group--type .steel-pan__chord-select {
+    .steel-pan__chord-group--type {
         min-width: 0;
+        width: 100%;
     }
 
+        .steel-pan__chord-group--type .steel-pan__chord-select {
+            min-width: 0;
+            width: 100%;
+        }
+
     .steel-pan__chord-actions {
+        grid-column: 1 / -1;
         justify-content: flex-start;
-    }
-}
-
-@media (max-width: 576px) {
-    .steel-pan__chord-row {
-        gap: 0.6rem;
-    }
-
-    .steel-pan__chord-actions {
-        flex-wrap: wrap;
     }
 
         .steel-pan__chord-actions .btn {
             flex: 1 1 0;
         }
+}
+
+@media (max-width: 576px) {
+    .steel-pan__chord-builder {
+        grid-template-columns: max-content minmax(0, 1fr);
+        gap: 0.75rem;
+    }
+
+    .steel-pan__chord-row {
+        gap: 0.6rem;
+    }
+
+    .steel-pan__chord-actions {
+        grid-column: 1 / -1;
+        flex-wrap: nowrap;
+    }
 }

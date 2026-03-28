@@ -57,7 +57,6 @@ a,
 
 .form-control,
 .form-select {
-    min-height: calc(1.5em + 0.75rem + 2px);
     border-radius: 1rem;
     border-color: rgba(148, 163, 184, 0.35);
     background-color: rgba(255, 255, 255, 0.96);
@@ -74,10 +73,6 @@ a,
         border-color: rgba(37, 99, 235, 0.5);
         box-shadow: 0 0 0 0.18rem rgba(37, 99, 235, 0.14);
     }
-
-.content {
-    padding-top: 0.2rem;
-}
 
 h1:focus {
     outline: none;
@@ -160,4 +155,13 @@ h4 {
 
 .sp-note--flash {
     fill: #e2201c !important;
+}
+
+.sp-svg {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    margin: 0;
 }

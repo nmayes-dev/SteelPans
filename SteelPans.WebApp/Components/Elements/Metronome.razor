@@ -2,104 +2,102 @@
 @implements IAsyncDisposable
 
 <div class="metronome">
-    <div class="metronome__header">
-        <button class="metronome__status-toggle"
-                type="button"
-                @onclick="ToggleEnabledAsync">
-            <span class="badge @MetronomeStatusClass">
-                <span class="metronome__status-label">@MetronomeStatusText</span>
-            </span>
-        </button>
-
-        <div class="metronome__header-actions">
-            <button class="btn btn-outline-secondary metronome__toggle"
+    <div class="metronome__topbar">
+        <div class="metronome__header">
+            <button class="metronome__status-toggle"
                     type="button"
-                    @onclick="ToggleManualPlayAsync"
-                    disabled="@(IsPlaying || !Enabled)">
-                @(isManualPlaying_ ? "Stop" : "Play")
+                    @onclick="ToggleEnabledAsync">
+                <span class="badge @MetronomeStatusClass">
+                    <span class="metronome__status-label">@MetronomeStatusText</span>
+                </span>
             </button>
-        </div>
-    </div>
 
-    <div class="metronome__inputs">
-        <div class="metronome__field">
-            <label class="form-label" for="@($"{componentId_}_bpm")">BPM</label>
-
-            <div class="metronome__number-input @(IsPlaying ? "metronome__number-input--disabled" : null)">
-                <input id="@($"{componentId_}_bpm")"
-                       class="form-control metronome__bpm-input metronome__number-input-control"
-                       type="number"
-                       min="20"
-                       max="300"
-                       step="1"
-                       value="@Bpm"
-                       @onchange="OnBpmChanged"
-                       disabled="@IsPlaying" />
-
-                <div class="metronome__number-buttons">
-                    <button class="metronome__number-button metronome__number-button--up"
-                            type="button"
-                            @onclick="IncrementBpmAsync"
-                            disabled="@IsPlaying"
-                            tabindex="-1"
-                            aria-label="Increase BPM"></button>
-
-                    <button class="metronome__number-button metronome__number-button--down"
-                            type="button"
-                            @onclick="DecrementBpmAsync"
-                            disabled="@IsPlaying"
-                            tabindex="-1"
-                            aria-label="Decrease BPM"></button>
-                </div>
+            <div class="metronome__header-actions">
+                <button class="btn btn-outline-secondary metronome__toggle"
+                        type="button"
+                        @onclick="ToggleManualPlayAsync"
+                        disabled="@(playState_ == PlayState.MIDI || !Enabled)">
+                    @(playState_ == PlayState.Manual ? "Stop" : "Play")
+                </button>
             </div>
         </div>
 
-        <div class="metronome__field">
-            <label class="form-label" for="@($"{componentId_}_beatsPerBar")">Beats / Bar</label>
+        <div class="metronome__inputs">
+            <div class="metronome__field">
+                <div class="metronome__number-input @(IsPlaying ? "metronome__number-input--disabled" : null)">
+                    <NumericInput Id="@($"{componentId_}_bpm")"
+                                  Class="form-control metronome__bpm-input metronome__number-input-control"
+                                  Value="@Bpm"
+                                  ValueChanged="SetBpmAsync"
+                                  Min="20"
+                                  Max="200"
+                                  Disabled="@IsPlaying" />
 
-            <div class="metronome__number-input @(IsPlaying ? "metronome__number-input--disabled" : null)">
-                <input id="@($"{componentId_}_beatsPerBar")"
-                       class="form-control metronome__time-signature-input metronome__number-input-control"
-                       type="number"
-                       min="1"
-                       max="32"
-                       step="1"
-                       value="@BeatsPerBar"
-                       @onchange="OnBeatsPerBarChanged"
-                       disabled="@IsPlaying" />
+                    <div class="metronome__number-buttons">
+                        <button class="metronome__number-button metronome__number-button--up"
+                                type="button"
+                                @onclick="IncrementBpmAsync"
+                                disabled="@IsPlaying"
+                                tabindex="-1"
+                                aria-label="Increase BPM"></button>
 
-                <div class="metronome__number-buttons">
-                    <button class="metronome__number-button metronome__number-button--up"
-                            type="button"
-                            @onclick="IncrementBeatsPerBarAsync"
-                            disabled="@IsPlaying"
-                            tabindex="-1"
-                            aria-label="Increase beats per bar" />
-
-                    <button class="metronome__number-button metronome__number-button--down"
-                            type="button"
-                            @onclick="DecrementBeatsPerBarAsync"
-                            disabled="@IsPlaying"
-                            tabindex="-1"
-                            aria-label="Decrease beats per bar" />
+                        <button class="metronome__number-button metronome__number-button--down"
+                                type="button"
+                                @onclick="DecrementBpmAsync"
+                                disabled="@IsPlaying"
+                                tabindex="-1"
+                                aria-label="Decrease BPM"></button>
+                    </div>
                 </div>
+                <label class="form-label" for="@($"{componentId_}_bpm")">BPM</label>
             </div>
-        </div>
 
-        <div class="metronome__field">
-            <label class="form-label" for="@($"{componentId_}_beatUnit")">Beat Unit</label>
-            <select id="@($"{componentId_}_beatUnit")"
-                    class="form-select metronome__time-signature-input"
-                    value="@BeatUnit"
-                    @onchange="OnBeatUnitChanged"
-                    disabled="@IsPlaying">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="4">4</option>
-                <option value="8">8</option>
-                <option value="16">16</option>
-                <option value="32">32</option>
-            </select>
+            <div class="metronome__field">
+                <div class="metronome__number-input @(IsPlaying ? "metronome__number-input--disabled" : null)">
+                    <NumericInput Id="@($"{componentId_}_beatsPerBar")"
+                                  Class="form-control metronome__time-signature-input metronome__number-input-control"
+                                  Value="@BeatsPerBar"
+                                  ValueChanged="SetBeatsPerBarAsync"
+                                  Min="1"
+                                  Max="32"
+                                  Disabled="@IsPlaying" />
+
+                    <div class="metronome__number-buttons">
+                        <button class="metronome__number-button metronome__number-button--up"
+                                type="button"
+                                @onclick="IncrementBeatsPerBarAsync"
+                                disabled="@IsPlaying"
+                                tabindex="-1"
+                                aria-label="Increase beats per bar"></button>
+
+                        <button class="metronome__number-button metronome__number-button--down"
+                                type="button"
+                                @onclick="DecrementBeatsPerBarAsync"
+                                disabled="@IsPlaying"
+                                tabindex="-1"
+                                aria-label="Decrease beats per bar"></button>
+                    </div>
+                </div>
+                <label class="form-label" for="@($"{componentId_}_beatsPerBar")">Beats / Bar</label>
+            </div>
+
+            <div class="metronome__field">
+                <div class="metronome__number-input @(IsPlaying ? "metronome__number-input--disabled" : null)">
+                    <select id="@($"{componentId_}_beatUnit")"
+                            class="form-select metronome__beat-unit-input"
+                            value="@BeatUnit"
+                            @onchange="OnBeatUnitChanged"
+                            disabled="@IsPlaying">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="4">4</option>
+                        <option value="8">8</option>
+                        <option value="16">16</option>
+                        <option value="32">32</option>
+                    </select>
+                </div>
+                <label class="form-label" for="@($"{componentId_}_beatUnit")">Beat Unit</label>
+            </div>
         </div>
     </div>
 
@@ -108,7 +106,8 @@
             <div class="metronome__arm-pivot"></div>
 
             <div class="metronome__arm-wrap">
-                <div class="metronome__arm @ArmCssClass">
+                <div class="metronome__arm"
+                     style="@($"transform: rotate({ArmAngleDeg:F2}deg);")">
                     <div class="metronome__arm-stick"></div>
 
                     <div class="metronome__arm-weight-track" @ref="weightTrackRef_">
@@ -141,7 +140,7 @@
 
 @code {
     [Parameter]
-    public bool IsPlaying { get; set; }
+    public double? MidiStartAt { get; set; }
 
     [Parameter]
     public int Bpm { get; set; } = 120;
@@ -182,28 +181,39 @@
     private const int AndanteBpm = 92;
     private const int AllegroBpm = 144;
 
+    private const double MaxArmAngleDeg = 24.0;
+
     private readonly string componentId_ = $"metronome_{Guid.NewGuid():N}";
     private CancellationTokenSource? loopCts_;
+    private CancellationTokenSource? midiVisualCts_;
     private DotNetObjectReference<Metronome>? selfRef_;
     private ElementReference weightTrackRef_;
 
     private int beatIndex_;
     private int displayBeat_ = 1;
-    private bool previousMidiIsPlaying_;
+    private int? lastFlashedBeatIndex_;
+    private bool jsAvailable_;
+    private double armAngleDeg_;
 
-    private bool isManualPlaying_;
-    private bool swingLeft_ = true;
+    public enum PlayState
+    {
+        NotPlaying,
+        Manual,
+        MIDI
+    }
+
+    private PlayState playState_ = PlayState.NotPlaying;
+    private bool IsPlaying => playState_ is PlayState.Manual or PlayState.MIDI;
+
     private bool tickFlash_;
     private bool accentFlash_;
 
-    private bool jsAvailable_;
-
     private string MetronomeStatusText =>
-    !Enabled
-        ? "Disabled"
-        : EffectiveIsPlaying
-            ? "On"
-            : "Off";
+        !Enabled
+            ? "Disabled"
+            : EffectiveIsPlaying
+                ? "On"
+                : "Off";
 
     private string MetronomeStatusClass =>
         !Enabled
@@ -212,11 +222,12 @@
                 ? "text-bg-success"
                 : "text-bg-secondary";
 
-    private bool EffectiveIsPlaying => IsPlaying || isManualPlaying_;
+    private bool EffectiveIsPlaying => Enabled && IsPlaying;
     private bool CanDragWeight => Enabled && !IsPlaying;
-    private string ArmCssClass => Enabled && EffectiveIsPlaying
-        ? (swingLeft_ ? "metronome__arm--left" : "metronome__arm--right")
-        : "metronome__arm--center";
+
+    private double ArmAngleDeg => !Enabled || !EffectiveIsPlaying
+        ? 0.0
+        : armAngleDeg_;
 
     private double WeightTopPx => GetWeightTopPx(Bpm);
 
@@ -235,29 +246,8 @@
     {
         if (!Enabled)
         {
-            await StopLoopAsync();
-            previousMidiIsPlaying_ = IsPlaying;
-            return;
+            await StopAsync();
         }
-
-        var wasEffectivelyPlaying = previousMidiIsPlaying_ || isManualPlaying_;
-        var isEffectivelyPlaying = EffectiveIsPlaying;
-
-        if (isEffectivelyPlaying && !wasEffectivelyPlaying)
-        {
-            await StartLoopAsync();
-        }
-        else if (!isEffectivelyPlaying && wasEffectivelyPlaying)
-        {
-            await StopLoopAsync();
-        }
-        else if (IsPlaying && !previousMidiIsPlaying_ && isManualPlaying_)
-        {
-            isManualPlaying_ = false;
-            await RestartLoopAsync();
-        }
-
-        previousMidiIsPlaying_ = IsPlaying;
     }
 
     private async Task BeginWeightDragAsync(PointerEventArgs e)
@@ -278,20 +268,27 @@
         await SetBpmAsync(bpm);
     }
 
+    public async Task StopAsync(bool resetVisuals = true)
+    {
+        await StopLoopAsync();
+        await StopMidiVisualSyncAsync(resetVisuals: resetVisuals);
+
+        playState_ = PlayState.NotPlaying;
+    }
+
     private async Task ToggleManualPlayAsync()
     {
-        if (IsPlaying)
+        if (!Enabled || playState_ == PlayState.MIDI)
             return;
 
-        isManualPlaying_ = !isManualPlaying_;
-
-        if (!Enabled)
+        if (playState_ == PlayState.Manual)
+        {
+            await StopAsync();
             return;
+        }
 
-        if (isManualPlaying_)
-            await StartLoopAsync();
-        else
-            await StopLoopAsync();
+        playState_ = PlayState.Manual;
+        await StartLoopAsync();
     }
 
     private async Task ToggleEnabledAsync()
@@ -301,15 +298,11 @@
 
         if (!Enabled)
         {
-            isManualPlaying_ = false;
-            await StopLoopAsync();
+            await StopAsync();
             return;
         }
 
-        if (EffectiveIsPlaying)
-            await StartLoopAsync();
-        else
-            await InvokeAsync(StateHasChanged);
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task IncrementBpmAsync()
@@ -342,7 +335,7 @@
         Bpm = bpm;
         await BpmChanged.InvokeAsync(Bpm);
 
-        if (Enabled && EffectiveIsPlaying)
+        if (Enabled && playState_ == PlayState.Manual)
             await RestartLoopAsync();
         else
             await InvokeAsync(StateHasChanged);
@@ -363,26 +356,10 @@
 
         displayBeat_ = Math.Clamp(displayBeat_, 1, BeatsPerBar);
 
-        if (Enabled && EffectiveIsPlaying)
+        if (Enabled && playState_ == PlayState.Manual)
             await RestartLoopAsync();
         else
             await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task OnBpmChanged(ChangeEventArgs e)
-    {
-        if (!int.TryParse(e.Value?.ToString(), out var bpm))
-            return;
-
-        await SetBpmAsync(bpm);
-    }
-
-    private async Task OnBeatsPerBarChanged(ChangeEventArgs e)
-    {
-        if (!int.TryParse(e.Value?.ToString(), out var beatsPerBar))
-            return;
-
-        await SetBeatsPerBarAsync(beatsPerBar);
     }
 
     private async Task OnBeatUnitChanged(ChangeEventArgs e)
@@ -399,7 +376,7 @@
         BeatUnit = beatUnit;
         await BeatUnitChanged.InvokeAsync(BeatUnit);
 
-        if (Enabled && EffectiveIsPlaying)
+        if (Enabled && playState_ == PlayState.Manual)
             await RestartLoopAsync();
         else
             await InvokeAsync(StateHasChanged);
@@ -415,7 +392,7 @@
     {
         await StopLoopAsync();
 
-        if (!Enabled || !EffectiveIsPlaying)
+        if (!Enabled || playState_ != PlayState.Manual)
             return;
 
         loopCts_ = new CancellationTokenSource();
@@ -423,9 +400,10 @@
 
         beatIndex_ = 0;
         displayBeat_ = 1;
-        swingLeft_ = true;
+        armAngleDeg_ = 0.0;
         tickFlash_ = false;
         accentFlash_ = false;
+        lastFlashedBeatIndex_ = null;
 
         _ = RunLoopAsync(token);
 
@@ -436,30 +414,140 @@
     {
         try
         {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            var bpm = Math.Clamp(Bpm, MinBpm, MaxBpm);
+            var beatsPerBar = Math.Max(1, BeatsPerBar);
+            var beatUnit = BeatUnit > 0 ? BeatUnit : 4;
+            var interval = TimeSpan.FromMinutes((4.0 / beatUnit) / bpm);
+
+            var nextBeatTime = TimeSpan.Zero;
+
             while (!cancellationToken.IsCancellationRequested)
             {
-                var bpm = Math.Clamp(Bpm, MinBpm, MaxBpm);
-                var beatsPerBar = Math.Max(1, BeatsPerBar);
-                var interval = TimeSpan.FromMinutes(1.0 / bpm);
+                var now = stopwatch.Elapsed;
 
-                var isAccent = beatIndex_ % beatsPerBar == 0;
-                displayBeat_ = (beatIndex_ % beatsPerBar) + 1;
+                while (now >= nextBeatTime && !cancellationToken.IsCancellationRequested)
+                {
+                    var isAccent = beatIndex_ % beatsPerBar == 0;
+                    displayBeat_ = (beatIndex_ % beatsPerBar) + 1;
 
-                swingLeft_ = !swingLeft_;
-                tickFlash_ = true;
-                accentFlash_ = isAccent;
+                    tickFlash_ = true;
+                    accentFlash_ = isAccent;
+
+                    await InvokeAsync(StateHasChanged);
+                    await JS.InvokeVoidAsync("steelPan.playMetronomeTick", isAccent);
+
+                    _ = ClearFlashSoonAsync();
+
+                    beatIndex_++;
+                    nextBeatTime += interval;
+                }
+
+                var elapsedBeats = interval > TimeSpan.Zero
+                    ? now.TotalSeconds / interval.TotalSeconds
+                    : 0.0;
+
+                armAngleDeg_ = Math.Sin(elapsedBeats * Math.PI) * MaxArmAngleDeg;
 
                 await InvokeAsync(StateHasChanged);
-                await JS.InvokeVoidAsync("steelPan.playMetronomeTick", isAccent);
-
-                _ = ClearFlashSoonAsync();
-
-                beatIndex_++;
-                await Task.Delay(interval, cancellationToken);
+                await Task.Delay(16, cancellationToken);
             }
         }
         catch (OperationCanceledException)
         {
+        }
+    }
+
+    public async Task StartMidiVisualSyncAsync(double midiStartAt)
+    {
+        MidiStartAt = midiStartAt;
+
+        await StopAsync();
+
+        if (!Enabled || !jsAvailable_)
+            return;
+            
+        playState_ = PlayState.MIDI;
+        midiVisualCts_ = new CancellationTokenSource();
+        lastFlashedBeatIndex_ = null;
+
+        _ = RunMidiVisualSyncAsync(midiVisualCts_.Token);
+
+        await Task.CompletedTask;
+    }
+
+    private async Task RunMidiVisualSyncAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (!Enabled || playState_ != PlayState.MIDI || MidiStartAt is null)
+                    break;
+
+                var bpm = Math.Clamp(Bpm, MinBpm, MaxBpm);
+                var beatsPerBar = Math.Max(1, BeatsPerBar);
+                var beatUnit = BeatUnit > 0 ? BeatUnit : 4;
+                var secondsPerBeat = (60.0 / bpm) * (4.0 / beatUnit);
+
+                if (secondsPerBeat <= 0.0)
+                    break;
+
+                double audioTime;
+
+                try
+                {
+                    audioTime = await JS.InvokeAsync<double>("steelPan.getAudioTime");
+                }
+                catch
+                {
+                    break;
+                }
+
+                var elapsedSeconds = Math.Max(0.0, audioTime - MidiStartAt.Value);
+                var elapsedBeats = elapsedSeconds / secondsPerBeat;
+
+                var totalBeatIndex = (int)Math.Floor(elapsedBeats);
+                var beatInBar = Mod(totalBeatIndex, beatsPerBar);
+                var beatPhase = elapsedBeats - totalBeatIndex;
+
+                displayBeat_ = beatInBar + 1;
+                beatIndex_ = totalBeatIndex;
+
+                var isAccent = beatInBar == 0;
+
+                var shouldFlash = beatPhase <= 0.09;
+                if (shouldFlash)
+                {
+                    tickFlash_ = true;
+                    accentFlash_ = isAccent;
+                    lastFlashedBeatIndex_ = totalBeatIndex;
+                }
+                else if (lastFlashedBeatIndex_ == totalBeatIndex)
+                {
+                    tickFlash_ = false;
+                    accentFlash_ = false;
+                }
+                else
+                {
+                    tickFlash_ = false;
+                    accentFlash_ = false;
+                }
+
+                armAngleDeg_ = Math.Sin(elapsedBeats * Math.PI) * MaxArmAngleDeg;
+
+                await InvokeAsync(StateHasChanged);
+                await Task.Delay(16, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        finally
+        {
+            if (midiVisualCts_ is not null && midiVisualCts_.Token == cancellationToken)
+                midiVisualCts_ = null;
         }
     }
 
@@ -479,6 +567,9 @@
 
     private async Task StopLoopAsync()
     {
+        if (playState_ != PlayState.Manual)
+            return;
+
         if (loopCts_ is not null)
         {
             loopCts_.Cancel();
@@ -501,9 +592,41 @@
         accentFlash_ = false;
         beatIndex_ = 0;
         displayBeat_ = 1;
-        swingLeft_ = true;
+        armAngleDeg_ = 0.0;
+        lastFlashedBeatIndex_ = null;
 
         await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task StopMidiVisualSyncAsync(bool resetVisuals = true)
+    {
+        if (playState_ != PlayState.MIDI)
+            return;
+
+        if (midiVisualCts_ is not null)
+        {
+            midiVisualCts_.Cancel();
+            midiVisualCts_.Dispose();
+            midiVisualCts_ = null;
+        }
+
+        if (resetVisuals)
+        {
+            tickFlash_ = false;
+            accentFlash_ = false;
+            beatIndex_ = 0;
+            displayBeat_ = 1;
+            armAngleDeg_ = 0.0;
+            lastFlashedBeatIndex_ = null;
+
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private static int Mod(int value, int modulus)
+    {
+        var result = value % modulus;
+        return result < 0 ? result + modulus : result;
     }
 
     private static double GetWeightTopPx(int bpm)
@@ -551,14 +674,15 @@
     private static double InverseLerp(double start, double end, double value)
     {
         if (Math.Abs(end - start) < double.Epsilon)
-            return 0f;
+            return 0.0;
 
-        return Math.Clamp(((value - start) / (end - start)), 0, 1);
+        return Math.Clamp((value - start) / (end - start), 0.0, 1.0);
     }
 
     public async ValueTask DisposeAsync()
     {
         await StopLoopAsync();
+        await StopMidiVisualSyncAsync(resetVisuals: false);
         selfRef_?.Dispose();
     }
 }

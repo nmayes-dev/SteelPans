@@ -1,10 +1,29 @@
-﻿.steel-pan__root {
+.steel-pan__root {
     margin: 0;
     height: 100%;
+    min-height: 0;
+    display: flex;
+}
+
+.steel-pan__canvas {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+    flex: 1 1 auto;
+    box-sizing: border-box;
 }
 
 .steel-pan {
-    width: 75%;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     user-select: none;
 }
 
@@ -14,27 +33,6 @@
     background: rgba(248, 250, 252, 0.92);
     border: 1px solid rgba(148, 163, 184, 0.16);
     color: #475569;
-}
-
-.steel-pan__canvas {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 1rem;
-    border-radius: 1.15rem;
-    background: linear-gradient(180deg, #f8fafc, #f1f5f9);
-    border: 1px solid rgba(148, 163, 184, 0.14);
-    overflow: hidden;
-    min-height: 380px;
-    height: 100%;
-}
-
-.steel-pan__svg {
-    display: block;
-    width: 0%;
-    max-width: 640px;
-    height: auto;
-    margin: 0 auto;
 }
 
 .steel-pan__note-shape {
@@ -47,7 +45,6 @@
 
 @media (max-width: 768px) {
     .steel-pan__canvas {
-        min-height: 0;
         padding: 0.85rem;
     }
 }

@@ -236,12 +236,12 @@ else
             .ToList();
     }
 
-    public async Task PlayMidiSequenceAsync(
+    public async Task<double?> StartMidiSequenceAsync(
         IReadOnlyList<MidiPanEvent> events,
         CancellationToken cancellationToken = default)
     {
         if (Pan is null || events.Count == 0)
-            return;
+            return null;
 
         foreach (var note in Pan.Notes)
         {
@@ -252,12 +252,27 @@ else
         await RebuildSvgAsync();
         await InvokeAsync(StateHasChanged);
 
+        var scheduledActions = BuildScheduledActions(BuildPlaybackActions(events));
+
+        var startAt = await JS.InvokeAsync<double>(
+            "steelPan.playMidiSchedule",
+            cancellationToken,
+            scheduledActions);
+
+        return startAt;
+    }
+
+    public async Task RunMidiVisualSequenceAsync(
+        IReadOnlyList<MidiPanEvent> events,
+        CancellationToken cancellationToken = default)
+    {
+        if (Pan is null || events.Count == 0)
+            return;
+
         var playbackActions = BuildPlaybackActions(events);
-        var scheduledActions = BuildScheduledActions(playbackActions);
         var activeCounts = new Dictionary<PanNote, int>();
         var stopwatch = Stopwatch.StartNew();
-
-        await JS.InvokeVoidAsync("steelPan.playMidiSchedule", scheduledActions);
+        var leadIn = TimeSpan.FromMilliseconds(50);
 
         try
         {
@@ -265,7 +280,7 @@ else
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var delay = action.Time - stopwatch.Elapsed;
+                var delay = action.Time + leadIn - stopwatch.Elapsed;
                 if (delay > TimeSpan.Zero)
                     await Task.Delay(delay, cancellationToken);
 

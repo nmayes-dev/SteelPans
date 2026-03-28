@@ -89,7 +89,7 @@ public sealed class SteelPanSvgService
         if (string.IsNullOrWhiteSpace(svg))
             return string.Empty;
 
-        svg = RewriteRootSvg(svg, "steel-pan__svg");
+        svg = RewriteRootSvg(svg, "sp-svg");
 
         masterSvgCache_[relativePath] = svg;
         return svg;
@@ -293,7 +293,7 @@ public sealed class SteelPanSvgService
         string noteKey)
     {
         var noteClick =
-            $"window.steelPanNoteClick(this,'{EscapeJs(componentId)}','{EscapeJs(noteKey)}',event)";
+            $"steelPan.noteClick(this,'{EscapeJs(componentId)}','{EscapeJs(noteKey)}',event)";
 
         return template
             .Replace("__NOTE_KEY__", EscapeAttribute(noteKey), StringComparison.Ordinal)
