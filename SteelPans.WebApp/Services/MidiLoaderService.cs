@@ -155,6 +155,55 @@ public sealed class MidiLoaderService
         return events;
     }
 
+
+    public async Task<List<MidiPanEvent>> LoadMergedMidiAsync(
+        Stream midiStream,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(midiStream);
+
+        if (!midiStream.CanRead)
+            throw new ArgumentException("The MIDI stream must be readable.", nameof(midiStream));
+
+        using var buffer = new MemoryStream();
+        await midiStream.CopyToAsync(buffer, cancellationToken);
+        buffer.Position = 0;
+
+        var midiFile = MidiFile.Read(buffer);
+        var tempoMap = midiFile.GetTempoMap();
+
+        var trackChunks = midiFile.GetTrackChunks().ToList();
+
+        if (trackChunks.Count == 0)
+            return [];
+
+        var noteCount = trackChunks.Select(x => x.GetNotes().Count).Sum();
+
+        var events = new List<MidiPanEvent>(noteCount);
+
+        foreach (var midiNote in trackChunks.SelectMany(x => x.GetNotes()))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var startMetric = TimeConverter.ConvertTo<MetricTimeSpan>(
+                midiNote.Time,
+                tempoMap);
+
+            var durationMetric = LengthConverter.ConvertTo<MetricTimeSpan>(
+                midiNote.Length,
+                midiNote.Time,
+                tempoMap);
+
+            events.Add(new MidiPanEvent
+            {
+                Note = Model.Note.FromMidi((int)midiNote.NoteNumber),
+                Start = ToTimeSpan(startMetric),
+                Duration = ToTimeSpan(durationMetric),
+            });
+        }
+
+        return events;
+    }
     private static TimeSpan ToTimeSpan(MetricTimeSpan m)
         => TimeSpan.FromHours(m.Hours)
          + TimeSpan.FromMinutes(m.Minutes)

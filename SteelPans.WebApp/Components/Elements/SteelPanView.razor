@@ -44,6 +44,11 @@ else
     private TimeSpan sampleDuration_;
     private CancellationTokenSource? playSelectedCts_;
 
+    private Task? midiVisualTask_;
+
+    public Task MidiPlaybackCompletion
+        => midiVisualTask_ ?? Task.CompletedTask;
+
     protected override Task OnInitializedAsync()
     {
         selfRef_ = DotNetObjectReference.Create(this);
@@ -252,61 +257,73 @@ else
         await RebuildSvgAsync();
         await InvokeAsync(StateHasChanged);
 
-        var scheduledActions = BuildScheduledActions(BuildPlaybackActions(events));
+        var playbackActions = BuildPlaybackActions(events);
+
+        if (playbackActions.Count == 0)
+            return null;
+
+        var scheduledActions = BuildScheduledActions(playbackActions);
 
         var startAt = await JS.InvokeAsync<double>(
             "steelPan.playMidiSchedule",
             cancellationToken,
             scheduledActions);
 
+        midiVisualTask_ = RunMidiVisualSequenceAsync(
+            playbackActions,
+            startAt,
+            cancellationToken);
+
         return startAt;
     }
 
-    public async Task RunMidiVisualSequenceAsync(
-        IReadOnlyList<MidiPanEvent> events,
+    private async Task RunMidiVisualSequenceAsync(
+        IReadOnlyList<MidiPanPlaybackAction> playbackActions,
+        double startAt,
         CancellationToken cancellationToken = default)
     {
-        if (Pan is null || events.Count == 0)
+        if (Pan is null || playbackActions.Count == 0)
             return;
 
-        var playbackActions = BuildPlaybackActions(events);
+        var noteLookup = BuildPanNoteLookup(Pan);
+        var groupedActions = playbackActions
+            .GroupBy(static action => action.Time)
+            .OrderBy(static group => group.Key)
+            .ToArray();
+
         var activeCounts = new Dictionary<PanNote, int>();
-        var stopwatch = Stopwatch.StartNew();
-        var leadIn = TimeSpan.FromMilliseconds(50);
 
         try
         {
-            foreach (var action in playbackActions)
+            foreach (var group in groupedActions)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var delay = action.Time + leadIn - stopwatch.Elapsed;
-                if (delay > TimeSpan.Zero)
-                    await Task.Delay(delay, cancellationToken);
-
-                var panNote = Pan.Notes.FirstOrDefault(
-                    n => n.Note.IsEnharmonicEquivalentTo(action.Note));
-
-                if (panNote is null)
-                    continue;
+                await DelayUntilAudioTimeAsync(startAt, group.Key, cancellationToken);
 
                 var changed = false;
 
-                if (action.IsNoteOn)
+                foreach (var action in group)
                 {
-                    activeCounts.TryGetValue(panNote, out var count);
-                    activeCounts[panNote] = count + 1;
+                    if (!TryGetPanNote(noteLookup, action.Note, out var panNote))
+                        continue;
 
-                    if (!panNote.Playing)
+                    if (action.IsNoteOn)
                     {
-                        panNote.Playing = true;
-                        changed = true;
+                        activeCounts.TryGetValue(panNote, out var count);
+                        activeCounts[panNote] = count + 1;
+
+                        if (!panNote.Playing)
+                        {
+                            panNote.Playing = true;
+                            changed = true;
+                        }
                     }
-                }
-                else
-                {
-                    if (activeCounts.TryGetValue(panNote, out var count))
+                    else
                     {
+                        if (!activeCounts.TryGetValue(panNote, out var count))
+                            continue;
+
                         count--;
 
                         if (count <= 0)
@@ -345,6 +362,17 @@ else
 
     public async Task StopMidiPlaybackAsync()
     {
+        if (midiVisualTask_ is not null)
+        {
+            try
+            {
+                await midiVisualTask_;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
         if (Pan is null)
             return;
 
@@ -353,6 +381,56 @@ else
 
         await RebuildSvgAsync();
         await InvokeAsync(StateHasChanged);
+    }
+
+    private Dictionary<string, PanNote> BuildPanNoteLookup(SteelPan pan)
+    {
+        var lookup = new Dictionary<string, PanNote>(StringComparer.Ordinal);
+
+        foreach (var panNote in pan.Notes)
+            lookup[GetMidiVisualNoteKey(panNote.Note)] = panNote;
+
+        return lookup;
+    }
+
+    private bool TryGetPanNote(
+        IReadOnlyDictionary<string, PanNote> noteLookup,
+        Note note,
+        out PanNote panNote)
+    {
+        return noteLookup.TryGetValue(GetMidiVisualNoteKey(note), out panNote!);
+    }
+
+    private static string GetMidiVisualNoteKey(Note note)
+    {
+        return $"{(int)note.PitchClass}:{note.Octave}";
+    }
+
+    private async Task DelayUntilAudioTimeAsync(
+        double startAt,
+        TimeSpan actionTime,
+        CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var currentAudioTime = await JS.InvokeAsync<double>(
+                "steelPan.getAudioTime",
+                cancellationToken);
+
+            var targetAudioTime = startAt + actionTime.TotalSeconds;
+            var remainingSeconds = targetAudioTime - currentAudioTime;
+
+            if (remainingSeconds <= 0.0)
+                return;
+
+            var delay = remainingSeconds > 0.02
+                ? TimeSpan.FromMilliseconds(Math.Min(remainingSeconds * 1000.0, 25.0))
+                : TimeSpan.FromMilliseconds(1);
+
+            await Task.Delay(delay, cancellationToken);
+        }
     }
 
     private TimeSpan GetWavDuration()

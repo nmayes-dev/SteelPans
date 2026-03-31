@@ -274,6 +274,8 @@
         await StopMidiVisualSyncAsync(resetVisuals: resetVisuals);
 
         playState_ = PlayState.NotPlaying;
+        
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task ToggleManualPlayAsync()
@@ -594,8 +596,6 @@
         displayBeat_ = 1;
         armAngleDeg_ = 0.0;
         lastFlashedBeatIndex_ = null;
-
-        await InvokeAsync(StateHasChanged);
     }
 
     private async Task StopMidiVisualSyncAsync(bool resetVisuals = true)
@@ -618,8 +618,6 @@
             displayBeat_ = 1;
             armAngleDeg_ = 0.0;
             lastFlashedBeatIndex_ = null;
-
-            await InvokeAsync(StateHasChanged);
         }
     }
 

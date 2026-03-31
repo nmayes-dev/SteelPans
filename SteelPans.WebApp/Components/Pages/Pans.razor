@@ -71,18 +71,14 @@
                                 </label>
                             </div>
 
-                            @if (midiTracks_.Count > 0)
+                            @if (midiTrackOptions_.Count > 0)
                             {
                                 <select class="form-select steel-pan__midi-track-select"
                                         value="@selectedTrackIndex_"
                                         @onchange="OnTrackChanged">
-                                    @foreach (var track in midiTracks_)
+                                    @foreach (var track in midiTrackOptions_)
                                     {
-                                        <option value="@track.Index">
-                                            @(!string.IsNullOrWhiteSpace(track.Name)
-                                                ? $"Track {track.Index} - {track.Name} - {track.NoteCount} raw notes"
-                                                : $"Track {track.Index} - {track.NoteCount} raw notes")
-                                        </option>
+                                        <option value="@track.Index">@track.Label</option>
                                     }
                                 </select>
                             }
@@ -130,7 +126,7 @@
 
     private IBrowserFile? midiFile_;
     private string? midiFileName_;
-    private List<MidiTrackInfo> midiTracks_ = [];
+    private List<MidiTrackPlaceholderOption> midiTrackOptions_ = [];
     private int? selectedTrackIndex_;
 
     private MidiPlaybackInfo? midiPlaybackInfo_;
@@ -165,6 +161,12 @@
         public required bool IsAccent { get; init; }
     }
 
+    private sealed class MidiTrackPlaceholderOption
+    {
+        public required int Index { get; init; }
+        public required string Label { get; init; }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         try
@@ -189,16 +191,11 @@
         midiFile_ = e.File;
         midiFileName_ = midiFile_.Name;
 
-        midiTracks_.Clear();
+        midiTrackOptions_.Clear();
         midiEvents_.Clear();
         selectedTrackIndex_ = null;
         midiPlaybackInfo_ = null;
         midiBpmOverride_ = null;
-
-        await using (var trackInfoStream = midiFile_.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024))
-        {
-            midiTracks_ = await MidiLoader.GetTrackInfosAsync(trackInfoStream);
-        }
 
         await using (var playbackInfoStream = midiFile_.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024))
         {
@@ -212,10 +209,21 @@
             metronomeBeatUnit_ = midiPlaybackInfo_.InitialBeatUnit;
         }
 
-        selectedTrackIndex_ = midiTracks_
-            .OrderByDescending(t => t.NoteCount)
-            .Select(t => (int?)t.Index)
-            .FirstOrDefault();
+        midiTrackOptions_ =
+        [
+            new MidiTrackPlaceholderOption
+            {
+                Index = 0,
+                Label = "All tracks merged"
+            },
+            new MidiTrackPlaceholderOption
+            {
+                Index = 1,
+                Label = "Track selection unavailable"
+            }
+        ];
+
+        selectedTrackIndex_ = midiTrackOptions_[0].Index;
 
         await ReloadSelectedTrackAsync();
     }
@@ -226,6 +234,9 @@
             return;
 
         selectedTrackIndex_ = trackIndex;
+
+        // Placeholder for when per-track selection comes back.
+        // For now all MIDI is always loaded as a merged sequence.
         await ReloadSelectedTrackAsync();
     }
 
@@ -242,7 +253,7 @@
     {
         await StopMidiAsync();
 
-        if (midiFile_ is null || selectedTrackIndex_ is null)
+        if (midiFile_ is null)
         {
             midiEvents_.Clear();
             await InvokeAsync(StateHasChanged);
@@ -251,9 +262,7 @@
 
         await using var stream = midiFile_.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
 
-        var rawEvents = await MidiLoader.LoadSingleTrackAsync(
-            stream,
-            selectedTrackIndex_.Value);
+        var rawEvents = await MidiLoader.LoadMergedMidiAsync(stream);
 
         midiEvents_ = SelectedPan is not null
             ? PanMidiMapper.FilterToPan(SelectedPan, rawEvents)
@@ -312,7 +321,9 @@
         {
             var playbackEvents = GetPlaybackEvents();
 
-            midiStartAt_ = await steelPanView_.StartMidiSequenceAsync(playbackEvents, midiPlaybackCts_.Token);
+            midiStartAt_ = await steelPanView_.StartMidiSequenceAsync(
+                playbackEvents,
+                midiPlaybackCts_.Token);
 
             if (metronomeEnabled_ && midiStartAt_ is not null)
             {
@@ -322,11 +333,15 @@
                     metronomeBeatsPerBar_,
                     metronomeBeatUnit_);
 
-                await JS.InvokeVoidAsync("steelPan.playMetronomeSchedule", metronomeActions, midiStartAt_);
+                await JS.InvokeVoidAsync(
+                    "steelPan.playMetronomeSchedule",
+                    metronomeActions,
+                    midiStartAt_.Value);
+
                 await metronome_!.StartMidiVisualSyncAsync(midiStartAt_.Value);
             }
 
-            await steelPanView_.RunMidiVisualSequenceAsync(playbackEvents, midiPlaybackCts_.Token);
+            await steelPanView_.MidiPlaybackCompletion;
         }
         catch (OperationCanceledException)
         {
@@ -362,7 +377,7 @@
 
         if (steelPanView_ is not null)
             await steelPanView_.StopMidiPlaybackAsync();
-            
+
         await metronome_!.StopAsync();
 
         await InvokeAsync(StateHasChanged);
@@ -390,7 +405,7 @@
             })
             .ToList();
     }
-        
+
     private List<MetronomeAction> BuildMetronomeActions(
         IReadOnlyList<MidiPanEvent> playbackEvents,
         int bpm,
