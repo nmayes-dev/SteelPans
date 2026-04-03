@@ -1,11 +1,13 @@
 ﻿.pans-page {
     display: flex;
     flex-direction: column;
-    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: auto;
+    box-sizing: border-box;
     gap: clamp(0.25rem, 0.2rem + 0.3vw, 0.9rem);
     padding-block-start: clamp(0.65rem, 0.5rem + 0.55vw, 0.9rem);
     padding-inline: clamp(0.25rem, -0.2rem + 1.4vw, 1rem);
-    padding-block-end: clamp(0rem, -1.2rem + 3.2vw, 1rem);
+    padding-block-end: clamp(0.4rem, -1.2rem + 3.2vw, 1rem);
 }
 
 .pans-page__hero {
@@ -73,10 +75,8 @@
 
 .pans-page__chord-panel,
 .pans-page__field,
-.pans-page__instrument-full,
 .pans-page__sidebar {
     min-width: 0;
-    min-height: 0;
     min-height: 0;
     border-radius: 1.35rem;
     background: rgba(255, 255, 255, 0.96);
@@ -109,24 +109,43 @@
 }
 
 .pans-page__content {
+    flex: 1 1 0;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0.6rem;
+}
+
+.pans-page__playback-control {
+    min-width: 0;
+    min-height: 0;
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 1;
+}
+
+.pans-page__main {
+    min-height: 20rem;
+    min-width: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr) clamp(240px, 20vw, 460px);
-    gap: 0.6rem;
-    align-items: stretch;
-    flex: 1 1 auto;
-    min-height: 0;
-    height: 0;
+    gap: 0.25rem;
 }
 
 .pans-page__instrument-full {
-    display: flex;
-    flex-direction: column;
+    min-width: 0;
     min-height: 0;
+    height: 100%;
+    border-radius: 1.35rem;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.07);
 }
 
 .pans-page__sidebar {
     padding: 0.9rem;
-    height: 100%;
+    display: grid;
     min-height: 0;
 }
 
@@ -148,13 +167,13 @@
 
 .steel-pan__midi-row {
     display: grid;
-    grid-template-columns: minmax(260px, 1fr) auto;
+    grid-template-columns: auto;
     gap: 0.8rem;
     align-items: center;
 }
 
-    .steel-pan__midi-row:has(> :nth-child(3)) {
-        grid-template-columns: minmax(10rem, 1fr) minmax(0, 1fr) auto;
+    .steel-pan__midi-row:has(> :nth-child(2)) {
+        grid-template-columns: minmax(10rem, 1fr) minmax(0, 1fr);
     }
 
 
@@ -280,17 +299,10 @@
 }
 
 @media (max-width: 1100px) {
-    .pans-page__sidebar {
-        display: flex;
-        justify-content: center;
-    }
 
     .pans-page__top-controls {
         grid-template-columns: 1fr;
     }
-}
-
-@media (max-width: 980px) {
 }
 
 @media (max-width: 900px) {
@@ -300,16 +312,46 @@
 }
 
 @media (max-width: 700px) {
-    .pans-page__hero-content {
-        grid-template-columns: 1fr;
-        gap: 0.7rem;
-        align-items: start;
+    .pans-page {
+        height: auto;
+        overflow: visible;
     }
+
 
     .pans-page__hero-field {
         justify-content: start;
     }
+
+    .pans-page__content {
+        flex: 0 0 auto;
+        overflow: visible;
+        grid-template-rows: auto auto;
+    }
+
+    .pans-page__main {
+        height: auto;
+        min-height: 0;
+        overflow: visible;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+    }
+
+    .pans-page__instrument-full {
+        min-height: 20rem;
+    }
+
+    .pans-page__sidebar {
+        height: auto;
+        min-height: 0;
+    }
+
+    .pans-page__chord-panel,
+    .pans-page__field,
+    .pans-page__sidebar {
+        height: auto;
+    }
 }
+
 
 @media (max-width: 576px) {
     .pans-page__hero,

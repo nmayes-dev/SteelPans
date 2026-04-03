@@ -1,0 +1,194 @@
+﻿@using Microsoft.AspNetCore.Components.Web
+
+<div class="midi-playback @(Disabled ? "midi-playback--disabled" : null)">
+    <div class="midi-playback__timeline">
+        <input class="midi-playback__slider"
+               type="range"
+               min="0"
+               max="@MaxSecondsString"
+               step="0.01"
+               value="@DisplaySecondsString"
+               style="--value:@DisplaySecondsString; --max:@MaxSecondsString;"
+               disabled="@(!CanSeek)"
+               aria-label="Playback position"
+               @oninput="HandleSliderInput"
+               @onchange="HandleSliderChange"
+               @onmousedown="BeginSeek"
+               @onmouseup="EndSeek"
+               @ontouchstart="BeginSeek"
+               @ontouchend="EndSeek" />
+
+        <div class="midi-playback__time-row">
+            <span class="midi-playback__time midi-playback__time--current">@FormatTime(DisplayTime)</span>
+            <span class="midi-playback__time midi-playback__time--total">@FormatTime(TotalTime)</span>
+        </div>
+    </div>
+
+    <div class="midi-playback__controls">
+        <button class="midi-playback__button midi-playback__button--secondary"
+                type="button"
+                title="Back to start"
+                aria-label="Back to start"
+                disabled="@(!CanGoToStart)"
+                @onclick="HandleBackToStart">
+            <span class="bi bi-skip-start-fill" aria-hidden="true"></span>
+        </button>
+
+        <button class="midi-playback__button midi-playback__button--primary"
+                type="button"
+                title="@(IsPlaying ? "Pause" : "Play")"
+                aria-label="@(IsPlaying ? "Pause" : "Play")"
+                disabled="@Disabled"
+                @onclick="HandlePlayPause">
+            <span class="bi @(IsPlaying ? "bi-pause-fill" : "bi-play-fill")" aria-hidden="true"></span>
+        </button>
+
+        <button class="midi-playback__button midi-playback__button--secondary"
+                type="button"
+                title="Next track"
+                aria-label="Next track"
+                disabled="@(!CanGoNext)"
+                @onclick="HandleNextTrack">
+            <span class="bi bi-skip-end-fill" aria-hidden="true"></span>
+        </button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public TimeSpan CurrentTime { get; set; }
+    [Parameter] public TimeSpan TotalTime { get; set; }
+    [Parameter] public bool IsPlaying { get; set; }
+
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool CanSeek { get; set; } = true;
+    [Parameter] public bool CanGoNext { get; set; }
+    [Parameter] public bool CanGoToStart { get; set; } = true;
+
+    [Parameter] public EventCallback OnPlayPause { get; set; }
+    [Parameter] public EventCallback OnBackToStart { get; set; }
+    [Parameter] public EventCallback OnNextTrack { get; set; }
+
+    [Parameter] public EventCallback<TimeSpan> OnSeekPreviewChanged { get; set; }
+    [Parameter] public EventCallback<TimeSpan> OnSeekCommitted { get; set; }
+
+    private bool isSeeking_;
+    private double previewSeconds_;
+
+    private TimeSpan DisplayTime => isSeeking_
+        ? TimeSpan.FromSeconds(previewSeconds_)
+        : ClampTime(CurrentTime);
+
+    private double MaxSeconds => Math.Max(TotalTime.TotalSeconds, 0.01);
+    private string MaxSecondsString => MaxSeconds.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    private string DisplaySecondsString => Math.Clamp(DisplayTime.TotalSeconds, 0, MaxSeconds)
+        .ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    protected override void OnParametersSet()
+    {
+        if (!isSeeking_)
+            previewSeconds_ = ClampSeconds(CurrentTime.TotalSeconds);
+    }
+
+    private async Task HandlePlayPause()
+    {
+        if (Disabled || !OnPlayPause.HasDelegate)
+            return;
+
+        await OnPlayPause.InvokeAsync();
+    }
+
+    private async Task HandleBackToStart()
+    {
+        if (!CanGoToStart || !OnBackToStart.HasDelegate)
+            return;
+
+        await OnBackToStart.InvokeAsync();
+    }
+
+    private async Task HandleNextTrack()
+    {
+        if (!CanGoNext || !OnNextTrack.HasDelegate)
+            return;
+
+        await OnNextTrack.InvokeAsync();
+    }
+
+    private void BeginSeek()
+    {
+        if (!CanSeek)
+            return;
+
+        isSeeking_ = true;
+    }
+
+    private async Task EndSeek()
+    {
+        if (!CanSeek)
+            return;
+
+        await CommitPreviewAsync();
+    }
+
+    private async Task HandleSliderInput(ChangeEventArgs args)
+    {
+        if (!CanSeek)
+            return;
+
+        isSeeking_ = true;
+        previewSeconds_ = ParseSeconds(args.Value);
+        await NotifyPreviewChangedAsync();
+    }
+
+    private async Task HandleSliderChange(ChangeEventArgs args)
+    {
+        if (!CanSeek)
+            return;
+
+        previewSeconds_ = ParseSeconds(args.Value);
+        await CommitPreviewAsync();
+    }
+
+    private async Task NotifyPreviewChangedAsync()
+    {
+        if (OnSeekPreviewChanged.HasDelegate)
+            await OnSeekPreviewChanged.InvokeAsync(TimeSpan.FromSeconds(previewSeconds_));
+    }
+
+    private async Task CommitPreviewAsync()
+    {
+        previewSeconds_ = ClampSeconds(previewSeconds_);
+        isSeeking_ = false;
+
+        if (OnSeekCommitted.HasDelegate)
+            await OnSeekCommitted.InvokeAsync(TimeSpan.FromSeconds(previewSeconds_));
+
+        StateHasChanged();
+    }
+
+    private double ParseSeconds(object? value)
+    {
+        if (value is null)
+            return 0;
+
+        return double.TryParse(
+            value.ToString(),
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var seconds)
+            ? ClampSeconds(seconds)
+            : 0;
+    }
+
+    private double ClampSeconds(double seconds) => Math.Clamp(seconds, 0, MaxSeconds);
+
+    private TimeSpan ClampTime(TimeSpan time) => TimeSpan.FromSeconds(ClampSeconds(time.TotalSeconds));
+
+    private static string FormatTime(TimeSpan time)
+    {
+        var totalHours = (int)time.TotalHours;
+
+        return totalHours > 0
+            ? $"{totalHours}:{time.Minutes:00}:{time.Seconds:00}.{time.Milliseconds:000}"
+            : $"{time.Minutes}:{time.Seconds:00}.{time.Milliseconds:000}";
+    }
+}

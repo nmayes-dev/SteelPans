@@ -1,7 +1,14 @@
 ﻿.steel-pan__chord-builder {
     display: grid;
-    grid-template-columns: max-content minmax(0, 1fr) auto;
-    gap: 1rem;
+    grid-template-columns: auto 1fr;
+    align-items: end;
+    gap: 1.5rem;
+}
+
+.steel-pan__chord-selector {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.3rem;
     align-items: end;
 }
 
@@ -48,24 +55,34 @@
 }
 
 .steel-pan__chord-actions {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
     gap: 0.65rem;
     align-items: center;
 }
 
-    .steel-pan__chord-actions .btn {
-        height: calc(1.5em + 0.75rem + 2px);
-        padding-inline: 1rem;
-        white-space: nowrap;
-        font-weight: 700;
-    }
+.steel-pan__chord-note-set {
+    display: contents;
+}
 
-.steel-pan__chord-play {
-    margin-left: 0.25rem;
+.steel-pan__chord-actions .btn {
+    width: 100%;
+    height: calc(1.5em + 0.75rem + 2px);
+    white-space: nowrap;
+    font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+    .steel-pan__chord-builder {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        align-items: end;
+        gap: 0.8rem;
+    }
 }
 
 @media (max-width: 900px) {
-    .steel-pan__chord-builder {
+    .steel-pan__chord-selector {
         grid-template-columns: max-content minmax(0, 1fr);
         align-items: end;
     }
@@ -79,29 +96,25 @@
             min-width: 0;
             width: 100%;
         }
-
-    .steel-pan__chord-actions {
-        grid-column: 1 / -1;
-        justify-content: flex-start;
-    }
-
-        .steel-pan__chord-actions .btn {
-            flex: 1 1 0;
-        }
 }
 
 @media (max-width: 576px) {
     .steel-pan__chord-builder {
-        grid-template-columns: max-content minmax(0, 1fr);
+        grid-template-columns: 1fr;
         gap: 0.75rem;
+    }
+
+    .steel-pan__chord-actions {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.65rem;
+    }
+
+    .steel-pan__chord-note-set {
+        display: flex;
+        gap: 0.65rem;
     }
 
     .steel-pan__chord-row {
         gap: 0.6rem;
-    }
-
-    .steel-pan__chord-actions {
-        grid-column: 1 / -1;
-        flex-wrap: nowrap;
     }
 }

@@ -9,38 +9,35 @@
     --metro-gap: clamp(0.45rem, 0.42rem + 0.35vw, 0.85rem);
     --metro-label-gap: clamp(0.28rem, 0.24rem + 0.12vw, 0.42rem);
     --metro-button-pad-x: clamp(0.72rem, 0.56rem + 0.35vw, 1rem);
-
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    min-height: 0; /* important */
+    --metro-aspect-ratio: calc(216 / 312);
+    display: grid;
+    grid-template-columns: auto;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: var(--metro-gap);
+    min-height: 0;
+    container-type: size;
+    transition: grid-template-rows 220ms ease, gap 220ms ease;
 }
 
-.metronome__topbar {
+.metronome__controls {
     display: grid;
-    gap: var(--metro-gap);
     grid-template-columns: 1fr;
-    column-gap: var(--metro-gap);
+    gap: var(--metro-gap);
+    min-height: 0;
+    align-self: stretch;
+    min-height: 0;
+    align-content: start;
+    transition: padding 220ms ease;
 }
 
 .metronome__header {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) fit-content(7rem);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    justify-content: space-between;
     align-items: start;
-    gap: var(--metro-gap);
+    gap: calc(8 * var(--metro-gap));
     min-width: 0;
 }
-
-.metronome__header-actions {
-    display: flex;
-    gap: clamp(0.45rem, 0.35rem + 0.2vw, 0.65rem);
-    justify-self: end;
-}
-
-    .metronome__header-actions .btn {
-        flex: 0 1 auto;
-        min-width: 0;
-    }
 
 .metronome__status-toggle .badge,
 .metronome__toggle,
@@ -52,6 +49,7 @@
 
 .metronome__status-toggle {
     display: inline-flex;
+    width: 100%;
     align-items: center;
     justify-self: start;
     min-height: var(--metro-control-height);
@@ -73,7 +71,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-width: clamp(5.75rem, 5.1rem + 1vw, 6.5rem);
+        min-width: 100%;
         min-height: var(--metro-control-height);
         padding: 0 clamp(0.62rem, 0.52rem + 0.24vw, 0.75rem);
         border-radius: var(--metro-control-radius);
@@ -113,6 +111,17 @@
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 0 0 0.18rem rgba(37, 99, 235, 0.14);
     }
 
+
+.metronome__header-actions {
+    display: flex;
+    width: 100%;
+    gap: clamp(0.45rem, 0.35rem + 0.2vw, 0.65rem);
+}
+
+    .metronome__header-actions .btn {
+        width: 100%;
+    }
+
 .metronome__status-label {
     display: inline-block;
     min-width: 100%;
@@ -131,6 +140,7 @@
     display: grid;
     grid-template-columns: minmax(0, 3.5fr) minmax(0, 3fr) minmax(0, 2.4fr);
     gap: var(--metro-gap);
+    min-height: 0;
 }
 
 .metronome__field {
@@ -157,9 +167,9 @@
     min-width: 0;
 }
 
-.metronome__number-input .form-control,
-.metronome__number-input .form-select {
-}
+    .metronome__number-input .form-control,
+    .metronome__number-input .form-select {
+    }
 
 ::deep .metronome__number-input-control {
     -moz-appearance: textfield;
@@ -300,15 +310,14 @@
 /* Actual Visible Metronome */
 
 .metronome__visual {
-    --metronome-size: clamp(13.5rem, 24vw, 18.875rem);
-    --metronome-radius: clamp(0.85rem, 1.2vw, 1.1rem);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex: 1 1 auto;
+    display: grid;
+    place-items: center;
     min-height: 0;
-    padding-top: clamp(0.5rem, 1.2vw, 1rem);
-    transition: opacity 120ms ease, transform 120ms ease;
+    overflow: hidden;
+    opacity: 1;
+    transform: scale(1);
+    max-height: 100%;
+    transition: opacity 180ms ease, transform 220ms ease, max-height 220ms ease, margin 220ms ease, padding 220ms ease;
 }
 
 .metronome__visual--disabled {
@@ -318,8 +327,8 @@
 
 .metronome__case {
     position: relative;
-    width: min(100%, var(--metronome-size));
-    aspect-ratio: 206 / 312;
+    height: 100%;
+    aspect-ratio: var(--metro-aspect-ratio);
     clip-path: polygon(50% 0%, 81% 17%, 94% 100%, 6% 100%, 19% 17%);
     background: linear-gradient(180deg, #334155 0%, #1e293b 44%, #0f172a 100%);
     border: 1px solid rgba(148, 163, 184, 0.2);
@@ -499,8 +508,8 @@
     position: absolute;
     left: 50%;
     bottom: 5.8%;
-    min-width: 62.36%;
-    padding: clamp(0.45rem, 1vw, 0.75rem) clamp(0.55rem, 1.2vw, 0.85rem);
+    width: 52.36%;
+    padding: clamp(0.15rem, 0.8vw, 0.75rem) 0;
     transform: translateX(-50%);
     text-align: center;
     border-radius: clamp(0.65rem, 1vw, 0.9rem);
@@ -512,7 +521,7 @@
 }
 
 .metronome__beat-number {
-    font-size: clamp(1.2rem, 3vw, 1.85rem);
+    font-size: clamp(0.8rem, 1.5vw, 2rem);
     font-weight: 800;
     letter-spacing: -0.04em;
 }
@@ -525,24 +534,109 @@
     margin-left: 0.18rem;
 }
 
+@container (max-height: 18rem) {
+    .metronome {
+        grid-template-rows: minmax(0, 1fr) 0;
+        gap: 0;
+    }
 
-@media (max-width: 1100px) {
-    .metronome__topbar {
+    .metronome__controls {
+        min-height: 0;
+        block-size: 100%;
+        align-self: stretch;
+        display: grid;
+        grid-template-rows: auto minmax(max-content, 1fr);
+        gap: calc(2 * var(--metro-gap));
+    }
+
+    .metronome__inputs {
+        min-height: 0;
+        block-size: auto;
         grid-template-columns: 1fr;
+        gap: calc(1.5 * var(--metro-gap));
+    }
+
+    .metronome__visual {
+        opacity: 0;
+        transform: scale(0.92);
+        max-height: 0;
+        pointer-events: none;
+        overflow: hidden;
+    }
+
+    .metronome__header {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .metronome__field {
+        min-height: 0;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 700px) {
+    .metronome {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+        grid-template-rows: auto;
+        align-items: start;
+        width: 100%;
+        height: auto;
+        min-height: 0;
+        container-type: inline-size;
+    }
+
+    .metronome__controls {
+        display: grid;
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+        gap: calc(2 * var(--metro-gap));
+        min-height: 0;
+        height: auto;
+        block-size: auto;
+        align-self: start;
+        align-content: start;
+    }
+
+    .metronome__header {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--metro-gap);
+    }
+
+    .metronome__inputs {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: calc(2 * var(--metro-gap));
+        min-height: 0;
+        height: auto;
+        block-size: auto;
+        align-content: start;
+    }
+
+    .metronome__field {
+        min-height: 0;
+        justify-content: flex-start;
+    }
+
+    .metronome__visual {
+        display: grid;
+        place-items: start center;
+        min-height: 0;
+        height: auto;
+        max-height: none;
+        overflow: visible;
+        opacity: 1;
+        transform: none;
+        align-self: start;
+    }
+
+    .metronome__case {
+        width: min(100%, 12rem);
+        height: auto;
+        aspect-ratio: var(--metro-aspect-ratio);
     }
 }
 
 @media (max-width: 576px) {
-    .metronome__header {
-        grid-template-columns: 1fr auto;
-        gap: 0.6rem;
-    }
-
-    .metronome__header-actions {
-        justify-self: start;
-        flex-wrap: wrap;
-    }
-
     .metronome__toggle {
         justify-self: start;
     }
