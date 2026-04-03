@@ -35,7 +35,7 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     justify-content: space-between;
     align-items: start;
-    gap: calc(8 * var(--metro-gap));
+    gap: calc(2 * var(--metro-gap));
     min-width: 0;
 }
 

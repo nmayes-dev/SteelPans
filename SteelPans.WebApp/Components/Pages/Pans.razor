@@ -83,7 +83,7 @@
                                      IsPlaying="@isMidiPlaying_"
                                      CanSeek="@(midiEvents_.Count > 0)"
                                      CanGoToStart="@(playbackPosition_ > TimeSpan.Zero)"
-                                     CanGoNext="@(midiEvents_.Count > 0)"
+                                     CanGoNext="@(midiEvents_.Count > 0 && playbackPosition_ < playbackDuration_)"
                                      Disabled="@(midiEvents_.Count == 0)"
                                      OnPlayPause="ToggleMidiAsync"
                                      OnBackToStart="SeekToStartAsync"
