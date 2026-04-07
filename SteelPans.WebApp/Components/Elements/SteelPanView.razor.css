@@ -44,9 +44,3 @@
 .steel-pan__note-label {
     pointer-events: none;
 }
-
-@media (max-width: 768px) {
-    .steel-pan__canvas {
-        padding: 0.85rem;
-    }
-}

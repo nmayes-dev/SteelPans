@@ -12,10 +12,10 @@
     --metro-aspect-ratio: calc(216 / 312);
     display: grid;
     grid-template-columns: auto;
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
     gap: var(--metro-gap);
     min-height: 0;
-    container-type: size;
+    height: auto;
     transition: grid-template-rows 220ms ease, gap 220ms ease;
 }
 
@@ -312,11 +312,12 @@
 .metronome__visual {
     display: grid;
     place-items: center;
+    height: auto;
     min-height: 0;
-    overflow: hidden;
+    overflow: visible;
     opacity: 1;
     transform: scale(1);
-    max-height: 100%;
+    max-height: none;
     transition: opacity 180ms ease, transform 220ms ease, max-height 220ms ease, margin 220ms ease, padding 220ms ease;
 }
 
@@ -327,7 +328,9 @@
 
 .metronome__case {
     position: relative;
-    height: 100%;
+    width: min(100%, 14rem);
+    height: auto;
+    min-height: 0;
     aspect-ratio: var(--metro-aspect-ratio);
     clip-path: polygon(50% 0%, 81% 17%, 94% 100%, 6% 100%, 19% 17%);
     background: linear-gradient(180deg, #334155 0%, #1e293b 44%, #0f172a 100%);
