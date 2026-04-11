@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Left N (single continuous shape) -->
+  <path fill="black" d="
+    M10 12
+    L10 52
+    L18 47.2
+    L18 28.2
+    L40 44.8
+    L40 36.8
+    Z
+  "></path>
+
+  <!-- Diagonal (kept separate, slight gap avoids seam) -->
+  <path fill="black" d="
+    M32.8 27.4
+    L40 20.8
+    L40 33.2
+    Z
+  "></path>
+
+  <!-- Right vertical -->
+  <path fill="black" d="
+    M42 19.5
+    L50 12
+    L50 52
+    L42 46.4
+    Z
+  "></path>
+</svg>
