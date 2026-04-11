@@ -1,10 +1,11 @@
 ﻿@using SteelPans.WebApp.Model
 
-<div class="steel-pan__chord-builder">
+<div class="steel-pan__chord-builder @(Disabled ? "steel-pan__chord-builder--disabled" : null)">
     <div class="steel-pan__chord-selector">
         <div class="steel-pan__chord-select--note">
             <select class="form-select steel-pan__chord-select--tone"
                     value="@rootLetter_"
+                    disabled="@Disabled"
                     @onchange="OnRootLetterChanged">
                 @foreach (var letter in Enum.GetValues<NoteLetter>())
                 {
@@ -14,14 +15,17 @@
 
             <select class="form-select steel-pan__chord-select--accidental"
                     value="@rootAccidental_"
+                    disabled="@Disabled"
                     @onchange="OnRootAccidentalChanged">
                 <option value="-1">♭</option>
                 <option value="0">♮</option>
                 <option value="1">♯</option>
             </select>
         </div>
+
         <select class="form-select steel-pan__chord-select--scale"
                 value="@selectedChord_"
+                disabled="@Disabled"
                 @onchange="OnChordChanged">
             @foreach (var chord in chordOptions_.Keys)
             {
@@ -30,25 +34,18 @@
         </select>
     </div>
 
-
     <div class="steel-pan__chord-actions">
-        <div class="steel-pan__chord-set">
-            <button class="btn btn-outline-secondary"
-                    type="button"
-                    @onclick="ClearChordAsync">
-                Clear
-            </button>
-
-            <button class="btn btn-primary"
-                    type="button"
-                    @onclick="ApplyChordAsync">
-                Set
-            </button>
-        </div>
+        <button class="btn btn-outline-secondary"
+                type="button"
+                disabled="@Disabled"
+                @onclick="ClearChordAsync">
+            Clear
+        </button>
 
         <button class="btn btn-primary steel-pan__chord-play"
                 type="button"
-                @onclick="PlayClicked">
+                disabled="@Disabled"
+                @onclick="PlayClickedAsync">
             Play
         </button>
     </div>
@@ -57,6 +54,7 @@
 @code {
     [Parameter] public EventCallback<HashSet<int>> OnChordSelected { get; set; }
     [Parameter] public EventCallback OnPlay { get; set; }
+    [Parameter] public bool Disabled { get; set; }
 
     private NoteLetter rootLetter_ = NoteLetter.C;
     private int rootAccidental_ = 0;
@@ -76,18 +74,27 @@
 
     private void OnRootLetterChanged(ChangeEventArgs e)
     {
+        if (Disabled)
+            return;
+
         if (Enum.TryParse<NoteLetter>(e.Value?.ToString(), out var value))
             rootLetter_ = value;
     }
 
     private void OnRootAccidentalChanged(ChangeEventArgs e)
     {
+        if (Disabled)
+            return;
+
         if (int.TryParse(e.Value?.ToString(), out var value))
             rootAccidental_ = value;
     }
 
     private void OnChordChanged(ChangeEventArgs e)
     {
+        if (Disabled)
+            return;
+
         var value = e.Value?.ToString();
         if (!string.IsNullOrWhiteSpace(value) && chordOptions_.ContainsKey(value))
             selectedChord_ = value;
@@ -95,11 +102,17 @@
 
     private async Task ClearChordAsync()
     {
+        if (Disabled)
+            return;
+
         await OnChordSelected.InvokeAsync(new());
     }
 
     private async Task ApplyChordAsync()
     {
+        if (Disabled)
+            return;
+
         var root = new Note(rootLetter_, new Accidental(rootAccidental_), octave_);
         var chord = root.BuildChord(chordOptions_[selectedChord_]);
 
@@ -107,8 +120,13 @@
         await OnChordSelected.InvokeAsync(pitchClasses);
     }
 
-    private async Task PlayClicked()
+    private async Task PlayClickedAsync()
     {
+        if (Disabled)
+            return;
+
+        await ApplyChordAsync();
+
         if (OnPlay.HasDelegate)
             await OnPlay.InvokeAsync();
     }

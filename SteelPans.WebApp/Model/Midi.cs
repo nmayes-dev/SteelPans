@@ -51,3 +51,10 @@ public sealed class MidiPlaybackInfo
     public List<MidiTempoChange> TempoChanges { get; init; } = [];
     public List<MidiTimeSignatureChange> TimeSignatureChanges { get; init; } = [];
 }
+
+
+public sealed class MetronomeAction
+{
+    public required double TimeSeconds { get; init; }
+    public required bool IsAccent { get; init; }
+}

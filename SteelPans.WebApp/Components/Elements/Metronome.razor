@@ -3,48 +3,29 @@
 
 <div class="metronome">
     <div class="metronome__controls">
-        <div class="metronome__header">
-            <button class="metronome__status-toggle"
-                    type="button"
-                    @onclick="ToggleEnabledAsync">
-                <span class="badge @MetronomeStatusClass">
-                    <span class="metronome__status-label">@MetronomeStatusText</span>
-                </span>
-            </button>
-
-            <div class="metronome__header-actions">
-                <button class="btn btn-outline-secondary metronome__toggle"
-                        type="button"
-                        @onclick="ToggleManualPlayAsync"
-                        disabled="@(playState_ == PlayState.MIDI || !Enabled)">
-                    @(playState_ == PlayState.Manual ? "Stop" : "Play")
-                </button>
-            </div>
-        </div>
-
         <div class="metronome__inputs">
             <div class="metronome__field">
-                <div class="metronome__number-input @(IsPlaying ? "metronome__number-input--disabled" : null)">
+                <div class="metronome__number-input @((!CanEditBpm) ? "metronome__number-input--disabled" : null)">
                     <NumericInput Id="@($"{componentId_}_bpm")"
                                   Class="form-control metronome__bpm-input metronome__number-input-control"
                                   Value="@Bpm"
                                   ValueChanged="SetBpmAsync"
                                   Min="20"
                                   Max="200"
-                                  Disabled="@IsPlaying" />
+                                  Disabled="@(!CanEditBpm)" />
 
                     <div class="metronome__number-buttons">
                         <button class="metronome__number-button metronome__number-button--up"
                                 type="button"
                                 @onclick="IncrementBpmAsync"
-                                disabled="@IsPlaying"
+                                disabled="@(!CanEditBpm)"
                                 tabindex="-1"
                                 aria-label="Increase BPM"></button>
 
                         <button class="metronome__number-button metronome__number-button--down"
                                 type="button"
                                 @onclick="DecrementBpmAsync"
-                                disabled="@IsPlaying"
+                                disabled="@(!CanEditBpm)"
                                 tabindex="-1"
                                 aria-label="Decrease BPM"></button>
                     </div>
@@ -53,27 +34,27 @@
             </div>
 
             <div class="metronome__field">
-                <div class="metronome__number-input @(IsPlaying ? "metronome__number-input--disabled" : null)">
+                <div class="metronome__number-input @(!CanEditTimeSignature ? "metronome__number-input--disabled" : null)">
                     <NumericInput Id="@($"{componentId_}_beatsPerBar")"
                                   Class="form-control metronome__time-signature-input metronome__number-input-control"
                                   Value="@BeatsPerBar"
                                   ValueChanged="SetBeatsPerBarAsync"
                                   Min="1"
                                   Max="32"
-                                  Disabled="@IsPlaying" />
+                                  Disabled="@(!CanEditTimeSignature)" />
 
                     <div class="metronome__number-buttons">
                         <button class="metronome__number-button metronome__number-button--up"
                                 type="button"
                                 @onclick="IncrementBeatsPerBarAsync"
-                                disabled="@IsPlaying"
+                                disabled="@(!CanEditTimeSignature)"
                                 tabindex="-1"
                                 aria-label="Increase beats per bar"></button>
 
                         <button class="metronome__number-button metronome__number-button--down"
                                 type="button"
                                 @onclick="DecrementBeatsPerBarAsync"
-                                disabled="@IsPlaying"
+                                disabled="@(!CanEditTimeSignature)"
                                 tabindex="-1"
                                 aria-label="Decrease beats per bar"></button>
                     </div>
@@ -82,12 +63,12 @@
             </div>
 
             <div class="metronome__field">
-                <div class="metronome__number-input @(IsPlaying ? "metronome__number-input--disabled" : null)">
+                <div class="metronome__number-input @((!CanEditTimeSignature) ? "metronome__number-input--disabled" : null)">
                     <select id="@($"{componentId_}_beatUnit")"
                             class="form-select metronome__beat-unit-input"
                             value="@BeatUnit"
                             @onchange="OnBeatUnitChanged"
-                            disabled="@IsPlaying">
+                            disabled="@(!CanEditTimeSignature)">
                         <option value="1">1</option>
                         <option value="2">2</option>
                         <option value="4">4</option>
@@ -102,6 +83,15 @@
     </div>
 
     <div class="metronome__visual @(Enabled ? null : "metronome__visual--disabled")">
+        <button class="metronome__toggle metronome__toggle--floating"
+                type="button"
+                @onclick="ToggleManualPlayAsync"
+                disabled="@(playState_ == PlayState.MIDI || !Enabled)"
+                aria-label="@(playState_ == PlayState.Manual ? "Stop metronome" : "Play metronome")"
+                title="@(playState_ == PlayState.Manual ? "Stop" : "Play")">
+            <i class="bi @(playState_ == PlayState.Manual ? "bi-stop-fill" : "bi-play-fill")"
+               aria-hidden="true"></i>
+        </button>
         <div class="metronome__case">
             <div class="metronome__arm-pivot"></div>
 
@@ -111,11 +101,11 @@
                     <div class="metronome__arm-stick"></div>
 
                     <div class="metronome__arm-weight-track" @ref="weightTrackRef_">
-                        <button class="metronome__arm-weight @(CanDragWeight ? "metronome__arm-weight--draggable" : "metronome__arm-weight--locked")"
+                        <button class="metronome__arm-weight @(CanEditBpm ? "metronome__arm-weight--draggable" : "metronome__arm-weight--locked")"
                                 type="button"
                                 style="@($"top: {WeightTopPercent:F3}%;")"
                                 @onpointerdown="BeginWeightDragAsync"
-                                disabled="@(!CanDragWeight)"
+                                disabled="@(!CanEditBpm)"
                                 tabindex="-1"
                                 aria-label="Drag to adjust BPM"></button>
                     </div>

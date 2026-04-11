@@ -5,6 +5,15 @@
     gap: 0.8rem;
 }
 
+.steel-pan__chord-builder--disabled {
+    opacity: 0.65;
+}
+
+    .steel-pan__chord-builder--disabled,
+    .steel-pan__chord-builder--disabled * {
+        cursor: not-allowed;
+    }
+
 .steel-pan__chord-selector {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
@@ -19,21 +28,10 @@
     align-items: center;
 }
 
-.steel-pane__chord-select--tone {
-}
-
-.steel-pane__chord-select--accidental {
-}
-
-.steel-pane__chord-select--scale {
-}
-
-
-
 .steel-pan__chord-actions {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 0.5rem;
+    grid-template-columns: 1fr 1fr;
+    gap: 3.5rem;
     align-items: center;
 }
 

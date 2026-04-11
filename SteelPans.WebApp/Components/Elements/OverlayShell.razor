@@ -1,21 +1,28 @@
 ﻿<div class="@ShellClass">
-    <button class="@ToggleButtonClass"
+    <button class="@ToggleHeaderClass"
             type="button"
             @onclick="ToggleAsync"
             aria-expanded="@IsOpen"
             aria-label="@Label">
-        <i class="@IconClass pans-page__overlay-toggle-icon" aria-hidden="true"></i>
-        <span class="pans-page__overlay-toggle-label">@Label</span>
+        <div class="@ToggleButtonClass">
+            <i class="@CurrentIconClass pans-page__overlay-toggle-icon" aria-hidden="true"></i>
+            <span class="pans-page__overlay-toggle-label">@Label</span>
+        </div>
+
+        @if (IsOpen && HeaderContent is not null)
+        {
+            <span class="pans-page__overlay-toggle-extra" @onclick:stopPropagation="true">
+                @HeaderContent
+            </span>
+        }
     </button>
 
-    @if (IsOpen)
-    {
-        <div class="@BodyWrapClass">
-            <div class="@BodyClass">
-                @ChildContent
-            </div>
+    <div class="@BodyWrapClass"
+         aria-hidden="@(!IsOpen)">
+        <div class="@BodyClass">
+            @ChildContent
         </div>
-    }
+    </div>
 </div>
 
 @code {
@@ -27,6 +34,9 @@
 
     [Parameter]
     public string IconClass { get; set; } = "bi bi-sliders";
+
+    [Parameter]
+    public string OpenIconClass { get; set; } = "bi bi-x-lg";
 
     [Parameter]
     public bool IsOpen { get; set; }
@@ -41,7 +51,12 @@
     public string? BodyVariantClass { get; set; }
 
     [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+
+    [Parameter]
     public RenderFragment? ChildContent { get; set; }
+
+    private string CurrentIconClass => IsOpen ? OpenIconClass : IconClass;
 
     private string ShellClass =>
         string.Join(
@@ -53,7 +68,8 @@
                 IsOpen ? "pans-page__overlay-shell--open" : "pans-page__overlay-shell--closed"
             });
 
-    private const string ToggleButtonClass = "pans-page__overlay-toggle pans-page__overlay-toggle--shell";
+    private const string ToggleHeaderClass = "pans-page__overlay-toggle pans-page__overlay-toggle--shell";
+    private const string ToggleButtonClass = "pans-page__overlay-toggle-button";
 
     private string BodyWrapClass =>
         string.Join(

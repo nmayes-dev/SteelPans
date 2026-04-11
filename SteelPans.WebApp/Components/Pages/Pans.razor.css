@@ -37,7 +37,7 @@
         display: inline-block;
         padding-left: 0.45rem;
         margin-bottom: 0.3rem;
-        font-size: clamp(0.8rem, 2vh, 1.6rem);
+        font-size: clamp(0.4rem, 1.6vh, 1.6rem);
         font-weight: 800;
         letter-spacing: 0.06em;
         text-transform: uppercase;
@@ -70,6 +70,14 @@
     padding-bottom: 0.55rem;
 }
 
+.pans-page__field-top {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding-bottom: 0.3rem;
+}
+
 .pans-page__eyebrow {
     margin: 0 0 0.18rem;
     font-size: 0.74rem;
@@ -90,7 +98,7 @@
 
 .pans-page__top-controls {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(24rem, 3fr);
+    grid-template-columns: minmax(0, 2.5fr) minmax(24rem, 3fr);
     gap: clamp(0.25rem, 0.2rem + 0.3vw, 0.9rem);
     align-items: stretch;
 }
@@ -148,6 +156,83 @@
     pointer-events: none;
 }
 
+.metronome-shell__status-switch {
+    --switch-base-size: 2.2rem;
+    position: relative;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+    .metronome-shell__status-switch:hover .metronome-shell__status-switch-track {
+        filter: brightness(1.02);
+    }
+
+.metronome-shell__status-switch-input {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.metronome-shell__status-switch-track {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    width: clamp(3rem, var(--switch-base-size) + 1vw, 4rem);
+    min-width: clamp(3rem, var(--switch-base-size) + 1vw, 4rem);
+    height: calc(var(--switch-base-size) * 0.7);
+    padding: clamp(0.14rem, 0.11rem + 0.08vw, 0.2rem);
+    border-radius: 999px;
+    background: linear-gradient(135deg, #64748b, #475569);
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24);
+    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+.metronome-shell__status-switch-thumb {
+    width: calc(var(--switch-base-size) * 0.46);
+    height: calc(var(--switch-base-size) * 0.46);
+    border-radius: 50%;
+    background: linear-gradient(180deg, #ffffff, #e2e8f0);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
+    transform: translateX(0);
+    transition: transform 160ms ease;
+}
+
+.metronome-shell__status-switch-input:checked + .metronome-shell__status-switch-track {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border-color: rgba(147, 197, 253, 0.35);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(37, 99, 235, 0.08);
+}
+
+    .metronome-shell__status-switch-input:checked + .metronome-shell__status-switch-track .metronome-shell__status-switch-thumb {
+        transform: translateX(calc(clamp(3rem, var(--switch-base-size) + 1vw, 4rem) - calc(var(--switch-base-size) * 0.46) - clamp(0.28rem, 0.28rem + 0.16vw, 0.4rem)));
+    }
+
+.metronome-shell__status-switch:hover .metronome-shell__status-switch-track {
+    filter: brightness(1.04);
+}
+
+.metronome-shell__status-switch-input:focus-visible + .metronome-shell__status-switch-track {
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24), 0 0 0 0.18rem rgba(37, 99, 235, 0.14);
+}
+
+.metronome-shell__status-switch-input:disabled + .metronome-shell__status-switch-track {
+    opacity: 0.6;
+    cursor: not-allowed;
+    filter: saturate(0.75);
+}
+
+
 .pans-page__instrument-full {
     min-width: 0;
     min-height: 0;
@@ -179,7 +264,7 @@
     min-height: 0;
     height: 100%;
     gap: 0.6rem;
-    padding: 0 4px;
+    padding-left: 4px;
     background: transparent;
     border: 0;
     box-shadow: none;
@@ -187,15 +272,57 @@
 
 .steel-pan__midi-row {
     display: grid;
-    grid-template-columns: auto;
-    gap: 0.8rem;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
 }
 
-    .steel-pan__midi-row:has(> :nth-child(2)) {
-        grid-template-columns: minmax(10rem, 1fr) minmax(0, 1fr);
+.steel-pan__midi-merge {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0;
+    padding-right: 0.2rem;
+    white-space: nowrap;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    user-select: none;
+}
+
+    .steel-pan__midi-merge:active:not(.steel-pan__midi-merge-disabled) {
+        transform: translateY(0.5px);
     }
 
+    .steel-pan__midi-merge input[type="checkbox"] {
+        width: 1rem;
+        height: 1rem;
+        margin: 0;
+    }
+
+.steel-pan__midi-merge-disabled {
+    opacity: 0.75;
+    cursor: not-allowed;
+}
+
+.steel-pan__midi-merge-label {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    gap: 0.35ch;
+}
+
+.steel-pan__midi-merge-text-short,
+.steel-pan__midi-merge-text-long {
+    display: inline-block;
+}
+
+.steel-pan__midi-merge-text-long {
+    overflow: hidden;
+    max-width: 5rem;
+    opacity: 1;
+    transition: max-width 180ms ease, opacity 180ms ease;
+}
 /* FILE PICKER */
 
 .steel-pan__midi-file-picker {
@@ -280,7 +407,6 @@
     min-width: 0;
     max-width: none;
 }
-
 /* ACTIONS */
 
 .steel-pan__midi-actions {
@@ -305,8 +431,16 @@
     .steel-pan__midi-meta strong {
         color: #334155;
     }
-
 /* RESPONSIVE */
+
+
+@media (max-width: 1240px) {
+    .steel-pan__midi-merge-text-long {
+        max-width: 0;
+        opacity: 0;
+        transform: translateX(-0.2rem);
+    }
+}
 
 @media (max-width: 1180px) {
     .steel-pan__midi-row {
@@ -314,11 +448,19 @@
     }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
     .pans-page__top-controls {
         grid-template-columns: 1fr;
     }
 
+    .steel-pan__midi-merge-text-long {
+        max-width: initial;
+        opacity: initial;
+        transform: initial;
+    }
+}
+
+@media (max-width: 900px) {
     .steel-pan__midi-actions {
         justify-content: flex-start;
     }
@@ -382,9 +524,21 @@
         border-radius: 1.1rem;
     }
 
-    .steel-pan__midi-row {
+    .steel-pan__midi-row--file {
         grid-template-columns: 1fr;
+        align-items: stretch;
     }
+
+    .steel-pan__midi-merge {
+        justify-content: flex-start;
+    }
+
+    .steel-pan__midi-merge-text-long {
+        max-width: 0;
+        opacity: 0;
+        transform: translateX(-0.2rem);
+    }
+
 
     .steel-pan__midi-file-picker {
         flex-direction: row;
