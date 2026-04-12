@@ -95,8 +95,12 @@
         }
     },
 
-    noteClick: async function (noteElement, labelElement, componentId, noteKey, event) {
+    notePointerDown: async function (noteElement, labelElement, componentId, noteKey, event) {
+        if (event.pointerType === "mouse" && event.button !== 0)
+            return;
+
         event.stopPropagation();
+        event.preventDefault();
 
         const ref = this._refs[componentId];
         if (!ref)
@@ -109,8 +113,9 @@
             return;
         }
 
-        if (!noteElement.classList.contains("sp-note--om")) {
-            await this.playNote(noteKey);
+        await this.playNote(noteKey);
+
+        if (!noteElement.classList.contains("sp-note--on")) {
             noteElement.classList.add("sp-note--flash");
 
             setTimeout(() => {

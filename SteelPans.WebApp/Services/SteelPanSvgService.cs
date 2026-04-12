@@ -227,6 +227,13 @@ public sealed class SteelPanSvgService
 
         root.SetAttributeValue("class", cssClass);
         root.SetAttributeValue("preserveAspectRatio", "xMidYMid meet");
+
+        foreach (var circle in root.Descendants()
+                     .Where(e => string.Equals(e.Name.LocalName, "circle", StringComparison.OrdinalIgnoreCase)))
+        {
+            RemoveClass(circle, "st0");
+            AddClass(circle, "sp-svg-circle");
+        }
     }
 
     private static IEnumerable<XElement> FindNoteElements(XElement root)
@@ -391,7 +398,7 @@ public sealed class SteelPanSvgService
         AddClass(element, stateClass);
 
         element.SetAttributeValue("data-note", "__NOTE_KEY__");
-        element.SetAttributeValue("onclick", "__NOTE_CLICK__");
+        element.SetAttributeValue("onpointerdown", "__NOTE_CLICK__");
         EnsureStyleContains(element, "cursor:pointer;");
 
         if (IsShapeElement(element))
@@ -476,17 +483,30 @@ public sealed class SteelPanSvgService
 
         element.SetAttributeValue("class", string.Join(" ", classes.Distinct(StringComparer.Ordinal)));
     }
+    private static void RemoveClass(XElement element, string className)
+    {
+        var existing = ((string?)element.Attribute("class")) ?? string.Empty;
 
+        var classes = existing
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(c => !string.Equals(c, className, StringComparison.Ordinal))
+            .ToList();
+
+        if (classes.Count == 0)
+        {
+            element.Attribute("class")?.Remove();
+            return;
+        }
+
+        element.SetAttributeValue("class", string.Join(" ", classes.Distinct(StringComparer.Ordinal)));
+    }
     private static void RemoveLegacyClasses(XElement element)
     {
         var existing = ((string?)element.Attribute("class")) ?? string.Empty;
 
         var classes = existing
             .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(c =>
-                !string.Equals(c, "st0", StringComparison.Ordinal) &&
-                !string.Equals(c, "steel-pan__note-shape", StringComparison.Ordinal) &&
-                !c.StartsWith("steel-pan__note-shape--", StringComparison.Ordinal))
+            .Where(c => !string.Equals(c, "st0", StringComparison.Ordinal))
             .ToList();
 
         if (classes.Count == 0)
@@ -520,7 +540,7 @@ public sealed class SteelPanSvgService
         string labelElementId)
     {
         var noteClick =
-            $"steelPan.noteClick(this,document.getElementById('{EscapeJs(labelElementId)}'),'{EscapeJs(componentId)}','{EscapeJs(noteKey)}',event)";
+            $"steelPan.notePointerDown(this,document.getElementById('{EscapeJs(labelElementId)}'),'{EscapeJs(componentId)}','{EscapeJs(noteKey)}',event)";
 
         return template
             .Replace("__NOTE_KEY__", EscapeAttribute(noteKey), StringComparison.Ordinal)

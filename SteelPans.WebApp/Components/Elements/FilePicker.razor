@@ -1,0 +1,42 @@
+﻿<div class="file-picker">
+    <InputFile id="file"
+               class="file-input"
+               OnChange="OnFileSelectedAsync"
+               accept="@filter_" />
+
+    <label for="file" class="file-button">
+        Browse
+    </label>
+
+    <label for="file"
+           class="file-name @(string.IsNullOrWhiteSpace(fileName_) ? "file-name--placeholder" : null)">
+        @displayFileName_
+    </label>
+</div>
+
+@code {
+    [Parameter]
+    public EventCallback<IBrowserFile> OnFileSelected { get; set; }
+
+    [Parameter]
+    public List<string> Accept { get; set; } = new();
+
+    private string fileName_ = string.Empty;
+    private string displayFileName_ => string.IsNullOrWhiteSpace(fileName_) ? "No file selected" : fileName_;
+
+    private string filter_ => string.Join(",", Accept.Select(ext => $".{ext.TrimStart('.')}"));
+
+    private async Task OnFileSelectedAsync(InputFileChangeEventArgs e)
+    {
+        if (e.FileCount == 0)
+            return;
+
+        var file = e.File;
+        if (file != null)
+            fileName_ = file.Name;
+        else
+            fileName_ = string.Empty;
+
+        await OnFileSelected.InvokeAsync(file);
+    }
+}

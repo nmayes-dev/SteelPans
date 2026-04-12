@@ -8,9 +8,9 @@
 @inject MidiLoaderService MidiLoader
 
 <div class="pans-page">
-    <div class="pans-page__hero">
+    <header class="sp-section pans-page__hero">
         <div class="pans-page__hero-content">
-            <div>
+            <div class="pans-page__hero_headings">
                 <label class="pans-page__eyebrow">Interactive practice tool</label>
                 <h1 class="pans-page__title">Steel Pans</h1>
             </div>
@@ -31,7 +31,7 @@
                 </div>
             }
         </div>
-    </div>
+    </header>
 
     @if (!string.IsNullOrWhiteSpace(loadError_))
     {
@@ -43,116 +43,75 @@
     }
     else
     {
-        <div class="pans-page__top-controls">
-            <div class="pans-page__field pans-page__field--wide">
-                <div class="pans-page__field-top">
-                    <label class="form-label">MIDI file</label>
-                    <label class="steel-pan__midi-merge @(midiEvents_.Count == 0 ? "steel-pan__midi-merge-disabled" : "")">
-                        <input type="checkbox"
-                               checked="@mergeAllTracks_"
-                               disabled="@(midiEvents_.Count == 0)"
-                               @onchange="OnMergeAllTracksChanged" />
-                        <span class="steel-pan__midi-merge-label">
-                            <span class="steel-pan__midi-merge-text-short">Merge</span>
-                            <span class="steel-pan__midi-merge-text-long">Tracks</span>
-                        </span>
-                    </label>
-                </div>
+        <section class="pans-page__midi-controls">
+            <MidiLoader Disabled="@(midiEvents_.Count == 0)"
+                        OnMidiSelected="OnMidiSelectedAsync"
+                        OnMergeAllTracksChanged="OnMergeAllTracksChangedAsync"/>
+            
+            <MidiPlaybackControl CurrentTime="@playbackPosition_"
+                                 TotalTime="@playbackDuration_"
+                                 IsPlaying="@isMidiPlaying_"
+                                 CanSeek="@(midiEvents_.Count > 0)"
+                                 CanGoToStart="@(playbackPosition_ > TimeSpan.Zero)"
+                                 CanGoNext="@(midiEvents_.Count > 0 && playbackPosition_ < playbackDuration_)"
+                                 Disabled="@(midiEvents_.Count == 0)"
+                                 OnPlayPause="ToggleMidiAsync"
+                                 OnBackToStart="SeekToStartAsync"
+                                 OnNextTrack="HandleNextTrackAsync"
+                                 OnSeekPreviewChanged="HandleSeekPreviewChangedAsync"
+                                 OnSeekCommitted="HandleSeekCommittedAsync" />
+        </section>
 
-                <div class="pans-page__midi">
-                    <div class="steel-pan__midi-controls">
-                        <div class="steel-pan__midi-row">
-                            <div class="steel-pan__midi-file-picker">
-                                <InputFile id="midi-file"
-                                           class="steel-pan__midi-file-input"
-                                           OnChange="OnMidiSelected"
-                                           accept=".mid,.midi" />
-
-                                <label for="midi-file" class="steel-pan__midi-file-button">
-                                    Browse
-                                </label>
-
-                                <label for="midi-file"
-                                       class="steel-pan__midi-file-name @(string.IsNullOrWhiteSpace(midiFileName_) ? "steel-pan__midi-file-name--placeholder" : null)">
-                                    @(midiFileName_ ?? "No file selected")
-                                </label>
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="pans-page__playback-control">
-                <MidiPlaybackControl CurrentTime="@playbackPosition_"
-                                     TotalTime="@playbackDuration_"
-                                     IsPlaying="@isMidiPlaying_"
-                                     CanSeek="@(midiEvents_.Count > 0)"
-                                     CanGoToStart="@(playbackPosition_ > TimeSpan.Zero)"
-                                     CanGoNext="@(midiEvents_.Count > 0 && playbackPosition_ < playbackDuration_)"
-                                     Disabled="@(midiEvents_.Count == 0)"
-                                     OnPlayPause="ToggleMidiAsync"
-                                     OnBackToStart="SeekToStartAsync"
-                                     OnNextTrack="HandleNextTrackAsync"
-                                     OnSeekPreviewChanged="HandleSeekPreviewChangedAsync"
-                                     OnSeekCommitted="HandleSeekCommittedAsync" />
-            </div>
-        </div>
-
-        <div class="pans-page__content">
-            <div class="pans-page__main">
-                <div class="pans-page__main-toggles">
-                    <OverlayShell Side="left"
-                                  Label="Chords"
-                                  IconClass="bi bi-music-note-list"
-                                  IsOpen="@showChordBuilderPanel_"
-                                  IsOpenChanged="@(value => showChordBuilderPanel_ = value)">
-                        <ChordBuilder OnChordSelected="SelectChordAsync"
-                                      OnPlay="PlaySelectedNotesAsync"
-                                      Disabled="@isMidiPlaying_"/>
-                    </OverlayShell>
+        <section class="sp-section pans-page__content">
+            <div class="pans-page__main-toggles">
+                <OverlayShell Side="left"
+                              Label="Chords"
+                              IconClass="bi bi-music-note-list"
+                              IsOpen="@showChordBuilderPanel_"
+                              IsOpenChanged="@(value => showChordBuilderPanel_ = value)">
+                    <ChordBuilder OnChordSelected="SelectChordAsync"
+                                  OnPlay="PlaySelectedNotesAsync"
+                                  Disabled="@isMidiPlaying_" />
+                </OverlayShell>
                     
-                    <OverlayShell Side="right"
-                                  Label="Metronome"
-                                  IconClass="bi bi-music-note-beamed"
-                                  IsOpen="@showMetronomePanel_"
-                                  IsOpenChanged="@(value => showMetronomePanel_ = value)"
-                                  PanelVariantClass="pans-page__overlay-panel-body-wrap--metronome"
-                                  BodyVariantClass="pans-page__overlay-panel-body--metronome">
-                        <HeaderContent>
-                            <label class="metronome-shell__status-switch">
-                                <input class="metronome-shell__status-switch-input"
-                                       type="checkbox"
-                                       checked="@metronomeEnabled_"
-                                       @onchange="OnMetronomeEnabledShellChangedAsync"
-                                       aria-label="Enable metronome" />
+                <OverlayShell Side="right"
+                              Label="Metronome"
+                              IconClass="bi bi-music-note-beamed"
+                              IsOpen="@showMetronomePanel_"
+                              IsOpenChanged="@(value => showMetronomePanel_ = value)"
+                              PanelVariantClass="overlay-panel-body-wrap--metronome"
+                              BodyVariantClass="overlay-panel-body--metronome">
+                    <HeaderContent>
+                        <label class="metronome-shell__status-switch">
+                            <input class="metronome-shell__status-switch-input"
+                                   type="checkbox"
+                                   checked="@metronomeEnabled_"
+                                   @onchange="OnMetronomeEnabledShellChangedAsync"
+                                   aria-label="Enable metronome" />
 
-                                <span class="metronome-shell__status-switch-track" aria-hidden="true">
-                                    <span class="metronome-shell__status-switch-thumb"></span>
-                                </span>
-                            </label>
-                        </HeaderContent>
-                        <ChildContent>
-                            <Metronome @ref="metronome_"
-                                       Enabled="@metronomeEnabled_"
-                                       EnabledChanged="OnMetronomeEnabledChangedAsync"
-                                       Bpm="@metronomeBpm_"
-                                       BpmChanged="OnMetronomeBpmChangedAsync"
-                                       BeatsPerBar="@metronomeBeatsPerBar_"
-                                       BeatsPerBarChanged="OnMetronomeBeatsPerBarChangedAsync"
-                                       BeatUnit="@metronomeBeatUnit_"
-                                       BeatUnitChanged="OnMetronomeBeatUnitChangedAsync"
-                                       MidiLoaded="@(midiEvents_.Count > 0)"
-                                       MidiStartAt="@midiStartAt_" />
-                        </ChildContent>
+                            <span class="metronome-shell__status-switch-track" aria-hidden="true">
+                                <span class="metronome-shell__status-switch-thumb"></span>
+                            </span>
+                        </label>
+                    </HeaderContent>
+                    <ChildContent>
+                        <Metronome @ref="metronome_"
+                                   Enabled="@metronomeEnabled_"
+                                   EnabledChanged="OnMetronomeEnabledChangedAsync"
+                                   Bpm="@metronomeBpm_"
+                                   BpmChanged="OnMetronomeBpmChangedAsync"
+                                   BeatsPerBar="@metronomeBeatsPerBar_"
+                                   BeatsPerBarChanged="OnMetronomeBeatsPerBarChangedAsync"
+                                   BeatUnit="@metronomeBeatUnit_"
+                                   BeatUnitChanged="OnMetronomeBeatUnitChangedAsync"
+                                   MidiLoaded="@(midiEvents_.Count > 0)"
+                                   MidiStartAt="@midiStartAt_" />
+                    </ChildContent>
 
-                    </OverlayShell>
-                </div>
-
-                <div class="pans-page__instrument-full">
-                    <SteelPanView @ref="steelPanView_" Pan="@SelectedPan" />
-                </div>
+                </OverlayShell>
             </div>
-        </div>
+            
+            <SteelPanView @ref="steelPanView_" Pan="@SelectedPan" />
+        </section>
     }
 </div>

@@ -1,8 +1,9 @@
 .steel-pan__root {
     margin: 0;
     height: 100%;
-    min-height: 0;
     display: flex;
+    padding: 0.5rem 0;
+    min-height: 0;
 }
 
 .steel-pan__canvas {

@@ -13,11 +13,10 @@ public partial class Pans
     private int selectedPanIndex_;
     private string? loadError_;
 
+    private bool mergeAllTracks_ = false;
     private IBrowserFile? midiFile_;
-    private string? midiFileName_;
     private List<MidiTrackOption> midiTrackOptions_ = [];
     private int? selectedTrackIndex_;
-    private bool mergeAllTracks_ = false;
 
     private MidiPlaybackInfo? midiPlaybackInfo_;
     private List<MidiPanEvent> midiEvents_ = [];
@@ -71,15 +70,11 @@ public partial class Pans
         }
     }
 
-    private async Task OnMidiSelected(InputFileChangeEventArgs e)
+    private async Task OnMidiSelectedAsync(IBrowserFile e)
     {
-        if (e.FileCount == 0)
-            return;
-
         await StopMidiAsync();
 
-        midiFile_ = e.File;
-        midiFileName_ = midiFile_.Name;
+        midiFile_ = e;
 
         midiTrackOptions_.Clear();
         midiEvents_.Clear();
@@ -115,13 +110,9 @@ public partial class Pans
         await ReloadSelectedTrackAsync();
     }
 
-    private async Task OnMergeAllTracksChanged(ChangeEventArgs e)
+    private async Task OnMergeAllTracksChangedAsync(bool mergeTracks)
     {
-        if (e.Value is bool value)
-            mergeAllTracks_ = value;
-        else
-            mergeAllTracks_ = string.Equals(e.Value?.ToString(), "true", StringComparison.OrdinalIgnoreCase);
-
+        mergeAllTracks_ = mergeTracks;
         await ReloadSelectedTrackAsync();
     }
 

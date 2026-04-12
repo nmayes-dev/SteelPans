@@ -5,13 +5,13 @@
             aria-expanded="@IsOpen"
             aria-label="@Label">
         <div class="@ToggleButtonClass">
-            <i class="@CurrentIconClass pans-page__overlay-toggle-icon" aria-hidden="true"></i>
-            <span class="pans-page__overlay-toggle-label">@Label</span>
+            <i class="@CurrentIconClass overlay-toggle-icon" aria-hidden="true"></i>
+            <span class="overlay-toggle-label">@Label</span>
         </div>
 
         @if (IsOpen && HeaderContent is not null)
         {
-            <span class="pans-page__overlay-toggle-extra" @onclick:stopPropagation="true">
+            <span class="overlay-toggle-extra" @onclick:stopPropagation="true">
                 @HeaderContent
             </span>
         }
@@ -63,21 +63,21 @@
             " ",
             new[]
             {
-                "pans-page__overlay-shell",
-                $"pans-page__overlay-shell--{Side}",
-                IsOpen ? "pans-page__overlay-shell--open" : "pans-page__overlay-shell--closed"
+                "overlay-shell",
+                $"overlay-shell--{Side}",
+                IsOpen ? "overlay-shell--open" : "overlay-shell--closed"
             });
 
-    private const string ToggleHeaderClass = "pans-page__overlay-toggle pans-page__overlay-toggle--shell";
-    private const string ToggleButtonClass = "pans-page__overlay-toggle-button";
+    private const string ToggleHeaderClass = "overlay-toggle overlay-toggle--shell";
+    private const string ToggleButtonClass = "overlay-toggle-button";
 
     private string BodyWrapClass =>
         string.Join(
             " ",
             new[]
             {
-                "pans-page__overlay-panel-body-wrap",
-                IsOpen ? "pans-page__overlay-panel-body-wrap--open" : "pans-page__overlay-panel-body-wrap--closed",
+                "overlay-panel-body-wrap",
+                IsOpen ? "overlay-panel-body-wrap--open" : "overlay-panel-body-wrap--closed",
                 PanelVariantClass
             }.Where(static x => !string.IsNullOrWhiteSpace(x)));
 
@@ -86,7 +86,7 @@
             " ",
             new[]
             {
-                "pans-page__overlay-panel-body",
+                "overlay-panel-body",
                 BodyVariantClass
             }.Where(static x => !string.IsNullOrWhiteSpace(x)));
 

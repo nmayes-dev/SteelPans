@@ -1,7 +1,7 @@
 ﻿@using Microsoft.AspNetCore.Components.Web
 
-<div class="midi-playback @(Disabled ? "midi-playback--disabled" : null)">
-    <div class="midi-playback__timeline">
+<div class="sp-section midi-playback @(Disabled ? "midi-playback--disabled" : null)">
+    <div class="midi-playback__top-row">
         <input class="midi-playback__slider"
                type="range"
                min="0"
@@ -17,41 +17,42 @@
                @onmouseup="EndSeek"
                @ontouchstart="BeginSeek"
                @ontouchend="EndSeek" />
+    </div>
+    <div class="midi-playback__bottom-row">
+        <span class="midi-playback__time midi-playback__time--current">@FormatTime(DisplayTime)</span>
+        
+        <div class="midi-playback__controls">
+            <button class="midi-playback__button midi-playback__button--secondary"
+                    type="button"
+                    title="Back to start"
+                    aria-label="Back to start"
+                    disabled="@(!CanGoToStart)"
+                    @onclick="HandleBackToStart">
+                <span class="bi bi-skip-start-fill" aria-hidden="true"></span>
+            </button>
 
-        <div class="midi-playback__time-row">
-            <span class="midi-playback__time midi-playback__time--current">@FormatTime(DisplayTime)</span>
-            <span class="midi-playback__time midi-playback__time--total">@FormatTime(TotalTime)</span>
+            <button class="midi-playback__button midi-playback__button--primary"
+                    type="button"
+                    title="@(IsPlaying ? "Pause" : "Play")"
+                    aria-label="@(IsPlaying ? "Pause" : "Play")"
+                    disabled="@Disabled"
+                    @onclick="HandlePlayPause">
+                <span class="bi @(IsPlaying ? "bi-pause-fill" : "bi-play-fill")" aria-hidden="true"></span>
+            </button>
+
+            <button class="midi-playback__button midi-playback__button--secondary"
+                    type="button"
+                    title="Next track"
+                    aria-label="Next track"
+                    disabled="@(!CanGoNext)"
+                    @onclick="HandleNextTrack">
+                <span class="bi bi-skip-end-fill" aria-hidden="true"></span>
+            </button>
         </div>
+
+        <span class="midi-playback__time midi-playback__time--total">@FormatTime(TotalTime)</span>
     </div>
 
-    <div class="midi-playback__controls">
-        <button class="midi-playback__button midi-playback__button--secondary"
-                type="button"
-                title="Back to start"
-                aria-label="Back to start"
-                disabled="@(!CanGoToStart)"
-                @onclick="HandleBackToStart">
-            <span class="bi bi-skip-start-fill" aria-hidden="true"></span>
-        </button>
-
-        <button class="midi-playback__button midi-playback__button--primary"
-                type="button"
-                title="@(IsPlaying ? "Pause" : "Play")"
-                aria-label="@(IsPlaying ? "Pause" : "Play")"
-                disabled="@Disabled"
-                @onclick="HandlePlayPause">
-            <span class="bi @(IsPlaying ? "bi-pause-fill" : "bi-play-fill")" aria-hidden="true"></span>
-        </button>
-
-        <button class="midi-playback__button midi-playback__button--secondary"
-                type="button"
-                title="Next track"
-                aria-label="Next track"
-                disabled="@(!CanGoNext)"
-                @onclick="HandleNextTrack">
-            <span class="bi bi-skip-end-fill" aria-hidden="true"></span>
-        </button>
-    </div>
 </div>
 
 @code {
