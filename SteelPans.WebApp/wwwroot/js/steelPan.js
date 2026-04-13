@@ -169,6 +169,23 @@
         }
     },
 
+    flashNotes: function (componentId, noteKeys, durationMs) {
+        if (!Array.isArray(noteKeys) || noteKeys.length === 0)
+            return;
+
+        for (const noteKey of noteKeys) {
+            this._setNotePlaying(componentId, noteKey, true);
+        }
+
+        const timeoutId = window.setTimeout(() => {
+            for (const noteKey of noteKeys) {
+                this._setNotePlaying(componentId, noteKey, false);
+            }
+        }, Math.max(1, durationMs || 120));
+
+        this._scheduledVisualTimers.push(timeoutId);
+    },
+
     notePointerDown: async function (noteElement, labelElement, componentId, noteKey, event) {
         if (event.pointerType === "mouse" && event.button !== 0)
             return;
@@ -179,13 +196,6 @@
         const ref = this._refs[componentId];
         if (!ref)
             return;
-
-        const shift = !!event.shiftKey;
-
-        if (shift) {
-            ref.invokeMethodAsync("HandleNoteInteraction", noteKey);
-            return;
-        }
 
         await this.playNote(noteKey);
 

@@ -101,22 +101,6 @@ else
             Pan.Notes);
     }
 
-    [JSInvokable]
-    public async Task HandleNoteInteraction(string noteKey)
-    {
-        if (Pan is null)
-            return;
-
-        var note = Pan.Notes.FirstOrDefault(n => n.ToString() == noteKey);
-        if (note is null)
-            return;
-
-        note.Selected = !note.Selected;
-
-        await RebuildSvgAsync();
-        await InvokeAsync(StateHasChanged);
-    }
-
     public async Task SelectChordAsync(HashSet<int> pitchClasses)
     {
         if (Pan is null)
