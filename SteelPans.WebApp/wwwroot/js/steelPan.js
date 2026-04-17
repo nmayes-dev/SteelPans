@@ -22,10 +22,6 @@
         if (!componentId)
             return;
 
-        const root = document.querySelector(`[data-steelpan-id="${componentId}"]`) ||
-            document.getElementById(componentId) ||
-            document.querySelector(`.steel-pan [data-component-id="${componentId}"]`);
-
         const noteElements = {};
         const labelElements = {};
 
@@ -135,19 +131,135 @@
         return this._panElements[componentId] || null;
     },
 
+    _parseNoteKey: function (noteKey) {
+        const match = /^([A-G])([#b]?)(-?\d+)$/.exec(noteKey);
+        if (!match)
+            return null;
+
+        return {
+            letter: match[1],
+            accidental: match[2] || "",
+            octave: parseInt(match[3], 10)
+        };
+    },
+
+    _toSemitone: function (noteKey) {
+        const parsed = this._parseNoteKey(noteKey);
+        if (!parsed)
+            return null;
+
+        const baseSemitones = {
+            C: 0,
+            D: 2,
+            E: 4,
+            F: 5,
+            G: 7,
+            A: 9,
+            B: 11
+        };
+
+        let semitone = baseSemitones[parsed.letter];
+        if (parsed.accidental === "#")
+            semitone += 1;
+        else if (parsed.accidental === "b")
+            semitone -= 1;
+
+        let octave = parsed.octave;
+
+        while (semitone < 0) {
+            semitone += 12;
+            octave -= 1;
+        }
+
+        while (semitone >= 12) {
+            semitone -= 12;
+            octave += 1;
+        }
+
+        return {
+            semitone: semitone,
+            octave: octave
+        };
+    },
+
+    _fromSemitoneSharp: function (semitone, octave) {
+        const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        return `${names[semitone]}${octave}`;
+    },
+
+    _fromSemitoneFlat: function (semitone, octave) {
+        const names = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
+        return `${names[semitone]}${octave}`;
+    },
+
+    _normalizeEnharmonic: function (noteKey) {
+        const semitoneInfo = this._toSemitone(noteKey);
+        if (!semitoneInfo)
+            return noteKey;
+
+        return this._fromSemitoneSharp(semitoneInfo.semitone, semitoneInfo.octave);
+    },
+
+    _getEquivalentNoteKeys: function (noteKey) {
+        const semitoneInfo = this._toSemitone(noteKey);
+        if (!semitoneInfo)
+            return [noteKey];
+
+        const result = [];
+        const seen = new Set();
+
+        const add = (key) => {
+            if (!seen.has(key)) {
+                seen.add(key);
+                result.push(key);
+            }
+        };
+
+        add(noteKey);
+        add(this._fromSemitoneSharp(semitoneInfo.semitone, semitoneInfo.octave));
+        add(this._fromSemitoneFlat(semitoneInfo.semitone, semitoneInfo.octave));
+
+        return result;
+    },
+
+    _getPanTargetsForNoteKey: function (pan, noteKey) {
+        const noteElements = [];
+        const labelElements = [];
+        const noteSeen = new Set();
+        const labelSeen = new Set();
+
+        for (const key of this._getEquivalentNoteKeys(noteKey)) {
+            const noteEl = pan.noteElements[key];
+            if (noteEl && !noteSeen.has(noteEl)) {
+                noteSeen.add(noteEl);
+                noteElements.push(noteEl);
+            }
+
+            const labelEl = pan.labelElements[key];
+            if (labelEl && !labelSeen.has(labelEl)) {
+                labelSeen.add(labelEl);
+                labelElements.push(labelEl);
+            }
+        }
+
+        return {
+            noteElements: noteElements,
+            labelElements: labelElements
+        };
+    },
+
     _setNotePlaying: function (componentId, noteKey, isPlaying) {
         const pan = this._getBoundPan(componentId);
         if (!pan)
             return;
 
-        const noteEl = pan.noteElements[noteKey];
-        const labelEl = pan.labelElements[noteKey];
+        const targets = this._getPanTargetsForNoteKey(pan, noteKey);
 
-        if (noteEl) {
+        for (const noteEl of targets.noteElements) {
             noteEl.classList.toggle("sp-note--on", !!isPlaying);
         }
 
-        if (labelEl) {
+        for (const labelEl of targets.labelElements) {
             labelEl.classList.toggle("sp-label--on", !!isPlaying);
         }
     },
@@ -165,6 +277,10 @@
         }
 
         for (const noteKey of Object.keys(pan.noteElements)) {
+            this._setNotePlaying(componentId, noteKey, false);
+        }
+
+        for (const noteKey of Object.keys(pan.labelElements)) {
             this._setNotePlaying(componentId, noteKey, false);
         }
     },
@@ -239,10 +355,9 @@
                 typeof action.isNoteOn === "boolean")
             .sort((a, b) => a.timeSeconds - b.timeSeconds);
 
-        for (const action of sortedActions) {
-            if (!action.isNoteOn)
-                continue;
+        const noteOnActions = sortedActions.filter(action => action.isNoteOn);
 
+        for (const action of noteOnActions) {
             const when = startAt + action.timeSeconds;
             const buffer = await this._loadBuffer(action.noteKey);
 
@@ -251,19 +366,21 @@
             source.connect(ctx.destination);
             source.start(when);
 
+            const normalizedNoteKey = this._normalizeEnharmonic(action.noteKey);
+
             const entry = {
-                noteKey: action.noteKey,
+                noteKey: normalizedNoteKey,
                 source: source,
                 startTime: when
             };
 
             this._scheduledSources.push(entry);
 
-            if (!this._scheduledSourcesByNote[action.noteKey]) {
-                this._scheduledSourcesByNote[action.noteKey] = [];
+            if (!this._scheduledSourcesByNote[normalizedNoteKey]) {
+                this._scheduledSourcesByNote[normalizedNoteKey] = [];
             }
 
-            this._scheduledSourcesByNote[action.noteKey].push(entry);
+            this._scheduledSourcesByNote[normalizedNoteKey].push(entry);
 
             source.onended = () => {
                 const scheduledIndex = this._scheduledSources.indexOf(entry);
@@ -271,7 +388,7 @@
                     this._scheduledSources.splice(scheduledIndex, 1);
                 }
 
-                const perNote = this._scheduledSourcesByNote[action.noteKey];
+                const perNote = this._scheduledSourcesByNote[normalizedNoteKey];
                 if (perNote) {
                     const noteIndex = perNote.indexOf(entry);
                     if (noteIndex >= 0) {
@@ -279,7 +396,7 @@
                     }
 
                     if (perNote.length === 0) {
-                        delete this._scheduledSourcesByNote[action.noteKey];
+                        delete this._scheduledSourcesByNote[normalizedNoteKey];
                     }
                 }
             };
@@ -288,7 +405,8 @@
         const noteOffActions = sortedActions.filter(action => !action.isNoteOn);
 
         for (const action of noteOffActions) {
-            const perNote = this._scheduledSourcesByNote[action.noteKey];
+            const normalizedNoteKey = this._normalizeEnharmonic(action.noteKey);
+            const perNote = this._scheduledSourcesByNote[normalizedNoteKey];
             if (!perNote || perNote.length === 0)
                 continue;
 
@@ -432,40 +550,6 @@
         }
 
         this._metronomeNodes = [];
-    },
-
-    _normalizeEnharmonic: function (noteKey) {
-        const match = /^([A-G])([#b]?)(-?\d+)$/.exec(noteKey);
-        if (!match)
-            return noteKey;
-
-        let [, note, accidental, octave] = match;
-
-        if (accidental === "b") {
-            const flatToSharp = {
-                "Ab": "G#",
-                "Bb": "A#",
-                "Cb": "B",
-                "Db": "C#",
-                "Eb": "D#",
-                "Fb": "E",
-                "Gb": "F#"
-            };
-
-            const key = note + "b";
-            if (flatToSharp[key])
-                return flatToSharp[key] + octave;
-        }
-
-        if (accidental === "#") {
-            if (note === "E")
-                return "F" + octave;
-
-            if (note === "B")
-                return "C" + (parseInt(octave, 10) + 1);
-        }
-
-        return note + accidental + octave;
     },
 
     beginMetronomeWeightDrag: function (trackElement, dotNetRef, initialClientY) {

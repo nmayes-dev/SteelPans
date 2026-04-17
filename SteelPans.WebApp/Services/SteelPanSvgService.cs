@@ -233,11 +233,27 @@ public sealed class SteelPanSvgService
         root.SetAttributeValue("preserveAspectRatio", "xMidYMid meet");
 
         foreach (var circle in root.Descendants()
-                     .Where(e => string.Equals(e.Name.LocalName, "circle", StringComparison.OrdinalIgnoreCase)))
+                     .Where(e => string.Equals(e.Name.LocalName, "circle", StringComparison.OrdinalIgnoreCase))
+                     .Where(e => !IsInsideNoteOrLabelGroup(e)))
         {
             RemoveClass(circle, "st0");
             AddClass(circle, "sp-svg-circle");
         }
+    }
+
+    private static bool IsInsideNoteOrLabelGroup(XElement element)
+    {
+        return element.Ancestors()
+            .Any(a =>
+            {
+                if (!string.Equals(a.Name.LocalName, "g", StringComparison.OrdinalIgnoreCase))
+                    return false;
+
+                var id = (string?)a.Attribute("id");
+                return id is not null &&
+                       (id.StartsWith("note-", StringComparison.Ordinal) ||
+                        id.StartsWith("label-", StringComparison.Ordinal));
+            });
     }
 
     private static IEnumerable<XElement> FindNoteElements(XElement root)

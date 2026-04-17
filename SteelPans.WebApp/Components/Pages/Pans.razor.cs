@@ -258,12 +258,6 @@ public partial class Pans
             }
 
             StartPlaybackProgressLoop(playbackSessionStartOffset_, playbackProgressCts_.Token);
-
-            if (!midiPlaybackCts_.IsCancellationRequested)
-            {
-                playbackPosition_ = playbackDuration_;
-                playbackSessionStartOffset_ = playbackDuration_;
-            }
         }
         catch (OperationCanceledException)
         {
