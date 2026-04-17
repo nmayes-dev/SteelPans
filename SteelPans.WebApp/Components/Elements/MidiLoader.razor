@@ -45,32 +45,6 @@
             </div>
         }
     </div>
-
-    @if (Assignments.Count > 0)
-    {
-        <div class="midi-loader__assigned">
-            <div class="midi-loader__assigned-title">Assigned pans</div>
-
-            <div class="midi-loader__assigned-list">
-                @foreach (var assignment in Assignments.OrderBy(x => x.TrackIndex))
-                {
-                    <div class="midi-loader__assigned-item" @key="assignment.TrackIndex">
-                        <div class="midi-loader__assigned-copy">
-                            <div class="midi-loader__assigned-track">@assignment.TrackLabel</div>
-                            <div class="midi-loader__assigned-pan">@assignment.AssignedPanType?.ToSpacedPascal()</div>
-                        </div>
-
-                        <button type="button"
-                                class="btn btn-outline-danger btn-sm"
-                                disabled="@Disabled"
-                                @onclick="() => RemoveAssignmentAsync(assignment.TrackIndex)">
-                            Remove
-                        </button>
-                    </div>
-                }
-            </div>
-        </div>
-    }
 </div>
 
 @if (showAddModal_)
@@ -97,10 +71,16 @@
                 <select id="pan-type-select"
                         class="form-select"
                         @bind="selectedPanTypeString_">
-                    <option value="">Choose pan</option>
-                    @foreach (var panType in AvailablePanTypes)
+                    @if (AvailablePanTypesForSelectedTrack.Count == 0)
                     {
-                        <option value="@panType.ToString()">@panType.ToSpacedPascal()</option>
+                        <option value="">No pans available</option>
+                    }
+                    else
+                    {
+                        @foreach (var panType in AvailablePanTypesForSelectedTrack)
+                        {
+                            <option value="@panType.ToString()">@panType.ToSpacedPascal()</option>
+                        }
                     }
                 </select>
             </div>
@@ -163,7 +143,25 @@
 
     private bool CanConfirmAdd =>
         int.TryParse(selectedTrackIndexString_, out _) &&
-        Enum.TryParse<PanType>(selectedPanTypeString_, out _);
+        Enum.TryParse<PanType>(selectedPanTypeString_, out var panType) &&
+        AvailablePanTypesForSelectedTrack.Contains(panType);
+
+    private List<PanType> AvailablePanTypesForSelectedTrack
+    {
+        get
+        {
+            if (!int.TryParse(selectedTrackIndexString_, out var trackIndex))
+                return [];
+
+            var assignedPanTypes = Assignments
+                .Select(a => a.AssignedPanType)
+                .ToHashSet();
+
+            return AvailablePanTypes
+                .Where(p => !assignedPanTypes.Contains(p))
+                .ToList();
+        }
+    }
 
     protected override void OnParametersSet()
     {
@@ -199,14 +197,14 @@
             return;
 
         selectedTrackLabel_ = GetTrackDisplay(track);
-        selectedPanTypeString_ = string.Empty;
+        selectedPanTypeString_ = AvailablePanTypesForSelectedTrack.FirstOrDefault().ToString();
         showAddModal_ = true;
     }
 
     private void CloseAddModal()
     {
         showAddModal_ = false;
-        selectedPanTypeString_ = string.Empty;
+        selectedPanTypeString_ = null;
     }
 
     private async Task ConfirmAddAsync()
@@ -225,21 +223,18 @@
         {
             TrackIndex = track.Index,
             TrackLabel = GetTrackDisplay(track),
-            NoteCount = track.NoteCount,
-            IsSelected = true,
             AssignedPanType = panType,
         };
 
-        if (OnAddAssignment.HasDelegate)
-            await OnAddAssignment.InvokeAsync(assignment);
-
-        showAddModal_ = false;
-        selectedPanTypeString_ = string.Empty;
+        await OnAddAssignment.InvokeAsync(assignment);
+        CloseAddModal();
     }
 
     private async Task RemoveAssignmentAsync(int trackIndex)
     {
-        if (OnRemoveAssignment.HasDelegate)
-            await OnRemoveAssignment.InvokeAsync(trackIndex);
+        if (Disabled)
+            return;
+
+        await OnRemoveAssignment.InvokeAsync(trackIndex);
     }
 }

@@ -73,8 +73,8 @@ else
     {
         if (firstRender && selfRef_ is not null)
             await JS.InvokeVoidAsync("steelPan.register", componentId_, selfRef_);
-
-        if (InstanceChanged.HasDelegate)
+            
+        if (firstRender && InstanceChanged.HasDelegate)
             await InstanceChanged.InvokeAsync(this);
 
         if (!string.IsNullOrWhiteSpace(panSvg_))

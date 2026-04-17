@@ -216,8 +216,9 @@
 
 .pans-page__floating-panel-close,
 .pans-page__assigned-pan-remove {
-    display: inline-grid;
-    place-items: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 2rem;
     height: 2rem;
     padding: 0;
