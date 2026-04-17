@@ -14,22 +14,6 @@
                 <label class="pans-page__eyebrow">Interactive practice tool</label>
                 <h1 class="pans-page__title">Steel Pans</h1>
             </div>
-
-            @if (pans_.Count > 0)
-            {
-                <div class="pans-page__hero-field">
-                    <label for="pan-select" class="form-label">Preview pan</label>
-                    <select id="pan-select"
-                            class="form-select"
-                            value="@selectedPanIndex_"
-                            @onchange="OnPanChanged">
-                        @for (var i = 0; i < pans_.Count; i++)
-                        {
-                            <option value="@i">@pans_[i].PanType.ToSpacedPascal()</option>
-                        }
-                    </select>
-                </div>
-            }
         </div>
     </header>
 
@@ -68,65 +52,141 @@
                                  OnSeekCommitted="HandleSeekCommittedAsync" />
         </section>
 
-        <section class="sp-section pans-page__content">
-            <div class="pans-page__main-toggles">
-                <OverlayShell Side="left"
-                              Label="Chords"
-                              IconClass="bi bi-music-note-list"
-                              IsOpen="@showChordBuilderPanel_"
-                              IsOpenChanged="@OnChordBuilderOpenChanged">
-                    <ChordBuilder OnChordSelected="SelectChordAsync"
-                                  OnPlay="PlaySelectedNotesAsync"
-                                  Disabled="@isMidiPlaying_" />
-                </OverlayShell>
+        @if (activeMidiPans_.Count > 0 )
+        {
+            <section class="sp-section pans-page__content">
+                <div class="pans-page__toolbar">
+                    <div class="pans-page__menu-wrap @(showToolsMenu_ ? "pans-page__menu-wrap-open" : "") @(showChordBuilderPanel_ || showMetronomePanel_ ? "pans-page__menu-wrap-hide" : "")">
+                        <button class="pans-page__menu-button"
+                                type="button"
+                                aria-label="Open tools menu"
+                                aria-expanded="@showToolsMenu_"
+                                @onclick="ToggleToolsMenu">
+                            <span class="bi @(showToolsMenu_ ? "bi-x-lg" : "bi-list")" aria-hidden="true"></span>
+                        </button>
 
-                <OverlayShell Side="right"
-                              Label="Metronome"
-                              IconClass="bi bi-music-note-beamed"
-                              IsOpen="@showMetronomePanel_"
-                              IsOpenChanged="@OnMetronomeOpenChanged"
-                              PanelVariantClass="overlay-panel-body-wrap--metronome"
-                              BodyVariantClass="overlay-panel-body--metronome">
-                    <HeaderContent>
-                        <label class="metronome-shell__status-switch">
-                            <input class="metronome-shell__status-switch-input"
-                                   type="checkbox"
-                                   checked="@metronomeEnabled_"
-                                   @onchange="OnMetronomeEnabledShellChangedAsync"
-                                   aria-label="Enable metronome" />
+                        @if (showToolsMenu_)
+                        {
+                            <div class="pans-page__menu" role="menu" aria-label="Tools menu">
+                                <button class="pans-page__menu-item"
+                                        type="button"
+                                        role="menuitem"
+                                        @onclick="OpenChordBuilderPanel">
+                                    <span class="bi bi-music-note-list" aria-hidden="true"></span>
+                                    <span>Chords</span>
+                                </button>
 
-                            <span class="metronome-shell__status-switch-track" aria-hidden="true">
-                                <span class="metronome-shell__status-switch-thumb"></span>
-                            </span>
-                        </label>
-                    </HeaderContent>
-                    <ChildContent>
-                        <Metronome @ref="metronome_"
-                                   Enabled="@metronomeEnabled_"
-                                   EnabledChanged="OnMetronomeEnabledChangedAsync"
-                                   Bpm="@metronomeBpm_"
-                                   BpmChanged="OnMetronomeBpmChangedAsync"
-                                   BeatsPerBar="@metronomeBeatsPerBar_"
-                                   BeatsPerBarChanged="OnMetronomeBeatsPerBarChangedAsync"
-                                   BeatUnit="@metronomeBeatUnit_"
-                                   BeatUnitChanged="OnMetronomeBeatUnitChangedAsync"
-                                   MidiLoaded="@(activeMidiPans_.Count > 0)"
-                                   MidiStartAt="@midiStartAt_" />
-                    </ChildContent>
-                </OverlayShell>
-            </div>
-
-            <div class="pans-page__pan-stage">
-                <div class="pans-page__assigned-pans">
-                    @foreach (var assignedPan in activeMidiPans_)
-                    {
-                        <section class="sp-section pans-page__assigned-pan" @key="assignedPan.InstanceId">
-                            <SteelPanView Pan="@assignedPan.Pan"
-                                          InstanceChanged="@(view => RegisterAssignedSteelPanViewAsync(assignedPan.InstanceId, view))" />
-                        </section>
-                    }
+                                <button class="pans-page__menu-item"
+                                        type="button"
+                                        role="menuitem"
+                                        @onclick="OpenMetronomePanel">
+                                    <span class="bi bi-music-note-beamed" aria-hidden="true"></span>
+                                    <span>Metronome</span>
+                                </button>
+                            </div>
+                        }
+                    </div>
                 </div>
-            </div>
-        </section>
+
+                @if (showChordBuilderPanel_)
+                {
+                    <div class="pans-page__floating-panel pans-page__floating-panel--left">
+                        <div class="pans-page__floating-panel-header">
+                            <div class="pans-page__floating-panel-title-wrap">
+                                <span class="bi bi-music-note-list pans-page__floating-panel-icon" aria-hidden="true"></span>
+                                <span class="pans-page__floating-panel-title">Chords</span>
+                            </div>
+
+                            <button class="pans-page__floating-panel-close"
+                                    type="button"
+                                    aria-label="Close chords panel"
+                                    @onclick="CloseChordBuilderPanel">
+                                <span class="bi bi-x-lg" aria-hidden="true"></span>
+                            </button>
+                        </div>
+
+                        <div class="pans-page__floating-panel-body">
+                            <ChordBuilder OnChordSelected="SelectChordAsync"
+                                          OnPlay="PlaySelectedNotesAsync"
+                                          Disabled="@(isMidiPlaying_ || activeMidiPans_.Count == 0)" />
+                        </div>
+                    </div>
+                }
+
+                @if (showMetronomePanel_)
+                {
+                    <div class="pans-page__floating-panel pans-page__floating-panel--left pans-page__floating-panel--metronome">
+                        <div class="pans-page__floating-panel-header">
+                            <div class="pans-page__floating-panel-title-wrap">
+                                <span class="bi bi-music-note-beamed pans-page__floating-panel-icon" aria-hidden="true"></span>
+                                <span class="pans-page__floating-panel-title">Metronome</span>
+                            </div>
+
+                            <div class="pans-page__floating-panel-header-actions">
+                                <label class="metronome-shell__status-switch">
+                                    <input class="metronome-shell__status-switch-input"
+                                           type="checkbox"
+                                           checked="@metronomeEnabled_"
+                                           @onchange="OnMetronomeEnabledShellChangedAsync"
+                                           aria-label="Enable metronome" />
+
+                                    <span class="metronome-shell__status-switch-track" aria-hidden="true">
+                                        <span class="metronome-shell__status-switch-thumb"></span>
+                                    </span>
+                                </label>
+
+                                <button class="pans-page__floating-panel-close"
+                                        type="button"
+                                        aria-label="Close metronome panel"
+                                        @onclick="CloseMetronomePanel">
+                                    <span class="bi bi-x-lg" aria-hidden="true"></span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="pans-page__floating-panel-body pans-page__floating-panel-body--metronome">
+                            <Metronome @ref="metronome_"
+                                       Enabled="@metronomeEnabled_"
+                                       EnabledChanged="OnMetronomeEnabledChangedAsync"
+                                       Bpm="@metronomeBpm_"
+                                       BpmChanged="OnMetronomeBpmChangedAsync"
+                                       BeatsPerBar="@metronomeBeatsPerBar_"
+                                       BeatsPerBarChanged="OnMetronomeBeatsPerBarChangedAsync"
+                                       BeatUnit="@metronomeBeatUnit_"
+                                       BeatUnitChanged="OnMetronomeBeatUnitChangedAsync"
+                                       MidiLoaded="@(activeMidiPans_.Count > 0)"
+                                       MidiStartAt="@midiStartAt_" />
+                        </div>
+                    </div>
+                }
+
+                <div class="pans-page__pan-stage">
+                    <div class="pans-page__assigned-pans">
+                        @foreach (var assignedPan in activeMidiPans_)
+                        {
+                            <section class="sp-section pans-page__assigned-pan" @key="assignedPan.InstanceId">
+                                <div class="pans-page__assigned-pan-header">
+                                    <div class="pans-page__assigned-pan-copy">
+                                        <div class="pans-page__assigned-pan-title">@assignedPan.TrackLabel</div>
+                                        <div class="pans-page__assigned-pan-subtitle">@assignedPan.PanType.ToSpacedPascal()</div>
+                                    </div>
+
+                                    <button class="pans-page__assigned-pan-remove"
+                                            type="button"
+                                            aria-label="Remove @assignedPan.TrackLabel"
+                                            disabled="@isMidiPlaying_"
+                                            @onclick="() => RemoveTrackAssignmentAsync(assignedPan.TrackIndex)">
+                                        <span class="bi bi-x-lg" aria-hidden="true"></span>
+                                    </button>
+                                </div>
+
+                                <SteelPanView Pan="@assignedPan.Pan"
+                                              InstanceChanged="@(view => RegisterAssignedSteelPanViewAsync(assignedPan.InstanceId, view))" />
+                            </section>
+                        }
+                    </div>
+                </div>
+            </section>
+        }
     }
 </div>

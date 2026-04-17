@@ -39,6 +39,7 @@ public partial class Pans
     private TimeSpan playbackDuration_;
     private TimeSpan playbackSessionStartOffset_ = TimeSpan.Zero;
 
+    private bool showToolsMenu_;
     private bool showChordBuilderPanel_;
     private bool showMetronomePanel_;
 
@@ -243,6 +244,36 @@ public partial class Pans
             return;
 
         await view.PlaySelectedNotesAsync();
+    }
+
+    private async Task ToggleToolsMenu()
+    {
+        showToolsMenu_ = !showToolsMenu_;
+        await Task.CompletedTask;
+    }
+
+    private void OpenChordBuilderPanel()
+    {
+        showToolsMenu_ = false;
+        showChordBuilderPanel_ = true;
+        showMetronomePanel_ = false;
+    }
+
+    private void OpenMetronomePanel()
+    {
+        showToolsMenu_ = false;
+        showMetronomePanel_ = true;
+        showChordBuilderPanel_ = false;
+    }
+
+    private void CloseChordBuilderPanel()
+    {
+        showChordBuilderPanel_ = false;
+    }
+
+    private void CloseMetronomePanel()
+    {
+        showMetronomePanel_ = false;
     }
 
     private async Task ToggleMidiAsync()
@@ -507,20 +538,6 @@ public partial class Pans
         }
 
         return actions;
-    }
-
-    private void OnChordBuilderOpenChanged()
-    {
-        showChordBuilderPanel_ = !showChordBuilderPanel_;
-        if (showChordBuilderPanel_)
-            showMetronomePanel_ = false;
-    }
-
-    private void OnMetronomeOpenChanged()
-    {
-        showMetronomePanel_ = !showMetronomePanel_;
-        if (showMetronomePanel_)
-            showChordBuilderPanel_ = false;
     }
 
     private Task OnMetronomeBpmChangedAsync(int bpm)
