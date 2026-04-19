@@ -68,7 +68,11 @@ public partial class Metronome
     private int? lastFlashedBeatIndex_;
     private bool jsAvailable_;
     private double armAngleDeg_;
+
     private double midiVisualStartOffsetSeconds_;
+    private double? midiVisualAudioAnchorTime_;
+    private double midiVisualScoreAnchorSeconds_;
+    private int midiVisualTempoAnchorBpm_ = 120;
 
     public enum PlayState
     {
@@ -84,7 +88,6 @@ public partial class Metronome
     private bool accentFlash_;
 
     private bool EffectiveIsPlaying => Enabled && IsPlaying;
-    private bool CanEditBpm => !IsPlaying;
     private bool CanEditTimeSignature => Enabled && !IsPlaying && !MidiLoaded;
 
     private double ArmAngleDeg => !Enabled || !EffectiveIsPlaying
@@ -104,17 +107,9 @@ public partial class Metronome
         await base.OnAfterRenderAsync(firstRender);
     }
 
-    protected override async Task OnParametersSetAsync()
-    {
-        if (!Enabled)
-        {
-            await StopAsync();
-        }
-    }
-
     private async Task BeginWeightDragAsync(PointerEventArgs e)
     {
-        if (!CanEditBpm || selfRef_ is null)
+        if (selfRef_ is null)
             return;
 
         await JS.InvokeVoidAsync("steelPan.beginMetronomeWeightDrag", weightTrackRef_, selfRef_, e.ClientY);
@@ -123,27 +118,23 @@ public partial class Metronome
     [JSInvokable]
     public async Task OnMetronomeWeightDragged(double localPointerY, double trackHeightPx)
     {
-        if (!CanEditBpm)
-            return;
-
         var bpm = GetBpmFromPointerY(localPointerY, trackHeightPx);
         await SetBpmAsync(bpm);
     }
 
     public async Task StopAsync(bool resetVisuals = true)
     {
-        if (playState_ == PlayState.NotPlaying)
-            return;
-
-        await StopLoopAsync();
-        await StopMidiVisualSyncAsync(resetVisuals: resetVisuals);
+        if (playState_ == PlayState.Manual)
+            await StopLoopAsync();
+        else if (playState_ == PlayState.MIDI)
+            await StopMidiVisualSyncAsync(resetVisuals: resetVisuals);
 
         playState_ = PlayState.NotPlaying;
     }
 
     private async Task ToggleManualPlayAsync()
     {
-        if (!Enabled || playState_ == PlayState.MIDI)
+        if (playState_ == PlayState.MIDI)
             return;
 
         if (playState_ == PlayState.Manual)
@@ -152,7 +143,6 @@ public partial class Metronome
             return;
         }
 
-        playState_ = PlayState.Manual;
         await StartLoopAsync();
     }
 
@@ -241,10 +231,11 @@ public partial class Metronome
 
     private async Task StartLoopAsync()
     {
-        await StopLoopAsync();
-
-        if (!Enabled || playState_ != PlayState.Manual)
+        playState_ = PlayState.Manual;
+        if (!Enabled)
             return;
+
+        await StopLoopAsync();
 
         loopCts_ = new CancellationTokenSource();
         var token = loopCts_.Token;
@@ -312,14 +303,22 @@ public partial class Metronome
 
     public async Task StartMidiVisualSyncAsync(double midiStartAt, double startOffsetSeconds = 0.0)
     {
-        MidiStartAt = midiStartAt;
-        midiVisualStartOffsetSeconds_ = Math.Max(0.0, startOffsetSeconds);
+        playState_ = PlayState.MIDI;
 
         if (!Enabled || !jsAvailable_)
             return;
 
-        playState_ = PlayState.MIDI;
+        MidiStartAt = midiStartAt;
+        midiVisualStartOffsetSeconds_ = Math.Max(0.0, startOffsetSeconds);
+
+        midiVisualAudioAnchorTime_ = midiStartAt;
+        midiVisualScoreAnchorSeconds_ = Math.Max(0.0, startOffsetSeconds);
+        midiVisualTempoAnchorBpm_ = Math.Clamp(Bpm, MinBpm, MaxBpm);
+
+        midiVisualCts_?.Cancel();
+        midiVisualCts_?.Dispose();
         midiVisualCts_ = new CancellationTokenSource();
+
         lastFlashedBeatIndex_ = null;
 
         _ = RunMidiVisualSyncAsync(midiVisualCts_.Token);
@@ -396,6 +395,41 @@ public partial class Metronome
         }
     }
 
+    public async Task UpdateMidiVisualTempoAsync(int bpm)
+    {
+        bpm = Math.Clamp(bpm, MinBpm, MaxBpm);
+
+        if (playState_ != PlayState.MIDI || !Enabled || midiVisualAudioAnchorTime_ is null)
+            return;
+
+        double audioTime;
+
+        try
+        {
+            audioTime = await JS.InvokeAsync<double>("steelPan.getAudioTime");
+        }
+        catch
+        {
+            return;
+        }
+
+        var previousBpm = midiVisualTempoAnchorBpm_ > 0 ? midiVisualTempoAnchorBpm_ : bpm;
+        var beatUnit = BeatUnit > 0 ? BeatUnit : 4;
+        var previousSecondsPerBeat = (60.0 / previousBpm) * (4.0 / beatUnit);
+
+        if (previousSecondsPerBeat > 0.0)
+        {
+            var elapsedAudioSeconds = Math.Max(0.0, audioTime - midiVisualAudioAnchorTime_.Value);
+            var elapsedBeats = elapsedAudioSeconds / previousSecondsPerBeat;
+
+            midiVisualScoreAnchorSeconds_ += elapsedBeats * previousSecondsPerBeat;
+        }
+
+        midiVisualAudioAnchorTime_ = audioTime;
+        midiVisualTempoAnchorBpm_ = bpm;
+        Bpm = bpm;
+    }
+
     private async Task ClearFlashSoonAsync()
     {
         try
@@ -466,6 +500,8 @@ public partial class Metronome
 
         if (resetVisuals)
         {
+            MidiStartAt = null;
+            midiVisualStartOffsetSeconds_ = 0.0;
             tickFlash_ = false;
             accentFlash_ = false;
             beatIndex_ = 0;
@@ -540,5 +576,13 @@ public partial class Metronome
         await StopLoopAsync();
         await StopMidiVisualSyncAsync(resetVisuals: false);
         selfRef_?.Dispose();
+    }
+
+    private static double GetTempoRatio(int currentBpm, int referenceBpm)
+    {
+        if (currentBpm <= 0 || referenceBpm <= 0)
+            return 1.0;
+
+        return (double)currentBpm / referenceBpm;
     }
 }

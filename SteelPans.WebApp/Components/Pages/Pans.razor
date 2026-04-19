@@ -31,7 +31,7 @@
                         Assignments="@midiTrackAssignments_"
                         OnSingleMidiSelected="OnSingleMidiSelectedAsync"
                         OnMultipleMidiSelected="OnMultipleMidiSelectedAsync"
-                        OnTrackAdded="async (track) => await OpenAddModalAsync(track.Index)"
+                        OnTrackAdded="(track) => OpenAddModal(track.Index)"
                         OnTrackRemoved="async (track) => await RemoveTrackAssignmentAsync(track.Index)" />
 
             <ModalPopup IsOpen="@showMergeMidiModal_"
@@ -83,11 +83,12 @@
                 <Toolbar @ref="toolsToolbar_"
                          MenuButtonLabel="Open Tools"
                          MenuAriaLabel="Tools"
-                         Side="Toolbar.ToolbarSide.Left">
+                         Side="Toolbar.ToolbarSide.Left"
+                         OnOpen="() => OnOpenToolbar(toolsToolbar_)">
 
                     <ToolbarElement Title="Add Pan"
                                     IconClass="bi bi-plus-lg"
-                                    OnClick="() => addPanModal_?.Open()" />
+                                    OnClick="() => OpenAddModal()" />
 
                     <ToolbarElement Title="Chords"
                                     IconClass="bi bi-music-note-list">
@@ -142,7 +143,8 @@
                                 <Toolbar @ref="assignedPan.Toolbar"
                                          MenuButtonLabel="Open Pan Actions"
                                          MenuAriaLabel="Pan Actions"
-                                         Side="Toolbar.ToolbarSide.Right">
+                                         Side="Toolbar.ToolbarSide.Right"
+                                         OnOpen="() => OnOpenToolbar(assignedPan.Toolbar)">
                                     <ToolbarElement Title="Remove"
                                                     IconClass="bi bi-trash3"
                                                     OnClick="() => RemoveTrackAssignmentAsync(assignedPan.MidiPan.TrackIndex)" />
@@ -154,8 +156,10 @@
                                 </Toolbar>
                             </div>
 
-                            <SteelPanView Pan="@assignedPan.MidiPan.Pan"
-                                          InstanceChanged="@(view => RegisterAssignedSteelPanViewAsync(assignedPan.MidiPan.InstanceId, view))" />
+                            <div class="pans-page__assigned-pan-container">
+                                <SteelPanView Pan="@assignedPan.MidiPan.Pan"
+                                              InstanceChanged="@(view => RegisterAssignedSteelPanViewAsync(assignedPan.MidiPan.InstanceId, view))" />
+                            </div>
                         </section>
                     }
                 </div>

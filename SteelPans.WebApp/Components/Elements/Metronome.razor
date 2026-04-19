@@ -5,27 +5,24 @@
     <div class="metronome__controls">
         <div class="metronome__inputs">
             <div class="metronome__field">
-                <div class="metronome__number-input @((!CanEditBpm) ? "metronome__number-input--disabled" : null)">
+                <div class="metronome__number-input">
                     <NumericInput Id="@($"{componentId_}_bpm")"
                                   Class="form-control metronome__bpm-input metronome__number-input-control"
                                   Value="@Bpm"
                                   ValueChanged="SetBpmAsync"
                                   Min="20"
-                                  Max="200"
-                                  Disabled="@(!CanEditBpm)" />
+                                  Max="200" />
 
                     <div class="metronome__number-buttons">
                         <button class="metronome__number-button metronome__number-button--up"
                                 type="button"
                                 @onclick="IncrementBpmAsync"
-                                disabled="@(!CanEditBpm)"
                                 tabindex="-1"
                                 aria-label="Increase BPM"></button>
 
                         <button class="metronome__number-button metronome__number-button--down"
                                 type="button"
                                 @onclick="DecrementBpmAsync"
-                                disabled="@(!CanEditBpm)"
                                 tabindex="-1"
                                 aria-label="Decrease BPM"></button>
                     </div>
@@ -101,11 +98,10 @@
                     <div class="metronome__arm-stick"></div>
 
                     <div class="metronome__arm-weight-track" @ref="weightTrackRef_">
-                        <button class="metronome__arm-weight @(CanEditBpm ? "metronome__arm-weight--draggable" : "metronome__arm-weight--locked")"
+                        <button class="metronome__arm-weight metronome__arm-weight--draggable"
                                 type="button"
                                 style="@($"top: {WeightTopPercent:F3}%;")"
                                 @onpointerdown="BeginWeightDragAsync"
-                                disabled="@(!CanEditBpm)"
                                 tabindex="-1"
                                 aria-label="Drag to adjust BPM"></button>
                     </div>

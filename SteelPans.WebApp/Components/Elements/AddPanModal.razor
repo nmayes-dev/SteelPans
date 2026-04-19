@@ -144,7 +144,8 @@
             return;
         }
 
-        selectedTrackIndexString_ = initialTrack?.ToString() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(selectedTrackIndexString_) || initialTrack is not null)
+            selectedTrackIndexString_ = initialTrack.ToString() ?? string.Empty;
 
         if (!int.TryParse(selectedTrackIndexString_, out var selectedTrackIndex) ||
             UnassignedTracks.All(x => x.Index != selectedTrackIndex))
@@ -163,7 +164,7 @@
     {
         if (!CanOpenTrackAddModal && !CanOpenPanAddModal)
             return;
-            
+
         GetInitialParameters(initialTrack);
         if (HasTracks)
         {

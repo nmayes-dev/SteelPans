@@ -460,8 +460,8 @@
     position: absolute;
     left: 50%;
     bottom: 5.8%;
-    width: 52.36%;
-    padding: clamp(0.15rem, 0.8vw, 0.75rem) 0;
+    width: 45.36%;
+    padding: clamp(0.3rem, 0.8vw, 0.3rem) 0;
     transform: translateX(-50%);
     text-align: center;
     border-radius: clamp(0.65rem, 1vw, 0.9rem);
@@ -473,13 +473,13 @@
 }
 
 .metronome__beat-number {
-    font-size: clamp(0.8rem, 1.5vw, 2rem);
+    font-size: 1.4rem;
     font-weight: 800;
     letter-spacing: -0.04em;
 }
 
 .metronome__beat-total {
-    font-size: clamp(0.62rem, 0.95vw, 0.78rem);
+    font-size: 0.78rem;
     font-weight: 700;
     color: #cbd5e1;
     opacity: 0.9;
