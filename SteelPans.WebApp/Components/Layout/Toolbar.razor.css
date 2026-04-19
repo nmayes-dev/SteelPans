@@ -5,13 +5,10 @@
     align-items: start;
 }
 
-.toolbar--left {
-    justify-items: start;
-}
-
-.toolbar--right {
-    justify-items: end;
-}
+    .toolbar,
+    .toolbar * {
+        box-sizing: border-box;
+    }
 
 .toolbar__menu-wrap,
 .toolbar__panel {
@@ -19,42 +16,38 @@
 }
 
 .toolbar__menu-wrap {
-    display: flex;
-    flex-direction: column;
+    display: inline-grid;
+    grid-template-rows: auto 0fr;
     width: 2.4rem;
     min-width: 2.4rem;
+    background: transparent;
     opacity: 1;
-    transform: translateY(0) scale(1);
-    transform-origin: top;
-    transition: width 180ms ease, opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
+    transition: width 20ms ease, opacity 160ms ease;
 }
 
 .toolbar__menu-wrap--open {
     width: fit-content;
-    border-radius: 1rem;
-    background: rgba(255, 255, 255, 0.98);
-    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
-    backdrop-filter: blur(10px);
+    grid-template-rows: auto 1fr;
 }
 
 .toolbar__menu-wrap--hidden {
     opacity: 0;
-    transform: translateY(0.35rem) scale(0.98);
     pointer-events: none;
 }
 
 .toolbar__menu-button {
     display: inline-grid;
     place-items: center;
-    width: 2.4rem;
-    height: 2.4rem;
+    align-self: stretch;
+    width: 100%;
+    max-width: 2.4rem;
+    min-height: 2.4rem;
     padding: 0;
-    border-radius: 999px;
     border: 1px solid rgba(148, 163, 184, 0.24);
+    border-radius: 1.2rem;
     background: rgba(255, 255, 255, 0.98);
     color: #2563eb;
     box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
-    transition: transform 160ms ease, background 160ms ease, box-shadow 160ms ease, border-color 160ms ease, width 180ms ease, height 180ms ease, padding 180ms ease, border-radius 180ms ease;
 }
 
     .toolbar__menu-button .bi {
@@ -62,42 +55,40 @@
         line-height: 1;
     }
 
+
 .toolbar__menu-wrap--open .toolbar__menu-button {
-    width: 100%;
-    height: auto;
+    max-width: 100%;
     min-height: 2.75rem;
     padding: 0.75rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.54);
     border-radius: 1rem 1rem 0 0;
-    border: 0;
-    border-bottom: 1px solid rgba(148, 163, 184, 0.24);
     background: rgba(255, 255, 255, 0.98);
     box-shadow: none;
 }
 
 .toolbar__menu-button:hover {
-    transform: translateY(-1px);
-    background: rgba(230, 230, 230, 0.94);
+    background: rgb(230, 230, 230);
     border-color: rgba(96, 165, 250, 0.4);
-    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.18);
 }
 
 .toolbar__menu {
     display: grid;
-    width: 100%;
-    padding: 0;
-    align-items: stretch;
+    min-width: 100%;
     overflow: hidden;
-    max-height: 0;
     opacity: 0;
-    transform: translateY(-0.25rem);
-    transition: max-height 200ms ease, opacity 160ms ease, transform 160ms ease, padding 160ms ease;
+    transform: scaleY(0);
+    pointer-events: none;
+    transition: opacity 160ms ease, transform 160ms ease;
 }
 
 .toolbar__menu-wrap--open .toolbar__menu {
-    padding: 0.2rem 0.3rem;
-    max-height: 24rem;
     opacity: 1;
-    transform: translateY(0);
+    transform: scaleY(1);
+    pointer-events: auto;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
+    backdrop-filter: blur(10px);
+    border-radius: 0 0 1rem 1rem;
 }
 
 .toolbar__menu-item {
@@ -106,50 +97,79 @@
     align-items: center;
     width: 100%;
     gap: 0.6rem;
-    padding: 0.75rem 0.45rem;
+    padding: 0.75rem;
     border: 0;
-    border-radius: 0.8rem;
+    opacity: 0;
     background: transparent;
     color: #0f172a;
     font-size: 0.95rem;
     font-weight: 700;
-    transition: background 160ms ease, color 160ms ease, transform 160ms ease;
+    transition: background 160ms ease, color 160ms ease, transform 160ms ease, opacity 160ms ease,;
 }
 
     .toolbar__menu-item:hover {
         background: linear-gradient(180deg, rgb(238, 244, 252), rgb(208, 218, 249));
         color: #1d4ed8;
-        transform: translateX(2px);
     }
 
-.toolbar--left .toolbar__menu-wrap--open {
-    align-items: flex-start;
+
+.toolbar__menu-wrap--open .toolbar__menu-item {
+    opacity: 1;
 }
+
+.toolbar--left .toolbar__menu,
+.toolbar--right .toolbar__menu {
+    transform-origin: top;
+}
+
+.toolbar--left {
+    justify-items: start;
+}
+
+    .toolbar--left .toolbar__menu-wrap {
+        align-items: start;
+    }
+
+    .toolbar--left .toolbar__menu-button {
+        justify-self: start;
+        align-self: start;
+        transition: max-width 160ms ease, min-height 160ms ease, border-color 160ms ease, border-bottom-left-radius 160ms ease, border-top-left-radius 160ms ease;
+    }
 
     .toolbar--left .toolbar__menu-wrap--open .toolbar__menu-button {
-        place-items: flex-start;
+        place-items: start;
     }
 
-.toolbar--left .toolbar__menu-item {
-    flex-direction: row;
-    padding-right: 2rem;
+    .toolbar--left .toolbar__menu-item {
+        flex-direction: row;
+        padding-right: 2rem;
+    }
+
+.toolbar--right {
+    justify-items: end;
 }
 
-.toolbar--right .toolbar__menu-wrap--open {
-    align-items: flex-end;
-}
+    .toolbar--right .toolbar__menu-wrap {
+        align-items: end;
+    }
+
+    .toolbar--right .toolbar__menu-button {
+        justify-self: end;
+        align-self: start;
+        transition: max-width 160ms ease, min-height 160ms ease, border-color 160ms ease, border-bottom-right-radius 160ms ease, border-top-right-radius 160ms ease;
+    }
 
     .toolbar--right .toolbar__menu-wrap--open .toolbar__menu-button {
-        place-items: flex-end;
+        place-items: end;
     }
 
-.toolbar--right .toolbar__menu-item {
-    flex-direction: row-reverse;
-    padding-left: 2rem;
-}
+    .toolbar--right .toolbar__menu-item {
+        flex-direction: row-reverse;
+        padding-left: 2rem;
+    }
 
 .toolbar__panel {
-    width: min(24rem, calc(100vw - 1.5rem));
+    width: clamp(18rem, 30vw, 20rem);
     border: 1px solid rgba(148, 163, 184, 0.34);
     border-radius: 1.35rem;
     background: rgba(255, 255, 255, 0.98);
@@ -157,10 +177,11 @@
     backdrop-filter: blur(10px);
     overflow: hidden;
     transform-origin: top;
-    transition: opacity 200ms ease, transform 200ms ease, visibility 200ms ease;
+    transition: opacity 160ms ease, transform 160ms ease, visibility 160ms ease;
 }
 
 .toolbar__panel--closed {
+    width: 0;
     opacity: 0;
     transform: translateY(0.4rem) scale(0.98);
     pointer-events: none;
@@ -230,5 +251,5 @@
 
 .toolbar__panel-body {
     width: 100%;
-    padding: 0.9rem;
+    padding: 0.5rem;
 }

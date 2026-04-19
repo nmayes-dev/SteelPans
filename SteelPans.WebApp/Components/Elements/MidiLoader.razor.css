@@ -200,10 +200,14 @@
     place-items: center;
     border: 1px solid rgba(148, 163, 184, 0.24);
     border-radius: 0.5rem;
-    background: rgba(225, 225, 225, 0.96);
+    background: rgba(212, 222, 236, 0.96);
     color: #2563eb;
     box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
-    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+    transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.midi-loader__track-button-close {
+    background: rgba(236, 226, 202, 0.96);
 }
 
 @media (max-width: 700px) {

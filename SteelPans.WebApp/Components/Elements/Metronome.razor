@@ -79,7 +79,7 @@
         </div>
     </div>
 
-    <div class="metronome__visual @(Enabled ? null : "metronome__visual--disabled")">
+    <div class="metronome__display">
         <button class="metronome__toggle metronome__toggle--floating"
                 type="button"
                 @onclick="ToggleManualPlayAsync"
@@ -89,36 +89,38 @@
             <i class="bi @(playState_ == PlayState.Manual ? "bi-stop-fill" : "bi-play-fill")"
                aria-hidden="true"></i>
         </button>
-        <div class="metronome__case">
-            <div class="metronome__arm-pivot"></div>
+        <div class="metronome__visual @(Enabled ? null : "metronome__visual--disabled")">
+            <div class="metronome__case">
+                <div class="metronome__arm-pivot"></div>
 
-            <div class="metronome__arm-wrap">
-                <div class="metronome__arm"
-                     style="@($"transform: rotate({ArmAngleDeg:F2}deg);")">
-                    <div class="metronome__arm-stick"></div>
+                <div class="metronome__arm-wrap">
+                    <div class="metronome__arm"
+                         style="@($"transform: rotate({ArmAngleDeg:F2}deg);")">
+                        <div class="metronome__arm-stick"></div>
 
-                    <div class="metronome__arm-weight-track" @ref="weightTrackRef_">
-                        <button class="metronome__arm-weight metronome__arm-weight--draggable"
-                                type="button"
-                                style="@($"top: {WeightTopPercent:F3}%;")"
-                                @onpointerdown="BeginWeightDragAsync"
-                                tabindex="-1"
-                                aria-label="Drag to adjust BPM"></button>
+                        <div class="metronome__arm-weight-track" @ref="weightTrackRef_">
+                            <button class="metronome__arm-weight metronome__arm-weight--draggable"
+                                    type="button"
+                                    style="@($"top: {WeightTopPercent:F3}%;")"
+                                    @onpointerdown="BeginWeightDragAsync"
+                                    tabindex="-1"
+                                    aria-label="Drag to adjust BPM"></button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="metronome__scale">
-                <span class="metronome__scale-label metronome__scale-label--largo">Largo</span>
-                <span class="metronome__scale-label metronome__scale-label--andante">Andante</span>
-                <span class="metronome__scale-label metronome__scale-label--allegro">Allegro</span>
-            </div>
+                <div class="metronome__scale">
+                    <span class="metronome__scale-label metronome__scale-label--largo">Largo</span>
+                    <span class="metronome__scale-label metronome__scale-label--andante">Andante</span>
+                    <span class="metronome__scale-label metronome__scale-label--allegro">Allegro</span>
+                </div>
 
-            <div class="metronome__light @(tickFlash_ ? (accentFlash_ ? "metronome__light--accent" : "metronome__light--tick") : null)"></div>
+                <div class="metronome__light @(tickFlash_ ? (accentFlash_ ? "metronome__light--accent" : "metronome__light--tick") : null)"></div>
 
-            <div class="metronome__beat-display">
-                <span class="metronome__beat-number">@displayBeat_</span>
-                <span class="metronome__beat-total">/ @BeatsPerBar</span>
+                <div class="metronome__beat-display">
+                    <span class="metronome__beat-number">@displayBeat_</span>
+                    <span class="metronome__beat-total">/ @BeatsPerBar</span>
+                </div>
             </div>
         </div>
     </div>

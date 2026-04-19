@@ -50,7 +50,7 @@
                                     <div class="midi-loader__track-meta">@GetMetaInfo(track)</div>
                                 </div>
                                 <button type="button"
-                                        class="midi-loader__track-button"
+                                        class="midi-loader__track-button @(IsTrackAssigned(track) ? "midi-loader__track-button-close" : "")"
                                         aria-label="Add/Remove Track"
                                         @onclick="async () => await OnTrackButtonPressed(track)">
                                     <span class="bi @(!IsTrackAssigned(track) ? "bi-plus-lg" : "bi-dash-lg")" />

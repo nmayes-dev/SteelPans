@@ -1,8 +1,8 @@
 ﻿.assigned-pan-toolbar__volume {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     min-width: 0;
+    width: 100%;
     padding: 0.35rem 0.55rem;
     border: 1px solid #d7deea;
     border-radius: 999px;
@@ -33,7 +33,6 @@
     }
 
 .assigned-pan-toolbar__volume-slider {
-    inline-size: clamp(6rem, 10vw, 9rem);
     min-width: 0;
     flex: 0 1 auto;
     cursor: pointer;
@@ -45,4 +44,5 @@
     font-size: 0.875rem;
     color: #475569;
     flex: 0 0 auto;
+    margin: auto 0;
 }

@@ -5,8 +5,8 @@
     @ChildContent
 </CascadingValue>
 
-<div class="toolbar @(SideClass) @(menuOpen_ ? "toolbar--menu-open" : null) @(ActiveElement is not null ? "toolbar--panel-open" : null)">
-    <div class="toolbar__menu-wrap @(menuOpen_ ? "toolbar__menu-wrap--open" : null) @(ActiveElement is not null ? "toolbar__menu-wrap--hidden" : null)">
+<div class="toolbar @(SideClass) @(ActiveElement is not null ? "toolbar--panel-open" : "")">
+    <div class="toolbar__menu-wrap @(menuOpen_ ? "toolbar__menu-wrap--open" : "toolbar__menu-wrap--closed") @(ActiveElement is not null ? "toolbar__menu-wrap--hidden" : "")">
         <button class="toolbar__menu-button"
                 type="button"
                 aria-label="@MenuButtonLabel"

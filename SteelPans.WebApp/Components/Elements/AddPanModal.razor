@@ -175,9 +175,13 @@
         await modal_!.OpenModal();
     }
 
-    private void Close()
+    private async Task Close()
     {
+        if (addModalType_ == AddModalType.None)
+            return;
+
         addModalType_ = AddModalType.None;
+        await modal_!.OnCloseAsync();
     }
 
     private async Task ConfirmAddPanAsync(PanType panType)
@@ -213,6 +217,9 @@
 
     private async Task ConfirmAddAsync()
     {
+        if (modal_ is null)
+            return;
+
         if (!Enum.TryParse<PanType>(selectedPanTypeString_, out var panType))
             return;
 
@@ -227,6 +234,6 @@
                 break;
         }
 
-        Close();
+        await Close();
     }
 }

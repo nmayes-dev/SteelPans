@@ -2,7 +2,6 @@
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-    padding: 0 1rem 1rem;
 }
 
 
@@ -16,4 +15,5 @@
         font-size: clamp(0.6rem, 1vw, 1rem);
         padding: 0 2rem 0 min(0.875rem, 2.5vw);
         border-radius: 0.8rem;
+        cursor: pointer;
     }

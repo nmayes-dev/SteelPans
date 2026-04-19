@@ -23,8 +23,8 @@
 
 .metronome__toggle {
     position: absolute;
-    top: 0;
-    right: 0;
+    top: 3.5rem;
+    right: 1rem;
     z-index: 8;
     width: 2rem;
     min-width: 2rem;
@@ -74,9 +74,6 @@
     .metronome__toggle .bi-stop-fill {
         font-size: 0.8em;
     }
-
-.metronome__toggle--floating {
-}
 
 .metronome__controls {
     width: fit-content;
@@ -242,7 +239,15 @@
     opacity: 0.5;
 }
 
+
+
 /* Actual Visible Metronome */
+
+.metronome__display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
 
 .metronome__visual {
     display: flex;
@@ -250,6 +255,7 @@
     justify-content: center;
     min-width: 0;
     min-height: 0;
+    width: clamp(10rem, 20vw, 12rem);
     overflow: hidden;
     opacity: 1;
     transform: scale(1);
