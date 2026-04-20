@@ -50,6 +50,9 @@ public partial class Pans
     private bool metronomeEnabled_;
     private int? midiBpmOverride_;
 
+    private Guid? pendingRestartPanInstanceId_;
+    private TimeSpan? pendingRestartOffset_;
+
     private TimeSpan playbackPosition_;
     private TimeSpan playbackDuration_;
     private TimeSpan playbackSessionStartOffset_ = TimeSpan.Zero;
@@ -164,6 +167,10 @@ public partial class Pans
 
     private async Task AddTrackAssignmentAsync(MidiTrackAssignment assignment)
     {
+        var restartOffset = isMidiPlaying_
+            ? await GetCurrentPlaybackPositionAsync()
+            : (TimeSpan?)null;
+
         midiTrackAssignments_.RemoveAll(x => x.TrackIndex == assignment.TrackIndex);
         activeMidiPans_.RemoveAll(x => x.MidiPan.TrackIndex == assignment.TrackIndex);
 
@@ -175,6 +182,12 @@ public partial class Pans
         activeMidiPans_.Add(new PanWithToolbar { MidiPan = assignedPan });
 
         RecalculatePlaybackDuration();
+
+        if (restartOffset is not null)
+        {
+            pendingRestartPanInstanceId_ = assignedPan.InstanceId;
+            pendingRestartOffset_ = restartOffset.Value;
+        }
 
         await InvokeAsync(StateHasChanged);
     }
@@ -245,11 +258,21 @@ public partial class Pans
         if (!isMidiPlaying_)
             return;
 
+        if (pendingRestartPanInstanceId_ == instanceId && pendingRestartOffset_ is not null)
+        {
+            var restartOffset = pendingRestartOffset_.Value;
+            pendingRestartPanInstanceId_ = null;
+            pendingRestartOffset_ = null;
+
+            await RestartMidiFromAsync(restartOffset);
+            return;
+        }
+
         var currentPosition = await GetCurrentPlaybackPositionAsync();
         var playbackEvents = GetPlaybackEventsFromOffset(assignedPan.MidiPan.Events, currentPosition);
 
         if (playbackEvents.Count == 0)
-            return; 
+            return;
 
         var currentAudioTime = await JS.InvokeAsync<double>("steelPan.getAudioTime");
 
