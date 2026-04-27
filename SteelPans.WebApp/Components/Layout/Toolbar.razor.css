@@ -21,6 +21,7 @@
 .toolbar__menu-wrap {
     display: grid;
     grid-template-rows: var(--toolbar__button-size) 0fr;
+    align-items: start;
     width: var(--toolbar__button-size);
     min-width: 0;
     overflow: hidden;
@@ -68,7 +69,6 @@
 .toolbar__menu-wrap--closed .toolbar__menu-button-container {
     border-bottom: 0px solid rgba(148, 163, 184, 0.2);
     border-radius: 1.2rem;
-    transition: width 500ms ease, border 500ms ease, border-bottom-left-radius 1000ms ease;
 }
 
 .toolbar__menu-button {
@@ -108,9 +108,6 @@
     pointer-events: auto;
 }
 
-.toolbar__menu-wrap--closed .toolbar__menu {
-    pointer-events: auto;
-}
 
 .toolbar__menu-item {
     display: inline-flex;
@@ -136,8 +133,11 @@
 }
 
     .toolbar--left .toolbar__menu-wrap {
-        align-items: start;
         transform-origin: top left;
+    }
+
+    .toolbar--left .toolbar__menu-wrap--closed .toolbar__menu-button-container {
+        transition: width 500ms ease, border 500ms ease, border-bottom-left-radius 1000ms ease;
     }
 
     .toolbar--left .toolbar__menu-button {
@@ -158,8 +158,11 @@
 }
 
     .toolbar--right .toolbar__menu-wrap {
-        align-items: end;
         transform-origin: top right;
+    }
+
+    .toolbar--right .toolbar__menu-wrap--closed .toolbar__menu-button-container {
+        transition: width 500ms ease, border 500ms ease, border-bottom-right-radius 1000ms ease;
     }
 
     .toolbar--right .toolbar__menu-button {
