@@ -1,11 +1,13 @@
-﻿@using SteelPans.WebApp.Model
+@using SteelPans.WebApp.Model
+@using SteelPans.WebApp.Services
+@inject MidiPlaybackService Playback
 
-<div class="steel-pan__chord-builder @(Disabled ? "steel-pan__chord-builder--disabled" : null)">
+<div class="steel-pan__chord-builder @(IsDisabled ? "steel-pan__chord-builder--disabled" : null)">
     <div class="steel-pan__chord-selector">
         <div class="steel-pan__chord-select--note">
             <select class="form-select steel-pan__chord-select--tone"
                     value="@rootLetter_"
-                    disabled="@Disabled"
+                    disabled="@IsDisabled"
                     @onchange="OnRootLetterChanged">
                 @foreach (var letter in Enum.GetValues<NoteLetter>())
                 {
@@ -15,7 +17,7 @@
 
             <select class="form-select steel-pan__chord-select--accidental"
                     value="@rootAccidental_"
-                    disabled="@Disabled"
+                    disabled="@IsDisabled"
                     @onchange="OnRootAccidentalChanged">
                 <option value="-1">♭</option>
                 <option value="0">♮</option>
@@ -25,7 +27,7 @@
 
         <select class="form-select steel-pan__chord-select--scale"
                 value="@selectedChord_"
-                disabled="@Disabled"
+                disabled="@IsDisabled"
                 @onchange="OnChordChanged">
             @foreach (var chord in chordOptions_.Keys)
             {
@@ -36,16 +38,14 @@
     
     <button class="btn btn-primary steel-pan__chord-play"
             type="button"
-            disabled="@Disabled"
+            disabled="@IsDisabled"
             @onclick="PlayClickedAsync">
         Play
     </button>
 </div>
 
 @code {
-    [Parameter] public EventCallback<HashSet<int>> OnChordSelected { get; set; }
-    [Parameter] public EventCallback OnPlay { get; set; }
-    [Parameter] public bool Disabled { get; set; }
+    private bool IsDisabled => Playback.IsPlaying || Playback.ActivePans.Count == 0;
 
     private NoteLetter rootLetter_ = NoteLetter.C;
     private int rootAccidental_ = 0;
@@ -65,7 +65,7 @@
 
     private void OnRootLetterChanged(ChangeEventArgs e)
     {
-        if (Disabled)
+        if (IsDisabled)
             return;
 
         if (Enum.TryParse<NoteLetter>(e.Value?.ToString(), out var value))
@@ -74,7 +74,7 @@
 
     private void OnRootAccidentalChanged(ChangeEventArgs e)
     {
-        if (Disabled)
+        if (IsDisabled)
             return;
 
         if (int.TryParse(e.Value?.ToString(), out var value))
@@ -83,7 +83,7 @@
 
     private void OnChordChanged(ChangeEventArgs e)
     {
-        if (Disabled)
+        if (IsDisabled)
             return;
 
         var value = e.Value?.ToString();
@@ -93,32 +93,31 @@
 
     private async Task ClearChordAsync()
     {
-        if (Disabled)
+        if (IsDisabled)
             return;
 
-        await OnChordSelected.InvokeAsync(new());
+        await Playback.SelectChordAsync(new());
     }
 
     private async Task ApplyChordAsync()
     {
-        if (Disabled)
+        if (IsDisabled)
             return;
 
         var root = new Note(rootLetter_, new Accidental(rootAccidental_), octave_);
         var chord = root.BuildChord(chordOptions_[selectedChord_]);
 
         var pitchClasses = chord.Select(n => n.PitchClass).ToHashSet();
-        await OnChordSelected.InvokeAsync(pitchClasses);
+        await Playback.SelectChordAsync(pitchClasses);
     }
 
     private async Task PlayClickedAsync()
     {
-        if (Disabled)
+        if (IsDisabled)
             return;
 
         await ApplyChordAsync();
 
-        if (OnPlay.HasDelegate)
-            await OnPlay.InvokeAsync();
+        await Playback.PlaySelectedNotesAsync();
     }
 }

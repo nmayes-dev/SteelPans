@@ -1,4 +1,6 @@
-﻿<ModalPopup @ref="modal_"
+@using SteelPans.WebApp.Services
+@inject MidiPlaybackService Playback
+<ModalPopup @ref="modal_"
             Title="Add Pan"
             OnClose="Close">
     <ChildContent>
@@ -62,18 +64,12 @@
     public bool Disabled { get; set; }
 
     [Parameter]
-    public EventCallback<MidiTrackAssignment> OnAddTrack { get; set; }
-
-    [Parameter]
     public IReadOnlyList<MidiTrackInfo> Tracks { get; set; } = [];
 
     [Parameter]
-    public IReadOnlyList<MidiTrackAssignment> Assignments { get; set; } = [];
+    public IReadOnlyList<SteelPan> Pans { get; set; } = [];
 
-    [Parameter]
-    public IReadOnlyList<PanType> PanTypes { get; set; } = [];
-
-    private IReadOnlyList<PanType> AvailablePanTypes => PanTypes.Where(x => !Assignments.Select(a => a.AssignedPanType).Contains(x)).ToList();
+    private IReadOnlyList<PanType> AvailablePanTypes => Pans.Select(x => x.PanType).Where(x => !Playback.Assignments.Select(a => a.AssignedPanType).Contains(x)).ToList();
 
     private enum AddModalType
     {
@@ -106,7 +102,7 @@
 
     private List<MidiTrackInfo> UnassignedTracks =>
         Tracks
-            .Where(t => Assignments.All(a => a.Index != t.Index))
+            .Where(t => Playback.Assignments.All(a => a.Index != t.Index))
             .OrderBy(t => t.Index)
             .ToList();
 
@@ -188,12 +184,12 @@
     {
         var assignment = new MidiTrackAssignment
         {
-            Index = PanTypes.IndexOf(panType),
+            Index = AvailablePanTypes.IndexOf(panType),
             Label = "No Track",
             AssignedPanType = panType
         };
 
-        await OnAddTrack.InvokeAsync(assignment);
+        await Playback.AddAssignmentAsync(assignment, Pans);
     }
 
     private async Task ConfirmAddTrackAsync(PanType panType)
@@ -212,7 +208,7 @@
             AssignedPanType = panType
         };
 
-        await OnAddTrack.InvokeAsync(assignment);
+        await Playback.AddAssignmentAsync(assignment, Pans);
     }
 
     private async Task ConfirmAddAsync()

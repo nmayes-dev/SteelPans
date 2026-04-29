@@ -15,8 +15,9 @@ namespace SteelPans.WebApp
 
             builder.Services.AddSingleton<SteelPanLoader>();
             builder.Services.AddSingleton<SteelPanSvgService>();
-            builder.Services.AddSingleton<MidiService>();
-            builder.Services.AddSingleton<OverlayManagerService>();
+            builder.Services.AddScoped<MidiService>();
+            builder.Services.AddScoped<MidiPlaybackService>();
+            builder.Services.AddScoped<OverlayManagerService>();
 
             var app = builder.Build();
 

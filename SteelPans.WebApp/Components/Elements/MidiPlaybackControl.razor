@@ -1,4 +1,6 @@
-﻿@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web
+@using SteelPans.WebApp.Services
+@implements IDisposable
 
 <div class="sp-section midi-playback">
     <div class="midi-playback__top-row">
@@ -17,9 +19,10 @@
                @ontouchstart="BeginSeek"
                @ontouchend="EndSeek" />
     </div>
+
     <div class="midi-playback__bottom-row">
         <span class="midi-playback__time midi-playback__time--current">@FormatTime(DisplayTime)</span>
-        
+
         <div class="midi-playback__controls">
             <button class="midi-playback__button midi-playback__button--secondary"
                     type="button"
@@ -32,10 +35,10 @@
 
             <button class="midi-playback__button midi-playback__button--primary"
                     type="button"
-                    title="@(IsPlaying ? "Pause" : "Play")"
-                    aria-label="@(IsPlaying ? "Pause" : "Play")"
+                    title="@(Playback.IsPlaying ? "Pause" : "Play")"
+                    aria-label="@(Playback.IsPlaying ? "Pause" : "Play")"
                     @onclick="HandlePlayPause">
-                <span class="bi @(IsPlaying ? "bi-pause-fill" : "bi-play-fill")" aria-hidden="true"></span>
+                <span class="bi @(Playback.IsPlaying ? "bi-pause-fill" : "bi-play-fill")" aria-hidden="true"></span>
             </button>
 
             <button class="midi-playback__button midi-playback__button--secondary"
@@ -48,66 +51,70 @@
             </button>
         </div>
 
-        <span class="midi-playback__time midi-playback__time--total">@FormatTime(TotalTime)</span>
+        <span class="midi-playback__time midi-playback__time--total">@FormatTime(Playback.Duration)</span>
     </div>
-
 </div>
 
 @code {
-    [Parameter] public TimeSpan CurrentTime { get; set; }
-    [Parameter] public TimeSpan TotalTime { get; set; }
-    [Parameter] public bool IsPlaying { get; set; }
-
-    [Parameter] public bool CanGoNext { get; set; }
-    [Parameter] public bool CanGoToStart { get; set; } = true;
-
-    [Parameter] public EventCallback OnPlayPause { get; set; }
-    [Parameter] public EventCallback OnBackToStart { get; set; }
-    [Parameter] public EventCallback OnNextTrack { get; set; }
-
-    [Parameter] public EventCallback<TimeSpan> OnSeekPreviewChanged { get; set; }
-    [Parameter] public EventCallback<TimeSpan> OnSeekCommitted { get; set; }
+    [Inject] private MidiPlaybackService Playback { get; set; } = default!;
 
     private bool isSeeking_;
     private double previewSeconds_;
 
     private TimeSpan DisplayTime => isSeeking_
         ? TimeSpan.FromSeconds(previewSeconds_)
-        : ClampTime(CurrentTime);
+        : ClampTime(Playback.Position);
 
-    private double MaxSeconds => Math.Max(TotalTime.TotalSeconds, 0.01);
-    private string MaxSecondsString => MaxSeconds.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    private double MaxSeconds => Math.Max(Playback.Duration.TotalSeconds, 0.01);
+
+    private string MaxSecondsString => MaxSeconds.ToString(
+        "0.##",
+        System.Globalization.CultureInfo.InvariantCulture);
+
     private string DisplaySecondsString => Math.Clamp(DisplayTime.TotalSeconds, 0, MaxSeconds)
         .ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    private bool CanGoToStart => Playback.Position > TimeSpan.Zero;
+    private bool CanGoNext => Playback.Position < Playback.Duration;
+
+    protected override void OnInitialized()
+    {
+        Playback.StateChanged += HandlePlaybackStateChangedAsync;
+    }
 
     protected override void OnParametersSet()
     {
         if (!isSeeking_)
-            previewSeconds_ = ClampSeconds(CurrentTime.TotalSeconds);
+            previewSeconds_ = ClampSeconds(Playback.Position.TotalSeconds);
+    }
+
+    private async Task HandlePlaybackStateChangedAsync()
+    {
+        if (!isSeeking_)
+            previewSeconds_ = ClampSeconds(Playback.Position.TotalSeconds);
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task HandlePlayPause()
     {
-        if (!OnPlayPause.HasDelegate)
-            return;
-
-        await OnPlayPause.InvokeAsync();
+        await Playback.ToggleAsync();
     }
 
     private async Task HandleBackToStart()
     {
-        if (!CanGoToStart || !OnBackToStart.HasDelegate)
+        if (!CanGoToStart)
             return;
 
-        await OnBackToStart.InvokeAsync();
+        await Playback.SeekToStartAsync();
     }
 
     private async Task HandleNextTrack()
     {
-        if (!CanGoNext || !OnNextTrack.HasDelegate)
+        if (!CanGoNext)
             return;
 
-        await OnNextTrack.InvokeAsync();
+        await Playback.GoToEndAsync();
     }
 
     private void BeginSeek()
@@ -124,7 +131,7 @@
     {
         isSeeking_ = true;
         previewSeconds_ = ParseSeconds(args.Value);
-        await NotifyPreviewChangedAsync();
+        await Playback.PreviewSeekAsync(TimeSpan.FromSeconds(previewSeconds_));
     }
 
     private async Task HandleSliderChange(ChangeEventArgs args)
@@ -133,21 +140,13 @@
         await CommitPreviewAsync();
     }
 
-    private async Task NotifyPreviewChangedAsync()
-    {
-        if (OnSeekPreviewChanged.HasDelegate)
-            await OnSeekPreviewChanged.InvokeAsync(TimeSpan.FromSeconds(previewSeconds_));
-    }
-
     private async Task CommitPreviewAsync()
     {
         previewSeconds_ = ClampSeconds(previewSeconds_);
         isSeeking_ = false;
 
-        if (OnSeekCommitted.HasDelegate)
-            await OnSeekCommitted.InvokeAsync(TimeSpan.FromSeconds(previewSeconds_));
-
-        StateHasChanged();
+        await Playback.CommitSeekAsync(TimeSpan.FromSeconds(previewSeconds_));
+        await InvokeAsync(StateHasChanged);
     }
 
     private double ParseSeconds(object? value)
@@ -175,5 +174,10 @@
         return totalHours > 0
             ? $"{totalHours}:{time.Minutes:00}:{time.Seconds:00}.{time.Milliseconds:000}"
             : $"{time.Minutes}:{time.Seconds:00}.{time.Milliseconds:000}";
+    }
+
+    public void Dispose()
+    {
+        Playback.StateChanged -= HandlePlaybackStateChangedAsync;
     }
 }

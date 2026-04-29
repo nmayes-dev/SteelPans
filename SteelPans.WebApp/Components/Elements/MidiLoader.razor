@@ -2,6 +2,8 @@
 @using SteelPans.WebApp.Components
 @using SteelPans.WebApp.Model
 @using SteelPans.WebApp.Extensions
+@using SteelPans.WebApp.Services
+@inject MidiPlaybackService Playback
 @inherits OverlayComponentBase
 
 <div class="sp-section midi-loader">
@@ -72,9 +74,6 @@
     public IReadOnlyList<MidiTrackInfo> Tracks { get; set; } = [];
 
     [Parameter]
-    public IReadOnlyList<MidiTrackAssignment> Assignments { get; set; } = [];
-
-    [Parameter]
     public EventCallback OnOverlayOpened { get; set; }
 
     [Parameter]
@@ -86,12 +85,9 @@
     [Parameter]
     public EventCallback<MidiTrackInfo> OnTrackAdded { get; set; }
 
-    [Parameter]
-    public EventCallback<MidiTrackInfo> OnTrackRemoved { get; set; }
-
     private HashSet<int> AssignedTracks =>
         Tracks
-            .Where(t => Assignments.Any(a => a.Index == t.Index))
+            .Where(t => Playback.Assignments.Any(a => a.Index == t.Index))
             .OrderBy(t => t.Index)
             .Select(t => t.Index)
             .ToHashSet();
@@ -124,7 +120,7 @@
     {
         if (IsTrackAssigned(track))
         {
-            await OnTrackRemoved.InvokeAsync(track);
+            await Playback.RemoveAssignmentAsync(track.Index);
         }
         else
         {

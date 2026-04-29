@@ -3,6 +3,7 @@
 @using SteelPans.WebApp.Services
 @using SteelPans.WebApp.Extensions
 @inject SteelPanSvgService SvgService
+@inject MidiPlaybackService Playback
 @inject IJSRuntime JS
 @inject IWebHostEnvironment Env
 @implements IAsyncDisposable
@@ -37,7 +38,7 @@ else
     public string? Style { get; set; }
 
     [Parameter]
-    public EventCallback<SteelPanView?> InstanceChanged { get; set; }
+    public Guid? PlaybackInstanceId { get; set; }
 
     private bool notesPreloaded_;
     private readonly string componentId_ = $"steelpan_{Guid.NewGuid():N}";
@@ -76,8 +77,8 @@ else
         if (firstRender && selfRef_ is not null)
             await JS.InvokeVoidAsync("steelPan.register", componentId_, selfRef_);
 
-        if (firstRender && InstanceChanged.HasDelegate)
-            await InstanceChanged.InvokeAsync(this);
+        if (firstRender && PlaybackInstanceId is not null)
+            await Playback.RegisterSteelPanViewAsync(PlaybackInstanceId.Value, this);
 
         if (!string.IsNullOrWhiteSpace(panSvg_))
             await JS.InvokeVoidAsync("steelPan.bindPanElements", componentId_);
@@ -322,6 +323,9 @@ else
 
     public async ValueTask DisposeAsync()
     {
+        if (PlaybackInstanceId is not null)
+            Playback.UnregisterSteelPanView(PlaybackInstanceId.Value);
+
         playSelectedCts_?.Cancel();
         playSelectedCts_?.Dispose();
         playSelectedCts_ = null;

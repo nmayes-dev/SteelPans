@@ -1,4 +1,8 @@
-﻿<div class="assigned-pan-toolbar__volume" title="Playback Volume">
+@using SteelPans.WebApp.Model
+@using SteelPans.WebApp.Services
+@inject MidiPlaybackService Playback
+
+<div class="assigned-pan-toolbar__volume" title="Playback Volume">
     <button type="button"
             class="assigned-pan-toolbar__volume-button"
             @onclick="ToggleMute"
@@ -20,13 +24,12 @@
 </div>
 
 @code {
-    [Parameter] public double Volume { get; set; } = 1.0;
-    [Parameter] public EventCallback<double> VolumeChanged { get; set; }
+    [Parameter, EditorRequired] public MidiAssignedPan ActivePan { get; set; } = default!;
 
     private double previousNonZeroVolume_ = 1.0;
 
     private int VolumePercent => (int)Math.Round(EffectiveVolume * 100.0);
-    private double EffectiveVolume => Math.Clamp(Volume, 0.0, 1.0);
+    private double EffectiveVolume => Math.Clamp(ActivePan?.Volume ?? 1.0, 0.0, 1.0);
 
     private async Task OnVolumeInput(ChangeEventArgs e)
     {
@@ -39,7 +42,7 @@
         if (volume > 0.0)
             previousNonZeroVolume_ = volume;
 
-        await VolumeChanged.InvokeAsync(volume);
+        await Playback.SetPanVolumeAsync(ActivePan, volume);
     }
 
     private async Task ToggleMute()
@@ -47,11 +50,11 @@
         if (EffectiveVolume <= 0.0001)
         {
             var restored = previousNonZeroVolume_ > 0.0 ? previousNonZeroVolume_ : 1.0;
-            await VolumeChanged.InvokeAsync(restored);
+            await Playback.SetPanVolumeAsync(ActivePan, restored);
             return;
         }
 
         previousNonZeroVolume_ = EffectiveVolume;
-        await VolumeChanged.InvokeAsync(0.0);
+        await Playback.SetPanVolumeAsync(ActivePan, 0.0);
     }
 }

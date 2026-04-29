@@ -1,4 +1,4 @@
-﻿@inject IJSRuntime JS
+@inject IJSRuntime JS
 @implements IAsyncDisposable
 
 <div class="metronome">
@@ -83,7 +83,7 @@
         <button class="metronome__toggle metronome__toggle--floating"
                 type="button"
                 @onclick="ToggleManualPlayAsync"
-                disabled="@(playState_ == PlayState.MIDI || !Enabled)"
+                disabled="@(Playback.IsPlaying || !Enabled)"
                 aria-label="@(playState_ == PlayState.Manual ? "Stop metronome" : "Play metronome")"
                 title="@(playState_ == PlayState.Manual ? "Stop" : "Play")">
             <i class="bi @(playState_ == PlayState.Manual ? "bi-stop-fill" : "bi-play-fill")"
