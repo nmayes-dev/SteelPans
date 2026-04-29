@@ -37,6 +37,11 @@ public partial class Metronome
 
     private const double MaxArmAngleDeg = 24.0;
 
+    private const int BpmRepeatInitialDelayMs = 350;
+    private const int BpmRepeatIntervalMs = 50;
+
+    private CancellationTokenSource? bpmRepeatCts_;
+
     private readonly string componentId_ = $"metronome_{Guid.NewGuid():N}";
     private CancellationTokenSource? loopCts_;
     private CancellationTokenSource? midiVisualCts_;
@@ -69,6 +74,8 @@ public partial class Metronome
     private bool accentFlash_;
 
     private bool EffectiveIsPlaying => Enabled && IsPlaying;
+
+    private bool CanEditBpm => Enabled || MidiLoaded;
     private bool CanEditTimeSignature => Enabled && !IsPlaying && !MidiLoaded;
 
     private double ArmAngleDeg => !Enabled || !EffectiveIsPlaying
@@ -201,14 +208,56 @@ public partial class Metronome
         await SetBpmAsync(Bpm - 1);
     }
 
-    private async Task IncrementBeatsPerBarAsync()
+    private async Task BeginBpmRepeatAsync(int delta)
     {
-        await SetBeatsPerBarAsync(BeatsPerBar + 1);
+        StopBpmRepeat();
+
+        await ChangeBpmAsync(delta);
+
+        bpmRepeatCts_ = new CancellationTokenSource();
+        var token = bpmRepeatCts_.Token;
+
+        _ = RepeatBpmChangeAsync(delta, token);
     }
 
-    private async Task DecrementBeatsPerBarAsync()
+    private void StopBpmRepeat()
     {
-        await SetBeatsPerBarAsync(BeatsPerBar - 1);
+        if (bpmRepeatCts_ is null)
+            return;
+
+        bpmRepeatCts_.Cancel();
+        bpmRepeatCts_.Dispose();
+        bpmRepeatCts_ = null;
+    }
+
+    private async Task RepeatBpmChangeAsync(int delta, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(BpmRepeatInitialDelayMs, cancellationToken);
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await ChangeBpmAsync(delta);
+                await Task.Delay(BpmRepeatIntervalMs, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task ChangeBpmAsync(int delta)
+    {
+        var nextBpm = Math.Clamp(Bpm + delta, MinBpm, MaxBpm);
+
+        if (nextBpm == Bpm)
+        {
+            StopBpmRepeat();
+            return;
+        }
+
+        await SetBpmAsync(nextBpm);
     }
 
     private async Task SetBpmAsync(int bpm)
@@ -224,6 +273,16 @@ public partial class Metronome
             await RestartLoopAsync();
         else
             await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task IncrementBeatsPerBarAsync()
+    {
+        await SetBeatsPerBarAsync(BeatsPerBar + 1);
+    }
+
+    private async Task DecrementBeatsPerBarAsync()
+    {
+        await SetBeatsPerBarAsync(BeatsPerBar - 1);
     }
 
     private async Task SetBeatsPerBarAsync(int beatsPerBar)
@@ -615,6 +674,8 @@ public partial class Metronome
         Playback.PlaybackPaused -= OnPlaybackPausedAsync;
         Playback.PlaybackStopped -= OnPlaybackStoppedAsync;
         Playback.TempoChanged -= OnTempoChangedAsync;
+
+        StopBpmRepeat();
 
         await StopLoopAsync();
         await StopMidiVisualSyncAsync(resetVisuals: false);

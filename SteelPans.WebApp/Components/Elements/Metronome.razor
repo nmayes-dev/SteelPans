@@ -11,18 +11,25 @@
                                   Value="@Bpm"
                                   ValueChanged="SetBpmAsync"
                                   Min="20"
-                                  Max="200" />
+                                  Max="200"
+                                  Disabled="@(!CanEditBpm)" />
 
                     <div class="metronome__number-buttons">
                         <button class="metronome__number-button metronome__number-button--up"
                                 type="button"
-                                @onclick="IncrementBpmAsync"
+                                @onpointerdown="@(() => BeginBpmRepeatAsync(1))"
+                                @onpointerup="StopBpmRepeat"
+                                @onpointercancel="StopBpmRepeat"
+                                @onpointerleave="StopBpmRepeat"
                                 tabindex="-1"
                                 aria-label="Increase BPM"></button>
 
                         <button class="metronome__number-button metronome__number-button--down"
                                 type="button"
-                                @onclick="DecrementBpmAsync"
+                                @onpointerdown="@(() => BeginBpmRepeatAsync(-1))"
+                                @onpointerup="StopBpmRepeat"
+                                @onpointercancel="StopBpmRepeat"
+                                @onpointerleave="StopBpmRepeat"
                                 tabindex="-1"
                                 aria-label="Decrease BPM"></button>
                     </div>
@@ -31,7 +38,7 @@
             </div>
 
             <div class="metronome__field">
-                <div class="metronome__number-input @(!CanEditTimeSignature ? "metronome__number-input--disabled" : null)">
+                <div class="metronome__number-input">
                     <NumericInput Id="@($"{componentId_}_beatsPerBar")"
                                   Class="form-control metronome__time-signature-input metronome__number-input-control"
                                   Value="@BeatsPerBar"
@@ -60,7 +67,7 @@
             </div>
 
             <div class="metronome__field">
-                <div class="metronome__number-input @((!CanEditTimeSignature) ? "metronome__number-input--disabled" : null)">
+                <div class="metronome__number-input">
                     <select id="@($"{componentId_}_beatUnit")"
                             class="form-select metronome__beat-unit-input"
                             value="@BeatUnit"
