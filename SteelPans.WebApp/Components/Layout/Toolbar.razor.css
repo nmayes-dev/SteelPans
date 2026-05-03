@@ -57,11 +57,15 @@
     border-radius: inherit;
 }
 
-    .toolbar__menu-button-container:hover:not(:has(.toolbar__menu-header-actions :is(button, input, select, textarea, label, a, [role="button"]):hover)) {
+@media (hover: hover) and (pointer: fine) {
+    .toolbar__menu-button-container:hover:not(
+        :has(.toolbar__menu-header-actions :is(button, input, select, textarea, label, a, [role="button"]):hover)
+    ) {
         background: linear-gradient(180deg, rgb(238, 244, 252), rgb(208, 218, 249));
         color: #1d4ed8;
         border-color: rgba(96, 165, 250, 0.4);
     }
+}
 
 .toolbar__closed .toolbar__menu-button-container {
     border-bottom: 0 solid rgba(148, 163, 184, 0.2);
