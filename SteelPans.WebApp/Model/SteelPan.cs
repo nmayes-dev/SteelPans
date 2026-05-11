@@ -7,6 +7,7 @@ namespace SteelPans.WebApp.Model;
 public enum PanType
 {
     None,
+    Bass,
     LeadTenor,
     DoubleGuitar,
     DoubleSecond,

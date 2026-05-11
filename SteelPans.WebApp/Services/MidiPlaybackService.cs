@@ -13,6 +13,11 @@ public sealed record MidiPlaybackPausedEventArgs(TimeSpan Position);
 
 public sealed record MidiPlaybackStoppedEventArgs(bool ResetPosition, TimeSpan Position);
 
+public sealed record PlaybackPositionChangedEventArgs(
+    TimeSpan Position,
+    TimeSpan Duration,
+    bool IsPlaying);
+
 public sealed record PlaybackTempoChangedEventArgs(int Bpm);
 
 public sealed class MidiPlaybackService : IAsyncDisposable
@@ -46,6 +51,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     public event Func<MidiPlaybackStartedEventArgs, Task>? PlaybackStarted;
     public event Func<MidiPlaybackPausedEventArgs, Task>? PlaybackPaused;
     public event Func<MidiPlaybackStoppedEventArgs, Task>? PlaybackStopped;
+    public event Func<PlaybackPositionChangedEventArgs, Task>? PositionChanged;
     public event Func<PlaybackTempoChangedEventArgs, Task>? TempoChanged;
 
     public List<MidiTrackAssignment> Assignments { get; } = [];
@@ -431,6 +437,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             await RestartFromAsync(TimeSpan.Zero);
         else
             await NotifyStateChangedAsync();
+
+        await NotifyPositionChangedAsync();
     }
 
     public async Task GoToEndAsync()
@@ -440,13 +448,9 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         Position = Duration;
         playbackSessionStartOffset_ = Duration;
-        await NotifyStateChangedAsync();
-    }
 
-    public async Task PreviewSeekAsync(TimeSpan previewTime)
-    {
-        Position = ClampPlaybackTime(previewTime);
         await NotifyStateChangedAsync();
+        await NotifyPositionChangedAsync();
     }
 
     public async Task CommitSeekAsync(TimeSpan seekTime)
@@ -460,6 +464,14 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             await RestartFromAsync(clamped);
         else
             await NotifyStateChangedAsync();
+
+        await NotifyPositionChangedAsync();
+    }
+
+    public async Task PreviewSeekAsync(TimeSpan previewTime)
+    {
+        Position = ClampPlaybackTime(previewTime);
+        await NotifyPositionChangedAsync();
     }
 
     private MidiAssignedPan? BuildAssignedPan(MidiTrackAssignment assignment, IReadOnlyList<SteelPan> availablePans)
@@ -617,6 +629,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                 while (IsPlaying && await timer.WaitForNextTickAsync(cancellationToken))
                 {
                     Position = await GetCurrentPositionAsync();
+                    await NotifyPositionChangedAsync();
 
                     if (Duration > TimeSpan.Zero && Position >= Duration)
                     {
@@ -626,9 +639,11 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                         midiStartAt_ = null;
 
                         await NotifyPlaybackStoppedAsync(new MidiPlaybackStoppedEventArgs(false, Position));
-                    }
+                        await NotifyStateChangedAsync();
+                        await NotifyPositionChangedAsync();
 
-                    await NotifyStateChangedAsync();
+                        break;
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -684,6 +699,18 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             return;
 
         foreach (Func<MidiPlaybackStoppedEventArgs, Task> handler in handlers.GetInvocationList())
+            await handler(args);
+    }
+
+    private async Task NotifyPositionChangedAsync()
+    {
+        var handlers = PositionChanged;
+        if (handlers is null)
+            return;
+
+        var args = new PlaybackPositionChangedEventArgs(Position, Duration, IsPlaying);
+
+        foreach (Func<PlaybackPositionChangedEventArgs, Task> handler in handlers.GetInvocationList())
             await handler(args);
     }
 

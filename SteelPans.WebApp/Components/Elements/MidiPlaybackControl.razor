@@ -80,6 +80,7 @@
     protected override void OnInitialized()
     {
         Playback.StateChanged += HandlePlaybackStateChangedAsync;
+        Playback.PositionChanged += HandlePlaybackPositionChangedAsync;
     }
 
     protected override void OnParametersSet()
@@ -92,6 +93,14 @@
     {
         if (!isSeeking_)
             previewSeconds_ = ClampSeconds(Playback.Position.TotalSeconds);
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandlePlaybackPositionChangedAsync(PlaybackPositionChangedEventArgs args)
+    {
+        if (!isSeeking_)
+            previewSeconds_ = ClampSeconds(args.Position.TotalSeconds);
 
         await InvokeAsync(StateHasChanged);
     }
@@ -179,5 +188,6 @@
     public void Dispose()
     {
         Playback.StateChanged -= HandlePlaybackStateChangedAsync;
+        Playback.PositionChanged -= HandlePlaybackPositionChangedAsync;
     }
 }
