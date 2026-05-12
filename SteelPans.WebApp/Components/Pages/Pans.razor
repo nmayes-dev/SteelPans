@@ -128,7 +128,7 @@
                                          Side="Toolbar.ToolbarSide.Right">
                                     <ToolbarElement Title="Remove"
                                                     IconClass="bi bi-trash3"
-                                                    OnClick="() => Playback.RemoveAssignmentAsync(assignedPan.Index)" />
+                                                    OnClick="async () => await Playback.RemoveAssignmentAsync(assignedPan.Index)" />
                                     <ToolbarElement Title="Volume"
                                                     IconClass="bi bi-volume-up-fill">
                                         <VolumeControl ActivePan="@assignedPan" />

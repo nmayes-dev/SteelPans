@@ -1,6 +1,6 @@
 ﻿.assigned-pan-toolbar__volume {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto auto 1fr auto;
     min-width: 0;
     width: 100%;
     padding: 0.35rem 0.55rem;
@@ -23,7 +23,7 @@
     flex: 0 0 auto;
 }
 
-    .assigned-pan-toolbar__volume-button:hover {
+    .assigned-pan-toolbar__volume-button:hover:not(:disabled) {
         background: #f1f5f9;
     }
 
@@ -33,6 +33,7 @@
     }
 
 .assigned-pan-toolbar__volume-slider {
+    margin-left: 0.25rem;
     min-width: 0;
     flex: 0 1 auto;
     cursor: pointer;

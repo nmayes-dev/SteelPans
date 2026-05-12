@@ -32,8 +32,6 @@ public partial class Toolbar
 
     [Parameter] public ToolbarSide Side { get; set; } = ToolbarSide.Left;
 
-    [Parameter] public bool CloseOnAction { get; set; } = true;
-
     private string SideClass => Side == ToolbarSide.Right
         ? "toolbar--right"
         : "toolbar--left";
@@ -93,7 +91,7 @@ public partial class Toolbar
         if (element.OnClick.HasDelegate)
             await element.OnClick.InvokeAsync();
 
-        if (CloseOnAction)
+        if (element.CloseOnAction)
             menuOpen_ = false;
     }
 

@@ -19,6 +19,9 @@
     [Parameter]
     public EventCallback OnClick { get; set; }
 
+    [Parameter]
+    public bool CloseOnAction { get; set; } = true;
+
     internal bool HasBody => ChildContent is not null;
 
     protected override void OnInitialized()

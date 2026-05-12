@@ -2,14 +2,20 @@
 @using SteelPans.WebApp.Services
 @inject MidiPlaybackService Playback
 
-<div class="assigned-pan-toolbar__volume" title="Playback Volume">
+<div class="assigned-pan-toolbar__volume" title="Playback Volume" disabled="@(!OtherPans.Any())">
+    <button type="button"
+            class="assigned-pan-toolbar__volume-button"
+            @onclick="ToggleSolo"
+            disabled="@(!OtherPans.Any())"
+            aria-label="Toggle Solo">
+        <span class="@SoloCssClass"></span>
+    </button>
+
     <button type="button"
             class="assigned-pan-toolbar__volume-button"
             @onclick="ToggleMute"
-            aria-label="Toggle mute">
-        <span class="bi @(EffectiveVolume <= 0.0001 ? "bi-volume-mute-fill"
-                                                                          : EffectiveVolume < 0.5 ? "bi-volume-down-fill"
-                                                                                                  : "bi-volume-up-fill")"></span>
+            aria-label="Toggle Mute">
+        <span class="@VolumeCssClass"></span>
     </button>
 
     <input class="assigned-pan-toolbar__volume-slider"
@@ -26,10 +32,20 @@
 @code {
     [Parameter, EditorRequired] public MidiAssignedPan ActivePan { get; set; } = default!;
 
-    private double previousNonZeroVolume_ = 1.0;
+    private int VolumePercent => (int)Math.Round(Volume * 100.0);
+    private double Volume => ActivePan.Muted ? 0.0 : Math.Clamp(ActivePan?.Volume ?? 1.0, 0.0, 1.0);
 
-    private int VolumePercent => (int)Math.Round(EffectiveVolume * 100.0);
-    private double EffectiveVolume => Math.Clamp(ActivePan?.Volume ?? 1.0, 0.0, 1.0);
+    private IEnumerable<MidiAssignedPan> OtherPans =>
+        Playback.ActivePans.Where(x => x.InstanceId != ActivePan.InstanceId);
+
+    private bool IsSoloing =>
+        OtherPans.Any() && OtherPans.All(x => x.Muted) && !ActivePan.Muted;
+
+    private string SoloCssClass => $"bi {(IsSoloing ? "bi-eye" : "bi-eye-slash")}";
+
+    private string VolumeCssClass => $"bi {(ActivePan.Muted || Volume <= 0.0001 ? "bi-volume-mute-fill"
+                                                                                    : Volume < 0.5 ? "bi-volume-down-fill"
+                                                                                                   : "bi-volume-up-fill")}";
 
     private async Task OnVolumeInput(ChangeEventArgs e)
     {
@@ -39,22 +55,20 @@
 
         var volume = Math.Clamp(percent / 100.0, 0.0, 1.0);
 
-        if (volume > 0.0)
-            previousNonZeroVolume_ = volume;
-
         await Playback.SetPanVolumeAsync(ActivePan, volume);
+
+        if (volume > 0.0001 && ActivePan.Muted)
+            await Playback.SetPanMutedAsync(ActivePan, false);
     }
 
     private async Task ToggleMute()
     {
-        if (EffectiveVolume <= 0.0001)
-        {
-            var restored = previousNonZeroVolume_ > 0.0 ? previousNonZeroVolume_ : 1.0;
-            await Playback.SetPanVolumeAsync(ActivePan, restored);
-            return;
-        }
+        await Playback.SetPanMutedAsync(ActivePan, !ActivePan.Muted);
+    }
 
-        previousNonZeroVolume_ = EffectiveVolume;
-        await Playback.SetPanVolumeAsync(ActivePan, 0.0);
+    private async Task ToggleSolo()
+    {
+        await Playback.SetPansMutedAsync(OtherPans, !IsSoloing);
+        await Playback.SetPanMutedAsync(ActivePan, false);
     }
 }

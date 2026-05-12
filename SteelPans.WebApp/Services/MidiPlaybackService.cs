@@ -166,7 +166,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (assignedPan is null)
             return;
 
-        await js_.InvokeVoidAsync("steelPan.setComponentVolume", view.ComponentId, assignedPan.Volume);
+        await js_.InvokeVoidAsync("steelPan.setComponentVolume", view.ComponentId, GetEffectivePanVolume(assignedPan));
 
         if (!IsPlaying)
             return;
@@ -202,7 +202,66 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         activePan.Volume = Math.Clamp(volume, 0.0, 1.0);
 
         if (steelPanViews_.TryGetValue(activePan.InstanceId, out var view))
-            await js_.InvokeVoidAsync("steelPan.setComponentVolume", view.ComponentId, activePan.Volume);
+        {
+            await js_.InvokeVoidAsync(
+                "steelPan.setComponentVolume",
+                view.ComponentId,
+                GetEffectivePanVolume(activePan));
+        }
+
+        await NotifyStateChangedAsync();
+    }
+
+    public async Task SetPanVolumesAsync(IEnumerable<MidiAssignedPan> pans, double volume)
+    {
+        foreach (var activePan in pans)
+        {
+            activePan.Volume = Math.Clamp(volume, 0.0, 1.0);
+
+            if (steelPanViews_.TryGetValue(activePan.InstanceId, out var view))
+            {
+                await js_.InvokeVoidAsync(
+                    "steelPan.setComponentVolume",
+                    view.ComponentId,
+                    GetEffectivePanVolume(activePan));
+            }
+        }
+
+        await NotifyStateChangedAsync();
+    }
+
+    public async Task SetPanMutedAsync(MidiAssignedPan activePan, bool muted)
+    {
+        if (activePan.Muted == muted)
+            return;
+
+        activePan.Muted = muted;
+
+        if (steelPanViews_.TryGetValue(activePan.InstanceId, out var view))
+        {
+            await js_.InvokeVoidAsync(
+                "steelPan.setComponentVolume",
+                view.ComponentId,
+                GetEffectivePanVolume(activePan));
+        }
+
+        await NotifyStateChangedAsync();
+    }
+
+    public async Task SetPansMutedAsync(IEnumerable<MidiAssignedPan> pans, bool muted)
+    {
+        foreach (var activePan in pans)
+        {
+            activePan.Muted = muted;
+
+            if (steelPanViews_.TryGetValue(activePan.InstanceId, out var view))
+            {
+                await js_.InvokeVoidAsync(
+                    "steelPan.setComponentVolume",
+                    view.ComponentId,
+                    GetEffectivePanVolume(activePan));
+            }
+        }
 
         await NotifyStateChangedAsync();
     }
@@ -732,6 +791,11 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         foreach (Func<Task> handler in handlers.GetInvocationList())
             await handler();
+    }
+
+    private static double GetEffectivePanVolume(MidiAssignedPan activePan)
+    {
+        return activePan.Muted ? 0.0 : activePan.Volume;
     }
 
     private static SteelPan ClonePan(SteelPan source)

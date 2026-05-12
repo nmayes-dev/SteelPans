@@ -10,7 +10,7 @@
 
 @if (Pan is not null)
 {
-    <div class="steel-pan__root">
+    <div class="@RootCssClass">
         <div class="steel-pan__canvas">
             <div class="steel-pan @Class" style="@Style">
                 @((MarkupString)panSvg_)
@@ -21,7 +21,7 @@
 else
 {
     <div class="steel-pan steel-pan--empty">
-        No pan loaded.
+        Pan failed to load.
     </div>
 }
 
@@ -48,6 +48,13 @@ else
     private TimeSpan sampleDuration_;
     private bool isPlaying_;
     private CancellationTokenSource? playSelectedCts_;
+
+    private bool IsMuted =>
+    PlaybackInstanceId is Guid instanceId &&
+    Playback.ActivePans.FirstOrDefault(x => x.InstanceId == instanceId)?.Muted == true;
+
+    private string RootCssClass =>
+        $"steel-pan__root{(IsMuted ? " steel-pan__root--muted" : string.Empty)}";
 
     protected override Task OnInitializedAsync()
     {

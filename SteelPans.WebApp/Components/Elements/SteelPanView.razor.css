@@ -11,6 +11,15 @@
     place-items: center;
 }
 
+.steel-pan__root {
+    transition: opacity 180ms ease, filter 180ms ease;
+}
+
+.steel-pan__root--muted {
+    opacity: 0.62;
+    filter: grayscale(0.35) saturate(0.85);
+}
+
 .steel-pan--empty {
     display: grid;
     place-items: center;
