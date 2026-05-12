@@ -37,7 +37,7 @@
                         <span class="midi-loader__track-overlay-title">Tracks</span>
                         <button type="button"
                                 class="midi-loader__track-overlay-close"
-                                aria-label="Close tracks"
+                                aria-label="Close Tracks"
                                 @onclick="OnCloseAsync">
                             <span class="bi bi-x-lg"></span>
                         </button>
@@ -121,6 +121,8 @@
         if (IsTrackAssigned(track))
         {
             await Playback.RemoveAssignmentAsync(track.Index);
+            if (!AssignedTracks.Any())
+                await RequestCloseAsync();
         }
         else
         {

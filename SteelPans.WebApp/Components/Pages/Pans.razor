@@ -1,148 +1,148 @@
-@page "/"
-@page "/pans"
-@using SteelPans.WebApp.Model
-@using SteelPans.WebApp.Services
-@using SteelPans.WebApp.Extensions
-@inject IJSRuntime JS
-@inject SteelPanLoader PanLoader
-@inject MidiService MidiService
-@inject MidiPlaybackService Playback
+    @page "/"
+    @page "/pans"
+    @using SteelPans.WebApp.Model
+    @using SteelPans.WebApp.Services
+    @using SteelPans.WebApp.Extensions
+    @inject IJSRuntime JS
+    @inject SteelPanLoader PanLoader
+    @inject MidiService MidiService
+    @inject MidiPlaybackService Playback
 
-<div class="pans-page">
-    <header class="sp-section pans-page__hero">
-        <div class="pans-page__hero-content">
-            <h1 class="pans-page__title">Steel Pans</h1>
-            <label class="pans-page__eyebrow">Interactive practice tool</label>
-        </div>
-    </header>
+    <div class="pans-page">
+        <header class="sp-section pans-page__hero">
+            <div class="pans-page__hero-content">
+                <h1 class="pans-page__title">Steel Pans</h1>
+                <label class="pans-page__eyebrow">Interactive practice tool</label>
+            </div>
+        </header>
 
-    @if (!string.IsNullOrWhiteSpace(loadError_))
-    {
-        <div class="alert alert-danger">@loadError_</div>
-    }
-    else if (pans_.Count == 0)
-    {
-        <div class="pans-page__empty">No pans found.</div>
-    }
-    else
-    {
-        <section class="pans-page__top-grid">
-            <MidiLoader FileName="@midiFileName_"
-                        Tracks="@midiTracks_"
-                        OnSingleMidiSelected="OnSingleMidiSelectedAsync"
-                        OnMultipleMidiSelected="OnMultipleMidiSelectedAsync"
-                        OnTrackAdded="(track) => addPanModal_!.Open(track.Index)"
-                        />
-
-            <ModalPopup @ref="addMergedTrackModal_"
-                        Title="Merge MIDI tracks"
-                        OnClose="CloseMergeMidiModal">
-                <ChildContent>
-                    <input class="pans-page__track_name form-control"
-                           placeholder="Enter merged track name..."
-                           @bind="mergeMidiFileName_"
-                           @bind:event="oninput" />
-                </ChildContent>
-
-                <Actions>
-                    <button type="button"
-                            class="btn btn-outline-secondary"
-                            @onclick="CloseMergeMidiModal">
-                        Cancel
-                    </button>
-
-                    <button type="button"
-                            class="btn btn-primary"
-                            disabled="@string.IsNullOrWhiteSpace(mergeMidiFileName_)"
-                            @onclick="ConfirmMergeMidiAsync">
-                        Merge
-                    </button>
-                </Actions>
-            </ModalPopup>
-        </section>
-
-        @if (Playback.ActivePans.Any(x => x.Events.Count > 0))
+        @if (!string.IsNullOrWhiteSpace(loadError_))
         {
-            <section class="pans-page__midi-controls">
+            <div class="alert alert-danger">@loadError_</div>
+        }
+        else if (pans_.Count == 0)
+        {
+            <div class="pans-page__empty">No pans found.</div>
+        }
+        else
+        {
+            <section class="pans-page__top-grid">
+                <section class="pans-page__midi-loader">
+                    <MidiLoader FileName="@midiFileName_"
+                                Tracks="@midiTracks_"
+                                OnSingleMidiSelected="OnSingleMidiSelectedAsync"
+                                OnMultipleMidiSelected="OnMultipleMidiSelectedAsync"
+                                OnTrackAdded="(track) => addPanModal_!.Open(track.Index)" />
+                </section>
+
+            <section class="pans-page__midi-controls @(Playback.ActivePans.Any(x => x.Events.Count > 0)
+                                                                              ? "pans-page__midi-controls--visible"
+                                                                              : "")">
                 <MidiPlaybackControl />
             </section>
-        }
+
+                <ModalPopup @ref="addMergedTrackModal_"
+                            Title="Merge MIDI tracks"
+                            OnClose="CloseMergeMidiModal">
+                    <ChildContent>
+                        <input class="pans-page__track_name form-control"
+                               placeholder="Enter merged track name..."
+                               @bind="mergeMidiFileName_"
+                               @bind:event="oninput" />
+                    </ChildContent>
+
+                    <Actions>
+                        <button type="button"
+                                class="btn btn-outline-secondary"
+                                @onclick="CloseMergeMidiModal">
+                            Cancel
+                        </button>
+
+                        <button type="button"
+                                class="btn btn-primary"
+                                disabled="@string.IsNullOrWhiteSpace(mergeMidiFileName_)"
+                                @onclick="ConfirmMergeMidiAsync">
+                            Merge
+                        </button>
+                    </Actions>
+                </ModalPopup>
+            </section>
         
-        <section class="pans-page__content">
-            <div class="pans-page__toolbar">
-                <Toolbar MenuButtonLabel="Open Tools"
-                         MenuLabel="Pan Tools"
-                         Side="Toolbar.ToolbarSide.Left">
+            <section class="pans-page__content">
+                <div class="pans-page__toolbar">
+                    <Toolbar MenuButtonLabel="Open Tools"
+                             MenuLabel="Pan Tools"
+                             Side="Toolbar.ToolbarSide.Left">
 
-                    <ToolbarElement Title="Add Pan"
-                                    IconClass="bi bi-plus-lg"
-                                    OnClick="() => addPanModal_!.Open()" />
+                        <ToolbarElement Title="Add Pan"
+                                        IconClass="bi bi-plus-lg"
+                                        OnClick="() => addPanModal_!.Open()" />
 
-                    <ToolbarElement Title="Chords"
-                                    IconClass="bi bi-music-note-list">
-                        <ChordBuilder />
-                    </ToolbarElement>
+                        <ToolbarElement Title="Chords"
+                                        IconClass="bi bi-music-note-list">
+                            <ChordBuilder />
+                        </ToolbarElement>
 
 
-                    <ToolbarElement Title="Metronome"
-                                    IconClass="bi bi-music-note-beamed">
-                        <HeaderActions>
-                            <label class="metronome-shell__status-switch">
-                                <input class="metronome-shell__status-switch-input"
-                                       type="checkbox"
-                                       checked="@Playback.ClickTrackEnabled"
-                                       @onchange="OnClickTrackEnabledShellChangedAsync"
-                                       @onclick:stopPropagation="true"
-                                       aria-label="Enable metronome" />
+                        <ToolbarElement Title="Metronome"
+                                        IconClass="bi bi-music-note-beamed">
+                            <HeaderActions>
+                                <label class="metronome-shell__status-switch">
+                                    <input class="metronome-shell__status-switch-input"
+                                           type="checkbox"
+                                           checked="@Playback.ClickTrackEnabled"
+                                           @onchange="OnClickTrackEnabledShellChangedAsync"
+                                           @onclick:stopPropagation="true"
+                                           aria-label="Enable metronome" />
 
-                                <span class="metronome-shell__status-switch-track" aria-hidden="true">
-                                    <span class="metronome-shell__status-switch-thumb"></span>
-                                </span>
-                            </label>
-                        </HeaderActions>
-                        <ChildContent>
-                            <Metronome />
-                        </ChildContent>
-                    </ToolbarElement>
-                </Toolbar>
-            </div>
-
-            <div class="pans-page__pan-stage">
-                <div class="pans-page__assigned-pans"
-                     @ref="assignedPansElement_"
-                     data-pan-count="@Playback.ActivePans.Count">
-                    @foreach (var assignedPan in Playback.ActivePans)
-                    {
-                        <section class="sp-section pans-page__assigned-pan" @key="assignedPan.InstanceId">
-                            <div class="pans-page__assigned-pan-container">
-                                <SteelPanView Pan="@assignedPan.Pan"
-                                              PlaybackInstanceId="@assignedPan.InstanceId" />
-                            </div>
-                            <div class="pans-page__assigned-pan-header">
-                                <div class="pans-page__assigned-pan-copy">
-                                    <div class="pans-page__assigned-pan-title">@assignedPan.Label</div>
-                                    <div class="pans-page__assigned-pan-subtitle">@assignedPan.PanType.ToSpacedPascal()</div>
-                                </div>
-                                <Toolbar MenuButtonLabel="Open Pan Actions"
-                                         MenuLabel="Pan Actions"
-                                         Side="Toolbar.ToolbarSide.Right">
-                                    <ToolbarElement Title="Remove"
-                                                    IconClass="bi bi-trash3"
-                                                    OnClick="async () => await Playback.RemoveAssignmentAsync(assignedPan.Index)" />
-                                    <ToolbarElement Title="Volume"
-                                                    IconClass="bi bi-volume-up-fill">
-                                        <VolumeControl ActivePan="@assignedPan" />
-                                    </ToolbarElement>
-                                </Toolbar>
-                            </div>
-                        </section>
-                    }
+                                    <span class="metronome-shell__status-switch-track" aria-hidden="true">
+                                        <span class="metronome-shell__status-switch-thumb"></span>
+                                    </span>
+                                </label>
+                            </HeaderActions>
+                            <ChildContent>
+                                <Metronome />
+                            </ChildContent>
+                        </ToolbarElement>
+                    </Toolbar>
                 </div>
-            </div>
-        </section>
 
-        <AddPanModal @ref="addPanModal_"
-                     Pans="@pans_"
-                     Tracks="@midiTracks_" />
-    }
-</div>
+                <div class="pans-page__pan-stage">
+                    <div class="pans-page__assigned-pans"
+                         @ref="assignedPansElement_"
+                         data-pan-count="@Playback.ActivePans.Count">
+                        @foreach (var assignedPan in Playback.ActivePans)
+                        {
+                            <section class="sp-section pans-page__assigned-pan" @key="assignedPan.InstanceId">
+                                <div class="pans-page__assigned-pan-container">
+                                    <SteelPanView Pan="@assignedPan.Pan"
+                                                  PlaybackInstanceId="@assignedPan.InstanceId" />
+                                </div>
+                                <div class="pans-page__assigned-pan-header">
+                                    <div class="pans-page__assigned-pan-copy">
+                                        <div class="pans-page__assigned-pan-title">@assignedPan.Label</div>
+                                        <div class="pans-page__assigned-pan-subtitle">@assignedPan.PanType.ToSpacedPascal()</div>
+                                    </div>
+                                    <Toolbar MenuButtonLabel="Open Pan Actions"
+                                             MenuLabel="Pan Actions"
+                                             Side="Toolbar.ToolbarSide.Right">
+                                        <ToolbarElement Title="Remove"
+                                                        IconClass="bi bi-trash3"
+                                                        OnClick="async () => await Playback.RemoveAssignmentAsync(assignedPan.Index)" />
+                                        <ToolbarElement Title="Volume"
+                                                        IconClass="bi bi-volume-up-fill">
+                                            <VolumeControl ActivePan="@assignedPan" />
+                                        </ToolbarElement>
+                                    </Toolbar>
+                                </div>
+                            </section>
+                        }
+                    </div>
+                </div>
+            </section>
+
+            <AddPanModal @ref="addPanModal_"
+                         Pans="@pans_"
+                         Tracks="@midiTracks_" />
+        }
+    </div>

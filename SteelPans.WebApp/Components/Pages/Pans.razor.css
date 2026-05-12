@@ -11,10 +11,6 @@
     padding-block-end: clamp(0.1rem, 0.35vw, 1rem);
 }
 
-    .pans-page:has(> section.pans-page__midi-controls) {
-        grid-template-rows: auto auto auto minmax(0, 1fr);
-    }
-
 .pans-page__hero {
     padding: clamp(0.4rem, 0.8vw, 0.8rem) clamp(0.8rem, 1vw, 1rem);
 }
@@ -69,18 +65,38 @@
     }
 
 .pans-page__top-grid {
-    display: block;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
+    gap: clamp(0.25rem, 0.2rem + 0.3vw, 0.9rem);
+    align-items: stretch;
+    transition: grid-template-columns 350ms ease;
 }
+
+    .pans-page__top-grid:has(.pans-page__midi-controls--visible) {
+        grid-template-columns: minmax(0, 1fr) minmax(18rem, 2fr);
+    }
 
 .pans-page__track_name::placeholder {
     opacity: 0.5;
 }
 
 .pans-page__midi-controls {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: clamp(0.25rem, 0.2rem + 0.3vw, 0.9rem);
-    align-items: stretch;
+    min-width: 0;
+    overflow: clip;
+    border-radius: 1.35rem;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(0.5rem);
+    pointer-events: none;
+    transition: opacity 250ms ease, visibility 0ms linear 350ms, transform 350ms ease;
+}
+
+.pans-page__midi-controls--visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+    pointer-events: auto;
+    transition: opacity 250ms ease, visibility 0ms linear 0ms, transform 350ms ease;
 }
 
 .pans-page__content {
@@ -165,7 +181,7 @@
     max-width: min(16rem, calc(100% - 3.75rem));
     pointer-events: auto;
     position: absolute;
-    right: clamp(1.75rem, 3vw, 3rem);
+    right: clamp(2.5rem, 4vw, 3rem);
     z-index: 11;
 }
 
@@ -260,9 +276,21 @@
     filter: saturate(0.75);
 }
 
-@media (max-width: 1050px) {
-    .pans-page__top-grid {
+@media (max-width: 750px) {
+    .pans-page__top-grid,
+    .pans-page__top-grid:has(.pans-page__midi-controls--visible) {
         grid-template-columns: 1fr;
+    }
+
+    .pans-page__midi-controls {
+        max-height: 0;
+        transform: translateY(-0.25rem);
+        transition: opacity 250ms ease, transform 350ms ease, max-height 350ms ease;
+    }
+
+    .pans-page__midi-controls--visible {
+        max-height: 12rem;
+        transform: translateY(0);
     }
 }
 
