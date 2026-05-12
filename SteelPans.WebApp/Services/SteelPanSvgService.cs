@@ -229,8 +229,16 @@ public sealed class SteelPanSvgService
             return string.Empty;
 
         var svg = await File.ReadAllTextAsync(fullPath);
+
+        svg = DecodeIllustratorIds(svg);
+
         fileCache_[relativePath] = svg;
         return svg;
+    }
+
+    private static string DecodeIllustratorIds(string svg)
+    {
+        return svg.Replace("_x23_", "#", StringComparison.Ordinal);
     }
 
     private static void RewriteRootSvg(XDocument doc, string cssClass)
