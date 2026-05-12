@@ -437,23 +437,16 @@ window.steelPan = {
         this._scheduledVisualTimersByComponent[componentId].push(timeoutId);
     },
 
-    playMidiSchedule: async function (componentId, scheduledActions, baseBpm, currentBpm) {
+    playMidiSchedule: async function (componentId, scheduledActions, baseBpm, currentBpm, startAt) {
         if (!Array.isArray(scheduledActions) || scheduledActions.length === 0)
             return null;
 
         const ctx = await this._ensureAudioContext();
-        const startAt = ctx.currentTime + 0.05;
 
-        await this.playMidiScheduleAt(componentId, scheduledActions, startAt, baseBpm, currentBpm);
-        return startAt;
-    },
-
-    playMidiScheduleAt: async function (componentId, scheduledActions, startAt, baseBpm, currentBpm) {
-        if (!Array.isArray(scheduledActions) || scheduledActions.length === 0)
-            return null;
-
-        const ctx = await this._ensureAudioContext();
-        const actualStartAt = typeof startAt === "number" ? startAt : (ctx.currentTime + 0.05);
+        const numericStartAt = Number(startAt);
+        const actualStartAt = Number.isFinite(numericStartAt) && numericStartAt > ctx.currentTime
+            ? numericStartAt
+            : ctx.currentTime + 0.05;
 
         this.stopMidiSchedule(componentId);
         this._ensureComponentScheduleState(componentId);
@@ -698,7 +691,7 @@ window.steelPan = {
             }
 
             for (const id of Object.keys(this._midiScheduleStateByComponent)) {
-                const state = this._midiScheduleStateByComponent[componentId];
+                const state = this._midiScheduleStateByComponent[id];
 
                 if (state?.schedulerTimerId != null) {
                     window.clearInterval(state.schedulerTimerId);

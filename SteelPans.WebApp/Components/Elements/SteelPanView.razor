@@ -46,7 +46,6 @@ else
     private string panSvg_ = string.Empty;
     private string svgPath_ = string.Empty;
     private TimeSpan sampleDuration_;
-    private bool isPlaying_;
     private CancellationTokenSource? playSelectedCts_;
 
     private bool IsMuted =>
@@ -109,6 +108,34 @@ else
         }
 
         panSvg_ = await SvgService.BuildPanSvgAsync(svgPath_, componentId_, Pan.Notes);
+    }
+
+    public async Task ClearMidiVisualStateAsync()
+    {
+        if (Pan is null)
+            return;
+
+        foreach (var note in Pan.Notes)
+            note.Playing = false;
+
+        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_);
+    }
+
+    public async Task ClearSelectionAndMidiVisualStateAsync()
+    {
+        if (Pan is null)
+            return;
+
+        foreach (var note in Pan.Notes)
+        {
+            note.Selected = false;
+            note.Playing = false;
+        }
+
+        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_);
+
+        await RebuildSvgAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     public async Task SelectChordAsync(HashSet<int> pitchClasses)
@@ -188,132 +215,6 @@ else
         await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_, (object)noteKeys);
     }
 
-    private static List<MidiPanPlaybackAction> BuildPlaybackActions(IEnumerable<MidiPanEvent> events)
-    {
-        return events
-            .SelectMany(e => new[]
-            {
-                new MidiPanPlaybackAction
-                {
-                    Note = e.Note,
-                    Time = e.Start,
-                    IsNoteOn = true,
-                },
-                new MidiPanPlaybackAction
-                {
-                    Note = e.Note,
-                    Time = e.End,
-                    IsNoteOn = false,
-                },
-            })
-            .OrderBy(a => a.Time)
-            .ThenBy(a => a.IsNoteOn ? 1 : 0)
-            .ToList();
-    }
-
-    private static List<MidiPanScheduledAction> BuildScheduledActions(IEnumerable<MidiPanPlaybackAction> actions)
-    {
-        return actions
-            .Select(a => new MidiPanScheduledAction
-            {
-                NoteKey = a.Note.ToString(),
-                TimeSeconds = a.Time.TotalSeconds,
-                IsNoteOn = a.IsNoteOn,
-            })
-            .ToList();
-    }
-
-    public async Task<double?> StartMidiSequenceAsync(
-        IReadOnlyList<MidiPanEvent> events,
-        int initalBpm,
-        int effectiveBpm,
-        CancellationToken cancellationToken = default)
-    {
-        if (Pan is null || events.Count == 0)
-            return null;
-
-        foreach (var note in Pan.Notes)
-        {
-            note.Selected = false;
-            note.Playing = false;
-        }
-
-        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_);
-
-        await RebuildSvgAsync();
-        await InvokeAsync(StateHasChanged);
-
-        var playbackActions = BuildPlaybackActions(events);
-        if (playbackActions.Count == 0)
-            return null;
-
-        var scheduledActions = BuildScheduledActions(playbackActions);
-
-        isPlaying_ = true;
-        return await JS.InvokeAsync<double>(
-            "steelPan.playMidiSchedule",
-            cancellationToken,
-            componentId_,
-            scheduledActions,
-            initalBpm,
-            effectiveBpm);
-    }
-
-    public async Task StartMidiSequenceAtAsync(
-        IReadOnlyList<MidiPanEvent> events,
-        double startAt,
-        int initalBpm,
-        int effectiveBpm,
-        CancellationToken cancellationToken = default)
-    {
-        if (Pan is null || events.Count == 0)
-            return;
-
-        foreach (var note in Pan.Notes)
-        {
-            note.Selected = false;
-            note.Playing = false;
-        }
-
-        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_);
-
-        await RebuildSvgAsync();
-        await InvokeAsync(StateHasChanged);
-
-        var playbackActions = BuildPlaybackActions(events);
-        if (playbackActions.Count == 0)
-            return;
-
-        var scheduledActions = BuildScheduledActions(playbackActions);
-
-        isPlaying_ = true;
-        await JS.InvokeAsync<double>(
-            "steelPan.playMidiScheduleAt",
-            cancellationToken,
-            componentId_,
-            scheduledActions,
-            startAt,
-            initalBpm,
-            effectiveBpm);
-    }
-
-    public async Task StopMidiPlaybackAsync()
-    {
-        if (!isPlaying_)
-            return;
-
-        isPlaying_ = false;
-        await JS.InvokeVoidAsync("steelPan.stopMidiSchedule", componentId_);
-
-        if (Pan is null)
-            return;
-
-        foreach (var note in Pan.Notes)
-            note.Playing = false;
-
-        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_);
-    }
-        
     private TimeSpan GetWavDuration()
     {
         var samplesPath = Path.Combine(Env.WebRootPath, "audio", "samples");
