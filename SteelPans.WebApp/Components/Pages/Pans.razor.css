@@ -189,6 +189,7 @@
     font-size: clamp(0.55rem, 0.95vw, 0.96rem);
     font-weight: 800;
     color: #0f172a;
+    text-align: right;
 }
 
 .pans-page__assigned-pan-subtitle {
@@ -197,6 +198,38 @@
     color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    text-align: right;
+}
+
+.pans-page__remove-pan-button {
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: 1px solid rgba(248, 113, 113, 0.35);
+    border-radius: 999px;
+    background: rgba(254, 242, 242, 0.8);
+    color: #dc2626;
+    cursor: pointer;
+    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .pans-page__remove-pan-button:hover {
+        background: #fee2e2;
+        border-color: rgba(220, 38, 38, 0.45);
+        color: #b91c1c;
+        transform: translateY(-1px);
+    }
+}
+
+.pans-page__remove-pan-button:active {
+    transform: translateY(0);
+}
+
+.pans-page__remove-pan-message {
+    margin: 0;
+    color: #334155;
 }
 
 .metronome-shell__status-switch {

@@ -24,6 +24,16 @@
 
             <div class="toolbar__menu-title-wrap">
                 <span class="toolbar__menu-title">@ActiveElement?.Title</span>
+                @if (ActiveElement is not null && ActiveElement.CanExpand)
+                {
+                    <button type="button"
+                            class="toolbar__expand-button"
+                            @onclick="@OpenModalElement"
+                            @onclick:stopPropagation="true"
+                            aria-label="Expand Mixer">
+                        <span class="bi bi-arrows-fullscreen"></span>
+                    </button>
+                }
             </div>
         </div>
     </div>
@@ -35,12 +45,13 @@
                     type="button"
                     role="menuitem"
                     tabindex="0"
+                    disabled="@element.Disabled"
                     @onclick="async () => await OpenElementAsync(element)">
                 @if (!string.IsNullOrWhiteSpace(element.IconClass))
                 {
                     <span class="bi @element.IconClass" aria-hidden="true"></span>
                 }
-
+                
                 <span>@element.Title</span>
             </button>
         }
@@ -49,4 +60,12 @@
     <div class="toolbar__panel">
         @ActiveElement?.ChildContent
     </div>
+
+    <ModalPopup @ref="elementPopup_"
+                Title="@ModalElement?.Title"
+                OnClose="() => ModalElement = null">
+        <ChildContent>
+            @ModalElement?.ChildContent
+        </ChildContent>
+    </ModalPopup>
 </div>

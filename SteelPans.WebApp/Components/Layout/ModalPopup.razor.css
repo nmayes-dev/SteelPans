@@ -17,7 +17,7 @@
 }
 
 .modal-popup__card {
-    width: min(100%, 20rem);
+    width: fit-content;
     background: #ffffff;
     border: 1px solid rgba(148, 163, 184, 0.35);
     border-radius: 1rem;
@@ -30,11 +30,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
+    padding: 0 0.4rem;
+    margin-bottom: 1rem;
 }
 
 .modal-popup__title {
-    font-size: 1.05rem;
+    font-size: 1.2rem;
     font-weight: 700;
     line-height: 1.2;
     color: #0f172a;
@@ -47,7 +48,7 @@
 }
 
 .modal-popup__body {
-    margin: 1rem 0;
+    margin-bottom: 1rem;
 }
 
 .modal-popup__actions {

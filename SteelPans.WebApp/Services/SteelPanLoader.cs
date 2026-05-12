@@ -47,7 +47,7 @@ public sealed class SteelPanLoader
         return pansDto
             .Select(p => new SteelPan
             {
-                PanType = p.PanType,
+                Type = p.PanType,
                 Notes = p.Notes.Select(n => new PanNote { Note = n }).ToList()
             })
             .ToList();

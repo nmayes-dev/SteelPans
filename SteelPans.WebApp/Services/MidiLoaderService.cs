@@ -5,7 +5,7 @@ using SteelPans.WebApp.Model;
 
 namespace SteelPans.WebApp.Services;
 
-public sealed class MidiService
+public sealed class MidiLoaderService
 {
     public async Task<MidiFile> OpenMidiFileAsync(IBrowserFile file)
     {

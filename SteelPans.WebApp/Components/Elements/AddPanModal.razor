@@ -2,7 +2,8 @@
 @inject MidiPlaybackService Playback
 <ModalPopup @ref="modal_"
             Title="Add Pan"
-            OnClose="Close">
+            OnClose="Close"
+            OnEnter="ConfirmAddAsync">
     <ChildContent>
         <div class="add__body">
             @if (addModalType_ == AddModalType.Track)
@@ -69,7 +70,7 @@
     [Parameter]
     public IReadOnlyList<SteelPan> Pans { get; set; } = [];
 
-    private IReadOnlyList<PanType> AvailablePanTypes => Pans.Select(x => x.PanType).Where(x => !Playback.Assignments.Select(a => a.AssignedPanType).Contains(x)).ToList();
+    private IReadOnlyList<PanType> AvailablePanTypes => Pans.Select(x => x.Type).Where(x => !Playback.Assignments.Select(a => a.AssignedPanType).Contains(x)).ToList();
 
     private enum AddModalType
     {
@@ -102,7 +103,7 @@
 
     private List<MidiTrackInfo> UnassignedTracks =>
         Tracks
-            .Where(t => Playback.Assignments.All(a => a.Index != t.Index))
+            .Where(t => Playback.Assignments.All(a => a.Track?.Index != t.Index))
             .OrderBy(t => t.Index)
             .ToList();
 
@@ -168,28 +169,27 @@
         else
             addModalType_ = AddModalType.Pan;
 
-        await modal_!.OpenModal();
+        await modal_.Open();
     }
 
     private async Task Close()
     {
-        if (addModalType_ == AddModalType.None)
+        if (addModalType_ == AddModalType.None || modal_ is null)
             return;
 
         addModalType_ = AddModalType.None;
-        await modal_!.RequestCloseAsync();
+        await modal_.RequestCloseAsync();
     }
 
     private async Task ConfirmAddPanAsync(PanType panType)
     {
         var assignment = new MidiTrackAssignment
         {
-            Index = AvailablePanTypes.IndexOf(panType),
-            Label = "No Track",
-            AssignedPanType = panType
+            AssignedPanType = panType,
+            Track = null,
         };
 
-        await Playback.AddAssignmentAsync(assignment, Pans);
+        await Playback.OnAddAssignmentAsync(assignment, Pans);
     }
 
     private async Task ConfirmAddTrackAsync(PanType panType)
@@ -203,12 +203,11 @@
 
         var assignment = new MidiTrackAssignment
         {
-            Index = track.Index,
-            Label = track.DisplayInfo,
-            AssignedPanType = panType
+            AssignedPanType = panType,
+            Track = track,
         };
 
-        await Playback.AddAssignmentAsync(assignment, Pans);
+        await Playback.OnAddAssignmentAsync(assignment, Pans);
     }
 
     private async Task ConfirmAddAsync()

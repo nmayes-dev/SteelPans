@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.JSInterop;
 using SteelPans.WebApp.Components.Elements;
+using SteelPans.WebApp.Components.Layout;
 using SteelPans.WebApp.Model;
 
 namespace SteelPans.WebApp.Components.Pages;
@@ -19,6 +20,9 @@ public partial class Pans : IDisposable
     private AddPanModal? addPanModal_;
     private ModalPopup? addMergedTrackModal_;
     private ElementReference assignedPansElement_;
+
+    private ModalPopup? removePanModal_;
+    private MidiAssignedPan? panPendingRemoval_;
 
     protected override async Task OnInitializedAsync()
     {
@@ -50,7 +54,7 @@ public partial class Pans : IDisposable
 
     private async Task OnMidiFileSelected(Func<Task<MidiFile>> getMidiFile)
     {
-        await Playback.LoadMidiAsync(null, new Dictionary<int, List<MidiPanEvent>>());
+        await Playback.OnLoadMidiAsync(null, new Dictionary<int, List<MidiPanEvent>>());
 
         var midiFile = await getMidiFile();
         var playbackInfo = MidiService.GetPlaybackInfo(midiFile);
@@ -65,7 +69,7 @@ public partial class Pans : IDisposable
             trackEventsByIndex[track.Index] = events;
         }
 
-        await Playback.LoadMidiAsync(playbackInfo, trackEventsByIndex);
+        await Playback.OnLoadMidiAsync(playbackInfo, trackEventsByIndex);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -96,7 +100,7 @@ public partial class Pans : IDisposable
             return;
 
         pendingMergeMidiFiles_ = files;
-        await addMergedTrackModal_.OpenModal();
+        await addMergedTrackModal_.Open();
     }
 
     private async Task OnSingleMidiSelectedAsync(IBrowserFile file)
@@ -118,6 +122,35 @@ public partial class Pans : IDisposable
             return;
 
         await Playback.SetClickTrackEnabledAsync(enabled);
+    }
+
+    private async Task OpenRemovePanModal(MidiAssignedPan pan)
+    {
+        if (removePanModal_ is null)
+            return;
+
+        panPendingRemoval_ = pan;
+        await removePanModal_.Open();
+    }
+
+    private async Task CloseRemovePanModal()
+    {
+        if (removePanModal_ is null)
+            return;
+
+        panPendingRemoval_ = null;
+        await removePanModal_.RequestCloseAsync();
+    }
+
+    private async Task ConfirmRemovePanAsync()
+    {
+        if (panPendingRemoval_ is null)
+            return;
+
+        var index = panPendingRemoval_.Assignment.Track?.Index ?? -1;
+
+        await CloseRemovePanModal();
+        await Playback.OnRemoveAssignmentAsync(index);
     }
 
     public void Dispose()

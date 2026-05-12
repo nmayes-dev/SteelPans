@@ -2,20 +2,23 @@
 
 @if (isOpen_)
 {
-    <div class="@BackdropClass" @onclick="OnBackdropClickedAsync"></div>
+    <div class="modal-popup__backdrop" @onclick="OnBackdropClickedAsync"></div>
 
-    <div class="@ModalClass"
+    <div class="modal-popup"
+         @ref="popupElement_"
          role="dialog"
          aria-modal="true"
-         aria-labelledby="@TitleId">
-        <div class="@CardClass">
-            <div class="@HeaderClass">
+         aria-labelledby="@TitleId"
+         tabindex="-1"
+         @onkeydown="@OnKeyDownAsync">
+        <div class="modal-popup__card">
+            <div class="modal-popup__header">
                 <div>
-                    <div id="@TitleId" class="@TitleClass">@Title</div>
+                    <div id="@TitleId" class="modal-popup__title">@Title</div>
 
                     @if (!string.IsNullOrWhiteSpace(Subtitle))
                     {
-                        <div class="@SubtitleClass">@Subtitle</div>
+                        <div class="modal-popup__subtitle">@Subtitle</div>
                     }
                 </div>
 
@@ -29,13 +32,16 @@
                 }
             </div>
 
-            <div class="@BodyClass">
-                @ChildContent
-            </div>
+            @if (ChildContent is not null)
+            {
+                <div class="modal-popup__body">
+                    @ChildContent
+                </div>
+            }
 
             @if (Actions is not null)
             {
-                <div class="@ActionsClass">
+                <div class="modal-popup__actions">
                     @Actions
                 </div>
             }

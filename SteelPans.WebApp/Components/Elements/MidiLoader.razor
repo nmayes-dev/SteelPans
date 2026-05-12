@@ -87,7 +87,7 @@
 
     private HashSet<int> AssignedTracks =>
         Tracks
-            .Where(t => Playback.Assignments.Any(a => a.Index == t.Index))
+            .Where(t => Playback.Assignments.Any(a => a.Track?.Index == t.Index))
             .OrderBy(t => t.Index)
             .Select(t => t.Index)
             .ToHashSet();
@@ -120,7 +120,7 @@
     {
         if (IsTrackAssigned(track))
         {
-            await Playback.RemoveAssignmentAsync(track.Index);
+            await Playback.OnRemoveAssignmentAsync(track.Index);
             if (!AssignedTracks.Any())
                 await RequestCloseAsync();
         }

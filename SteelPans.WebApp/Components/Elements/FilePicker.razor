@@ -3,9 +3,10 @@
                class="file-input"
                multiple
                OnChange="OnFileSelectedAsync"
+               @onclick="@OnFileBrowse"
                accept="@filter_" />
 
-    <label for="file" class="file-button">
+    <label for="file" class="file-button" @onclick="@OnFileBrowse">
         Browse
     </label>
 
@@ -16,6 +17,8 @@
 </div>
 
 @code {
+    [Inject] private OverlayManagerService Overlays { get; set; } = default!;
+
     [Parameter]
     public string FileName { get; set; } = string.Empty;
 
@@ -44,5 +47,11 @@
         }
 
         await OnMultipleFileSelected.InvokeAsync(e.GetMultipleFiles(32));
+    }
+
+    private async Task OnFileBrowse()
+    {
+        await Task.Delay(500);
+        await Overlays.RequestCloseAllComponentsAsync();
     }
 }

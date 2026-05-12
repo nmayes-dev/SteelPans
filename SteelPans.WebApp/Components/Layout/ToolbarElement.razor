@@ -1,8 +1,17 @@
 ﻿@implements IDisposable
 
 @code {
+    public enum ElementMode
+    {
+        Panel,
+        Modal,
+    }
+
     [CascadingParameter]
     public Toolbar? Parent { get; set; }
+
+    [Parameter]
+    public ElementMode Mode { get; set; }
 
     [Parameter]
     public string Title { get; set; } = "";
@@ -21,6 +30,12 @@
 
     [Parameter]
     public bool CloseOnAction { get; set; } = true;
+
+    [Parameter]
+    public bool CanExpand { get; set; } = false;
+
+    [Parameter]
+    public bool Disabled { get; set; } = false;
 
     internal bool HasBody => ChildContent is not null;
 

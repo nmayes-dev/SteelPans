@@ -1,5 +1,6 @@
 using Microsoft.JSInterop;
 using SteelPans.WebApp.Components.Elements;
+using SteelPans.WebApp.Components.Pages;
 using SteelPans.WebApp.Model;
 
 namespace SteelPans.WebApp.Services;
@@ -68,7 +69,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     public int InitialMidiBpm => midiPlaybackInfo_?.InitialBpm ?? TempoBpm;
     public int EffectiveMidiBpm => midiBpmOverride_ ?? midiPlaybackInfo_?.InitialBpm ?? TempoBpm;
 
-    public async Task LoadMidiAsync(MidiPlaybackInfo? playbackInfo, IReadOnlyDictionary<int, List<MidiPanEvent>> trackEventsByIndex)
+    public async Task OnLoadMidiAsync(MidiPlaybackInfo? playbackInfo, IReadOnlyDictionary<int, List<MidiPanEvent>> trackEventsByIndex)
     {
         await StopAsync(resetPosition: true);
 
@@ -101,10 +102,10 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         await NotifyStateChangedAsync();
     }
 
-    public async Task AddAssignmentAsync(MidiTrackAssignment assignment, IReadOnlyList<SteelPan> availablePans)
+    public async Task OnAddAssignmentAsync(MidiTrackAssignment assignment, IReadOnlyList<SteelPan> availablePans)
     {
-        Assignments.RemoveAll(x => x.Index == assignment.Index);
-        ActivePans.RemoveAll(x => x.Index == assignment.Index);
+        Assignments.RemoveAll(x => x.Track?.Index == assignment.Track?.Index);
+        ActivePans.RemoveAll(x => x.Assignment.Track?.Index == assignment.Track?.Index);
 
         var assignedPan = BuildAssignedPan(assignment, availablePans);
         if (assignedPan is null)
@@ -117,17 +118,17 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         await NotifyStateChangedAsync();
     }
 
-    public async Task RemoveAssignmentAsync(int index)
+    public async Task OnRemoveAssignmentAsync(int index)
     {
-        Assignments.RemoveAll(x => x.Index == index);
+        Assignments.RemoveAll(x => x.Track?.Index == index);
 
         if (!Assignments.Any())
             await StopAsync();
 
-        foreach (var removedPan in ActivePans.Where(x => x.Index == index).ToList())
+        foreach (var removedPan in ActivePans.Where(x => x.Assignment.Track?.Index == index).ToList())
             steelPanViews_.Remove(removedPan.InstanceId);
 
-        ActivePans.RemoveAll(x => x.Index == index);
+        ActivePans.RemoveAll(x => x.Assignment.Track?.Index == index);
 
         RecalculateDuration();
         Position = TimeSpan.Zero;
@@ -241,18 +242,32 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         await NotifyStateChangedAsync();
     }
 
-    public async Task SetPansMutedAsync(IEnumerable<MidiAssignedPan> pans, bool muted)
+    public async Task SetPanSoloingAsync(MidiAssignedPan activePan, bool solo)
     {
-        foreach (var activePan in pans)
-        {
-            activePan.Muted = muted;
+        if (activePan.Soloing == solo)
+            return;
 
-            if (steelPanViews_.TryGetValue(activePan.InstanceId, out var view))
+        activePan.Soloing = solo;
+
+        if (solo)
+        {
+            activePan.Muted = false;
+
+            foreach (var pan in ActivePans)
+            {
+                if (pan.InstanceId != activePan.InstanceId)
+                    pan.Soloing = false;
+            }
+        }
+
+        foreach (var pan in ActivePans)
+        {
+            if (steelPanViews_.TryGetValue(pan.InstanceId, out var view))
             {
                 await js_.InvokeVoidAsync(
                     "steelPan.setComponentVolume",
                     view.ComponentId,
-                    GetEffectivePanVolume(activePan));
+                    pan.Soloing ? pan.Volume : 0.0);
             }
         }
 
@@ -603,20 +618,18 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     private MidiAssignedPan? BuildAssignedPan(MidiTrackAssignment assignment, IReadOnlyList<SteelPan> availablePans)
     {
-        var sourcePan = availablePans.FirstOrDefault(x => x.PanType == assignment.AssignedPanType);
+        var sourcePan = availablePans.FirstOrDefault(x => x.Type == assignment.AssignedPanType);
         if (sourcePan is null)
             return null;
 
-        var rawEvents = midiTrackEventsByIndex_.GetValueOrDefault(assignment.Index) ?? [];
+        var rawEvents = midiTrackEventsByIndex_.GetValueOrDefault(assignment.Track?.Index ?? -1) ?? [];
         var panInstance = ClonePan(sourcePan);
         var filteredEvents = PanMidiMapper.FilterToPan(panInstance, rawEvents);
 
         return new MidiAssignedPan
         {
             InstanceId = Guid.NewGuid(),
-            Index = assignment.Index,
-            Label = assignment.Label,
-            PanType = assignment.AssignedPanType,
+            Assignment = assignment,
             Pan = panInstance,
             Events = filteredEvents,
         };
@@ -866,16 +879,17 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             await handler();
     }
 
-    private static double GetEffectivePanVolume(MidiAssignedPan activePan)
+    private double GetEffectivePanVolume(MidiAssignedPan activePan)
     {
-        return activePan.Muted ? 0.0 : activePan.Volume;
+        var anyOtherSolo = !activePan.Soloing && ActivePans.Any(p => p.InstanceId != activePan.InstanceId && p.Soloing);
+        return (activePan.Muted || anyOtherSolo) ? 0.0 : activePan.Volume;
     }
 
     private static SteelPan ClonePan(SteelPan source)
     {
         return new SteelPan
         {
-            PanType = source.PanType,
+            Type = source.Type,
             Notes = source.Notes
                 .Select(n => new PanNote
                 {

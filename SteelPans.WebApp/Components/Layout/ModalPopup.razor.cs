@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 
-namespace SteelPans.WebApp.Components.Elements;
+namespace SteelPans.WebApp.Components.Layout;
 
 public partial class ModalPopup
 {
@@ -21,42 +22,35 @@ public partial class ModalPopup
     public bool ShowCloseButton { get; set; } = true;
 
     [Parameter]
-    public string BackdropClass { get; set; } = "modal-popup__backdrop";
-
-    [Parameter]
-    public string ModalClass { get; set; } = "modal-popup";
-
-    [Parameter]
-    public string CardClass { get; set; } = "modal-popup__card";
-
-    [Parameter]
-    public string HeaderClass { get; set; } = "modal-popup__header";
-
-    [Parameter]
-    public string TitleClass { get; set; } = "modal-popup__title";
-
-    [Parameter]
-    public string SubtitleClass { get; set; } = "modal-popup__subtitle";
-
-    [Parameter]
-    public string BodyClass { get; set; } = "modal-popup__body";
-
-    [Parameter]
-    public string ActionsClass { get; set; } = "modal-popup__actions";
-
-    [Parameter]
     public RenderFragment? ChildContent { get; set; }
 
     [Parameter]
     public RenderFragment? Actions { get; set; }
 
     [Parameter]
+    public EventCallback OnEnter { get; set; }
+
+    [Parameter]
     public EventCallback OnClose { get; set; }
         
     private bool isOpen_;
-    public async Task OpenModal()
+    private bool focusOnRender_;
+    private ElementReference? popupElement_;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!focusOnRender_ || popupElement_ is null)
+            return;
+
+        focusOnRender_ = false;
+        await popupElement_.Value.FocusAsync();
+    }
+
+    public async Task Open()
     {
         isOpen_ = true;
+        focusOnRender_ = true;
+
         await NotifyOpenedAsync();
         await InvokeAsync(StateHasChanged);
     }
@@ -74,5 +68,18 @@ public partial class ModalPopup
             return;
 
         await RequestCloseAsync();
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case "Escape":
+                await RequestCloseAsync();
+                break;
+            case "Enter":
+                await OnEnter.InvokeAsync();
+                break;
+        }
     }
 }

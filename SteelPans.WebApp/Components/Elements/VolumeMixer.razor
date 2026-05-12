@@ -1,0 +1,111 @@
+﻿@using SteelPans.WebApp.Model
+@using SteelPans.WebApp.Services
+@using SteelPans.WebApp.Extensions
+@inject MidiPlaybackService Playback
+
+<div class="mixer">
+    <div class="mixer__channels">
+        @foreach (var pan in Playback.ActivePans)
+        {
+            @Channel(pan)
+        }
+    </div>
+</div>
+
+@code {
+
+    private bool IsSilent(MidiAssignedPan pan) => (pan.Volume <= 0.0001) || pan.Muted || OtherPans(pan).Any(p => p.Soloing);
+
+    private RenderFragment<MidiAssignedPan> Channel => pan => @<section class="mixer__channel" @key="pan.InstanceId">
+        <div class="mixer__channel-copy">
+            <div class="mixer__channel-title">@pan.Assignment.Track?.Name</div>
+            <div class="mixer__channel-subtitle">@pan.Assignment.AssignedPanType.ToSpacedPascal()</div>
+        </div>
+
+        <div class="mixer__channel-control-row">
+            <div class="mixer__channel-actions">
+                <button type="button"
+                        class="mixer__button @(pan.Soloing ? "mixer__button--soloing" : "")"
+                        disabled="@(!OtherPans(pan).Any())"
+                        @onclick="async () => await ToggleSoloAsync(pan)"
+                        aria-label="Toggle Solo">
+                    <span class="@SoloCssClass(pan)"></span>
+                </button>
+
+                <button type="button"
+                        class="mixer__button @(IsSilent(pan) ? "mixer__button--muted" : "")"
+                        @onclick="async () => await ToggleMuteAsync(pan)"
+                        aria-label="Toggle Mute">
+                    <span class="@VolumeCssClass(pan)"></span>
+                </button>
+            </div>
+
+            <div class="mixer__volume">
+                <input class="@SliderCssClass(pan)"
+                       type="range"
+                       min="0"
+                       max="100"
+                       step="1"
+                       value="@VolumePercent(pan)"
+                       @oninput="async e => await OnVolumeInputAsync(pan, e)" />
+
+                <span class="mixer__volume-value">@VolumePercent(pan)%</span>
+            </div>
+        </div>
+    </section>
+    ;
+
+    private IEnumerable<MidiAssignedPan> OtherPans(MidiAssignedPan pan) =>
+        Playback.ActivePans.Where(x => x.InstanceId != pan.InstanceId);
+
+    private static double EffectiveVolume(MidiAssignedPan pan) =>
+        pan.Muted ? 0.0 : Math.Clamp(pan.Volume, 0.0, 1.0);
+
+    private static int VolumePercent(MidiAssignedPan pan) =>
+        (int)Math.Round(EffectiveVolume(pan) * 100.0);
+
+    private static string SoloCssClass(MidiAssignedPan pan) =>
+        $"bi {(pan.Soloing ? "bi-eye" : "bi-eye-slash")}";
+
+    private string VolumeCssClass(MidiAssignedPan pan)
+    {
+        var volume = EffectiveVolume(pan);
+
+        return $"bi {(IsSilent(pan)
+            ? "bi-volume-mute-fill"
+            : volume < 0.5
+                ? "bi-volume-down-fill"
+                : "bi-volume-up-fill")}";
+    }
+
+    private string SliderCssClass(MidiAssignedPan pan)
+    {
+        var greyedOut = IsSilent(pan);
+        return $"mixer__slider {(greyedOut ? "mixer__slider--grey" : "")}";
+    }
+        
+
+    private async Task OnVolumeInputAsync(MidiAssignedPan pan, ChangeEventArgs e)
+    {
+        if (e.Value?.ToString() is not { Length: > 0 } raw ||
+            !int.TryParse(raw, out var percent))
+            return;
+
+        var volume = Math.Clamp(percent / 100.0, 0.0, 1.0);
+
+        await Playback.SetPanVolumeAsync(pan, volume);
+
+        if (volume > 0.0001 && pan.Muted)
+            await Playback.SetPanMutedAsync(pan, false);
+    }
+
+    private async Task ToggleMuteAsync(MidiAssignedPan pan)
+    {
+        await Playback.SetPanMutedAsync(pan, !pan.Muted);
+    }
+
+    private async Task ToggleSoloAsync(MidiAssignedPan pan)
+    {
+        await Playback.SetPanSoloingAsync(pan, !pan.Soloing);
+    }
+}

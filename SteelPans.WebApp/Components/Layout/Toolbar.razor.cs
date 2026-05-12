@@ -19,6 +19,9 @@ public partial class Toolbar
     internal IReadOnlyList<ToolbarElement> Elements => elements_;
 
     internal ToolbarElement? ActiveElement { get; private set; }
+    internal ToolbarElement? ModalElement { get; private set; }
+
+    private ModalPopup? elementPopup_ { get; set; }
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
@@ -79,8 +82,21 @@ public partial class Toolbar
         }
     }
 
+    private async Task OpenModalElement()
+    {
+        if (ActiveElement is null || elementPopup_ is null)
+            return;
+
+        ModalElement = ActiveElement;
+        menuOpen_ = false;
+        await elementPopup_.Open();
+    }
+
     private async Task OpenElementAsync(ToolbarElement element)
     {
+        if (element.Disabled)
+            return;
+
         if (element.HasBody)
         {
             ActiveElement = element;

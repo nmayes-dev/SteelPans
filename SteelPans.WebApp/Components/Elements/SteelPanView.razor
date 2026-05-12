@@ -48,12 +48,21 @@ else
     private TimeSpan sampleDuration_;
     private CancellationTokenSource? playSelectedCts_;
 
-    private bool IsMuted =>
-    PlaybackInstanceId is Guid instanceId &&
-    Playback.ActivePans.FirstOrDefault(x => x.InstanceId == instanceId)?.Muted == true;
+    private MidiAssignedPan? AssignedPan =>
+        PlaybackInstanceId is Guid instanceId
+            ? Playback.ActivePans.FirstOrDefault(x => x.InstanceId == instanceId)
+            : null;
+
+    private IEnumerable<MidiAssignedPan> OtherPans =>
+        PlaybackInstanceId is Guid instanceId
+            ? Playback.ActivePans.Where(x => x.InstanceId != instanceId)
+            : Enumerable.Empty<MidiAssignedPan>();
+
+    private bool IsMuted => AssignedPan?.Muted == true;
+    private bool IsOtherSolo => AssignedPan?.Soloing == false && OtherPans.Any(p => p.Soloing);
 
     private string RootCssClass =>
-        $"steel-pan__root{(IsMuted ? " steel-pan__root--muted" : string.Empty)}";
+        $"steel-pan__root{((IsMuted || IsOtherSolo) ? " steel-pan__root--muted" : string.Empty)}";
 
     protected override Task OnInitializedAsync()
     {
@@ -72,7 +81,7 @@ else
         }
 
         notesPreloaded_ = false;
-        svgPath_ = $"images/pans/{Pan.PanType.ToKebabCase()}.svg";
+        svgPath_ = $"images/pans/{Pan.Type.ToKebabCase()}.svg";
 
         await SvgService.PrebuildNoteFragmentsAsync(svgPath_, Pan.Notes);
         await RebuildSvgAsync();

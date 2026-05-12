@@ -32,7 +32,7 @@ public class PanNote
 
 public class SteelPan
 {
-    public PanType PanType { get; set; }
+    public PanType Type { get; set; }
 
     public List<PanNote> Notes { get; set; } = new();
 }
