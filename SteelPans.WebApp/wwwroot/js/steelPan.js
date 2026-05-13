@@ -34,20 +34,30 @@ window.steelPan = {
         this.clearPlayingVisuals(id);
     },
 
-    _ensureAudioContext: async function () {
+    _ensureAudioContext: function () {
         if (!this._audioContext) {
             const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
             this._audioContext = new AudioContextCtor();
         }
 
-        if (this._audioContext.state === "suspended")
-            await this._audioContext.resume();
-
         return this._audioContext;
     },
 
-    _getOrCreateComponentGain: async function (componentId) {
-        const audioContext = await this._ensureAudioContext();
+    _resumeAudioContext: async function () {
+        const ctx = this._ensureAudioContext();
+
+        if (ctx.state === "suspended")
+            await ctx.resume();
+
+        return ctx;
+    },
+
+    unlockAudio: async function () {
+        await this._resumeAudioContext();
+    },
+
+    _getOrCreateComponentGain: function (componentId) {
+        const audioContext = this._ensureAudioContext();
 
         let gain = this._gainByComponent[componentId];
         if (!gain) {
@@ -60,7 +70,7 @@ window.steelPan = {
         return gain;
     },
 
-    setComponentVolume: async function (componentId, volume) {
+    setComponentVolume: function (componentId, volume) {
         if (!componentId)
             return;
 
@@ -71,7 +81,13 @@ window.steelPan = {
 
         this._volumeByComponent[componentId] = clampedVolume;
 
-        const gain = await this._getOrCreateComponentGain(componentId);
+        if (!this._audioContext)
+            return;
+
+        const gain = this._gainByComponent[componentId];
+        if (!gain)
+            return;
+
         const now = this._audioContext.currentTime;
 
         gain.gain.cancelScheduledValues(now);
@@ -108,7 +124,12 @@ window.steelPan = {
     },
 
     getAudioTime: async function () {
-        const ctx = await this._ensureAudioContext();
+        const ctx = await this._resumeAudioContext();
+        return ctx.currentTime;
+    },
+
+    peekAudioTime: function () {
+        const ctx = this._ensureAudioContext();
         return ctx.currentTime;
     },
 
@@ -118,7 +139,7 @@ window.steelPan = {
     },
 
     _loadBuffer: async function (noteKey) {
-        const ctx = await this._ensureAudioContext();
+        const ctx = this._ensureAudioContext();
         const path = this._getSamplePath(noteKey);
 
         let buffer = this._audioBuffers[path];
@@ -126,6 +147,9 @@ window.steelPan = {
             return buffer;
 
         const response = await fetch(path);
+        if (!response.ok)
+            throw new Error(`Failed to load sample ${path}: ${response.status} ${response.statusText}`);
+
         const arrayBuffer = await response.arrayBuffer();
         buffer = await ctx.decodeAudioData(arrayBuffer);
 
@@ -137,17 +161,31 @@ window.steelPan = {
         if (!Array.isArray(noteKeys) || noteKeys.length === 0)
             return;
 
-        await Promise.all(noteKeys.map(noteKey => this._loadBuffer(noteKey)));
+        await this._resumeAudioContext();
+
+        const uniqueNoteKeys = [
+            ...new Set(noteKeys.filter(noteKey =>
+                typeof noteKey === "string" && noteKey.length > 0))
+        ];
+
+        const results = await Promise.allSettled(
+            uniqueNoteKeys.map(noteKey => this._loadBuffer(noteKey))
+        );
+
+        for (let i = 0; i < results.length; i++) {
+            if (results[i].status === "rejected")
+                console.warn("Failed to preload note sample", uniqueNoteKeys[i], results[i].reason);
+        }
     },
 
     playNote: async function (componentId, noteKey) {
-        const ctx = await this._ensureAudioContext();
+        const ctx = await this._resumeAudioContext();
         const buffer = await this._loadBuffer(noteKey);
 
         const source = ctx.createBufferSource();
         source.buffer = buffer;
 
-        const componentGain = await this._getOrCreateComponentGain(componentId);
+        const componentGain = this._getOrCreateComponentGain(componentId);
         source.connect(componentGain);
 
         source.start();
@@ -159,8 +197,8 @@ window.steelPan = {
         if (!Array.isArray(noteKeys) || noteKeys.length === 0)
             return;
 
-        const ctx = await this._ensureAudioContext();
-        const componentGain = await this._getOrCreateComponentGain(componentId);
+        const ctx = await this._resumeAudioContext();
+        const componentGain = this._getOrCreateComponentGain(componentId);
 
         for (const noteKey of noteKeys) {
             const buffer = await this._loadBuffer(noteKey);
@@ -441,12 +479,12 @@ window.steelPan = {
         if (!Array.isArray(scheduledActions) || scheduledActions.length === 0)
             return null;
 
-        const ctx = await this._ensureAudioContext();
+        const ctx = await this._resumeAudioContext();
 
         const numericStartAt = Number(startAt);
         const actualStartAt = Number.isFinite(numericStartAt) && numericStartAt > ctx.currentTime
             ? numericStartAt
-            : ctx.currentTime + 0.05;
+            : ctx.currentTime + 0.25;
 
         this.stopMidiSchedule(componentId);
         this._ensureComponentScheduleState(componentId);
@@ -484,13 +522,9 @@ window.steelPan = {
             }))
             .sort((a, b) => a.beat - b.beat);
 
-        const uniqueNoteKeys = [...new Set(
-            state.actions.map(action => action.noteKey)
-        )];
+        const uniqueNoteKeys = [...new Set(state.actions.map(action => action.noteKey))];
 
-        for (const noteKey of uniqueNoteKeys) {
-            await this._loadBuffer(noteKey);
-        }
+        await Promise.all(uniqueNoteKeys.map(noteKey => this._loadBuffer(noteKey)));
 
         this._startMidiScheduler(componentId);
 
@@ -502,7 +536,7 @@ window.steelPan = {
         if (!state)
             return;
 
-        if (state?.schedulerTimerId != null) {
+        if (state.schedulerTimerId != null) {
             window.clearInterval(state.schedulerTimerId);
             state.schedulerTimerId = null;
         }
@@ -512,15 +546,19 @@ window.steelPan = {
             if (!liveState || !liveState.isRunning)
                 return;
 
-            const ctx = await this._ensureAudioContext();
-            await this._scheduleMidiWindow(componentId, ctx.currentTime, ctx.currentTime + liveState.lookaheadSeconds);
+            const ctx = this._ensureAudioContext();
+
+            await this._scheduleMidiWindow(
+                componentId,
+                ctx.currentTime,
+                ctx.currentTime + liveState.lookaheadSeconds);
 
             if (liveState.nextActionIndex >= liveState.actions.length) {
                 const activeSources = this._scheduledSourcesByComponent[componentId] || [];
                 if (activeSources.length === 0) {
-                    if (state?.schedulerTimerId != null) {
-                        window.clearInterval(state.schedulerTimerId);
-                        state.schedulerTimerId = null;
+                    if (liveState.schedulerTimerId != null) {
+                        window.clearInterval(liveState.schedulerTimerId);
+                        liveState.schedulerTimerId = null;
                     }
 
                     liveState.isRunning = false;
@@ -529,10 +567,10 @@ window.steelPan = {
         };
 
         state.schedulerTimerId = window.setInterval(() => {
-            tick().catch(() => { });
+            tick().catch(error => console.warn("MIDI scheduler tick failed", error));
         }, state.schedulerIntervalMs);
 
-        tick().catch(() => { });
+        tick().catch(error => console.warn("MIDI scheduler tick failed", error));
     },
 
     _scheduleMidiWindow: async function (componentId, windowStart, windowEnd) {
@@ -540,8 +578,8 @@ window.steelPan = {
         if (!state || !state.isRunning)
             return;
 
-        const ctx = await this._ensureAudioContext();
-        const componentGain = await this._getOrCreateComponentGain(componentId);
+        const ctx = this._ensureAudioContext();
+        const componentGain = this._getOrCreateComponentGain(componentId);
 
         const sources = this._scheduledSourcesByComponent[componentId];
         const perNoteMap = this._scheduledSourcesByNoteByComponent[componentId];
@@ -604,7 +642,7 @@ window.steelPan = {
         if (!Number.isFinite(numericBpm) || numericBpm <= 0)
             return;
 
-        const ctx = await this._ensureAudioContext();
+        const ctx = await this._resumeAudioContext();
         const now = ctx.currentTime;
 
         const currentBeat = this._getBeatAtAudioTime(state, now);
@@ -618,7 +656,7 @@ window.steelPan = {
         if (!Array.isArray(actions) || actions.length === 0)
             return null;
 
-        const ctx = await this._ensureAudioContext();
+        const ctx = await this._resumeAudioContext();
         const actualStartAt = startAt ?? (ctx.currentTime + 0.05);
 
         for (const action of actions) {
@@ -656,7 +694,7 @@ window.steelPan = {
     },
 
     playMetronomeTick: async function (isAccent, when) {
-        const ctx = await this._ensureAudioContext();
+        const ctx = await this._resumeAudioContext();
         const now = when ?? ctx.currentTime;
 
         const oscillator = ctx.createOscillator();

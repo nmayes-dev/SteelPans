@@ -5,11 +5,15 @@ using Microsoft.JSInterop;
 using SteelPans.WebApp.Components.Elements;
 using SteelPans.WebApp.Components.Layout;
 using SteelPans.WebApp.Model;
+using System.Diagnostics;
+using System.Diagnostics.Eventing.Reader;
 
 namespace SteelPans.WebApp.Components.Pages;
 
 public partial class Pans : IDisposable
 {
+    private StartupSettings StartupSettings => StartupSettingsAccessor.Value;
+
     private readonly List<SteelPan> pans_ = [];
     private readonly List<MidiTrackInfo> midiTracks_ = [];
     private string? loadError_;
@@ -39,10 +43,38 @@ public partial class Pans : IDisposable
         }
     }
 
+    private async Task LoadStartupSettings()
+    {
+        if (!string.IsNullOrWhiteSpace(StartupSettings.MidiFile) && File.Exists(StartupSettings.MidiFile))
+        {
+            var fileInfo = new FileInfo(StartupSettings.MidiFile);
+            midiFileName_ = fileInfo.Name;
+            await OnMidiFileSelected(async () =>
+            {
+                await using var stream = File.OpenRead(StartupSettings.MidiFile);
+                return await MidiService.OpenMidiFileAsync(stream);
+            });
+        }
+
+        foreach (var startup in StartupSettings.Tracks)
+        {
+            var assignment = new MidiTrackAssignment
+            {
+                AssignedPanType = startup.Pan,
+                Track = midiTracks_[startup.Track],
+            };
+
+            await Playback.OnAddAssignmentAsync(assignment, pans_);
+        }
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
+        {
+            await LoadStartupSettings();
             await JS.InvokeVoidAsync("panLayout.observe", assignedPansElement_);
+        }
 
         await JS.InvokeVoidAsync("panLayout.update", assignedPansElement_);
     }
@@ -87,7 +119,26 @@ public partial class Pans : IDisposable
 
         midiFileName_ = $"{mergeMidiFileName_.Trim()}.mid";
 
-        await OnMidiFileSelected(() => MidiService.MergeMidiTracksAsync(midiFileName_, pendingMergeMidiFiles_));
+        var loadTracks = async () =>
+        {
+            var files = pendingMergeMidiFiles_
+                .Select(x => (x.Name, x.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)))
+                .ToList();
+
+            try
+            {
+                return await MidiService.MergeMidiTracksAsync(midiFileName_, files);
+            }
+            finally
+            {
+                foreach (var (_, stream) in files)
+                {
+                    await stream.DisposeAsync();
+                }
+            }
+        };
+
+        await OnMidiFileSelected(loadTracks);
         await addMergedTrackModal_.RequestCloseAsync();
 
         pendingMergeMidiFiles_ = [];
@@ -106,7 +157,11 @@ public partial class Pans : IDisposable
     private async Task OnSingleMidiSelectedAsync(IBrowserFile file)
     {
         midiFileName_ = file.Name;
-        await OnMidiFileSelected(() => MidiService.OpenMidiFileAsync(file));
+        await OnMidiFileSelected(async () =>
+        {
+            await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            return await MidiService.OpenMidiFileAsync(stream);
+        });
     }
 
     private async Task OnClickTrackEnabledShellChangedAsync(ChangeEventArgs e)

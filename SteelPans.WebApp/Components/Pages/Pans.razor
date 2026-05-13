@@ -7,6 +7,7 @@
 @inject SteelPanLoader PanLoader
 @inject MidiLoaderService MidiService
 @inject MidiPlaybackService Playback
+@inject IOptions<StartupSettings> StartupSettingsAccessor
 
 <PageTitle>Steel Pans</PageTitle>
 
@@ -88,7 +89,8 @@
                         </ToolbarElement>
 
                         <ToolbarElement Title="Metronome"
-                                        IconClass="bi bi-music-note-beamed">
+                                        IconClass="bi bi-music-note-beamed"
+                                        CanExpand="true">
                             <HeaderActions>
                                 <label class="metronome-shell__status-switch">
                                     <input class="metronome-shell__status-switch-input"

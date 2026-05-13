@@ -7,9 +7,8 @@ namespace SteelPans.WebApp.Services;
 
 public sealed class MidiLoaderService
 {
-    public async Task<MidiFile> OpenMidiFileAsync(IBrowserFile file)
+    public async Task<MidiFile> OpenMidiFileAsync(Stream midiStream)
     {
-        await using Stream midiStream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
         await using MemoryStream buffer = new MemoryStream();
 
         await midiStream.CopyToAsync(buffer);
@@ -32,11 +31,11 @@ public sealed class MidiLoaderService
             .ToList();
     }
 
-    public async Task<MidiFile> MergeMidiTracksAsync(string name, IReadOnlyList<IBrowserFile> files)
+    public async Task<MidiFile> MergeMidiTracksAsync(string name, IEnumerable<(string, Stream)> files)
     {
         var midiFileTasks = files.Select(async x =>
             {
-                await using var midiStream = x.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+                var (name, midiStream) = x;
                 await using var buffer = new MemoryStream();
                 await midiStream.CopyToAsync(buffer);
                 buffer.Position = 0;
@@ -51,11 +50,11 @@ public sealed class MidiLoaderService
             .Zip(files)
             .Select(data =>
             {
-                var (midi, file) = data;
+                var (midi, (name, stream)) = data;
                 var notes = midi.GetNotes().ToList();
                 var chunk = notes.ToTrackChunk();
 
-                chunk.Events.Insert(0, new SequenceTrackNameEvent(Path.GetFileNameWithoutExtension(file.Name))
+                chunk.Events.Insert(0, new SequenceTrackNameEvent(Path.GetFileNameWithoutExtension(name))
                 {
                     DeltaTime = 0
                 });
@@ -228,51 +227,6 @@ public sealed class MidiLoaderService
         }
 
         return result;
-    }
-
-    public async Task<MidiFile> MergeMultipleMidiTracksAsync(IReadOnlyList<IBrowserFile> files, CancellationToken cancellationToken = default)
-    {
-        var midiFileTasks = files.Select(async x =>
-        {
-            await using var midiStream = x.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
-            ArgumentNullException.ThrowIfNull(midiStream);
-
-            if (!midiStream.CanRead)
-                throw new ArgumentException("The MIDI stream must be readable.", nameof(midiStream));
-
-
-            using var buffer = new MemoryStream();
-            await midiStream.CopyToAsync(buffer, cancellationToken);
-            buffer.Position = 0;
-
-            return MidiFile.Read(buffer);
-        });
-
-        var midiFiles = await Task.WhenAll(midiFileTasks);
-
-        var tempoMap = midiFiles[0].GetTempoMap();
-
-        var trackChunks = midiFiles
-            .Zip(files)
-            .Select(data =>
-            {
-                var (f, p) = data;
-                var notes = f.GetNotes().ToList();
-                var chunk = notes.ToTrackChunk();
-
-                chunk.Events.Insert(0, new SequenceTrackNameEvent(Path.GetFileNameWithoutExtension(p.Name))
-                {
-                    DeltaTime = 0
-                });
-
-                return chunk;
-            })
-            .ToList();
-
-        return new MidiFile(trackChunks)
-        {
-            TimeDivision = midiFiles[0].TimeDivision
-        };
     }
 
     private static TimeSpan ToTimeSpan(MetricTimeSpan m)

@@ -89,10 +89,13 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && selfRef_ is not null)
+        if (!firstRender)
+            return;
+
+        if (selfRef_ is not null)
             await JS.InvokeVoidAsync("steelPan.register", componentId_, selfRef_);
 
-        if (firstRender && PlaybackInstanceId is not null)
+        if (PlaybackInstanceId is not null)
             await Playback.RegisterSteelPanViewAsync(PlaybackInstanceId.Value, this);
 
         if (!string.IsNullOrWhiteSpace(panSvg_))

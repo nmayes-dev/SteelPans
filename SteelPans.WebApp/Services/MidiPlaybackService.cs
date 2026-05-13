@@ -174,7 +174,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         var currentAudioTime = await js_.InvokeAsync<double>("steelPan.getAudioTime");
 
-        const double scheduleLeadSeconds = 0.08;
+        const double scheduleLeadSeconds = 0.25;
 
         var startAtAudioTime = currentAudioTime + scheduleLeadSeconds;
         var startAtPosition = GetCurrentPositionAtAudioTime(startAtAudioTime);
@@ -344,6 +344,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         IsPlaying = true;
         playbackSessionStartOffset_ = ClampPlaybackTime(startOffset);
         Position = playbackSessionStartOffset_;
+        midiStartAt_ = null;
 
         if (midiPlaybackInfo_ is not null)
         {
@@ -354,15 +355,49 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         try
         {
-            var firstGroup = playbackGroups[0];
-            if (!steelPanViews_.TryGetValue(firstGroup.Pan.InstanceId, out var firstView))
+            var playableGroups = playbackGroups
+                .Where(group => steelPanViews_.ContainsKey(group.Pan.InstanceId))
+                .ToList();
+
+            if (playableGroups.Count == 0)
             {
                 IsPlaying = false;
                 await NotifyStateChangedAsync();
                 return;
             }
 
-            midiStartAt_ = await StartMidiSequenceAsync(firstView, firstGroup.Events, midiPlaybackCts_.Token);
+            var noteKeys = playableGroups
+                .SelectMany(x => x.Events)
+                .Select(e => e.Note.ToString())
+                .Distinct()
+                .ToArray();
+
+            await js_.InvokeVoidAsync("steelPan.preloadNotes", noteKeys);
+
+            const double scheduleLeadSeconds = 0.25;
+
+            var currentAudioTime = await js_.InvokeAsync<double>("steelPan.getAudioTime");
+            var sharedStartAt = currentAudioTime + scheduleLeadSeconds;
+
+            foreach (var group in playableGroups)
+            {
+                var view = steelPanViews_[group.Pan.InstanceId];
+                await view.ClearSelectionAndMidiVisualStateAsync();
+            }
+
+            foreach (var group in playableGroups)
+            {
+                var view = steelPanViews_[group.Pan.InstanceId];
+
+                var actualStartAt = await StartMidiSequenceAsync(
+                    view,
+                    group.Events,
+                    midiPlaybackCts_.Token,
+                    sharedStartAt);
+
+                midiStartAt_ ??= actualStartAt;
+            }
+
             if (midiStartAt_ is null)
             {
                 IsPlaying = false;
@@ -374,16 +409,10 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             playbackScoreAnchorOffset_ = playbackSessionStartOffset_;
             playbackTempoAnchorBpm_ = EffectiveMidiBpm;
 
-            foreach (var group in playbackGroups.Skip(1))
-            {
-                if (steelPanViews_.TryGetValue(group.Pan.InstanceId, out var view))
-                    await StartMidiSequenceAsync(view, group.Events, midiPlaybackCts_.Token);
-            }
-
             await NotifyPlaybackStartedAsync(new MidiPlaybackStartedEventArgs(
                 midiStartAt_.Value,
                 playbackSessionStartOffset_,
-                playbackGroups.SelectMany(x => x.Events).OrderBy(x => x.Start).ToList()));
+                playableGroups.SelectMany(x => x.Events).OrderBy(x => x.Start).ToList()));
 
             StartPlaybackProgressLoop(playbackProgressCts_.Token);
             await NotifyStateChangedAsync();
@@ -549,8 +578,6 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     {
         if (events.Count == 0)
             return null;
-
-        await view.ClearSelectionAndMidiVisualStateAsync();
 
         var playbackActions = BuildPlaybackActions(events);
         if (playbackActions.Count == 0)

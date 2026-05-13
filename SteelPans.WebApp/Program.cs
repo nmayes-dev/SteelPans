@@ -1,5 +1,6 @@
 using SteelPans.WebApp.Components;
 using SteelPans.WebApp.Services;
+using SteelPans.WebApp.Model;
 
 namespace SteelPans.WebApp
 {
@@ -18,6 +19,8 @@ namespace SteelPans.WebApp
             builder.Services.AddScoped<MidiLoaderService>();
             builder.Services.AddScoped<MidiPlaybackService>();
             builder.Services.AddScoped<OverlayManagerService>();
+
+            builder.Services.Configure<StartupSettings>(builder.Configuration.GetSection("Startup"));
 
             var app = builder.Build();
 
