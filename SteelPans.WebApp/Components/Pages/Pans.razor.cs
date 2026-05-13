@@ -58,13 +58,16 @@ public partial class Pans : IDisposable
 
         foreach (var startup in StartupSettings.Tracks)
         {
-            var assignment = new MidiTrackAssignment
+            if (startup.Track < midiTracks_.Count)
             {
-                AssignedPanType = startup.Pan,
-                Track = midiTracks_[startup.Track],
-            };
+                var assignment = new MidiTrackAssignment
+                {
+                    AssignedPanType = startup.Pan,
+                    Track = midiTracks_[startup.Track],
+                };
 
-            await Playback.OnAddAssignmentAsync(assignment, pans_);
+                await Playback.OnAddAssignmentAsync(assignment, pans_);
+            }
         }
     }
 
