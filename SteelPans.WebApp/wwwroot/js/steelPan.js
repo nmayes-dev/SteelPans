@@ -481,11 +481,6 @@ window.steelPan = {
 
         const ctx = await this._resumeAudioContext();
 
-        const numericStartAt = Number(startAt);
-        const actualStartAt = Number.isFinite(numericStartAt) && numericStartAt > ctx.currentTime
-            ? numericStartAt
-            : ctx.currentTime + 0.25;
-
         this.stopMidiSchedule(componentId);
         this._ensureComponentScheduleState(componentId);
 
@@ -500,13 +495,40 @@ window.steelPan = {
             ? numericCurrentBpm
             : effectiveBaseBpm;
 
+        const numericStartAt = Number(startAt);
+        const hasProvidedStartAt = Number.isFinite(numericStartAt);
+
+        const actualStartAt = hasProvidedStartAt
+            ? numericStartAt
+            : ctx.currentTime + 0.75;
+
+        console.log("Provided startAt", numericStartAt);
+        console.log("Current time", ctx.currentTime);
+        console.log("Scheduling MIDI actions for component", componentId, "starting at audio time", actualStartAt);
+
         const state = this._getOrCreateMidiScheduleState(componentId);
         state.baseBpm = effectiveBaseBpm;
         state.currentBpm = effectiveCurrentBpm;
-        state.anchorAudioTime = actualStartAt;
-        state.anchorBeat = 0;
         state.nextActionIndex = 0;
         state.isRunning = true;
+
+        if (hasProvidedStartAt && actualStartAt <= ctx.currentTime) {
+            const lateBySeconds = ctx.currentTime - actualStartAt;
+
+            state.anchorAudioTime = ctx.currentTime;
+            state.anchorBeat = lateBySeconds * effectiveCurrentBpm / 60.0;
+
+            console.warn("Joining MIDI schedule late", {
+                componentId,
+                providedStartAt: actualStartAt,
+                currentTime: ctx.currentTime,
+                lateBySeconds,
+                anchorBeat: state.anchorBeat
+            });
+        } else {
+            state.anchorAudioTime = actualStartAt;
+            state.anchorBeat = 0;
+        }
 
         state.actions = scheduledActions
             .filter(action =>
@@ -521,10 +543,6 @@ window.steelPan = {
                 beat: action.timeSeconds * effectiveBaseBpm / 60.0
             }))
             .sort((a, b) => a.beat - b.beat);
-
-        const uniqueNoteKeys = [...new Set(state.actions.map(action => action.noteKey))];
-
-        await Promise.all(uniqueNoteKeys.map(noteKey => this._loadBuffer(noteKey)));
 
         this._startMidiScheduler(componentId);
 
@@ -592,14 +610,14 @@ window.steelPan = {
             if (when > windowEnd)
                 break;
 
-            if (when >= windowStart) {
+            if (when >= windowStart - 0.005) {
                 if (action.isNoteOn) {
                     const buffer = await this._loadBuffer(action.noteKey);
                     const source = ctx.createBufferSource();
 
                     source.buffer = buffer;
                     source.connect(componentGain);
-                    source.start(when);
+                    source.start(Math.max(when, ctx.currentTime));
 
                     const normalizedNoteKey = this._normalizeEnharmonic(action.noteKey);
 
@@ -722,23 +740,43 @@ window.steelPan = {
         };
     },
 
+    clearMidiScheduleState: function (componentId) {
+        const clearOne = (id) => {
+            const state = this._midiScheduleStateByComponent[id];
+
+            if (state?.schedulerTimerId != null) {
+                window.clearInterval(state.schedulerTimerId);
+                state.schedulerTimerId = null;
+            }
+
+            delete this._midiScheduleStateByComponent[id];
+            delete this._scheduledSourcesByComponent[id];
+            delete this._scheduledSourcesByNoteByComponent[id];
+            delete this._scheduledVisualTimersByComponent[id];
+
+            this.clearPlayingVisuals(id);
+        };
+
+        if (!componentId) {
+            for (const id of Object.keys(this._midiScheduleStateByComponent))
+                clearOne(id);
+
+            for (const id of Object.keys(this._scheduledSourcesByComponent))
+                clearOne(id);
+
+            return;
+        }
+
+        clearOne(componentId);
+    },
+
     stopMidiSchedule: function (componentId) {
         if (!componentId) {
-            for (const id of Object.keys(this._scheduledSourcesByComponent)) {
+            for (const id of Object.keys(this._scheduledSourcesByComponent))
                 this.stopMidiSchedule(id);
-            }
 
-            for (const id of Object.keys(this._midiScheduleStateByComponent)) {
-                const state = this._midiScheduleStateByComponent[id];
-
-                if (state?.schedulerTimerId != null) {
-                    window.clearInterval(state.schedulerTimerId);
-                    state.schedulerTimerId = null;
-                }
-
-                if (state)
-                    state.isRunning = false;
-            }
+            for (const id of Object.keys(this._midiScheduleStateByComponent))
+                this.clearMidiScheduleState(id);
 
             return;
         }
@@ -761,14 +799,10 @@ window.steelPan = {
             } catch { }
         }
 
-        for (const timerId of timers) {
+        for (const timerId of timers)
             window.clearTimeout(timerId);
-        }
 
-        this._scheduledSourcesByComponent[componentId] = [];
-        this._scheduledSourcesByNoteByComponent[componentId] = {};
-        this._scheduledVisualTimersByComponent[componentId] = [];
-        this.clearPlayingVisuals(componentId);
+        this.clearMidiScheduleState(componentId);
     },
 
     stopMetronome: function () {

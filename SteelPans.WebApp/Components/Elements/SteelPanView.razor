@@ -40,7 +40,6 @@ else
     [Parameter]
     public Guid? PlaybackInstanceId { get; set; }
 
-    private bool notesPreloaded_;
     private readonly string componentId_ = $"steelpan_{Guid.NewGuid():N}";
     private DotNetObjectReference<SteelPanView>? selfRef_;
     private string panSvg_ = string.Empty;
@@ -80,7 +79,6 @@ else
             return;
         }
 
-        notesPreloaded_ = false;
         svgPath_ = $"images/pans/{Pan.Type.ToKebabCase()}.svg";
 
         await SvgService.PrebuildNoteFragmentsAsync(svgPath_, Pan.Notes);
@@ -100,15 +98,6 @@ else
 
         if (!string.IsNullOrWhiteSpace(panSvg_))
             await JS.InvokeVoidAsync("steelPan.bindPanElements", componentId_);
-
-        if (!notesPreloaded_ && Pan is not null)
-        {
-            await JS.InvokeVoidAsync(
-                "steelPan.preloadNotes",
-                (object)Pan.Notes.Select(n => n.ToString()).Distinct().ToArray());
-
-            notesPreloaded_ = true;
-        }
     }
 
     public async Task RebuildSvgAsync()

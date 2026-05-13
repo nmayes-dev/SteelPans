@@ -174,7 +174,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         var currentAudioTime = await js_.InvokeAsync<double>("steelPan.getAudioTime");
 
-        const double scheduleLeadSeconds = 0.25;
+        const double scheduleLeadSeconds = 0.75;
 
         var startAtAudioTime = currentAudioTime + scheduleLeadSeconds;
         var startAtPosition = GetCurrentPositionAtAudioTime(startAtAudioTime);
@@ -183,6 +183,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         if (playbackEvents.Count == 0)
             return;
+
+        await view.ClearSelectionAndMidiVisualStateAsync();
 
         await StartMidiSequenceAsync(
             view,
@@ -374,7 +376,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
             await js_.InvokeVoidAsync("steelPan.preloadNotes", noteKeys);
 
-            const double scheduleLeadSeconds = 0.25;
+            const double scheduleLeadSeconds = 0.75;
 
             var currentAudioTime = await js_.InvokeAsync<double>("steelPan.getAudioTime");
             var sharedStartAt = currentAudioTime + scheduleLeadSeconds;
@@ -440,20 +442,31 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     public async Task StopAsync(bool resetPosition = false)
     {
         midiPlaybackCts_?.Cancel();
+        midiPlaybackCts_?.Dispose();
+        midiPlaybackCts_ = null;
+
         StopPlaybackProgressLoop();
 
         foreach (var view in steelPanViews_.Values)
             await StopMidiSequenceAsync(view);
 
+        playingComponentIds_.Clear();
+
         midiStartAt_ = null;
         IsPlaying = false;
         playbackAudioAnchorTime_ = null;
+        playbackScoreAnchorOffset_ = Position;
         playbackTempoAnchorBpm_ = EffectiveMidiBpm;
 
         if (resetPosition)
         {
             Position = TimeSpan.Zero;
             playbackSessionStartOffset_ = TimeSpan.Zero;
+            playbackScoreAnchorOffset_ = TimeSpan.Zero;
+        }
+        else
+        {
+            playbackSessionStartOffset_ = Position;
         }
 
         await NotifyPlaybackStoppedAsync(new MidiPlaybackStoppedEventArgs(resetPosition, Position));
@@ -585,7 +598,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         var scheduledActions = BuildScheduledActions(playbackActions);
 
-        var actualStartAt = await js_.InvokeAsync<double>(
+        var actualStartAt = await js_.InvokeAsync<double?>(
             "steelPan.playMidiSchedule",
             cancellationToken,
             view.ComponentId,
@@ -594,7 +607,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             EffectiveMidiBpm,
             startAt);
 
-        playingComponentIds_.Add(view.ComponentId);
+        if (actualStartAt is not null)
+            playingComponentIds_.Add(view.ComponentId);
 
         return actualStartAt;
     }
