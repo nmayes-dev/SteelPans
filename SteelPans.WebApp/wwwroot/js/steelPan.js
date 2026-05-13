@@ -34,6 +34,10 @@ window.steelPan = {
         this.clearPlayingVisuals(id);
     },
 
+    hasUserGestureOccurred: function() {
+        return navigator.userActivation?.hasBeenActive === true;
+    },
+
     _ensureAudioContext: function () {
         if (!this._audioContext) {
             const AudioContextCtor = window.AudioContext || window.webkitAudioContext;

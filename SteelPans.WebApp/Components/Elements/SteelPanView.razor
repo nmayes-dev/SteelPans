@@ -40,6 +40,7 @@ else
     [Parameter]
     public Guid? PlaybackInstanceId { get; set; }
 
+    private bool notesPreloaded_;
     private readonly string componentId_ = $"steelpan_{Guid.NewGuid():N}";
     private DotNetObjectReference<SteelPanView>? selfRef_;
     private string panSvg_ = string.Empty;
@@ -78,7 +79,8 @@ else
             svgPath_ = string.Empty;
             return;
         }
-
+        
+        notesPreloaded_ = false;
         svgPath_ = $"images/pans/{Pan.Type.ToKebabCase()}.svg";
 
         await SvgService.PrebuildNoteFragmentsAsync(svgPath_, Pan.Notes);
@@ -87,17 +89,23 @@ else
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
-            return;
-
-        if (selfRef_ is not null)
+        if (firstRender && selfRef_ is not null)
             await JS.InvokeVoidAsync("steelPan.register", componentId_, selfRef_);
 
-        if (PlaybackInstanceId is not null)
+        if (firstRender && PlaybackInstanceId is not null)
             await Playback.RegisterSteelPanViewAsync(PlaybackInstanceId.Value, this);
 
-        if (!string.IsNullOrWhiteSpace(panSvg_))
+        if (firstRender && !string.IsNullOrWhiteSpace(panSvg_))
             await JS.InvokeVoidAsync("steelPan.bindPanElements", componentId_);
+            
+        if (!notesPreloaded_ && Pan is not null && await JS.InvokeAsync<bool>("steelPan.hasUserGestureOccurred"))
+        {
+            await JS.InvokeVoidAsync(
+                "steelPan.preloadNotes",
+                (object)Pan.Notes.Select(n => n.ToString()).Distinct().ToArray());
+
+            notesPreloaded_ = true;
+        }
     }
 
     public async Task RebuildSvgAsync()

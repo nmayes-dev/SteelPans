@@ -368,14 +368,6 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                 return;
             }
 
-            var noteKeys = playableGroups
-                .SelectMany(x => x.Events)
-                .Select(e => e.Note.ToString())
-                .Distinct()
-                .ToArray();
-
-            await js_.InvokeVoidAsync("steelPan.preloadNotes", noteKeys);
-
             const double scheduleLeadSeconds = 0.75;
 
             var currentAudioTime = await js_.InvokeAsync<double>("steelPan.getAudioTime");
