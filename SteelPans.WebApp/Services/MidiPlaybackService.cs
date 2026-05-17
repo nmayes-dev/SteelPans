@@ -266,10 +266,20 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         {
             if (steelPanViews_.TryGetValue(pan.InstanceId, out var view))
             {
-                await js_.InvokeVoidAsync(
-                    "steelPan.setComponentVolume",
-                    view.ComponentId,
-                    pan.Soloing ? pan.Volume : 0.0);
+                if (solo)
+                {
+                    await js_.InvokeVoidAsync(
+                        "steelPan.setComponentVolume",
+                        view.ComponentId,
+                        pan.Soloing ? pan.Volume : 0.0);
+                }
+                else
+                {
+                    await js_.InvokeVoidAsync(
+                        "steelPan.setComponentVolume",
+                        view.ComponentId,
+                        GetEffectivePanVolume(pan));
+                }
             }
         }
 
