@@ -1,12 +1,11 @@
 using Melanchall.DryWetMidi.Core;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using SteelPans.WebApp.Components.Elements;
 using SteelPans.WebApp.Components.Layout;
 using SteelPans.WebApp.Model;
-using System.Diagnostics;
-using System.Diagnostics.Eventing.Reader;
 
 namespace SteelPans.WebApp.Components.Pages;
 
@@ -209,6 +208,19 @@ public partial class Pans : IDisposable
 
         await CloseRemovePanModal();
         await Playback.OnRemoveAssignmentAsync(index);
+    }
+
+    private async Task OnKeyPressedAsync(KeyboardEventArgs e)
+    {
+        var ctrl = e.CtrlKey || e.MetaKey;
+        var shift = e.ShiftKey;
+
+        switch (e.Key)
+        {
+            case "a" when ctrl && !shift && addPanModal_ is not null:
+                await addPanModal_.Open();
+                break;
+        }
     }
 
     public void Dispose()

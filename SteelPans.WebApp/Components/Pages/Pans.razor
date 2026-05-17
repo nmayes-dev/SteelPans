@@ -11,7 +11,10 @@
 
 <PageTitle>Steel Pans</PageTitle>
 
-<div class="pans-page">
+<div class="pans-page"
+     tabindex="0"
+     @onkeydown="OnKeyPressedAsync"
+     @onkeydown:preventDefault="true">
     <header class="sp-section pans-page__hero">
         <div class="pans-page__hero-content">
             <h1 class="pans-page__title">Steel Pans</h1>

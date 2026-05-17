@@ -139,7 +139,7 @@ window.steelPan = {
 
     _getSamplePath: function (noteKey) {
         const normalized = this._normalizeEnharmonic(noteKey);
-        return `/audio/samples/${encodeURIComponent(normalized)}.wav`;
+        return `/audio/samples/${encodeURIComponent(normalized)}.ogg`;
     },
 
     _loadBuffer: async function (noteKey) {

@@ -7,3 +7,8 @@ publish/
 temp/
 
 App_Data/
+
+# Code for retrieving samples
+sample-data/
+SteelPans.Samples
+SteelPans.Decode
