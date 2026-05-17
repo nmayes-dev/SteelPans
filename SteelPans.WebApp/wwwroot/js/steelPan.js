@@ -375,7 +375,8 @@ window.steelPan = {
                 isRunning: false,
                 schedulerTimerId: null,
                 lookaheadSeconds: 0.12,
-                schedulerIntervalMs: 25
+                schedulerIntervalMs: 25,
+                noteOffReleaseSeconds: 0.4,
             };
 
             this._midiScheduleStateByComponent[componentId] = state;
@@ -618,9 +619,15 @@ window.steelPan = {
                 if (action.isNoteOn) {
                     const buffer = await this._loadBuffer(action.noteKey);
                     const source = ctx.createBufferSource();
+                    const noteGain = ctx.createGain();
 
                     source.buffer = buffer;
-                    source.connect(componentGain);
+
+                    noteGain.gain.setValueAtTime(1.0, Math.max(when, ctx.currentTime));
+
+                    source.connect(noteGain);
+                    noteGain.connect(componentGain);
+
                     source.start(Math.max(when, ctx.currentTime));
 
                     const normalizedNoteKey = this._normalizeEnharmonic(action.noteKey);
@@ -628,7 +635,9 @@ window.steelPan = {
                     const entry = {
                         noteKey: normalizedNoteKey,
                         source: source,
-                        startTime: when
+                        gain: noteGain,
+                        startTime: when,
+                        stopped: false
                     };
 
                     sources.push(entry);
@@ -639,8 +648,32 @@ window.steelPan = {
                     perNoteMap[normalizedNoteKey].push(entry);
 
                     source.onended = () => {
+                        try {
+                            noteGain.disconnect();
+                        } catch { }
+
                         this._removeScheduledSourceEntry(componentId, entry);
                     };
+                } else {
+                    const normalizedNoteKey = this._normalizeEnharmonic(action.noteKey);
+                    const entries = perNoteMap[normalizedNoteKey] || [];
+
+                    for (const entry of [...entries]) {
+                        if (entry.stopped)
+                            continue;
+
+                        entry.stopped = true;
+
+                        const stopAt = Math.max(when, ctx.currentTime);
+                        const releaseEnd = stopAt + state.noteOffReleaseSeconds;
+
+                        try {
+                            entry.gain.gain.cancelScheduledValues(stopAt);
+                            entry.gain.gain.setValueAtTime(entry.gain.gain.value, stopAt);
+                            entry.gain.gain.linearRampToValueAtTime(0.0001, releaseEnd);
+                            entry.source.stop(releaseEnd);
+                        } catch { }
+                    }
                 }
 
                 const delayMs = Math.max(0, (when - ctx.currentTime) * 1000.0);
