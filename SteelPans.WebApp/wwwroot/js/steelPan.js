@@ -2,6 +2,8 @@ window.steelPan = {
     _refs: {},
     _audioBuffers: {},
     _audioContext: null,
+    _masterCompressor: null,
+    _masterGain: null,
     _gainByComponent: {},
     _volumeByComponent: {},
     _scheduledSourcesByComponent: {},
@@ -42,6 +44,20 @@ window.steelPan = {
         if (!this._audioContext) {
             const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
             this._audioContext = new AudioContextCtor();
+
+            this._masterCompressor = this._audioContext.createDynamicsCompressor();
+            this._masterGain = this._audioContext.createGain();
+
+            this._masterCompressor.threshold.value = -18;
+            this._masterCompressor.knee.value = 12;
+            this._masterCompressor.ratio.value = 10;
+            this._masterCompressor.attack.value = 0.003;
+            this._masterCompressor.release.value = 0.15;
+
+            this._masterGain.gain.value = 0.7;
+
+            this._masterCompressor.connect(this._masterGain);
+            this._masterGain.connect(this._audioContext.destination);
         }
 
         return this._audioContext;
@@ -67,7 +83,7 @@ window.steelPan = {
         if (!gain) {
             gain = audioContext.createGain();
             gain.gain.value = this._volumeByComponent[componentId] ?? 1.0;
-            gain.connect(audioContext.destination);
+            gain.connect(this._masterCompressor);
             this._gainByComponent[componentId] = gain;
         }
 
