@@ -9,6 +9,15 @@
     panShape: ".sp-svg-circle, .sp-note, path, circle, ellipse, rect, polygon, polyline"
 };
 
+const DEFAULTS = {
+    resizeUpdateIntervalMs: 0,
+    resizeSettleDelayMs: 2000,
+    resizeWidthThresholdPx: 10,
+    resizeHeightThresholdPx: 10,
+    textFitWidthThresholdPx: 20,
+    textFitHeightThresholdPx: 20
+};
+
 window.panLayout = {
     _layoutCache: new Map(),
     _textMeasureCanvas: null,
@@ -18,18 +27,40 @@ window.panLayout = {
 
         this.disconnect(container);
 
-        const request = () => this.requestUpdate(container);
+        container._panLayoutState = {
+            raf: 0,
+            timer: 0,
+            settleTimer: 0,
+            lastRunAt: 0,
+            pendingForce: false,
+            pendingReason: null,
+            lastLayoutWidth: null,
+            lastLayoutHeight: null,
+            lastTextWidth: null,
+            lastTextHeight: null,
+            lastItemCount: null,
+            running: false
+        };
 
-        container._panGridObserver = new ResizeObserver(request);
+        const requestResize = () => {
+            this.requestUpdate(container, { reason: "resize" });
+        };
+
+        const requestMutation = () => {
+            this.clearItemCaches(container);
+            this.requestUpdate(container, { force: true, reason: "mutation" });
+        };
+
+        container._panGridObserver = new ResizeObserver(requestResize);
         container._panGridObserver.observe(container);
 
-        container._panMutationObserver = new MutationObserver(request);
+        container._panMutationObserver = new MutationObserver(requestMutation);
         container._panMutationObserver.observe(container, {
             childList: true,
             subtree: true
         });
 
-        this.requestUpdate(container);
+        this.requestUpdate(container, { force: true, reason: "observe" });
     },
 
     disconnect(container) {
@@ -38,40 +69,187 @@ window.panLayout = {
         container._panGridObserver?.disconnect();
         container._panMutationObserver?.disconnect();
 
+        const state = container._panLayoutState;
+        if (state) {
+            cancelAnimationFrame(state.raf);
+            clearTimeout(state.timer);
+            clearTimeout(state.settleTimer);
+        }
+
         cancelAnimationFrame(container._panGridRaf);
+        delete container._panLayoutState;
     },
 
-    requestUpdate(container) {
+    requestUpdate(container, options = {}) {
         if (!container) return;
 
-        cancelAnimationFrame(container._panGridRaf);
+        const state = this.getState(container);
+        const force = options.force === true;
+        const reason = options.reason ?? "manual";
 
-        container.classList.add("pans-page__assigned-pans--laying-out");
+        state.pendingForce ||= force;
+        state.pendingReason = reason;
 
-        container._panGridRaf = requestAnimationFrame(() => {
-            this.update(container);
+        clearTimeout(state.settleTimer);
 
-            /*
-               Layout must be committed before measurement.
-               A second RAF guarantees DOM geometry is updated.
-            */
-            requestAnimationFrame(() => {
-                this.fitAllPanText(container);
+        if (reason === "resize") {
+            state.settleTimer = setTimeout(() => {
+                this.requestUpdate(container, { force: true, reason: "resize-settled" });
+            }, this.numberFromDataset(container, "resizeSettleDelayMs", DEFAULTS.resizeSettleDelayMs));
+        }
 
-                container.classList.remove(
-                    "pans-page__assigned-pans--laying-out"
-                );
-            });
+        if (!force && !this.hasSignificantContainerChange(container, state)) {
+            return;
+        }
+
+        const now = performance.now();
+        const interval = this.numberFromDataset(
+            container,
+            "resizeUpdateIntervalMs",
+            DEFAULTS.resizeUpdateIntervalMs
+        );
+        const elapsed = now - state.lastRunAt;
+
+        if (!force && elapsed < interval) {
+            clearTimeout(state.timer);
+            state.timer = setTimeout(() => {
+                this.scheduleUpdate(container);
+            }, interval - elapsed);
+            return;
+        }
+
+        this.scheduleUpdate(container);
+    },
+
+    scheduleUpdate(container) {
+        const state = this.getState(container);
+
+        if (state.raf) {
+            return;
+        }
+
+        state.raf = requestAnimationFrame(() => {
+            state.raf = 0;
+            this.runUpdate(container);
         });
     },
 
-    update(container) {
+    runUpdate(container) {
+        if (!container) return;
+
+        const state = this.getState(container);
+        if (state.running) return;
+
+        state.running = true;
+        state.lastRunAt = performance.now();
+
+        container.classList.add("pans-page__assigned-pans--laying-out");
+
+        const force = state.pendingForce;
+        const bounds = container.getBoundingClientRect();
+        const itemCount = this.getItems(container).length;
+
+        state.pendingForce = false;
+        state.pendingReason = null;
+
+        const shouldLayout = force || this.hasSignificantLayoutChange(container, state, bounds, itemCount);
+
+        if (shouldLayout) {
+            this.update(container, bounds);
+            state.lastLayoutWidth = bounds.width;
+            state.lastLayoutHeight = bounds.height;
+            state.lastItemCount = itemCount;
+        }
+
+        requestAnimationFrame(() => {
+            const textBounds = container.getBoundingClientRect();
+            const shouldFitText = force
+                || shouldLayout
+                || this.hasSignificantTextFitChange(container, state, textBounds);
+
+            if (shouldFitText) {
+                this.fitAllPanText(container);
+                state.lastTextWidth = textBounds.width;
+                state.lastTextHeight = textBounds.height;
+            }
+
+            container.classList.remove("pans-page__assigned-pans--laying-out");
+            state.running = false;
+        });
+    },
+
+    getState(container) {
+        container._panLayoutState ??= {
+            raf: 0,
+            timer: 0,
+            settleTimer: 0,
+            lastRunAt: 0,
+            pendingForce: false,
+            pendingReason: null,
+            lastLayoutWidth: null,
+            lastLayoutHeight: null,
+            lastTextWidth: null,
+            lastTextHeight: null,
+            lastItemCount: null,
+            running: false
+        };
+
+        return container._panLayoutState;
+    },
+
+    hasSignificantContainerChange(container, state) {
+        const bounds = container.getBoundingClientRect();
+        const itemCount = container.querySelectorAll(SELECTORS.item).length;
+
+        return this.hasSignificantLayoutChange(container, state, bounds, itemCount);
+    },
+
+    hasSignificantLayoutChange(container, state, bounds, itemCount) {
+        if (bounds.width <= 0 || bounds.height <= 0) return false;
+        if (state.lastLayoutWidth === null || state.lastLayoutHeight === null) return true;
+        if (state.lastItemCount !== itemCount) return true;
+
+        const widthThreshold = this.numberFromDataset(
+            container,
+            "resizeWidthThresholdPx",
+            DEFAULTS.resizeWidthThresholdPx
+        );
+        const heightThreshold = this.numberFromDataset(
+            container,
+            "resizeHeightThresholdPx",
+            DEFAULTS.resizeHeightThresholdPx
+        );
+
+        return Math.abs(bounds.width - state.lastLayoutWidth) >= widthThreshold
+            || Math.abs(bounds.height - state.lastLayoutHeight) >= heightThreshold;
+    },
+
+    hasSignificantTextFitChange(container, state, bounds) {
+        if (bounds.width <= 0 || bounds.height <= 0) return false;
+        if (state.lastTextWidth === null || state.lastTextHeight === null) return true;
+
+        const widthThreshold = this.numberFromDataset(
+            container,
+            "textFitWidthThresholdPx",
+            DEFAULTS.textFitWidthThresholdPx
+        );
+        const heightThreshold = this.numberFromDataset(
+            container,
+            "textFitHeightThresholdPx",
+            DEFAULTS.textFitHeightThresholdPx
+        );
+
+        return Math.abs(bounds.width - state.lastTextWidth) >= widthThreshold
+            || Math.abs(bounds.height - state.lastTextHeight) >= heightThreshold;
+    },
+
+    update(container, bounds = null) {
         if (!container) return;
 
         const items = this.getItems(container);
         if (items.length === 0) return;
 
-        const bounds = container.getBoundingClientRect();
+        bounds ??= container.getBoundingClientRect();
         if (bounds.width <= 0 || bounds.height <= 0) return;
 
         const gaps = this.getGaps(container);
@@ -483,9 +661,9 @@ window.panLayout = {
         }
 
         const cacheKey = [
-            Math.round(svgRect.width),
-            Math.round(svgRect.height),
-            Math.round(clientY - svgRect.top)
+            Math.round(svgRect.width / 4) * 4,
+            Math.round(svgRect.height / 4) * 4,
+            Math.round((clientY - svgRect.top) / 4) * 4
         ].join(":");
 
         svg._panBoundsCache ??= new Map();
@@ -498,7 +676,7 @@ window.panLayout = {
             };
         }
 
-        if (svg._panBoundsCache.size > 80) {
+        if (svg._panBoundsCache.size > 60) {
             svg._panBoundsCache.clear();
         }
 
@@ -527,7 +705,7 @@ window.panLayout = {
             return { left: svgRect.left, right: svgRect.right };
         }
 
-        const sampleCount = this.numberFromDataset(svg, "panBoundsSamples", 72);
+        const sampleCount = this.numberFromDataset(svg, "panBoundsSamples", 40);
         const point = new DOMPoint();
 
         let minHitX = null;
@@ -565,6 +743,13 @@ window.panLayout = {
             );
 
         return svg._panHitElements;
+    },
+
+    clearItemCaches(container) {
+        for (const svg of container.querySelectorAll(SELECTORS.svg)) {
+            delete svg._panHitElements;
+            svg._panBoundsCache?.clear();
+        }
     },
 
     pointHitsAnyElement(point, elements) {
