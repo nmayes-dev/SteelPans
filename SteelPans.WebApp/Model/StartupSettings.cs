@@ -2,6 +2,7 @@
 {
     public sealed class StartupSettings
     {
+        public bool Use { get; set; } = false;
         public string? MidiFile { get; set; }
 
         public List<StartupPan> Tracks { get; set; } = [];

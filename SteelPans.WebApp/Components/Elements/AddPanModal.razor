@@ -70,7 +70,7 @@
     [Parameter]
     public IReadOnlyList<SteelPan> Pans { get; set; } = [];
 
-    private IReadOnlyList<PanType> AvailablePanTypes => Pans.Select(x => x.Type).Where(x => !Playback.Assignments.Select(a => a.AssignedPanType).Contains(x)).ToList();
+    private IReadOnlyList<PanType> AvailablePanTypes => Pans.Select(x => x.Type).ToList();
 
     private enum AddModalType
     {
