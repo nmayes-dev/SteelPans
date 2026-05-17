@@ -1,4 +1,7 @@
 .pans-page {
+    --ui-icon-button-size: clamp(1.4rem, 2vw, 3.25rem);
+    --ui-icon-button-radius: calc(0.5 * var(--ui-icon-button-size));
+    --ui-icon-size: calc(var(--ui-icon-button-size) * 0.5);
     display: grid;
     grid-template-rows: auto auto minmax(0, 1fr);
     height: 100dvh;
@@ -131,6 +134,10 @@
     min-height: 0;
 }
 
+.pans-page__assigned-pans--laying-out .pans-page__assigned-pan {
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+
 .pans-page__assigned-pan {
     position: absolute;
     display: grid;
@@ -148,7 +155,6 @@
         transform: scale(0.985);
     }
 }
-
 
 .pans-page__assigned-pan-container {
     width: 100%;
@@ -169,23 +175,28 @@
 }
 
 .pans-page__assigned-pan-copy {
+    --pan-copy-value-font-size: clamp(0.48rem, 0.78vw, 0.74rem);
+    --pan-copy-label-scale: 0.72;
+    --pan-copy-inline-inset: clamp(0.45rem, 1.45em, 0.95rem);
+    --pan-copy-block-inset: clamp(0.18rem, 0.7em, 0.5rem);
     position: absolute;
-    left: 0.9rem;
-    right: 0.9rem;
-    bottom: 0.75rem;
-    z-index: 11;
+    left: var(--pan-copy-inline-inset);
+    right: var(--pan-copy-inline-inset);
+    bottom: var(--pan-copy-block-inset);
     display: flex;
     justify-content: space-between;
     align-items: end;
-    gap: 1rem;
-    min-width: 0;
-    max-width: none;
-    pointer-events: none;
+    gap: clamp(0.4rem, 1.25em, 0.9rem);
+    font-size: var(--pan-copy-value-font-size);
+    line-height: 1.05;
 }
 
 .pans-page__assigned-pan-copy-group {
+    display: flex;
+    flex-direction: column;
     min-width: 0;
-    overflow: hidden;
+    max-width: var(--pan-copy-group-width, calc((100cqw - 2rem) / 2));
+    gap: 0.2rem;
 }
 
 .pans-page__assigned-pan-copy-group--left {
@@ -197,7 +208,7 @@
 }
 
 .pans-page__assigned-pan-copy-label {
-    font-size: clamp(0.34rem, 0.55vw, 0.52rem);
+    font-size: calc(1em * var(--pan-copy-label-scale));
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -210,15 +221,16 @@
     display: block;
     min-width: 0;
     max-width: 100%;
+    font-size: var(--pan-copy-value-font-size);
+    overflow: hidden;
     white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
-.pans-page__assigned-pan-track {
-    text-align: right;
-}
-
+.pans-page__assigned-pan-copy-label,
+.pans-page__assigned-pan-track,
 .pans-page__assigned-pan-type {
-    text-align: left;
+    transition: none;
 }
 
 .pans-page__remove-pan-button {
@@ -229,27 +241,27 @@
     pointer-events: auto;
     display: grid;
     place-items: center;
-    width: 2.25rem;
-    height: 2.25rem;
+    width: var(--ui-icon-button-size);
+    aspect-ratio: 1 / 1;
     border: 1px solid rgba(248, 113, 113, 0.35);
-    border-radius: 999px;
+    border-radius: var(--ui-icon-button-radius);
     background: rgba(254, 242, 242, 0.8);
     color: #dc2626;
     cursor: pointer;
     transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
+    .pans-page__remove-pan-button .bi {
+        font-size: var(--ui-icon-size);
+        line-height: 1;
+    }
+
 @media (hover: hover) and (pointer: fine) {
     .pans-page__remove-pan-button:hover {
         background: #fee2e2;
         border-color: rgba(220, 38, 38, 0.45);
         color: #b91c1c;
-        transform: translateY(-1px);
     }
-}
-
-.pans-page__remove-pan-button:active {
-    transform: translateY(0);
 }
 
 .pans-page__remove-pan-message {

@@ -9,7 +9,7 @@ using SteelPans.WebApp.Model;
 
 namespace SteelPans.WebApp.Components.Pages;
 
-public partial class Pans : IDisposable
+public partial class Pans : IAsyncDisposable
 {
     private StartupSettings StartupSettings => StartupSettingsAccessor.Value;
 
@@ -26,6 +26,8 @@ public partial class Pans : IDisposable
 
     private ModalPopup? removePanModal_;
     private MidiAssignedPan? panPendingRemoval_;
+
+    private bool panLayoutObserved_;
 
     protected override async Task OnInitializedAsync()
     {
@@ -44,6 +46,9 @@ public partial class Pans : IDisposable
 
     private async Task LoadStartupSettings()
     {
+        if (!StartupSettings.Use)
+            return;
+
         if (!string.IsNullOrWhiteSpace(StartupSettings.MidiFile) && File.Exists(StartupSettings.MidiFile))
         {
             var fileInfo = new FileInfo(StartupSettings.MidiFile);
@@ -76,9 +81,8 @@ public partial class Pans : IDisposable
         {
             await LoadStartupSettings();
             await JS.InvokeVoidAsync("panLayout.observe", assignedPansElement_);
+            panLayoutObserved_ = true;
         }
-
-        await JS.InvokeVoidAsync("panLayout.update", assignedPansElement_);
     }
 
     private async Task OnPlaybackStateChangedAsync()
@@ -223,8 +227,24 @@ public partial class Pans : IDisposable
         }
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         Playback.StateChanged -= OnPlaybackStateChangedAsync;
+
+        if (!panLayoutObserved_)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
+        }
+        catch (InvalidOperationException)
+        {
+            // JS interop is not available during prerender/static disposal.
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit/browser already disconnected.
+        }
     }
 }

@@ -1,5 +1,7 @@
 ﻿.toolbar {
-    --toolbar__button-size: clamp(2rem, 3.2vw, 2.4rem);
+    --toolbar__button-size: var(--ui-icon-button-size, clamp(1.25rem, 2vw, 3.25rem));
+    --toolbar__button-radius: var(--ui-icon-button-radius, calc(0.5 * var(--toolbar__button-size)));
+    --toolbar__icon-size: var(--ui-icon-size, calc(var(--toolbar__button-size) * 0.5));
     --toolbar__menu-width: 10rem;
     --toolbar__panel-width: clamp(18rem, 30vw, 20rem);
     --toolbar__menu-max-height: 20rem;
@@ -16,7 +18,7 @@
     overflow: hidden;
     border: 1px solid var(--toolbar__border-color);
     background: rgba(255, 255, 255, 0.98);
-    border-radius: 1.2rem;
+    border-radius: var(--toolbar__button-radius);
     box-sizing: content-box;
     transition: width 500ms ease, box-shadow 500ms ease, border-radius 500ms ease;
 }
@@ -58,7 +60,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .toolbar__menu-button-container:hover:not( :has(:is(button, input, select, textarea, label, a, [role="button"]):hover) ) {
+    .toolbar__menu-button-container:hover:not(:has(:is(button, input, select, textarea, label, a, [role="button"]):hover)) {
         background: linear-gradient(180deg, rgb(238, 244, 252), rgb(208, 218, 249));
         color: #1d4ed8;
         border-color: rgba(96, 165, 250, 0.4);
@@ -90,10 +92,8 @@
     .toolbar__menu-button-icon .bi {
         display: grid;
         place-items: center;
-        width: var(--toolbar__button-size);
-        height: var(--toolbar__button-size);
         padding: 0;
-        font-size: clamp(0.8rem, 1.6vw, 1.2rem);
+        font-size: var(--toolbar__icon-size);
         line-height: 1;
         transition: none;
     }
@@ -137,7 +137,7 @@
     display: grid;
     place-items: center;
     width: var(--expand-button-size);
-    height: var(--expand-button-size);
+    aspect-ratio: 1 / 1;
     border: 1px solid rgba(148, 163, 184, 0.35);
     border-radius: calc(var(--expand-button-size) * 0.5);
     background: white;
@@ -152,7 +152,6 @@
         border-color: rgba(96, 165, 250, 0.4);
     }
 }
-
 
 .toolbar__menu-title {
     min-width: 0;
@@ -202,19 +201,16 @@
 .toolbar__menu-item {
     display: grid;
     grid-template-columns: auto 1fr;
-    /* sizing */
-    min-height: clamp(2rem, 3vw, 2.75rem);
-    /* spacing */
-    gap: clamp(0.4rem, 0.8vw, 0.75rem);
-    padding: clamp(0.5rem, 1vw, 0.75rem) clamp(0.6rem, 1.2vw, 1rem);
-    /* typography */
-    font-size: clamp(0.8rem, 1.1vw, 0.95rem);
     align-items: center;
     width: 100%;
     min-width: 0;
+    min-height: clamp(2rem, 3vw, 2.75rem);
+    gap: clamp(0.4rem, 0.8vw, 0.75rem);
+    padding: clamp(0.5rem, 1vw, 0.75rem) clamp(0.6rem, 1.2vw, 1rem);
     border: 0;
     background: transparent;
     color: #0f172a;
+    font-size: clamp(0.8rem, 1.1vw, 0.95rem);
     font-weight: 700;
     white-space: nowrap;
     cursor: pointer;
@@ -227,11 +223,11 @@
     }
 
     .toolbar__menu-item .bi {
-        font-size: clamp(0.85rem, 1.2vw, 1.1rem);
-        width: clamp(1.2rem, 2vw, 1.6rem);
-        height: clamp(1.2rem, 2vw, 1.6rem);
         display: grid;
         place-items: center;
+        width: clamp(1.2rem, 2vw, 1.6rem);
+        aspect-ratio: 1 / 1;
+        font-size: clamp(0.85rem, 1.2vw, 1.1rem);
     }
 
 .toolbar__panel {
@@ -258,7 +254,7 @@
     }
 
     .toolbar--left .toolbar__menu-button-icon .bi {
-        justify-self: start;
+        justify-self: center;
     }
 
     .toolbar--left .toolbar__menu-header {
@@ -282,7 +278,7 @@
     }
 
     .toolbar--right .toolbar__menu-button-icon .bi {
-        justify-self: end;
+        justify-self: center;
     }
 
     .toolbar--right .toolbar__menu-header {
