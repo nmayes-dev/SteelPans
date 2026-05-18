@@ -144,7 +144,8 @@ window.panLayout = {
             dotNetRef: null,
             pendingDrag: null,
             drag: null,
-            dragBlockers: []
+            dragBlockers: [],
+            layoutItems: []
         };
 
         return container._panLayoutState;
@@ -154,14 +155,17 @@ window.panLayout = {
         if (!container) return;
 
         const items = this.getItems(container);
+        const state = this.getState(container);
 
         if (items.length === 0) {
+            state.layoutItems = [];
             return;
         }
 
         const bounds = container.getBoundingClientRect();
 
         if (bounds.width <= 0 || bounds.height <= 0) {
+            state.layoutItems = [];
             return;
         }
 
@@ -216,6 +220,11 @@ window.panLayout = {
     },
 
     applyLayout(items, rows, columnGap, rowGap, containerWidth, containerHeight) {
+        const state = items[0]
+            ? this.getState(items[0].parentElement)
+            : null;
+
+        const layoutItems = [];
         let itemIndex = 0;
         let y = 0;
 
@@ -225,13 +234,29 @@ window.panLayout = {
             for (let i = 0; i < row.count; i++) {
                 const item = items[itemIndex + i];
                 const width = row.widths[i];
+                const left = this.toPercent(x, containerWidth);
+                const top = this.toPercent(y, containerHeight);
+                const itemWidth = this.toPercent(width, containerWidth);
+                const itemHeight = this.toPercent(row.height, containerHeight);
 
                 Object.assign(item.style, {
                     position: "absolute",
-                    left: `${this.toPercent(x, containerWidth)}%`,
-                    top: `${this.toPercent(y, containerHeight)}%`,
-                    width: `${this.toPercent(width, containerWidth)}%`,
-                    height: `${this.toPercent(row.height, containerHeight)}%`
+                    left: `${left}%`,
+                    top: `${top}%`,
+                    width: `${itemWidth}%`,
+                    height: `${itemHeight}%`
+                });
+
+                layoutItems.push({
+                    item,
+                    left,
+                    top,
+                    right: left + itemWidth,
+                    bottom: top + itemHeight,
+                    width: itemWidth,
+                    height: itemHeight,
+                    centerX: left + itemWidth / 2,
+                    centerY: top + itemHeight / 2
                 });
 
                 x += width + columnGap;
@@ -239,6 +264,10 @@ window.panLayout = {
 
             itemIndex += row.count;
             y += row.height + rowGap;
+        }
+
+        if (state) {
+            state.layoutItems = layoutItems;
         }
     },
 
@@ -365,6 +394,8 @@ window.panLayout = {
 
         document.body.appendChild(item);
         this.installDragBlockers(container);
+
+        this.update(container);
         this.requestUpdate(container);
 
         window.addEventListener("pointermove", state.drag.move, { capture: true });
@@ -400,7 +431,7 @@ window.panLayout = {
         });
 
         const drop = this.findNearestDropEdge(container, event.clientX, event.clientY);
-        this.setDropIndicator(container, drop?.item ?? null, drop?.edge ?? null);
+        this.setDropIndicator(container, drop);
 
         drag.dropTarget = drop?.item ?? null;
         drag.dropEdge = drop?.edge ?? null;
@@ -416,7 +447,7 @@ window.panLayout = {
         window.removeEventListener("pointercancel", drag.up, { capture: true });
 
         this.removeDragBlockers(container);
-        this.setDropIndicator(container, null, null);
+        this.setDropIndicator(container, null);
 
         const target = options.commit ? drag.dropTarget : null;
         const edge = options.commit ? drag.dropEdge : null;
@@ -466,7 +497,136 @@ window.panLayout = {
             }
         }
 
+        if (!best) {
+            return null;
+        }
+
+        const containerRect = container.getBoundingClientRect();
+        const pointer = {
+            x: this.toPercent(clientX - containerRect.left, containerRect.width),
+            y: this.toPercent(clientY - containerRect.top, containerRect.height)
+        };
+
+        const adjacent = this.findAdjacentDropItem(container, best.item, best.edge, pointer);
+
+        return {
+            ...best,
+            adjacentItem: adjacent?.item ?? null,
+            adjacentEdge: adjacent?.edge ?? null
+        };
+    },
+
+    findAdjacentDropItem(container, target, edge, pointer = null) {
+        const state = this.getState(container);
+        const layoutItems = state.layoutItems ?? [];
+        const targetLayout = layoutItems.find(entry => entry.item === target);
+
+        if (!targetLayout) {
+            return null;
+        }
+
+        const oppositeEdge = {
+            before: "after",
+            after: "before",
+            above: "below",
+            below: "above"
+        }[edge];
+
+        let best = null;
+
+        for (const candidate of layoutItems) {
+            if (candidate.item === target || candidate.item.parentElement !== container) continue;
+
+            const metrics = this.getAdjacencyMetrics(targetLayout, candidate, edge, pointer);
+            if (!metrics) continue;
+
+            /*
+               One edge can have more than one valid neighbour. Use the pointer's
+               position along the shared overlap segment, rather than the target
+               centre, so a wide pan above/below multiple smaller pans picks the
+               pan that is actually under the cursor.
+            */
+            const score = metrics.distance * 10000
+                + metrics.pointerDistance * 1000
+                + metrics.centerDistance
+                - metrics.overlapSize * 0.5;
+
+            if (!best || score < best.score) {
+                best = {
+                    item: candidate.item,
+                    edge: oppositeEdge,
+                    score
+                };
+            }
+        }
+
         return best;
+    },
+
+    getAdjacencyMetrics(target, candidate, edge, pointer = null) {
+        if (edge === "before" || edge === "after") {
+            const distance = edge === "before"
+                ? target.left - candidate.right
+                : candidate.left - target.right;
+
+            if (distance < -0.001) return null;
+
+            const overlap = this.getOverlapSpan(
+                target.top,
+                target.bottom,
+                candidate.top,
+                candidate.bottom
+            );
+
+            if (!overlap) return null;
+
+            const pointerY = pointer?.y ?? target.centerY;
+
+            return {
+                distance,
+                overlapSize: overlap.size,
+                pointerDistance: this.distanceToSpan(pointerY, overlap.start, overlap.end),
+                centerDistance: Math.abs(pointerY - candidate.centerY)
+            };
+        }
+
+        const distance = edge === "above"
+            ? target.top - candidate.bottom
+            : candidate.top - target.bottom;
+
+        if (distance < -0.001) return null;
+
+        const overlap = this.getOverlapSpan(
+            target.left,
+            target.right,
+            candidate.left,
+            candidate.right
+        );
+
+        if (!overlap) return null;
+
+        const pointerX = pointer?.x ?? target.centerX;
+
+        return {
+            distance,
+            overlapSize: overlap.size,
+            pointerDistance: this.distanceToSpan(pointerX, overlap.start, overlap.end),
+            centerDistance: Math.abs(pointerX - candidate.centerX)
+        };
+    },
+
+    getOverlapSpan(aStart, aEnd, bStart, bEnd) {
+        const start = Math.max(aStart, bStart);
+        const end = Math.min(aEnd, bEnd);
+        const size = end - start;
+
+        return size > 0.001
+            ? { start, end, size }
+            : null;
+    },
+
+    getOverlapSize(aStart, aEnd, bStart, bEnd) {
+        return Math.max(0, Math.min(aEnd, bEnd) - Math.max(aStart, bStart));
     },
 
     distanceToSpan(value, min, max) {
@@ -475,7 +635,7 @@ window.panLayout = {
         return 0;
     },
 
-    setDropIndicator(container, target, edge) {
+    setDropIndicator(container, drop) {
         const classes = [
             "pans-page__assigned-pan--drop-before",
             "pans-page__assigned-pan--drop-after",
@@ -487,9 +647,13 @@ window.panLayout = {
             item.classList.remove(...classes);
         }
 
-        if (!target || !edge) return;
+        if (!drop?.item || !drop.edge) return;
 
-        target.classList.add(`pans-page__assigned-pan--drop-${edge}`);
+        drop.item.classList.add(`pans-page__assigned-pan--drop-${drop.edge}`);
+
+        if (drop.adjacentItem && drop.adjacentEdge) {
+            drop.adjacentItem.classList.add(`pans-page__assigned-pan--drop-${drop.adjacentEdge}`);
+        }
     },
 
     installDragBlockers(container) {
