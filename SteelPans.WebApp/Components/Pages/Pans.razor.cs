@@ -2,7 +2,6 @@ using Melanchall.DryWetMidi.Core;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
-using Microsoft.JSInterop;
 using SteelPans.WebApp.Components.Elements;
 using SteelPans.WebApp.Components.Layout;
 using SteelPans.WebApp.Model;
@@ -22,12 +21,8 @@ public partial class Pans : IAsyncDisposable
 
     private AddPanModal? addPanModal_;
     private ModalPopup? addMergedTrackModal_;
-    private ElementReference assignedPansElement_;
-
     private ModalPopup? removePanModal_;
     private MidiAssignedPan? panPendingRemoval_;
-
-    private bool panLayoutObserved_;
 
     protected override async Task OnInitializedAsync()
     {
@@ -80,8 +75,6 @@ public partial class Pans : IAsyncDisposable
         if (firstRender)
         {
             await LoadStartupSettings();
-            await JS.InvokeVoidAsync("panLayout.observe", assignedPansElement_);
-            panLayoutObserved_ = true;
         }
     }
 
@@ -227,24 +220,9 @@ public partial class Pans : IAsyncDisposable
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         Playback.StateChanged -= OnPlaybackStateChangedAsync;
-
-        if (!panLayoutObserved_)
-            return;
-
-        try
-        {
-            await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
-        }
-        catch (InvalidOperationException)
-        {
-            // JS interop is not available during prerender/static disposal.
-        }
-        catch (JSDisconnectedException)
-        {
-            // Circuit/browser already disconnected.
-        }
+        return ValueTask.CompletedTask;
     }
 }

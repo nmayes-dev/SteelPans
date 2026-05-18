@@ -141,10 +141,16 @@ window.panLayout = {
         if (!container) return;
 
         const items = this.getItems(container);
-        if (items.length === 0) return;
+
+        if (items.length === 0) {
+            return;
+        }
 
         const bounds = container.getBoundingClientRect();
-        if (bounds.width <= 0 || bounds.height <= 0) return;
+
+        if (bounds.width <= 0 || bounds.height <= 0) {
+            return;
+        }
 
         const gaps = this.getGaps(container);
         const minPanWidth = this.numberFromDataset(container, "minPanWidth", 260);

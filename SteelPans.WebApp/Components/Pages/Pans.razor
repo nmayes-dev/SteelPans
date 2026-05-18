@@ -3,7 +3,6 @@
 @using SteelPans.WebApp.Model
 @using SteelPans.WebApp.Services
 @using SteelPans.WebApp.Extensions
-@inject IJSRuntime JS
 @inject SteelPanLoader PanLoader
 @inject MidiLoaderService MidiService
 @inject MidiPlaybackService Playback
@@ -13,6 +12,7 @@
 <PageTitle>Steel Pans</PageTitle>
 
 <div class="pans-page"
+     @onkeydown="OnKeyPressedAsync"
      @onkeydown:preventDefault="true">
     <header class="sp-section pans-page__hero">
         <div class="pans-page__hero-content">
@@ -125,45 +125,8 @@
                 </Toolbar>
             </div>
 
-            <div class="pans-page__pan-stage">
-                <div class="pans-page__assigned-pans pans-page__assigned-pans--loading"
-                     @ref="assignedPansElement_"
-                     data-pan-count="@Playback.ActivePans.Count">
-                    @foreach (var assignedPan in Playback.ActivePans)
-                    {
-                        <section class="sp-section pans-page__assigned-pan" @key="assignedPan.InstanceId">
-                            <div class="pans-page__assigned-pan-container">
-                                <SteelPanView Pan="@assignedPan.Pan"
-                                              PlaybackInstanceId="@assignedPan.InstanceId" />
-                            </div>
-                            <div class="pans-page__assigned-pan-header">
-                                <div class="pans-page__assigned-pan-copy">
-                                    <div class="pans-page__assigned-pan-copy-group pans-page__assigned-pan-copy-group--left">
-                                        <div class="pans-page__assigned-pan-copy-label">Pan</div>
-                                        <div class="pans-page__assigned-pan-type">
-                                            @assignedPan.Assignment.AssignedPanType.ToSpacedPascal()
-                                        </div>
-                                    </div>
-
-                                    <div class="pans-page__assigned-pan-copy-group pans-page__assigned-pan-copy-group--right">
-                                        <div class="pans-page__assigned-pan-copy-label">Track</div>
-                                        <div class="pans-page__assigned-pan-track">
-                                            @assignedPan.Assignment.Track?.Name
-                                        </div>
-                                    </div>
-                                </div>
-                                <button type="button"
-                                        class="pans-page__remove-pan-button"
-                                        title="Remove pan"
-                                        aria-label="Remove pan"
-                                        @onclick="() => OpenRemovePanModal(assignedPan)">
-                                    <span class="bi bi-trash3"></span>
-                                </button>
-                            </div>
-                        </section>
-                    }
-                </div>
-            </div>
+            <PansDisplay Pans="@Playback.ActivePans"
+                         OnRemovePan="OpenRemovePanModal" />
         </section>
 
         <AddPanModal @ref="addPanModal_"

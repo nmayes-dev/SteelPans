@@ -12,8 +12,6 @@ public enum PanType
     DoubleGuitar,
     DoubleSecond,
     TripleCello,
-    TestA,
-    TestB,
 }
 
 public class PanNote
