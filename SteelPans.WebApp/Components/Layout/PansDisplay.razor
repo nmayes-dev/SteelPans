@@ -4,7 +4,7 @@
 @inject IJSRuntime JS
 
 <div class="pans-page__pan-stage">
-    <div class="pans-page__assigned-pans pans-page__assigned-pans--loading"
+    <div class="pans-page__assigned-pans"
          @ref="assignedPansElement_"
          data-pan-count="@Pans.Count">
         @foreach (var assignedPan in Pans)

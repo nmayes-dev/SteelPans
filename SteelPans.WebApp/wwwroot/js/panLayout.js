@@ -20,14 +20,10 @@ window.panLayout = {
     observe(container) {
         if (!container) return;
 
+        container.classList.add("pans-page__assigned-pans--loading");
         this.disconnect(container);
 
-        container._panLayoutState = {
-            resizeSettleTimer: 0,
-            updateRaf: 0,
-            textFitRaf: 0,
-            startupComplete: false
-        };
+        container._panLayoutState = this.getState(container);
 
         container._panGridObserver = new ResizeObserver(() => {
             this.requestUpdateAfterResizeSettles(container);
@@ -87,9 +83,12 @@ window.panLayout = {
 
         const state = this.getState(container);
         const isStartupUpdate = options.startup === true && !state.startupComplete;
+        state.startupInProgress = state.startupInProgress || isStartupUpdate;
 
-        cancelAnimationFrame(state.updateRaf);
-        cancelAnimationFrame(state.textFitRaf);
+        if (!state.startupInProgress) {
+            cancelAnimationFrame(state.updateRaf);
+            cancelAnimationFrame(state.textFitRaf);
+        }
 
         state.updateRaf = requestAnimationFrame(() => {
             this.update(container);
@@ -123,6 +122,7 @@ window.panLayout = {
         */
         requestAnimationFrame(() => {
             container.classList.remove("pans-page__assigned-pans--loading");
+            state.startupInProgress = false;
         });
     },
 
@@ -131,7 +131,8 @@ window.panLayout = {
             resizeSettleTimer: 0,
             updateRaf: 0,
             textFitRaf: 0,
-            startupComplete: true
+            startupComplete: false,
+            startupInProgress: false,
         };
 
         return container._panLayoutState;

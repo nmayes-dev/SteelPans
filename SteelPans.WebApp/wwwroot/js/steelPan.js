@@ -72,10 +72,6 @@ window.steelPan = {
         return ctx;
     },
 
-    unlockAudio: async function () {
-        await this._resumeAudioContext();
-    },
-
     _getOrCreateComponentGain: function (componentId) {
         const audioContext = this._ensureAudioContext();
 
