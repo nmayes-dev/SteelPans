@@ -134,8 +134,8 @@
     min-height: 0;
 }
 
-.pans-page__assigned-pans--laying-out .pans-page__assigned-pan {
-    transition: opacity 180ms ease, transform 180ms ease;
+.pans-page__assigned-pans--loading .pans-page__assigned-pan {
+    transition: opacity 500ms;
 }
 
 .pans-page__assigned-pan {
@@ -152,7 +152,6 @@
 @starting-style {
     .pans-page__assigned-pan {
         opacity: 0;
-        transform: scale(0.985);
     }
 }
 
@@ -230,7 +229,7 @@
 .pans-page__assigned-pan-copy-label,
 .pans-page__assigned-pan-track,
 .pans-page__assigned-pan-type {
-    transition: none;
+    transition: font-size 200ms ease;
 }
 
 .pans-page__remove-pan-button {
