@@ -1,7 +1,7 @@
 ﻿.file-picker {
     display: flex;
     align-items: stretch;
-    height: clamp(1.4rem, 3.2vw, 2.4rem);
+    height: 100%;
     min-height: 0;
     min-width: 0;
     max-width: none;

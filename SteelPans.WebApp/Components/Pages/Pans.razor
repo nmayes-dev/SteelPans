@@ -7,6 +7,7 @@
 @inject SteelPanLoader PanLoader
 @inject MidiLoaderService MidiService
 @inject MidiPlaybackService Playback
+@inject KeyboardManagerService KeyboardManager
 @inject IOptions<StartupSettings> StartupSettingsAccessor
 
 <PageTitle>Steel Pans</PageTitle>
@@ -39,9 +40,12 @@
                             OnTrackAdded="(track) => addPanModal_!.Open(track.Index)" />
             </section>
 
-            <section class="pans-page__midi-controls @(Playback.ActivePans.Any(x => x.Events.Count > 0) ? "pans-page__midi-controls--visible" : "")">
-                <MidiPlaybackControl />
-            </section>
+            @{
+                var hasMidiControls = Playback.ActivePans.Any(x => x.Events.Count > 0);
+                <section class="pans-page__midi-controls @(hasMidiControls ? "pans-page__midi-controls--visible" : "")">
+                    <MidiPlaybackControl Enabled="@hasMidiControls" />
+                </section>
+            }
 
             <ModalPopup @ref="addMergedTrackModal_"
                         Title="Merge MIDI tracks"

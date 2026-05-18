@@ -1,6 +1,7 @@
 @using Microsoft.AspNetCore.Components.Web
 @using SteelPans.WebApp.Services
 @implements IDisposable
+@inherits KeyboardComponentBase
 
 <div class="sp-section midi-playback">
     <div class="midi-playback__top-row">
@@ -12,12 +13,12 @@
                value="@DisplaySecondsString"
                style="--value:@DisplaySecondsString; --max:@MaxSecondsString;"
                aria-label="Playback position"
-               @oninput="HandleSliderInput"
-               @onchange="HandleSliderChange"
+               @oninput="HandleSliderInputAsync"
+               @onchange="HandleSliderChangeAsync"
                @onmousedown="BeginSeek"
-               @onmouseup="EndSeek"
+               @onmouseup="EndSeekAsync"
                @ontouchstart="BeginSeek"
-               @ontouchend="EndSeek" />
+               @ontouchend="EndSeekAsync" />
     </div>
 
     <div class="midi-playback__bottom-row">
@@ -29,7 +30,7 @@
                     title="Back to start"
                     aria-label="Back to start"
                     disabled="@(!CanGoToStart)"
-                    @onclick="HandleBackToStart">
+                    @onclick="HandleBackToStartAsync">
                 <span class="bi bi-skip-start-fill" aria-hidden="true"></span>
             </button>
 
@@ -37,7 +38,7 @@
                     type="button"
                     title="@(Playback.IsPlaying ? "Pause" : "Play")"
                     aria-label="@(Playback.IsPlaying ? "Pause" : "Play")"
-                    @onclick="HandlePlayPause">
+                    @onclick="HandlePlayPauseAsync">
                 <span class="bi @(Playback.IsPlaying ? "bi-pause-fill" : "bi-play-fill")" aria-hidden="true"></span>
             </button>
 
@@ -46,7 +47,7 @@
                     title="Next track"
                     aria-label="Next track"
                     disabled="@(!CanGoNext)"
-                    @onclick="HandleNextTrack">
+                    @onclick="HandleNextTrackAsync">
                 <span class="bi bi-skip-end-fill" aria-hidden="true"></span>
             </button>
         </div>
@@ -57,6 +58,9 @@
 
 @code {
     [Inject] private MidiPlaybackService Playback { get; set; } = default!;
+
+    [Parameter]
+    public bool Enabled { get; set; } = false;
 
     private bool isSeeking_;
     private double previewSeconds_;
@@ -81,6 +85,11 @@
     {
         Playback.StateChanged += HandlePlaybackStateChangedAsync;
         Playback.PositionChanged += HandlePlaybackPositionChangedAsync;
+
+        RegisterKeyboardCallback(
+            e => Enabled && e.Code.Equals("Space", StringComparison.OrdinalIgnoreCase),
+            async _ => await HandlePlayPauseAsync()
+        );
     }
 
     protected override void OnParametersSet()
@@ -105,12 +114,12 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task HandlePlayPause()
+    private async Task HandlePlayPauseAsync()
     {
         await Playback.ToggleAsync();
     }
 
-    private async Task HandleBackToStart()
+    private async Task HandleBackToStartAsync()
     {
         if (!CanGoToStart)
             return;
@@ -118,7 +127,7 @@
         await Playback.SeekToStartAsync();
     }
 
-    private async Task HandleNextTrack()
+    private async Task HandleNextTrackAsync()
     {
         if (!CanGoNext)
             return;
@@ -131,19 +140,19 @@
         isSeeking_ = true;
     }
 
-    private async Task EndSeek()
+    private async Task EndSeekAsync()
     {
         await CommitPreviewAsync();
     }
 
-    private async Task HandleSliderInput(ChangeEventArgs args)
+    private async Task HandleSliderInputAsync(ChangeEventArgs args)
     {
         isSeeking_ = true;
         previewSeconds_ = ParseSeconds(args.Value);
         await Playback.PreviewSeekAsync(TimeSpan.FromSeconds(previewSeconds_));
     }
 
-    private async Task HandleSliderChange(ChangeEventArgs args)
+    private async Task HandleSliderChangeAsync(ChangeEventArgs args)
     {
         previewSeconds_ = ParseSeconds(args.Value);
         await CommitPreviewAsync();
@@ -185,9 +194,11 @@
             : $"{time.Minutes}:{time.Seconds:00}.{time.Milliseconds:000}";
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         Playback.StateChanged -= HandlePlaybackStateChangedAsync;
         Playback.PositionChanged -= HandlePlaybackPositionChangedAsync;
+
+        base.Dispose();
     }
 }

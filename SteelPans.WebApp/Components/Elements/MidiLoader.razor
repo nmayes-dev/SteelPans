@@ -21,16 +21,16 @@
 
         @if (HasTracks)
         {
-            <div class="midi-loader__menu-wrap">
-                <button type="button"
-                        class="midi-loader__menu-button"
-                        title="Show tracks"
-                        aria-label="Show tracks"
-                        aria-expanded="@showTrackOverlay_.ToString().ToLowerInvariant()"
-                        @onclick="ToggleTrackOverlay">
-                    <span class="bi bi-music-note-list"></span>
-                </button>
+            <button type="button"
+                    class="midi-loader__menu-button"
+                    title="Show tracks"
+                    aria-label="Show tracks"
+                    aria-expanded="@showTrackOverlay_.ToString().ToLowerInvariant()"
+                    @onclick="ToggleTrackOverlay">
+                <span class="bi bi-music-note-list"></span>
+            </button>
 
+            <div class="midi-loader__track-overlay-container">
                 <div class="midi-loader__track-overlay @(showTrackOverlay_ ? "midi-loader__track-overlay--open" : null)"
                      aria-hidden="@(!showTrackOverlay_).ToString().ToLowerInvariant()">
                     <div class="midi-loader__track-overlay-header">

@@ -19,6 +19,7 @@ namespace SteelPans.WebApp
             builder.Services.AddScoped<MidiLoaderService>();
             builder.Services.AddScoped<MidiPlaybackService>();
             builder.Services.AddScoped<OverlayManagerService>();
+            builder.Services.AddScoped<KeyboardManagerService>();
 
             builder.Services.Configure<StartupSettings>(builder.Configuration.GetSection("Startup"));
 

@@ -4,6 +4,8 @@ bin/
 obj/
 publish/
 
+Properties/
+
 temp/
 
 App_Data/
@@ -12,3 +14,5 @@ App_Data/
 sample-data/
 SteelPans.Samples
 SteelPans.Decode
+
+**.csproj.user
