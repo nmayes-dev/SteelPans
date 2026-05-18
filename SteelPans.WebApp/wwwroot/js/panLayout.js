@@ -6,24 +6,28 @@
     rightGroup: ".pans-page__assigned-pan-copy-group--right",
     label: ".pans-page__assigned-pan-copy-label",
     value: ".pans-page__assigned-pan-track, .pans-page__assigned-pan-type",
-    panShape: ".sp-svg-circle, .sp-note, path, circle, ellipse, rect, polygon, polyline"
+    panShape: ".sp-svg-circle, .sp-note, path, circle, ellipse, rect, polygon, polyline",
+    noDrag: "[data-pan-layout-no-drag], button, a, input, select, textarea, label"
 };
 
 const DEFAULTS = {
-    resizeSettleDelayMs: 40
+    resizeSettleDelayMs: 40,
+    dragStartThresholdPx: 6
 };
 
 window.panLayout = {
     _layoutCache: new Map(),
     _textMeasureCanvas: null,
 
-    observe(container) {
+    observe(container, dotNetRef = null) {
         if (!container) return;
 
         container.classList.add("pans-page__assigned-pans--loading");
         this.disconnect(container);
 
         container._panLayoutState = this.getState(container);
+        container._panLayoutState.dotNetRef = dotNetRef;
+        this.attachDragHandlers(container);
 
         container._panGridObserver = new ResizeObserver(() => {
             this.requestUpdateAfterResizeSettles(container);
@@ -46,6 +50,10 @@ window.panLayout = {
 
     disconnect(container) {
         if (!container) return;
+
+        this.cancelPendingDrag(container);
+        this.endDrag(container, { commit: false });
+        this.detachDragHandlers(container);
 
         container._panGridObserver?.disconnect();
         container._panMutationObserver?.disconnect();
@@ -133,6 +141,10 @@ window.panLayout = {
             textFitRaf: 0,
             startupComplete: false,
             startupInProgress: false,
+            dotNetRef: null,
+            pendingDrag: null,
+            drag: null,
+            dragBlockers: []
         };
 
         return container._panLayoutState;
@@ -238,6 +250,297 @@ window.panLayout = {
 
     getItems(container) {
         return [...container.querySelectorAll(SELECTORS.item)];
+    },
+
+    attachDragHandlers(container) {
+        if (container._panLayoutPointerDown) return;
+
+        container._panLayoutPointerDown = event => this.onPointerDown(container, event);
+        container.addEventListener("pointerdown", container._panLayoutPointerDown, { capture: true });
+    },
+
+    detachDragHandlers(container) {
+        if (!container?._panLayoutPointerDown) return;
+
+        container.removeEventListener("pointerdown", container._panLayoutPointerDown, { capture: true });
+        delete container._panLayoutPointerDown;
+    },
+
+    onPointerDown(container, event) {
+        if (event.button !== 0 || event.pointerType === "mouse" && event.buttons !== 1) return;
+        if (event.target?.closest?.(SELECTORS.noDrag)) return;
+
+        const item = event.target?.closest?.(SELECTORS.item);
+        if (!item || item.parentElement !== container) return;
+
+        const state = this.getState(container);
+        if (state.drag || state.pendingDrag) return;
+
+        state.pendingDrag = {
+            pointerId: event.pointerId,
+            item,
+            startX: event.clientX,
+            startY: event.clientY,
+            move: moveEvent => this.onPendingPointerMove(container, moveEvent),
+            up: upEvent => this.onPendingPointerUp(container, upEvent)
+        };
+
+        window.addEventListener("pointermove", state.pendingDrag.move, { capture: true });
+        window.addEventListener("pointerup", state.pendingDrag.up, { capture: true });
+        window.addEventListener("pointercancel", state.pendingDrag.up, { capture: true });
+    },
+
+    onPendingPointerMove(container, event) {
+        const state = this.getState(container);
+        const pending = state.pendingDrag;
+
+        if (!pending || event.pointerId !== pending.pointerId) return;
+
+        const dx = event.clientX - pending.startX;
+        const dy = event.clientY - pending.startY;
+        const threshold = this.numberFromDataset(container, "dragStartThresholdPx", DEFAULTS.dragStartThresholdPx);
+
+        if (Math.hypot(dx, dy) < threshold) return;
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        this.startDrag(container, pending, event);
+        this.cancelPendingDrag(container);
+        this.moveDrag(container, event);
+    },
+
+    onPendingPointerUp(container, event) {
+        const state = this.getState(container);
+        const pending = state.pendingDrag;
+        if (!pending || event.pointerId !== pending.pointerId) return;
+
+        this.cancelPendingDrag(container);
+    },
+
+    cancelPendingDrag(container) {
+        const state = this.getState(container);
+        const pending = state.pendingDrag;
+        if (!pending) return;
+
+        window.removeEventListener("pointermove", pending.move, { capture: true });
+        window.removeEventListener("pointerup", pending.up, { capture: true });
+        window.removeEventListener("pointercancel", pending.up, { capture: true });
+        state.pendingDrag = null;
+    },
+
+    startDrag(container, pending, event) {
+        const item = pending.item;
+        const rect = item.getBoundingClientRect();
+        const state = this.getState(container);
+
+        state.drag = {
+            pointerId: pending.pointerId,
+            item,
+            originalParent: container,
+            originalNextSibling: item.nextSibling,
+            originalStyle: item.getAttribute("style") ?? "",
+            offsetX: event.clientX - rect.left,
+            offsetY: event.clientY - rect.top,
+            width: rect.width,
+            height: rect.height,
+            dropTarget: null,
+            dropEdge: null,
+            move: moveEvent => this.onDragPointerMove(container, moveEvent),
+            up: upEvent => this.onDragPointerUp(container, upEvent)
+        };
+
+        container.classList.add("pans-page__assigned-pans--dragging");
+        item.classList.add("pans-page__assigned-pan--dragging");
+
+        Object.assign(item.style, {
+            position: "fixed",
+            left: `${rect.left}px`,
+            top: `${rect.top}px`,
+            width: `${rect.width}px`,
+            height: `${rect.height}px`,
+            margin: "0",
+            transform: "none"
+        });
+
+        document.body.appendChild(item);
+        this.installDragBlockers(container);
+        this.requestUpdate(container);
+
+        window.addEventListener("pointermove", state.drag.move, { capture: true });
+        window.addEventListener("pointerup", state.drag.up, { capture: true });
+        window.addEventListener("pointercancel", state.drag.up, { capture: true });
+    },
+
+    onDragPointerMove(container, event) {
+        const drag = this.getState(container).drag;
+        if (!drag || event.pointerId !== drag.pointerId) return;
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        this.moveDrag(container, event);
+    },
+
+    onDragPointerUp(container, event) {
+        const drag = this.getState(container).drag;
+        if (!drag || event.pointerId !== drag.pointerId) return;
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        this.endDrag(container, { commit: event.type !== "pointercancel" });
+    },
+
+    moveDrag(container, event) {
+        const drag = this.getState(container).drag;
+        if (!drag) return;
+
+        Object.assign(drag.item.style, {
+            left: `${event.clientX - drag.offsetX}px`,
+            top: `${event.clientY - drag.offsetY}px`
+        });
+
+        const drop = this.findNearestDropEdge(container, event.clientX, event.clientY);
+        this.setDropIndicator(container, drop?.item ?? null, drop?.edge ?? null);
+
+        drag.dropTarget = drop?.item ?? null;
+        drag.dropEdge = drop?.edge ?? null;
+    },
+
+    endDrag(container, options = { commit: true }) {
+        const state = this.getState(container);
+        const drag = state.drag;
+        if (!drag) return;
+
+        window.removeEventListener("pointermove", drag.move, { capture: true });
+        window.removeEventListener("pointerup", drag.up, { capture: true });
+        window.removeEventListener("pointercancel", drag.up, { capture: true });
+
+        this.removeDragBlockers(container);
+        this.setDropIndicator(container, null, null);
+
+        const target = options.commit ? drag.dropTarget : null;
+        const edge = options.commit ? drag.dropEdge : null;
+
+        drag.item.classList.remove("pans-page__assigned-pan--dragging");
+        drag.item.setAttribute("style", drag.originalStyle);
+
+        if (target && target.parentElement === container) {
+            if (edge === "after" || edge === "below") {
+                container.insertBefore(drag.item, target.nextSibling);
+            } else {
+                container.insertBefore(drag.item, target);
+            }
+        } else {
+            container.insertBefore(drag.item, drag.originalNextSibling);
+        }
+
+        container.classList.remove("pans-page__assigned-pans--dragging");
+        state.drag = null;
+
+        this.requestUpdate(container);
+
+        if (options.commit && target) {
+            this.notifyReordered(container);
+        }
+    },
+
+    findNearestDropEdge(container, clientX, clientY) {
+        let best = null;
+
+        for (const item of this.getItems(container)) {
+            const rect = item.getBoundingClientRect();
+            if (rect.width <= 0 || rect.height <= 0) continue;
+
+            const distances = [
+                { edge: "before", value: Math.abs(clientX - rect.left), bias: this.distanceToSpan(clientY, rect.top, rect.bottom) },
+                { edge: "after", value: Math.abs(clientX - rect.right), bias: this.distanceToSpan(clientY, rect.top, rect.bottom) },
+                { edge: "above", value: Math.abs(clientY - rect.top), bias: this.distanceToSpan(clientX, rect.left, rect.right) },
+                { edge: "below", value: Math.abs(clientY - rect.bottom), bias: this.distanceToSpan(clientX, rect.left, rect.right) }
+            ];
+
+            for (const distance of distances) {
+                const score = distance.value + distance.bias * 0.85;
+                if (!best || score < best.score) {
+                    best = { item, edge: distance.edge, score };
+                }
+            }
+        }
+
+        return best;
+    },
+
+    distanceToSpan(value, min, max) {
+        if (value < min) return min - value;
+        if (value > max) return value - max;
+        return 0;
+    },
+
+    setDropIndicator(container, target, edge) {
+        const classes = [
+            "pans-page__assigned-pan--drop-before",
+            "pans-page__assigned-pan--drop-after",
+            "pans-page__assigned-pan--drop-above",
+            "pans-page__assigned-pan--drop-below"
+        ];
+
+        for (const item of this.getItems(container)) {
+            item.classList.remove(...classes);
+        }
+
+        if (!target || !edge) return;
+
+        target.classList.add(`pans-page__assigned-pan--drop-${edge}`);
+    },
+
+    installDragBlockers(container) {
+        const state = this.getState(container);
+        this.removeDragBlockers(container);
+
+        const blocker = event => {
+            if (!this.getState(container).drag) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        };
+
+        const types = [
+            "click",
+            "dblclick",
+            "contextmenu",
+            "dragstart",
+            "selectstart",
+            "pointerover",
+            "pointerout",
+            "pointerenter",
+            "pointerleave",
+            "mouseover",
+            "mouseout",
+            "mouseenter",
+            "mouseleave"
+        ];
+
+        state.dragBlockers = types.map(type => {
+            window.addEventListener(type, blocker, { capture: true });
+            return { type, blocker };
+        });
+    },
+
+    removeDragBlockers(container) {
+        const state = this.getState(container);
+
+        for (const { type, blocker } of state.dragBlockers ?? []) {
+            window.removeEventListener(type, blocker, { capture: true });
+        }
+
+        state.dragBlockers = [];
+    },
+
+    notifyReordered(container) {
+        const ids = this.getItems(container)
+            .map(item => item.dataset.panId)
+            .filter(Boolean);
+
+        const dotNetRef = this.getState(container).dotNetRef;
+        dotNetRef?.invokeMethodAsync?.("NotifyPansReordered", ids);
     },
 
     getGaps(element) {

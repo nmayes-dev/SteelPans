@@ -9,7 +9,9 @@
          data-pan-count="@Pans.Count">
         @foreach (var assignedPan in Pans)
         {
-            <section class="sp-section pans-page__assigned-pan" @key="assignedPan.InstanceId">
+            <section class="sp-section pans-page__assigned-pan"
+                     @key="assignedPan.InstanceId"
+                     data-pan-id="@assignedPan.InstanceId">
                 <div class="pans-page__assigned-pan-container">
                     <SteelPanView Pan="@assignedPan.Pan"
                                   PlaybackInstanceId="@assignedPan.InstanceId" />
@@ -36,6 +38,7 @@
                             class="pans-page__remove-pan-button"
                             title="Remove pan"
                             aria-label="Remove pan"
+                            data-pan-layout-no-drag
                             @onclick="() => OnRemovePan.InvokeAsync(assignedPan)">
                         <span class="bi bi-trash3"></span>
                     </button>
@@ -52,7 +55,11 @@
     [Parameter]
     public EventCallback<MidiAssignedPan> OnRemovePan { get; set; }
 
+    [Parameter]
+    public EventCallback<IReadOnlyList<Guid>> OnPansReordered { get; set; }
+
     private ElementReference assignedPansElement_;
+    private DotNetObjectReference<PansDisplay>? dotNetReference_;
     private bool panLayoutObserved_;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -60,26 +67,44 @@
         if (!firstRender)
             return;
 
-        await JS.InvokeVoidAsync("panLayout.observe", assignedPansElement_);
+        dotNetReference_ = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("panLayout.observe", assignedPansElement_, dotNetReference_);
         panLayoutObserved_ = true;
+    }
+
+    [JSInvokable]
+    public async Task NotifyPansReordered(IReadOnlyList<string> panIds)
+    {
+        if (!OnPansReordered.HasDelegate)
+            return;
+
+        var orderedIds = panIds
+            .Select(id => Guid.TryParse(id, out var guid) ? guid : (Guid?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToArray();
+
+        await OnPansReordered.InvokeAsync(orderedIds);
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (!panLayoutObserved_)
-            return;
+        if (panLayoutObserved_)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
+            }
+            catch (InvalidOperationException)
+            {
+                // JS interop is not available during prerender/static disposal.
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit/browser already disconnected.
+            }
+        }
 
-        try
-        {
-            await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
-        }
-        catch (InvalidOperationException)
-        {
-            // JS interop is not available during prerender/static disposal.
-        }
-        catch (JSDisconnectedException)
-        {
-            // Circuit/browser already disconnected.
-        }
+        dotNetReference_?.Dispose();
     }
 }

@@ -8,6 +8,8 @@
 
 .pans-page__assigned-pans {
     --pan-layout-width: 1vw;
+    --pan-reorder-indicator-size: clamp(0.28rem, 0.8vw, 0.45rem);
+    --pan-reorder-indicator-inset: clamp(0.18rem, 0.55vw, 0.35rem);
     position: relative;
     display: block;
     gap: 0.25rem;
@@ -21,6 +23,12 @@
     transition: opacity 800ms ease;
 }
 
+.pans-page__assigned-pans--dragging,
+.pans-page__assigned-pans--dragging * {
+    cursor: grabbing !important;
+    user-select: none !important;
+}
+
 .pans-page__assigned-pan {
     position: absolute;
     display: grid;
@@ -29,7 +37,65 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    transition: left 220ms ease, top 220ms ease, width 220ms ease, height 220ms ease, opacity 180ms ease, transform 180ms ease;
+    cursor: grab;
+    touch-action: none;
+    transition: left 220ms ease, top 220ms ease, width 220ms ease, height 220ms ease, opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+    .pans-page__assigned-pan::before,
+    .pans-page__assigned-pan::after {
+        content: "";
+        position: absolute;
+        z-index: 20;
+        pointer-events: none;
+        opacity: 0;
+        transform: scale(0.72);
+        background: rgba(37, 99, 235, 0.92);
+        box-shadow: 0 0 0 0.18rem rgba(37, 99, 235, 0.16);
+        transition: opacity 120ms ease, transform 120ms ease;
+    }
+
+    .pans-page__assigned-pan::before {
+        left: var(--pan-reorder-indicator-inset);
+        right: var(--pan-reorder-indicator-inset);
+        top: var(--pan-reorder-indicator-inset);
+        height: var(--pan-reorder-indicator-size);
+        border-radius: 999px;
+    }
+
+    .pans-page__assigned-pan::after {
+        top: var(--pan-reorder-indicator-inset);
+        bottom: var(--pan-reorder-indicator-inset);
+        left: var(--pan-reorder-indicator-inset);
+        width: var(--pan-reorder-indicator-size);
+        border-radius: 999px;
+    }
+
+.pans-page__assigned-pan--drop-before::after,
+.pans-page__assigned-pan--drop-after::after,
+.pans-page__assigned-pan--drop-above::before,
+.pans-page__assigned-pan--drop-below::before {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.pans-page__assigned-pan--drop-after::after {
+    left: auto;
+    right: var(--pan-reorder-indicator-inset);
+}
+
+.pans-page__assigned-pan--drop-below::before {
+    top: auto;
+    bottom: var(--pan-reorder-indicator-inset);
+}
+
+.pans-page__assigned-pan--dragging {
+    z-index: 100000;
+    opacity: 0.58;
+    cursor: grabbing;
+    pointer-events: none;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.26);
+    transition: opacity 120ms ease, box-shadow 120ms ease;
 }
 
 @starting-style {
@@ -133,10 +199,10 @@
     transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-.pans-page__remove-pan-button .bi {
-    font-size: var(--ui-icon-size);
-    line-height: 1;
-}
+    .pans-page__remove-pan-button .bi {
+        font-size: var(--ui-icon-size);
+        line-height: 1;
+    }
 
 @media (hover: hover) and (pointer: fine) {
     .pans-page__remove-pan-button:hover {
