@@ -19,6 +19,16 @@
     min-height: 0;
 }
 
+@starting-style {
+    .pans-page__assigned-pans {
+        opacity: 0;
+    }
+}
+
+.pans-page__assigned-pans--loading {
+    transition: opacity 800ms ease;
+}
+
 .pans-page__assigned-pans--loading .pans-page__assigned-pan {
     transition: opacity 800ms ease;
 }
@@ -40,6 +50,12 @@
     cursor: grab;
     touch-action: none;
     transition: left 220ms ease, top 220ms ease, width 220ms ease, height 220ms ease, opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+@starting-style {
+    .pans-page__assigned-pan {
+        opacity: 0;
+    }
 }
 
     .pans-page__assigned-pan::before,
@@ -98,12 +114,6 @@
     pointer-events: none;
     box-shadow: 0 24px 48px rgba(15, 23, 42, 0.26);
     transition: opacity 120ms ease, box-shadow 120ms ease;
-}
-
-@starting-style {
-    .pans-page__assigned-pan {
-        opacity: 0;
-    }
 }
 
 .pans-page__assigned-pan-container {
