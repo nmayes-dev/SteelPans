@@ -11,14 +11,18 @@ jobs:
     runs-on: [self-hosted, home-server]
 
     steps:
-      - name: Deploy Prod (master)
+      - name: Deploy Prod
         if: github.ref == 'refs/heads/master'
         run: |
-          cd ~/server/prod/apps/steel-pans
+          cd "$PANS_PROD_PATH"
           docker compose restart steel-pans
+        env:
+          PANS_PROD_PATH: ${{ vars.PANS_PROD_PATH }}
 
-      - name: Deploy Dev (develop)
+      - name: Deploy Dev
         if: github.ref == 'refs/heads/develop'
         run: |
-          cd ~/server/dev/apps/steel-pans
+          cd "$PANS_DEV_PATH"
           docker compose restart steel-pans
+        env:
+          PANS_DEV_PATH: ${{ vars.PANS_DEV_PATH }}
