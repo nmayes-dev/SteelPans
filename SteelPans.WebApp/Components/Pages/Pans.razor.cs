@@ -128,10 +128,7 @@ public partial class Pans : IAsyncDisposable
     private async Task LoadStartupFileAsync(string filePath)
     {
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
-        {
-            loadError_ = "Startup file not found.";
             return;
-        }
 
         var fileInfo = new FileInfo(filePath);
         midiFileName_ = fileInfo.Name;
