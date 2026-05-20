@@ -6,8 +6,7 @@ public abstract class OverlayComponentBase : ComponentBase, IDisposable
 {
     [Inject]
     protected OverlayManagerService Registry { get; set; } = default!;
-
-    private bool open_ = false;
+    public bool IsOpen { get; private set; } = false;
 
     protected override void OnInitialized()
     {
@@ -22,19 +21,19 @@ public abstract class OverlayComponentBase : ComponentBase, IDisposable
 
     public async Task NotifyOpenedAsync()
     {
-        if (open_)
+        if (IsOpen)
             return;
 
-        open_ = true;
+        IsOpen = true;
         await Registry.OnOpenComponentAsync(this);
     }
 
     public Task RequestCloseAsync()
     {
-        if (!open_)
+        if (!IsOpen)
             return Task.CompletedTask;
 
-        open_ = false;
+        IsOpen = false;
         return InvokeAsync(OnCloseAsync);
     }
 
@@ -46,6 +45,8 @@ public class OverlayManagerService
     private readonly HashSet<OverlayComponentBase> components_ = [];
 
     public IReadOnlyCollection<OverlayComponentBase> Components => components_;
+
+    public bool AnyOpen => components_.Any(x => x.IsOpen);
 
     public void Register(OverlayComponentBase component)
     {

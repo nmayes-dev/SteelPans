@@ -1,3 +1,5 @@
+using Melanchall.DryWetMidi.Core;
+using Melanchall.DryWetMidi.Multimedia;
 using Microsoft.JSInterop;
 using SteelPans.WebApp.Components.Elements;
 using SteelPans.WebApp.Components.Pages;
@@ -23,6 +25,7 @@ public sealed record PlaybackTempoChangedEventArgs(int Bpm);
 
 public sealed class MidiPlaybackService : IAsyncDisposable
 {
+    private readonly MidiLoaderService loader_;
     private readonly IJSRuntime js_;
 
     private readonly Dictionary<int, List<MidiPanEvent>> midiTrackEventsByIndex_ = [];
@@ -41,8 +44,9 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     private TimeSpan playbackScoreAnchorOffset_ = TimeSpan.Zero;
     private int playbackTempoAnchorBpm_ = 120;
 
-    public MidiPlaybackService(IJSRuntime js)
+    public MidiPlaybackService(MidiLoaderService loader, IJSRuntime js)
     {
+        loader_ = loader;
         js_ = js;
     }
 
@@ -55,7 +59,9 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     public List<MidiTrackAssignment> Assignments { get; } = [];
     public List<MidiAssignedPan> ActivePans { get; } = [];
+    public List<MidiTrackInfo> Tracks { get; } = [];
 
+    public bool IsMidiLoaded => midiPlaybackInfo_ is not null;
     public bool IsPlaying { get; private set; }
     public TimeSpan Position { get; private set; }
     public TimeSpan Duration { get; private set; }
@@ -69,15 +75,55 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     public int InitialMidiBpm => midiPlaybackInfo_?.InitialBpm ?? TempoBpm;
     public int EffectiveMidiBpm => midiBpmOverride_ ?? midiPlaybackInfo_?.InitialBpm ?? TempoBpm;
 
-    public async Task OnLoadMidiAsync(MidiPlaybackInfo? playbackInfo, IReadOnlyDictionary<int, List<MidiPanEvent>> trackEventsByIndex)
+    public async Task OnUnloadMidiAsync()
     {
         await StopAsync(resetPosition: true);
 
         Assignments.Clear();
         ActivePans.Clear();
+        Tracks.Clear();
+
+        steelPanViews_.Clear();
+        playingComponentIds_.Clear();
+
+        midiTrackEventsByIndex_.Clear();
+        midiPlaybackInfo_ = null;
+        midiBpmOverride_ = null;
+        midiStartAt_ = null;
+
+        playbackSessionStartOffset_ = TimeSpan.Zero;
+        playbackAudioAnchorTime_ = null;
+        playbackScoreAnchorOffset_ = TimeSpan.Zero;
+        playbackTempoAnchorBpm_ = 120;
+
+        Position = TimeSpan.Zero;
+        Duration = TimeSpan.Zero;
+
+        await NotifyStateChangedAsync();
+    }
+
+    public async Task OnLoadMidiAsync(Func<Task<MidiFile>> getMidiFile)
+    {
+        await StopAsync(resetPosition: true);
+
+        Assignments.Clear();
+        ActivePans.Clear();
+        Tracks.Clear();
+
         steelPanViews_.Clear();
         playingComponentIds_.Clear();
         midiTrackEventsByIndex_.Clear();
+
+        var midiFile = await getMidiFile();
+        var playbackInfo = loader_.GetPlaybackInfo(midiFile);
+        var playableTracks = loader_.LoadPlayableTracks(midiFile);
+
+        var trackEventsByIndex = new Dictionary<int, List<MidiPanEvent>>();
+        foreach (var (track, events) in playableTracks)
+        {
+            Tracks.Add(track);
+            trackEventsByIndex[track.Index] = events;
+        }
 
         foreach (var (index, events) in trackEventsByIndex)
             midiTrackEventsByIndex_[index] = events;
@@ -98,6 +144,27 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             BeatsPerBar = midiPlaybackInfo_.InitialBeatsPerBar;
             BeatUnit = midiPlaybackInfo_.InitialBeatUnit;
         }
+
+        await NotifyStateChangedAsync();
+    }
+
+    public async Task OnClearAssignmentsAsync()
+    {
+        await StopAsync(resetPosition: true);
+
+        Assignments.Clear();
+        ActivePans.Clear();
+
+        steelPanViews_.Clear();
+        playingComponentIds_.Clear();
+
+        playbackSessionStartOffset_ = TimeSpan.Zero;
+        playbackAudioAnchorTime_ = null;
+        playbackScoreAnchorOffset_ = TimeSpan.Zero;
+        playbackTempoAnchorBpm_ = 120;
+
+        Position = TimeSpan.Zero;
+        Duration = TimeSpan.Zero;
 
         await NotifyStateChangedAsync();
     }

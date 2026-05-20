@@ -2,18 +2,19 @@ using Melanchall.DryWetMidi.Core;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 using SteelPans.WebApp.Components.Elements;
 using SteelPans.WebApp.Components.Layout;
 using SteelPans.WebApp.Model;
+using System.Text.Json;
 
 namespace SteelPans.WebApp.Components.Pages;
 
 public partial class Pans : IAsyncDisposable
 {
-    private StartupSettings StartupSettings => StartupSettingsAccessor.Value;
+    private Settings Settings => SettingsAccessor.Value;
 
     private readonly List<SteelPan> pans_ = [];
-    private readonly List<MidiTrackInfo> midiTracks_ = [];
     private string? loadError_;
     private string midiFileName_ = string.Empty;
     private string mergeMidiFileName_ = string.Empty;
@@ -22,6 +23,10 @@ public partial class Pans : IAsyncDisposable
     private AddPanModal? addPanModal_;
     private ModalPopup? addMergedTrackModal_;
     private ModalPopup? removePanModal_;
+
+    private FileSaveModal? saveModal_;
+    private string? lastFileName_;
+
     private MidiAssignedPan? panPendingRemoval_;
 
     protected override async Task OnInitializedAsync()
@@ -38,43 +43,95 @@ public partial class Pans : IAsyncDisposable
             loadError_ = ex.Message;
         }
     }
-
-    private async Task LoadStartupSettings()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!StartupSettings.Use)
-            return;
-
-        if (!string.IsNullOrWhiteSpace(StartupSettings.MidiFile) && File.Exists(StartupSettings.MidiFile))
+        if (firstRender && Settings.UseStartupConfig)
         {
-            var fileInfo = new FileInfo(StartupSettings.MidiFile);
-            midiFileName_ = fileInfo.Name;
-            await OnMidiFileSelected(async () =>
+            await LoadStartupFileAsync(Settings.StartupConfig.MidiFilePath);
+            await LoadPanLayoutAsync(Settings.StartupConfig.Layout);
+        }
+    }
+
+    public async Task LoadConfigurationFileAsync()
+    {
+        try
+        {
+            var result = await JS.InvokeAsync<Configuration>("fileDialogs.openConfigFile");
+
+            if (result is not null)
             {
-                await using var stream = File.OpenRead(StartupSettings.MidiFile);
-                return await MidiService.OpenMidiFileAsync(stream);
-            });
+                if (result.Version != Settings.LayoutFileVersion)
+                {
+                    loadError_ = "Incompatible layout file version.";
+                    return;
+                }
+
+                await LoadPanLayoutAsync(result.Layout);
+            }
+        }
+        catch (Exception)
+        {
+            loadError_ = "An error occured loading this file.";
+        }
+    }
+
+    public async Task SaveConfigurationFileAsync(string fileName)
+    {
+        var configuration = new Configuration
+        {
+            Version = Settings.Version,
+            Layout = Playback.Assignments.Select(a => new ConfigurationPan
+            {
+                Pan = a.AssignedPanType,
+                Track = a.Track?.Index ?? -1,
+            }).ToList()
+        };
+
+        try
+        {
+            await JS.InvokeVoidAsync("fileDialogs.saveConfigFile", fileName, configuration);
+            lastFileName_ = fileName;
+        }
+        catch (Exception)
+        {
+            loadError_ = "An error occured saving this file.";
+        }
+    }
+
+    private async Task LoadStartupFileAsync(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        {
+            loadError_ = "Startup file not found.";
+            return;
         }
 
-        foreach (var startup in StartupSettings.Tracks)
+        var fileInfo = new FileInfo(filePath);
+        midiFileName_ = fileInfo.Name;
+        await OnMidiFileSelected(async () =>
         {
-            if (startup.Track < midiTracks_.Count)
+            await using var stream = File.OpenRead(filePath);
+            return await MidiService.OpenMidiFileAsync(stream);
+        });
+    }
+
+    private async Task LoadPanLayoutAsync(List<ConfigurationPan> layout)
+    {
+        await Playback.OnClearAssignmentsAsync();
+
+        foreach (var pan in layout)
+        {
+            var track = Playback.Tracks.Where(t => t.Index == pan.Track).FirstOrDefault();
+            if (track is not null)
             {
                 var assignment = new MidiTrackAssignment
                 {
-                    AssignedPanType = startup.Pan,
-                    Track = midiTracks_[startup.Track],
+                    AssignedPanType = pan.Pan,
+                    Track = track,
                 };
 
                 await Playback.OnAddAssignmentAsync(assignment, pans_);
             }
-        }
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            await LoadStartupSettings();
         }
     }
 
@@ -85,23 +142,7 @@ public partial class Pans : IAsyncDisposable
 
     private async Task OnMidiFileSelected(Func<Task<MidiFile>> getMidiFile)
     {
-        await Playback.OnLoadMidiAsync(null, new Dictionary<int, List<MidiPanEvent>>());
-
-        var midiFile = await getMidiFile();
-        var playbackInfo = MidiService.GetPlaybackInfo(midiFile);
-        var playableTracks = MidiService.LoadPlayableTracks(midiFile);
-
-        midiTracks_.Clear();
-
-        var trackEventsByIndex = new Dictionary<int, List<MidiPanEvent>>();
-        foreach (var (track, events) in playableTracks)
-        {
-            midiTracks_.Add(track);
-            trackEventsByIndex[track.Index] = events;
-        }
-
-        await Playback.OnLoadMidiAsync(playbackInfo, trackEventsByIndex);
-        await InvokeAsync(StateHasChanged);
+        await Playback.OnLoadMidiAsync(getMidiFile);
     }
 
     private Task CloseMergeMidiModal()

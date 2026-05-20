@@ -7,7 +7,8 @@
 @inject MidiLoaderService MidiService
 @inject MidiPlaybackService Playback
 @inject KeyboardManagerService KeyboardManager
-@inject IOptions<StartupSettings> StartupSettingsAccessor
+@inject IJSRuntime JS
+@inject IOptions<Settings> SettingsAccessor
 
 <PageTitle>Steel Pans</PageTitle>
 
@@ -34,7 +35,7 @@
         <section class="pans-page__top-grid">
             <section class="pans-page__midi-loader">
                 <MidiLoader FileName="@midiFileName_"
-                            Tracks="@midiTracks_"
+                            Tracks="@Playback.Tracks"
                             OnSingleMidiSelected="OnSingleMidiSelectedAsync"
                             OnMultipleMidiSelected="OnMultipleMidiSelectedAsync"
                             OnTrackAdded="(track) => addPanModal_!.Open(track.Index)" />
@@ -81,9 +82,24 @@
                          MenuLabel="Pan Tools"
                          Side="Toolbar.ToolbarSide.Left">
 
+                    <ToolbarElement Title="Load Layout"
+                                    IconClass="bi bi-folder2-open"
+                                    Disabled="!Playback.IsMidiLoaded"
+                                    OnClick="async () => await LoadConfigurationFileAsync()" />
+                         
+                    <ToolbarElement Title="Save Layout"
+                                    IconClass="bi bi-floppy"
+                                    Disabled="@(string.IsNullOrWhiteSpace(lastFileName_) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
+                                    OnClick="async () => await SaveConfigurationFileAsync(lastFileName_!)" />
+
+                    <ToolbarElement Title="Save Layout As..."
+                                    IconClass="bi bi-floppy2"
+                                    Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
+                                    OnClick="async () => await saveModal_!.Open()" />
+
                     <ToolbarElement Title="Add Pan"
                                     IconClass="bi bi-plus-lg"
-                                    OnClick="() => addPanModal_!.Open()" />
+                                    OnClick="async () => await addPanModal_!.Open()" />
 
                     @if (Playback.ActivePans.Any())
                     {
@@ -130,7 +146,11 @@
 
         <AddPanModal @ref="addPanModal_"
                      Pans="@pans_"
-                     Tracks="@midiTracks_" />
+                     Tracks="@Playback.Tracks" />
+
+        <FileSaveModal @ref="saveModal_"
+                       LastFileName="@lastFileName_"
+                       OnSave="SaveConfigurationFileAsync" />
 
         var removeTitle = panPendingRemoval_ is not null
             ? $"Remove {panPendingRemoval_.Pan.Type.ToSpacedPascal()}?"

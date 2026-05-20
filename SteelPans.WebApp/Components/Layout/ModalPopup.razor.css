@@ -30,8 +30,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 0.4rem;
-    margin-bottom: 1rem;
+    padding-left: 0.3rem;
+    margin-bottom: 0.4rem;
 }
 
 .modal-popup__title {
@@ -48,7 +48,7 @@
 }
 
 .modal-popup__body {
-    margin-bottom: 1rem;
+    margin-bottom: 0.6rem;
 }
 
 .modal-popup__actions {

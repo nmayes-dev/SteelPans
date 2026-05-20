@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 
 namespace SteelPans.WebApp.Model;
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum PanType
 {
     None,

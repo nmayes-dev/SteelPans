@@ -108,7 +108,7 @@
     protected override async Task OnCloseAsync()
     {
         showTrackOverlay_ = false;
-        await Task.CompletedTask;
+        await InvokeAsync(StateHasChanged);
     }
 
     private bool IsTrackAssigned(MidiTrackInfo track)

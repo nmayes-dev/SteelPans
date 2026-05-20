@@ -21,7 +21,7 @@ namespace SteelPans.WebApp
             builder.Services.AddScoped<OverlayManagerService>();
             builder.Services.AddScoped<KeyboardManagerService>();
 
-            builder.Services.Configure<StartupSettings>(builder.Configuration.GetSection("Startup"));
+            builder.Services.Configure<Settings>(builder.Configuration.GetSection("Settings"));
 
             var app = builder.Build();
 

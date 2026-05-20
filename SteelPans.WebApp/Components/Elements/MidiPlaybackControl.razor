@@ -2,6 +2,7 @@
 @using SteelPans.WebApp.Services
 @implements IDisposable
 @inherits KeyboardComponentBase
+@inject OverlayManagerService Overlays
 
 <div class="sp-section midi-playback">
     <div class="midi-playback__top-row">
@@ -87,7 +88,7 @@
         Playback.PositionChanged += HandlePlaybackPositionChangedAsync;
 
         RegisterKeyboardCallback(
-            e => Enabled && e.Code.Equals("Space", StringComparison.OrdinalIgnoreCase),
+            e => Enabled && !Overlays.AnyOpen && e.Code.Equals("Space", StringComparison.OrdinalIgnoreCase),
             async _ => await HandlePlayPauseAsync()
         );
     }

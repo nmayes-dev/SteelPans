@@ -2,7 +2,7 @@
     --toolbar__button-size: var(--ui-icon-button-size, clamp(1.25rem, 2vw, 3.25rem));
     --toolbar__button-radius: var(--ui-icon-button-radius, calc(0.5 * var(--toolbar__button-size)));
     --toolbar__icon-size: var(--ui-icon-size, calc(var(--toolbar__button-size) * 0.5));
-    --toolbar__menu-width: 10rem;
+    --toolbar__menu-width: max-content;
     --toolbar__panel-width: clamp(18rem, 30vw, 20rem);
     --toolbar__menu-max-height: 20rem;
     --toolbar__panel-max-height: 30rem;
@@ -172,7 +172,6 @@
     grid-column: 1;
     width: 100%;
     min-width: 0;
-    overflow: hidden;
     background: transparent;
 }
 
@@ -182,6 +181,7 @@
     opacity: 0;
     pointer-events: none;
     padding: 0;
+    overflow-y: auto;
     transition: max-height 500ms ease, opacity 300ms ease, padding 500ms ease;
 }
 
@@ -217,6 +217,14 @@
     transition: background 200ms ease, color 200ms ease;
 }
 
+    .toolbar__menu-item:disabled {
+        cursor: default;
+    }
+
+        .toolbar__menu-item:disabled span {
+            opacity: 0.55;
+        }
+
     .toolbar__menu-item:hover:not(:disabled) {
         background: linear-gradient(180deg, rgb(238, 244, 252), rgb(208, 218, 249));
         color: #1d4ed8;
@@ -235,6 +243,7 @@
     opacity: 0;
     pointer-events: none;
     padding: 0;
+    overflow: hidden;
     transition: max-height 500ms ease, opacity 300ms ease, padding 500ms ease;
 }
 
