@@ -9,5 +9,6 @@ public sealed class ConfigurationPan
 public sealed class Configuration
 {
     public required Version Version { get; set; }
+    public required string MidiFile { get; set; }
     public List<ConfigurationPan> Layout { get; set; } = [];
 }

@@ -148,6 +148,25 @@
                      Pans="@pans_"
                      Tracks="@Playback.Tracks" />
 
+        <ModalPopup @ref="warningModal_"
+                    Title="Loading Layout For Different MIDI"
+                    ShowCloseButton="false"
+                    OnEnter="ConfirmLoadConfigurationAsync">
+            <Actions>
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        @onclick="CancelLoadConfigurationAsync">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="btn btn-danger"
+                        @onclick="ConfirmLoadConfigurationAsync">
+                    Confirm
+                </button>
+            </Actions>
+        </ModalPopup>
+
         <FileSaveModal @ref="saveModal_"
                        LastFileName="@lastFileName_"
                        OnSave="SaveConfigurationFileAsync" />

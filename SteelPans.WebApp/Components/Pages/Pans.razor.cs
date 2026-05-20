@@ -27,6 +27,9 @@ public partial class Pans : IAsyncDisposable
     private FileSaveModal? saveModal_;
     private string? lastFileName_;
 
+    private ModalPopup? warningModal_;
+    private Configuration? pendingLoadConfiguration_;
+
     private MidiAssignedPan? panPendingRemoval_;
 
     protected override async Task OnInitializedAsync()
@@ -66,6 +69,13 @@ public partial class Pans : IAsyncDisposable
                     return;
                 }
 
+                if (result.MidiFile != midiFileName_)
+                {
+                    pendingLoadConfiguration_ = result;
+                    await warningModal_!.Open();
+                    return;
+                }
+
                 await LoadPanLayoutAsync(result.Layout);
             }
         }
@@ -75,11 +85,28 @@ public partial class Pans : IAsyncDisposable
         }
     }
 
+    private async Task CancelLoadConfigurationAsync()
+    {
+        pendingLoadConfiguration_ = null;
+        await warningModal_!.RequestCloseAsync();
+    }
+
+    private async Task ConfirmLoadConfigurationAsync()
+    {
+        if (pendingLoadConfiguration_ is null)
+            return;
+
+        await warningModal_!.RequestCloseAsync();
+        await LoadPanLayoutAsync(pendingLoadConfiguration_.Layout);
+        pendingLoadConfiguration_ = null;
+    }
+
     public async Task SaveConfigurationFileAsync(string fileName)
     {
         var configuration = new Configuration
         {
             Version = Settings.Version,
+            MidiFile = midiFileName_,
             Layout = Playback.Assignments.Select(a => new ConfigurationPan
             {
                 Pan = a.AssignedPanType,
