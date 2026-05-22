@@ -1,5 +1,9 @@
 ﻿@implements IDisposable
 
+<CascadingValue Value="this" IsFixed="true">
+    @SubMenu
+</CascadingValue>
+
 @code {
     public enum ElementMode
     {
@@ -7,8 +11,13 @@
         Modal,
     }
 
+    private readonly List<ToolbarElement> children_ = [];
+
     [CascadingParameter]
     public Toolbar? Parent { get; set; }
+
+    [CascadingParameter]
+    public ToolbarElement? ParentElement { get; set; }
 
     [Parameter]
     public ElementMode Mode { get; set; }
@@ -26,6 +35,9 @@
     public RenderFragment? ChildContent { get; set; }
 
     [Parameter]
+    public RenderFragment? SubMenu { get; set; }
+
+    [Parameter]
     public EventCallback OnClick { get; set; }
 
     [Parameter]
@@ -40,15 +52,36 @@
     [Parameter]
     public bool Disabled { get; set; } = false;
 
+    internal IReadOnlyList<ToolbarElement> Children => children_;
+
     internal bool HasBody => ChildContent is not null;
+
+    internal bool HasSubMenu => children_.Count > 0;
+
+    internal void RegisterChild(ToolbarElement element)
+    {
+        if (!children_.Contains(element))
+            children_.Add(element);
+    }
+
+    internal void UnregisterChild(ToolbarElement element)
+    {
+        children_.Remove(element);
+    }
 
     protected override void OnInitialized()
     {
-        Parent?.RegisterElement(this);
+        if (ParentElement is not null)
+            ParentElement.RegisterChild(this);
+        else
+            Parent?.RegisterElement(this);
     }
 
     public void Dispose()
     {
-        Parent?.UnregisterElement(this);
+        if (ParentElement is not null)
+            ParentElement.UnregisterChild(this);
+        else
+            Parent?.UnregisterElement(this);
     }
 }

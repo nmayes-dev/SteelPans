@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components;
 
-namespace SteelPans.WebApp.Components.Layout;
+namespace SteelPans.WebApp.Components.Layout.Toolbar;
 
 public partial class Toolbar
 {
@@ -59,11 +59,29 @@ public partial class Toolbar
         elements_.Remove(element);
 
         if (ReferenceEquals(ActiveElement, element))
-        {
             ActiveElement = null;
-        }
 
         StateHasChanged();
+    }
+
+    internal async Task OpenElementAsync(ToolbarElement element)
+    {
+        if (element.Disabled || element.HasSubMenu)
+            return;
+
+        if (element.HasBody)
+        {
+            ActiveElement = element;
+            menuOpen_ = false;
+            await InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        if (element.OnClick.HasDelegate)
+            await element.OnClick.InvokeAsync();
+
+        if (element.CloseOnAction)
+            menuOpen_ = false;
     }
 
     private async Task ToggleMenu()
@@ -77,9 +95,7 @@ public partial class Toolbar
 
         menuOpen_ = !menuOpen_;
         if (menuOpen_)
-        {
             await NotifyOpenedAsync();
-        }
     }
 
     private async Task OpenModalElement()
@@ -90,25 +106,6 @@ public partial class Toolbar
         ModalElement = ActiveElement;
         menuOpen_ = false;
         await elementPopup_.Open();
-    }
-
-    private async Task OpenElementAsync(ToolbarElement element)
-    {
-        if (element.Disabled)
-            return;
-
-        if (element.HasBody)
-        {
-            ActiveElement = element;
-            menuOpen_ = false;
-            return;
-        }
-
-        if (element.OnClick.HasDelegate)
-            await element.OnClick.InvokeAsync();
-
-        if (element.CloseOnAction)
-            menuOpen_ = false;
     }
 
     protected override async Task OnCloseAsync()

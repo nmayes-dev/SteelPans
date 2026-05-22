@@ -94,7 +94,7 @@
 .midi-loader__track-overlay {
     --overlay-width: min(24rem, 80vw);
     --overlay-separation: 0.75rem;
-    --overlay-padding: clamp(0.3rem, 1.4vw, 0.8rem);
+    --overlay-padding: clamp(0.5rem, 1.4vw, 0.8rem);
     --overlay-gap: clamp(0.25rem, 1vw, 0.75rem);
     --overlay-radius: clamp(0.55rem, 2vw, 0.95rem);
     --overlay-title-size: clamp(0.68rem, 1.7vw, 0.82rem);

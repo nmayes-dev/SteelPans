@@ -1,4 +1,4 @@
-.pans-page__pan-stage {
+.pans-display {
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -6,7 +6,7 @@
     height: 100%;
 }
 
-.pans-page__assigned-pans {
+.pans-display__items {
     --pan-layout-width: 1vw;
     --pan-reorder-indicator-size: clamp(0.08rem, 0.4vw, 0.18rem);
     --pan-reorder-indicator-length-inset: clamp(0.18rem, 0.55vw, 0.35rem);
@@ -20,26 +20,26 @@
 }
 
 @starting-style {
-    .pans-page__assigned-pans {
+    .pans-display__items {
         opacity: 0;
     }
 }
 
-.pans-page__assigned-pans--loading {
+.pans-display__items--loading {
     transition: opacity 800ms ease;
 }
 
-    .pans-page__assigned-pans--loading .pans-page__assigned-pan {
+    .pans-display__items--loading .pans-display__item {
         transition: opacity 800ms ease;
     }
 
-.pans-page__assigned-pans--dragging,
-.pans-page__assigned-pans--dragging * {
+.pans-display__items--dragging,
+.pans-display__items--dragging * {
     cursor: grabbing !important;
     user-select: none !important;
 }
 
-.pans-page__assigned-pan {
+.pans-display__item {
     position: absolute;
     display: grid;
     place-items: center;
@@ -52,34 +52,34 @@
     transition: left 220ms ease, top 220ms ease, width 220ms ease, height 220ms ease, opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease;
 }
 
-.pans-page__assigned-pans--can-drag .pans-page__assigned-pan {
+.pans-display__items--can-drag .pans-display__item {
     cursor: grab;
 }
 
-.pans-page__assigned-pans--can-drag .pans-page__assigned-pan--pan-body-hover {
+.pans-display__items--can-drag .pans-display__item--pan-body-hover {
     cursor: default;
 }
 
-.pans-page__assigned-pan .sp-svg,
-.pans-page__assigned-pan .sp-svg-circle,
-.pans-page__assigned-pan .sp-label {
+.pans-display__item .sp-svg,
+.pans-display__item .sp-svg-circle,
+.pans-display__item .sp-label {
     cursor: default;
 }
 
-.pans-page__assigned-pan .sp-note,
-.pans-page__assigned-pan [data-pan-note] {
+.pans-display__item .sp-note,
+.pans-display__item [data-pan-note] {
     cursor: pointer;
 }
 
 
 @starting-style {
-    .pans-page__assigned-pan {
+    .pans-display__item {
         opacity: 0;
     }
 }
 
-.pans-page__assigned-pan::before,
-.pans-page__assigned-pan::after {
+.pans-display__item::before,
+.pans-display__item::after {
     content: "";
     position: absolute;
     z-index: 20;
@@ -91,7 +91,7 @@
     transition: opacity 120ms ease, transform 120ms ease;
 }
 
-.pans-page__assigned-pan::before {
+.pans-display__item::before {
     left: var(--pan-reorder-indicator-length-inset);
     right: var(--pan-reorder-indicator-length-inset);
     top: 0;
@@ -99,7 +99,7 @@
     transform: translateY(-50%) scaleX(0.72);
 }
 
-.pans-page__assigned-pan::after {
+.pans-display__item::after {
     top: var(--pan-reorder-indicator-length-inset);
     bottom: var(--pan-reorder-indicator-length-inset);
     left: 0;
@@ -107,27 +107,27 @@
     transform: translateX(-50%) scaleY(0.72);
 }
 
-.pans-page__assigned-pan--drop-before::after,
-.pans-page__assigned-pan--drop-after::after {
+.pans-display__item--drop-before::after,
+.pans-display__item--drop-after::after {
     opacity: 1;
     transform: translateX(-50%) scaleY(1);
 }
 
-.pans-page__assigned-pan--drop-above::before,
-.pans-page__assigned-pan--drop-below::before {
+.pans-display__item--drop-above::before,
+.pans-display__item--drop-below::before {
     opacity: 1;
     transform: translateY(-50%) scaleX(1);
 }
 
-.pans-page__assigned-pan--drop-after::after {
+.pans-display__item--drop-after::after {
     left: 100%;
 }
 
-.pans-page__assigned-pan--drop-below::before {
+.pans-display__item--drop-below::before {
     top: 100%;
 }
 
-.pans-page__assigned-pan--dragging {
+.pans-display__item--dragging {
     z-index: 100000;
     opacity: 0.58;
     cursor: grabbing;
@@ -136,7 +136,7 @@
     transition: opacity 120ms ease, box-shadow 120ms ease;
 }
 
-.pans-page__assigned-pan-container {
+.pans-display__item-container {
     width: 100%;
     height: 100%;
     min-width: 0;
@@ -147,14 +147,14 @@
     overflow: hidden;
 }
 
-.pans-page__assigned-pan-header {
+.pans-display__item-header {
     position: absolute;
     inset: 0;
     z-index: 10;
     pointer-events: none;
 }
 
-.pans-page__assigned-pan-copy {
+.pans-display__item-copy {
     --pan-copy-value-font-size: clamp(0.48rem, 0.78vw, 0.74rem);
     --pan-copy-label-scale: 0.72;
     --pan-copy-inline-inset: clamp(0.45rem, 1.45em, 0.95rem);
@@ -171,7 +171,7 @@
     line-height: 1.05;
 }
 
-.pans-page__assigned-pan-copy-group {
+.pans-display__item-copy-group {
     display: flex;
     flex-direction: column;
     min-width: 0;
@@ -179,15 +179,15 @@
     gap: 0.2rem;
 }
 
-.pans-page__assigned-pan-copy-group--left {
+.pans-display__item-copy-group--left {
     text-align: left;
 }
 
-.pans-page__assigned-pan-copy-group--right {
+.pans-display__item-copy-group--right {
     text-align: right;
 }
 
-.pans-page__assigned-pan-copy-label {
+.pans-display__item-copy-label {
     font-size: calc(1em * var(--pan-copy-label-scale));
     font-weight: 800;
     letter-spacing: 0.08em;
@@ -196,8 +196,8 @@
     line-height: 1;
 }
 
-.pans-page__assigned-pan-track,
-.pans-page__assigned-pan-type {
+.pans-display__item-track,
+.pans-display__item-type {
     display: block;
     min-width: 0;
     max-width: 100%;
@@ -207,13 +207,13 @@
     text-overflow: ellipsis;
 }
 
-.pans-page__assigned-pan-copy-label,
-.pans-page__assigned-pan-track,
-.pans-page__assigned-pan-type {
+.pans-display__item-copy-label,
+.pans-display__item-track,
+.pans-display__item-type {
     transition: font-size 200ms ease;
 }
 
-.pans-page__remove-pan-button {
+.pans-display__remove-button {
     position: absolute;
     top: 0.5rem;
     right: 0.5rem;
@@ -231,13 +231,13 @@
     transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
 }
 
-    .pans-page__remove-pan-button .bi {
+    .pans-display__remove-button .bi {
         font-size: var(--ui-icon-size);
         line-height: 1;
     }
 
 @media (hover: hover) and (pointer: fine) {
-    .pans-page__remove-pan-button:hover {
+    .pans-display__remove-button:hover {
         background: #fee2e2;
         border-color: rgba(220, 38, 38, 0.45);
         color: #b91c1c;

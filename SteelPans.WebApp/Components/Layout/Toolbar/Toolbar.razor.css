@@ -2,7 +2,8 @@
     --toolbar__button-size: var(--ui-icon-button-size, clamp(1.25rem, 2vw, 3.25rem));
     --toolbar__button-radius: var(--ui-icon-button-radius, calc(0.5 * var(--toolbar__button-size)));
     --toolbar__icon-size: var(--ui-icon-size, calc(var(--toolbar__button-size) * 0.5));
-    --toolbar__menu-width: max-content;
+    --toolbar__menu-width: 8rem;
+    --toolbar__submenu-width: 8rem;
     --toolbar__panel-width: clamp(18rem, 30vw, 20rem);
     --toolbar__menu-max-height: 20rem;
     --toolbar__panel-max-height: 30rem;
@@ -15,12 +16,12 @@
     width: var(--toolbar__button-size);
     height: auto;
     min-width: 0;
-    overflow: hidden;
+    overflow: visible;
     border: 1px solid var(--toolbar__border-color);
     background: rgba(255, 255, 255, 0.98);
     border-radius: var(--toolbar__button-radius);
     box-sizing: content-box;
-    transition: width 500ms ease, box-shadow 500ms ease, border-radius 500ms ease;
+    transition: min-width 500ms ease, box-shadow 500ms ease, border-radius 500ms ease;
 }
 
     .toolbar * {
@@ -28,14 +29,16 @@
     }
 
 .toolbar--menu-open {
-    width: var(--toolbar__menu-width);
+    width: max-content;
+    min-width: var(--toolbar__menu-width);
     border-radius: 1rem;
     box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
     backdrop-filter: blur(10px);
 }
 
 .toolbar--panel-open {
-    width: var(--toolbar__panel-width);
+    width: max-content;
+    min-width: var(--toolbar__panel-width);
     border-radius: 1rem;
     box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
     backdrop-filter: blur(10px);
@@ -181,7 +184,7 @@
     opacity: 0;
     pointer-events: none;
     padding: 0;
-    overflow-y: auto;
+    overflow: visible;
     transition: max-height 500ms ease, opacity 300ms ease, padding 500ms ease;
 }
 
@@ -198,10 +201,38 @@
     padding: 0;
 }
 
-.toolbar__menu-item {
+.toolbar__menu ::deep .toolbar__menu-tree {
+    display: grid;
+    min-width: 0;
+    background: rgba(255, 255, 255, 0.98);
+    transition: min-width 500ms ease
+}
+
+.toolbar--menu-open ::deep .toolbar__menu-tree {
+    width: fit-content;
+    min-width: var(--toolbar__menu-width);
+}
+
+.toolbar__menu ::deep .toolbar__menu-tree--depth-0 {
+    border-radius: 0 0 1rem 1rem;
+}
+
+    .toolbar__menu ::deep .toolbar__menu-tree--depth-0 > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
+        border-bottom-left-radius: 1rem;
+        border-bottom-right-radius: 1rem;
+    }
+
+.toolbar__menu ::deep .toolbar__menu-item-shell {
+    position: relative;
+    min-width: 0;
+}
+
+.toolbar__menu ::deep .toolbar__menu-item {
     display: flex;
     align-items: center;
     width: 100%;
+    opacity: 0;
+    transform: scaleX(0);
     min-width: 0;
     min-height: clamp(2rem, 3vw, 2.75rem);
     gap: clamp(0.4rem, 0.8vw, 0.75rem);
@@ -213,23 +244,25 @@
     font-weight: 700;
     white-space: nowrap;
     cursor: pointer;
-    transition: background 200ms ease, color 200ms ease;
+    transition: transform 200ms ease, opacity 200ms ease, background 200ms ease, color 200ms ease;
 }
 
-    .toolbar__menu-item:disabled {
+    .toolbar__menu ::deep .toolbar__menu-item:disabled {
         cursor: default;
     }
 
-        .toolbar__menu-item:disabled span {
+        .toolbar__menu ::deep .toolbar__menu-item:disabled span {
             opacity: 0.55;
         }
 
-    .toolbar__menu-item:hover:not(:disabled) {
+    .toolbar__menu ::deep .toolbar__menu-item:hover:not(:disabled),
+    .toolbar__menu ::deep .toolbar__menu-item:focus-visible,
+    .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item {
         background: linear-gradient(180deg, rgb(238, 244, 252), rgb(208, 218, 249));
         color: #1d4ed8;
     }
 
-    .toolbar__menu-item .bi {
+    .toolbar__menu ::deep .toolbar__menu-item .bi {
         display: grid;
         place-items: center;
         flex: 0 0 clamp(1.2rem, 2vw, 1.6rem);
@@ -238,10 +271,46 @@
         font-size: clamp(0.85rem, 1.2vw, 1.1rem);
     }
 
-    .toolbar__menu-item span:not(.bi) {
+    .toolbar__menu ::deep .toolbar__menu-item span:not(.bi) {
         min-width: 0;
-        flex: 1 1 auto;
     }
+
+.toolbar--menu-open ::deep .toolbar__menu-item {
+    opacity: 1;
+    transform: scaleX(1);
+}
+
+.toolbar__menu ::deep .toolbar__submenu {
+    position: absolute;
+    top: 0;
+    z-index: 1;
+    min-width: var(--toolbar__submenu-width);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateX(var(--toolbar__submenu-offset)) scaleX(0.96);
+    transform-origin: var(--toolbar__submenu-origin);
+    transition: opacity 160ms ease, transform 160ms ease;
+}
+
+    .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree {
+        width: max-content;
+        min-width: var(--toolbar__submenu-width);
+        overflow: hidden;
+        border: 1px solid var(--toolbar__border-color);
+        border-radius: 0.85rem;
+        box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+        backdrop-filter: blur(10px);
+    }
+
+.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__submenu {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0) scaleX(1);
+}
+
+.toolbar__menu ::deep .toolbar__submenu-chevron::before {
+    content: "\f285";
+}
 
 .toolbar__panel {
     max-height: 0;
@@ -261,6 +330,8 @@
 
 .toolbar--left {
     justify-items: start;
+    --toolbar__submenu-offset: -0.25rem;
+    --toolbar__submenu-origin: left;
 }
 
     .toolbar--left .toolbar__menu-button-container {
@@ -276,19 +347,29 @@
         justify-content: flex-end;
     }
 
-    .toolbar--left .toolbar__menu-item {
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item {
         flex-direction: row;
-        justify-content: flex-start;
-        padding-right: 2rem;
-        text-align: left;
+        justify-content: flex-end;
+        text-align: right;
+        transform-origin: left;
     }
 
-        .toolbar--left .toolbar__menu-item span:not(.bi) {
-            text-align: left;
-        }
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu > .toolbar__menu-item {
+        justify-content: space-between;
+    }
+
+    .toolbar--left .toolbar__menu ::deep .toolbar__submenu {
+        left: 100%;
+    }
+
+    .toolbar--left .toolbar__menu-title-wrap {
+        flex-direction: row;
+    }
 
 .toolbar--right {
     justify-items: end;
+    --toolbar__submenu-offset: 0.25rem;
+    --toolbar__submenu-origin: right;
 }
 
     .toolbar--right .toolbar__menu-button-container {
@@ -304,13 +385,29 @@
         justify-content: flex-start;
     }
 
-    .toolbar--right .toolbar__menu-item {
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item {
         flex-direction: row-reverse;
-        justify-content: flex-start;
-        padding-left: 2rem;
-        text-align: right;
+        justify-content: flex-end;
+        text-align: left;
+        transform-origin: right;
     }
 
-        .toolbar--right .toolbar__menu-item span:not(.bi) {
-            text-align: right;
+        .toolbar--right .toolbar__menu ::deep .toolbar__menu-item span:not(.bi) {
+            text-align: left;
         }
+
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu > .toolbar__menu-item {
+        justify-content: space-between;
+    }
+
+    .toolbar--right .toolbar__menu ::deep .toolbar__submenu {
+        right: 100%;
+    }
+
+    .toolbar--right .toolbar__menu ::deep .toolbar__submenu-chevron::before {
+        content: "\f284";
+    }
+
+    .toolbar--right .toolbar__menu-title-wrap {
+        flex-direction: row-reverse;
+    }

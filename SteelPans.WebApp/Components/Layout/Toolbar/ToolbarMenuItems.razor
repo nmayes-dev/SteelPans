@@ -1,0 +1,55 @@
+﻿@namespace SteelPans.WebApp.Components.Layout.Toolbar
+
+<div class="toolbar__menu-tree toolbar__menu-tree--depth-@Depth" role="@(Depth == 0 ? null : "menu")">
+    @foreach (var element in Items)
+    {
+        <div class="@GetItemShellClass(element)">
+            <button class="toolbar__menu-item"
+                    type="button"
+                    role="menuitem"
+                    tabindex="0"
+                    disabled="@element.Disabled"
+                    aria-haspopup="@(element.HasSubMenu ? "menu" : null)"
+                    aria-expanded="@(element.HasSubMenu ? "false" : null)"
+                    @onclick="async() => await Owner.OpenElementAsync(element)">
+                <span>@element.Title</span>
+                
+                @if (!string.IsNullOrWhiteSpace(element.IconClass))
+                {
+                    <span class="bi @element.IconClass" aria-hidden="true"></span>
+                }
+                @if (element.HasSubMenu)
+                {
+                    <span class="bi toolbar__submenu-chevron" aria-hidden="true"></span>
+                }
+            </button>
+
+            @if (element.HasSubMenu)
+            {
+                <div class="toolbar__submenu">
+                    <ToolbarMenuItems Items="element.Children"
+                                      Owner="Owner"
+                                      Depth="@(Depth + 1)" />
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ToolbarElement> Items { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public Toolbar Owner { get; set; } = null!;
+
+    [Parameter]
+    public int Depth { get; set; }
+
+    private static string GetItemShellClass(ToolbarElement element)
+    {
+        return element.HasSubMenu
+            ? "toolbar__menu-item-shell toolbar__menu-item-shell--submenu"
+            : "toolbar__menu-item-shell";
+    }
+}

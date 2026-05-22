@@ -6,7 +6,7 @@
     grid-template-rows: auto auto minmax(0, 1fr);
     height: 100dvh;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
     box-sizing: border-box;
     gap: clamp(0.2rem, 0.5vw, 0.9rem);
     padding-block-start: clamp(0.1rem, 0.35vw, 0.9rem);

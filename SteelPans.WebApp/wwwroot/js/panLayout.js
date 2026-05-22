@@ -1,11 +1,11 @@
 ﻿const SELECTORS = {
-    item: ".pans-page__assigned-pan",
+    item: ".pans-display__item",
     svg: ".sp-svg",
-    copy: ".pans-page__assigned-pan-copy",
-    leftGroup: ".pans-page__assigned-pan-copy-group--left",
-    rightGroup: ".pans-page__assigned-pan-copy-group--right",
-    label: ".pans-page__assigned-pan-copy-label",
-    value: ".pans-page__assigned-pan-track, .pans-page__assigned-pan-type",
+    copy: ".pans-display__item-copy",
+    leftGroup: ".pans-display__item-copy-group--left",
+    rightGroup: ".pans-display__item-copy-group--right",
+    label: ".pans-display__item-copy-label",
+    value: ".pans-display__item-track, .pans-display__item-type",
     panShape: ".sp-svg-circle, .sp-note, path, circle, ellipse, rect, polygon, polyline",
     panCircle: ".sp-svg-circle",
     noDrag: "[data-pan-layout-no-drag], [data-pan-note], .sp-note, button, a, input, select, textarea, label"
@@ -23,7 +23,7 @@ window.panLayout = {
     observe(container, dotNetRef = null) {
         if (!container) return;
 
-        container.classList.add("pans-page__assigned-pans--loading");
+        container.classList.add("pans-display__items--loading");
         this.disconnect(container);
 
         container._panLayoutState = this.getState(container);
@@ -130,7 +130,7 @@ window.panLayout = {
            been painted before revealing the starting layout.
         */
         requestAnimationFrame(() => {
-            container.classList.remove("pans-page__assigned-pans--loading");
+            container.classList.remove("pans-display__items--loading");
             state.startupInProgress = false;
         });
     },
@@ -159,7 +159,7 @@ window.panLayout = {
         const state = this.getState(container);
 
         container.classList.toggle(
-            "pans-page__assigned-pans--can-drag",
+            "pans-display__items--can-drag",
             items.length > 1
         );
 
@@ -324,7 +324,7 @@ window.panLayout = {
                 && this.isPointerInsidePanCircle(candidate, event.clientX, event.clientY);
 
             candidate.classList.toggle(
-                "pans-page__assigned-pan--pan-body-hover",
+                "pans-display__item--pan-body-hover",
                 isInsidePanBody
             );
         }
@@ -332,7 +332,7 @@ window.panLayout = {
 
     clearPanBodyHover(container) {
         for (const item of this.getItems(container)) {
-            item.classList.remove("pans-page__assigned-pan--pan-body-hover");
+            item.classList.remove("pans-display__item--pan-body-hover");
         }
     },
 
@@ -475,8 +475,8 @@ window.panLayout = {
             up: upEvent => this.onDragPointerUp(container, upEvent)
         };
 
-        container.classList.add("pans-page__assigned-pans--dragging");
-        item.classList.add("pans-page__assigned-pan--dragging");
+        container.classList.add("pans-display__items--dragging");
+        item.classList.add("pans-display__item--dragging");
 
         Object.assign(item.style, {
             position: "fixed",
@@ -548,7 +548,7 @@ window.panLayout = {
         const target = options.commit ? drag.dropTarget : null;
         const edge = options.commit ? drag.dropEdge : null;
 
-        drag.item.classList.remove("pans-page__assigned-pan--dragging");
+        drag.item.classList.remove("pans-display__item--dragging");
         drag.item.setAttribute("style", drag.originalStyle);
 
         if (target && target.parentElement === container) {
@@ -561,7 +561,7 @@ window.panLayout = {
             container.insertBefore(drag.item, drag.originalNextSibling);
         }
 
-        container.classList.remove("pans-page__assigned-pans--dragging");
+        container.classList.remove("pans-display__items--dragging");
         state.drag = null;
 
         this.requestUpdate(container);
@@ -733,10 +733,10 @@ window.panLayout = {
 
     setDropIndicator(container, drop) {
         const classes = [
-            "pans-page__assigned-pan--drop-before",
-            "pans-page__assigned-pan--drop-after",
-            "pans-page__assigned-pan--drop-above",
-            "pans-page__assigned-pan--drop-below"
+            "pans-display__item--drop-before",
+            "pans-display__item--drop-after",
+            "pans-display__item--drop-above",
+            "pans-display__item--drop-below"
         ];
 
         for (const item of this.getItems(container)) {
@@ -745,10 +745,10 @@ window.panLayout = {
 
         if (!drop?.item || !drop.edge) return;
 
-        drop.item.classList.add(`pans-page__assigned-pan--drop-${drop.edge}`);
+        drop.item.classList.add(`pans-display__item--drop-${drop.edge}`);
 
         if (drop.adjacentItem && drop.adjacentEdge) {
-            drop.adjacentItem.classList.add(`pans-page__assigned-pan--drop-${drop.adjacentEdge}`);
+            drop.adjacentItem.classList.add(`pans-display__item--drop-${drop.adjacentEdge}`);
         }
     },
 
