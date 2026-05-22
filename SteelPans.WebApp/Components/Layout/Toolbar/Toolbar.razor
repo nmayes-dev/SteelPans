@@ -6,48 +6,51 @@
 </CascadingValue>
 
 <div class="@CssClass">
-    <div class="toolbar__menu-button-container"
-         role="button"
-         aria-label="@MenuButtonLabel"
-         aria-expanded="@anyOpen_"
-         @onclick="ToggleMenu">
-        <span class="toolbar__menu-button-icon">
-            <span class="bi @(anyOpen_ ? OpenIconClass : ClosedIconClass)" aria-hidden="true"></span>
-        </span>
+    <div class="toolbar__surface">
+        <div class="toolbar__menu-button-container"
+             role="button"
+             aria-label="@MenuButtonLabel"
+             aria-expanded="@anyOpen_"
+             @onclick="ToggleMenu">
+            <span class="toolbar__menu-button-icon">
+                <span class="bi @(anyOpen_ ? OpenIconClass : ClosedIconClass)" aria-hidden="true"></span>
+            </span>
 
-        <div class="toolbar__menu-header">
-            @if (ActiveElement?.HeaderActions is not null)
-            {
-                <div class="toolbar__menu-header-actions"
-                     @onclick:stopPropagation="true">
-                    @ActiveElement?.HeaderActions
-                </div>
-            }
-
-            <div class="toolbar__menu-title-wrap">
-                <span class="toolbar__menu-title">@ActiveElement?.Title</span>
-                @if (ActiveElement is not null && ActiveElement.CanExpand)
+            <div class="toolbar__menu-header">
+                @if (ActiveElement?.HeaderActions is not null)
                 {
-                    <button type="button"
-                            class="toolbar__expand-button"
-                            @onclick="@OpenModalElement"
-                            @onclick:stopPropagation="true"
-                            aria-label="Expand @ActiveElement.Title">
-                        <span class="bi bi-arrows-fullscreen"></span>
-                    </button>
+                    <div class="toolbar__menu-header-actions"
+                         @onclick:stopPropagation="true">
+                        @ActiveElement?.HeaderActions
+                    </div>
                 }
+
+                <div class="toolbar__menu-title-wrap">
+                    <span class="toolbar__menu-title">@ActiveElement?.Title</span>
+
+                    @if (ActiveElement is not null && ActiveElement.CanExpand)
+                    {
+                        <button type="button"
+                                class="toolbar__expand-button"
+                                @onclick="@OpenModalElement"
+                                @onclick:stopPropagation="true"
+                                aria-label="Expand @ActiveElement.Title">
+                            <span class="bi bi-arrows-fullscreen"></span>
+                        </button>
+                    }
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="toolbar__menu" role="menu" aria-label="@MenuLabel">
-        <ToolbarMenuItems Items="Elements"
-                          Owner="this"
-                          Depth="0" />
-    </div>
+        <div class="toolbar__menu" role="menu" aria-label="@MenuLabel">
+            <ToolbarMenuItems Items="Elements"
+                              Owner="this"
+                              Depth="0" />
+        </div>
 
-    <div class="toolbar__panel">
-        @ActiveElement?.ChildContent
+        <div class="toolbar__panel">
+            @ActiveElement?.ChildContent
+        </div>
     </div>
 
     <ModalPopup @ref="elementPopup_"

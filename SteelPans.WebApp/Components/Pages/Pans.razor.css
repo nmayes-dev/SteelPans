@@ -1,5 +1,5 @@
 .pans-page {
-    --ui-icon-button-size: clamp(1.4rem, 2vw, 3.25rem);
+    --ui-icon-button-size: clamp(2.1rem, 2.25vw, 3rem);
     --ui-icon-button-radius: calc(0.5 * var(--ui-icon-button-size));
     --ui-icon-size: calc(var(--ui-icon-button-size) * 0.5);
     display: grid;
@@ -17,22 +17,18 @@
 .pans-page__hero {
     position: relative;
     overflow: visible;
-    padding: clamp(0.2rem, 0.6vw, 0.5rem) clamp(0.8rem, 1vw, 1rem);
+    padding: clamp(0.4rem, 0.75vw, 0.75rem) clamp(0.8rem, 1vw, 1rem);
 }
 
 .pans-page__hero-content {
     position: relative;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     min-height: var(--ui-icon-button-size);
-    padding-inline-end: calc(var(--ui-icon-button-size) + 1rem);
 }
 
 .pans-page__toolbar {
-    position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 400;
 }
 
 .pans-page__eyebrow {

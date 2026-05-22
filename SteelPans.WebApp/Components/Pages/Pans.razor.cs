@@ -77,7 +77,7 @@ public partial class Pans : IAsyncDisposable
                     return;
                 }
 
-                if (result.MidiFile != midiFileName_)
+                if (!string.Equals(result.MidiFile, midiFileName_, StringComparison.OrdinalIgnoreCase))
                 {
                     pendingLoadConfiguration_ = result;
                     await warningModal_!.Open();

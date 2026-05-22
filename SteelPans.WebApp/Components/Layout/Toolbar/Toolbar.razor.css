@@ -1,43 +1,48 @@
 ﻿.toolbar {
-    --toolbar__button-size: var(--ui-icon-button-size, clamp(1.25rem, 2vw, 3.25rem));
-    --toolbar__button-radius: var(--ui-icon-button-radius, calc(0.5 * var(--toolbar__button-size)));
-    --toolbar__icon-size: var(--ui-icon-size, calc(var(--toolbar__button-size) * 0.5));
     --toolbar__menu-width: 8rem;
-    --toolbar__submenu-width: 8rem;
+    --toolbar__submenu-width: 5rem;
     --toolbar__panel-width: clamp(18rem, 30vw, 20rem);
     --toolbar__menu-max-height: 20rem;
     --toolbar__panel-max-height: 30rem;
     --toolbar__border-color: rgba(148, 163, 184, 0.75);
     position: relative;
-    z-index: 30;
+    z-index: 400;
+    width: var(--ui-icon-button-radius);
+    height: var(--ui-icon-button-size);
+    min-width: var(--ui-icon-button-size);
+    min-height: var(--ui-icon-button-size);
+    overflow: visible;
+}
+
+    .toolbar ::deep * {
+        box-sizing: border-box;
+        transform-origin: inherit;
+    }
+
+.toolbar__surface {
+    position: absolute;
+    top: 0;
     display: grid;
-    grid-template-rows: var(--toolbar__button-size) auto;
+    grid-template-rows: var(--ui-icon-button-size) auto;
     align-items: start;
-    width: var(--toolbar__button-size);
-    height: auto;
-    min-width: 0;
+    width: max-content;
+    min-width: var(--ui-icon-button-size);
     overflow: visible;
     border: 1px solid var(--toolbar__border-color);
     background: rgba(255, 255, 255, 0.98);
-    border-radius: var(--toolbar__button-radius);
+    border-radius: var(--ui-icon-button-radius);
     box-sizing: content-box;
-    transition: min-width 500ms ease, box-shadow 500ms ease, border-radius 500ms ease;
+    transition: min-width 5000ms ease, box-shadow 5000ms ease, border-radius 5000ms ease;
 }
 
-    .toolbar * {
-        box-sizing: border-box;
-    }
-
-.toolbar--menu-open {
-    width: max-content;
+.toolbar--menu-open .toolbar__surface {
     min-width: var(--toolbar__menu-width);
     border-radius: 1rem;
     box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
     backdrop-filter: blur(10px);
 }
 
-.toolbar--panel-open {
-    width: max-content;
+.toolbar--panel-open .toolbar__surface {
     min-width: var(--toolbar__panel-width);
     border-radius: 1rem;
     box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
@@ -50,7 +55,7 @@
     display: flex;
     align-items: stretch;
     width: 100%;
-    height: var(--toolbar__button-size);
+    height: var(--ui-icon-button-size);
     min-width: 0;
     min-height: 0;
     padding: 0;
@@ -72,23 +77,23 @@
 
 .toolbar__closed .toolbar__menu-button-container {
     border-bottom: 0 solid rgba(148, 163, 184, 0.2);
-    transition: border-bottom 500ms ease, border-bottom-left-radius 500ms ease, border-bottom-right-radius 500ms ease;
+    transition: border-bottom 5000ms ease, border-bottom-left-radius 5000ms ease, border-bottom-right-radius 5000ms ease;
 }
 
 .toolbar__open .toolbar__menu-button-container {
     border-bottom: 1px solid var(--toolbar__border-color);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
-    transition: border-bottom 500ms ease, border-bottom-left-radius 500ms ease, border-bottom-right-radius 500ms ease;
+    transition: border-bottom 5000ms ease, border-bottom-left-radius 5000ms ease, border-bottom-right-radius 5000ms ease;
 }
 
 .toolbar__menu-button-icon {
     display: grid;
     place-items: center;
-    flex: 0 0 var(--toolbar__button-size);
-    width: var(--toolbar__button-size);
-    height: var(--toolbar__button-size);
-    min-width: var(--toolbar__button-size);
+    flex: 0 0 var(--ui-icon-button-size);
+    width: var(--ui-icon-button-size);
+    height: var(--ui-icon-button-size);
+    min-width: var(--ui-icon-button-size);
     color: inherit;
 }
 
@@ -96,7 +101,7 @@
         display: grid;
         place-items: center;
         padding: 0;
-        font-size: var(--toolbar__icon-size);
+        font-size: var(--ui-icon-size);
         line-height: 1;
         transition: none;
     }
@@ -108,17 +113,17 @@
     min-width: 0;
     min-height: 0;
     gap: 1.25rem;
-    padding: 0.45rem 0.75rem;
     background: transparent;
     overflow: hidden;
     opacity: 0;
     transform: scaleX(0);
-    transition: transform 500ms ease, opacity 300ms ease;
+    transition: transform 5000ms ease, opacity 300ms ease;
 }
 
 .toolbar--panel-open .toolbar__menu-header {
     opacity: 1;
     transform: scaleX(1);
+    padding: 0.45rem 0.75rem;
 }
 
 .toolbar__menu-header-actions {
@@ -135,7 +140,7 @@
 }
 
 .toolbar__expand-button {
-    --expand-button-size: calc(var(--toolbar__button-size) * 0.75);
+    --expand-button-size: calc(var(--ui-icon-button-size) * 0.75);
     --expand-button-icon-size: calc(var(--expand-button-size) * 0.45);
     display: grid;
     place-items: center;
@@ -173,7 +178,7 @@
 .toolbar__panel {
     grid-row: 2;
     grid-column: 1;
-    width: 100%;
+    width: 0;
     min-width: 0;
     background: transparent;
 }
@@ -185,7 +190,7 @@
     pointer-events: none;
     padding: 0;
     overflow: visible;
-    transition: max-height 500ms ease, opacity 300ms ease, padding 500ms ease;
+    transition: opacity 5000ms ease, padding 5000ms ease;
 }
 
 .toolbar--menu-open .toolbar__menu {
@@ -195,7 +200,6 @@
 }
 
 .toolbar--panel-open .toolbar__menu {
-    max-height: 0;
     opacity: 0;
     pointer-events: none;
     padding: 0;
@@ -204,13 +208,14 @@
 .toolbar__menu ::deep .toolbar__menu-tree {
     display: grid;
     min-width: 0;
+    max-height: 0;
     background: rgba(255, 255, 255, 0.98);
-    transition: min-width 500ms ease
+    transition: min-width 5000ms ease, max-height 5000ms, border-bottom-left-radius 5000ms ease, border-bottom-right-radius 5000ms ease;
 }
 
 .toolbar--menu-open ::deep .toolbar__menu-tree {
-    width: fit-content;
     min-width: var(--toolbar__menu-width);
+    max-height: var(--toolbar__menu-max-height);
 }
 
 .toolbar__menu ::deep .toolbar__menu-tree--depth-0 {
@@ -234,7 +239,7 @@
     opacity: 0;
     transform: scaleX(0);
     min-width: 0;
-    min-height: clamp(2rem, 3vw, 2.75rem);
+    height: 0;
     gap: clamp(0.4rem, 0.8vw, 0.75rem);
     padding: clamp(0.5rem, 1vw, 0.75rem) clamp(0.6rem, 1.2vw, 1rem);
     border: 0;
@@ -244,7 +249,7 @@
     font-weight: 700;
     white-space: nowrap;
     cursor: pointer;
-    transition: transform 200ms ease, opacity 200ms ease, background 200ms ease, color 200ms ease;
+    transition: transform 5000ms ease, height 5000ms ease, opacity 5000ms ease, border-bottom-left-radius 5000ms ease, border-bottom-right-radius 5000ms ease;
 }
 
     .toolbar__menu ::deep .toolbar__menu-item:disabled {
@@ -258,6 +263,8 @@
     .toolbar__menu ::deep .toolbar__menu-item:hover:not(:disabled),
     .toolbar__menu ::deep .toolbar__menu-item:focus-visible,
     .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item {
+        border-top: 1px solid rgba(96, 165, 250, 0.4);
+        border-bottom: 1px solid rgba(96, 165, 250, 0.4);
         background: linear-gradient(180deg, rgb(238, 244, 252), rgb(208, 218, 249));
         color: #1d4ed8;
     }
@@ -265,31 +272,43 @@
     .toolbar__menu ::deep .toolbar__menu-item .bi {
         display: grid;
         place-items: center;
-        flex: 0 0 clamp(1.2rem, 2vw, 1.6rem);
-        width: clamp(1.2rem, 2vw, 1.6rem);
-        aspect-ratio: 1 / 1;
+        width: 0;
+        height: 0;
         font-size: clamp(0.85rem, 1.2vw, 1.1rem);
+        transition: width 5000ms ease, height 5000ms ease;
     }
 
     .toolbar__menu ::deep .toolbar__menu-item span:not(.bi) {
         min-width: 0;
+        transform: scaleX(0);
+        opacity: 0;
+        transition: transform 5000ms ease, opacity 5000ms ease;
     }
 
 .toolbar--menu-open ::deep .toolbar__menu-item {
-    opacity: 1;
     transform: scaleX(1);
+    opacity: 1;
+    height: clamp(2rem, 3vw, 2.75rem);
 }
+
+    .toolbar--menu-open ::deep .toolbar__menu-item .bi {
+        width: clamp(1.2rem, 2vw, 1.6rem);
+        height: clamp(1.2rem, 2vw, 1.6rem);
+    }
+
+    .toolbar--menu-open ::deep .toolbar__menu-item span:not(.bi) {
+        transform: scaleX(1);
+        opacity: 1;
+    }
 
 .toolbar__menu ::deep .toolbar__submenu {
     position: absolute;
-    top: 0;
-    z-index: 1;
+    top: -1px;
     min-width: var(--toolbar__submenu-width);
     opacity: 0;
     pointer-events: none;
-    transform: translateX(var(--toolbar__submenu-offset)) scaleX(0.96);
-    transform-origin: var(--toolbar__submenu-origin);
-    transition: opacity 160ms ease, transform 160ms ease;
+    transform: scaleX(0);
+    transition: opacity 300ms ease, transform 300ms ease;
 }
 
     .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree {
@@ -305,7 +324,7 @@
 .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__submenu {
     opacity: 1;
     pointer-events: auto;
-    transform: translateX(0) scaleX(1);
+    transform: scaleX(1);
 }
 
 .toolbar__menu ::deep .toolbar__submenu-chevron::before {
@@ -313,15 +332,18 @@
 }
 
 .toolbar__panel {
+    transform: scale(0);
     max-height: 0;
     opacity: 0;
     pointer-events: none;
     padding: 0;
     overflow: hidden;
-    transition: max-height 500ms ease, opacity 300ms ease, padding 500ms ease;
+    transition: transform 5000ms ease, opacity 5000ms ease, padding 5000ms ease;
 }
 
 .toolbar--panel-open .toolbar__panel {
+    transform: scale(1);
+    width: 100%;
     max-height: var(--toolbar__panel-max-height);
     opacity: 1;
     pointer-events: auto;
@@ -329,10 +351,13 @@
 }
 
 .toolbar--left {
+    transform-origin: left;
     justify-items: start;
-    --toolbar__submenu-offset: -0.25rem;
-    --toolbar__submenu-origin: left;
 }
+
+    .toolbar--left .toolbar__surface {
+        left: 0;
+    }
 
     .toolbar--left .toolbar__menu-button-container {
         flex-direction: row;
@@ -343,7 +368,6 @@
     }
 
     .toolbar--left .toolbar__menu-header {
-        transform-origin: left;
         justify-content: flex-end;
     }
 
@@ -351,22 +375,28 @@
         flex-direction: row;
         justify-content: space-between;
         text-align: right;
-        transform-origin: left;
     }
 
     .toolbar--left .toolbar__menu ::deep .toolbar__submenu {
         left: 100%;
     }
 
+        .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree {
+            border-top-left-radius: 0;
+        }
+
     .toolbar--left .toolbar__menu-title-wrap {
         flex-direction: row;
     }
 
 .toolbar--right {
+    transform-origin: right;
     justify-items: end;
-    --toolbar__submenu-offset: 0.25rem;
-    --toolbar__submenu-origin: right;
 }
+
+    .toolbar--right .toolbar__surface {
+        right: 0;
+    }
 
     .toolbar--right .toolbar__menu-button-container {
         flex-direction: row-reverse;
@@ -377,7 +407,6 @@
     }
 
     .toolbar--right .toolbar__menu-header {
-        transform-origin: right;
         justify-content: flex-start;
     }
 
@@ -385,16 +414,16 @@
         flex-direction: row-reverse;
         justify-content: space-between;
         text-align: left;
-        transform-origin: right;
+        padding-left: clamp(0.45rem, 0.4vw, 0.8rem)
     }
-
-        .toolbar--right .toolbar__menu ::deep .toolbar__menu-item span:not(.bi) {
-            text-align: left;
-        }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__submenu {
         right: 100%;
     }
+
+        .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree {
+            border-top-right-radius: 0;
+        }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__submenu-chevron::before {
         content: "\f284";

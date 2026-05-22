@@ -18,125 +18,123 @@
     <header class="sp-section pans-page__hero">
         <div class="pans-page__hero-content">
             <h1 class="pans-page__title">Steel Pans</h1>
-            <div class="pans-page__toolbar">
-                <Toolbar MenuButtonLabel="Open Tools"
-                         MenuLabel="Pan Tools"
-                         Side="Toolbar.ToolbarSide.Right">
+            <Toolbar MenuButtonLabel="Open Tools"
+                     MenuLabel="Pan Tools"
+                     Side="Toolbar.ToolbarSide.Right">
 
-                    <ToolbarElement Title="Add Pan"
-                                    IconClass="bi-plus-lg"
-                                    OnClick="async () => await addPanModal_!.Open()" />
+                <ToolbarElement Title="Add Pan"
+                                IconClass="bi-plus-lg"
+                                OnClick="async () => await addPanModal_!.Open()" />
 
-                    <ToolbarElement Title="MIDI">
-                        <SubMenu>
-                            <ToolbarElement Title="Open MIDI"
-                                            IconClass="bi-file-earmark-music"
-                                            OnClick="OpenMidiFileDialogAsync" />
+                <ToolbarElement Title="MIDI">
+                    <SubMenu>
+                        <ToolbarElement Title="Open MIDI"
+                                        IconClass="bi-file-earmark-music"
+                                        OnClick="OpenMidiFileDialogAsync" />
 
-                            @if (Playback.IsMidiLoaded)
-                            {
-                                <ToolbarElement Title="Tracks"
-                                                IconClass="bi-music-note-list"
-                                                Disabled="@(!Playback.Tracks.Any())">
-                                    <ChildContent>
-                                        <div class="pans-page__track-panel">
-                                            <div class="pans-page__track-panel-header">
-                                                <span class="pans-page__track-panel-title">@midiFileName_</span>
-                                                <span class="pans-page__track-panel-count">@Playback.Tracks.Count track@(Playback.Tracks.Count == 1 ? "" : "s")</span>
-                                            </div>
-
-                                            <div class="pans-page__track-list">
-                                                @foreach (var track in Playback.Tracks)
-                                                {
-                                                    <div class="pans-page__track-item">
-                                                        <div class="pans-page__track-details">
-                                                            <div class="pans-page__track-name">@track.Index) @track.DisplayInfo</div>
-                                                            <div class="pans-page__track-meta">@GetMetaInfo(track)</div>
-                                                        </div>
-
-                                                        <button type="button"
-                                                                class="pans-page__track-button @(IsTrackAssigned(track) ? "pans-page__track-button--assigned" : null)"
-                                                                aria-label="@(IsTrackAssigned(track) ? "Remove track" : "Add track")"
-                                                                @onclick="async () => await OnTrackButtonPressedAsync(track)">
-                                                            <span class="bi @(IsTrackAssigned(track) ? "bi-dash-lg" : "bi-plus-lg")" aria-hidden="true"></span>
-                                                        </button>
-                                                    </div>
-                                                }
-                                            </div>
+                        @if (Playback.IsMidiLoaded)
+                        {
+                            <ToolbarElement Title="Tracks"
+                                            IconClass="bi-music-note-list"
+                                            Disabled="@(!Playback.Tracks.Any())">
+                                <ChildContent>
+                                    <div class="pans-page__track-panel">
+                                        <div class="pans-page__track-panel-header">
+                                            <span class="pans-page__track-panel-title">@midiFileName_</span>
+                                            <span class="pans-page__track-panel-count">@Playback.Tracks.Count track@(Playback.Tracks.Count == 1 ? "" : "s")</span>
                                         </div>
-                                    </ChildContent>
-                                </ToolbarElement>
-                            }
+
+                                        <div class="pans-page__track-list">
+                                            @foreach (var track in Playback.Tracks)
+                                            {
+                                                <div class="pans-page__track-item">
+                                                    <div class="pans-page__track-details">
+                                                        <div class="pans-page__track-name">@track.Index) @track.DisplayInfo</div>
+                                                        <div class="pans-page__track-meta">@GetMetaInfo(track)</div>
+                                                    </div>
+
+                                                    <button type="button"
+                                                            class="pans-page__track-button @(IsTrackAssigned(track) ? "pans-page__track-button--assigned" : null)"
+                                                            aria-label="@(IsTrackAssigned(track) ? "Remove Track" : "Add Track")"
+                                                            @onclick="async () => await OnTrackButtonPressedAsync(track)">
+                                                        <span class="bi @(IsTrackAssigned(track) ? "bi-dash-lg" : "bi-plus-lg")" aria-hidden="true"></span>
+                                                    </button>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </ChildContent>
+                            </ToolbarElement>
+                        }
+                    </SubMenu>
+                </ToolbarElement>
+
+                @if (Playback.IsMidiLoaded)
+                {
+                    <ToolbarElement Title="Layout">
+                        <SubMenu>
+                            <ToolbarElement Title="Load"
+                                            IconClass="bi-folder2-open"
+                                            Disabled="!Playback.IsMidiLoaded"
+                                            OnClick="async () => await LoadConfigurationFileAsync()" />
+
+                            <ToolbarElement Title="Save"
+                                            IconClass="bi-floppy"
+                                            Disabled="@(string.IsNullOrWhiteSpace(lastFileName_) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
+                                            OnClick="async () => await SaveConfigurationFileAsync(lastFileName_!)" />
+
+                            <ToolbarElement Title="Save As..."
+                                            IconClass="bi-floppy2"
+                                            Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
+                                            OnClick="async () => await saveModal_!.Open()" />
                         </SubMenu>
                     </ToolbarElement>
+                }
 
-                    @if (Playback.IsMidiLoaded)
-                    {
-                        <ToolbarElement Title="Layout">
-                            <SubMenu>
-                                <ToolbarElement Title="Load"
-                                                IconClass="bi-folder2-open"
-                                                Disabled="!Playback.IsMidiLoaded"
-                                                OnClick="async () => await LoadConfigurationFileAsync()" />
+                @if (Playback.ActivePans.Any())
+                {
+                    <ToolbarElement Title="Music">
+                        <SubMenu>
+                            <ToolbarElement Title="Mixer"
+                                            IconClass="bi-sliders2-vertical"
+                                            Disabled="@(!Playback.ActivePans.Any())"
+                                            CanExpand="true"
+                                            CanMoveExpanded="true">
+                                <ChildContent>
+                                    <VolumeMixer />
+                                </ChildContent>
+                            </ToolbarElement>
+                            <ToolbarElement Title="Metronome"
+                                            IconClass="bi-music-note-beamed">
+                                <HeaderActions>
+                                    <label class="metronome-shell__status-switch">
+                                        <input class="metronome-shell__status-switch-input"
+                                               type="checkbox"
+                                               checked="@Playback.ClickTrackEnabled"
+                                               @onchange="OnClickTrackEnabledShellChangedAsync"
+                                               @onclick:stopPropagation="true"
+                                               aria-label="Enable metronome" />
 
-                                <ToolbarElement Title="Save"
-                                                IconClass="bi-floppy"
-                                                Disabled="@(string.IsNullOrWhiteSpace(lastFileName_) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                                OnClick="async () => await SaveConfigurationFileAsync(lastFileName_!)" />
+                                        <span class="metronome-shell__status-switch-track" aria-hidden="true">
+                                            <span class="metronome-shell__status-switch-thumb"></span>
+                                        </span>
+                                    </label>
+                                </HeaderActions>
+                                <ChildContent>
+                                    <Metronome />
+                                </ChildContent>
+                            </ToolbarElement>
 
-                                <ToolbarElement Title="Save As..."
-                                                IconClass="bi-floppy2"
-                                                Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                                OnClick="async () => await saveModal_!.Open()" />
-                            </SubMenu>
-                        </ToolbarElement>
-                    }
-
-                    @if (Playback.ActivePans.Any())
-                    {
-                        <ToolbarElement Title="Music">
-                            <SubMenu>
-                                <ToolbarElement Title="Mixer"
-                                                IconClass="bi-sliders2-vertical"
-                                                Disabled="@(!Playback.ActivePans.Any())"
-                                                CanExpand="true"
-                                                CanMoveExpanded="true">
-                                    <ChildContent>
-                                        <VolumeMixer />
-                                    </ChildContent>
-                                </ToolbarElement>
-                                <ToolbarElement Title="Metronome"
-                                                IconClass="bi-music-note-beamed">
-                                    <HeaderActions>
-                                        <label class="metronome-shell__status-switch">
-                                            <input class="metronome-shell__status-switch-input"
-                                                   type="checkbox"
-                                                   checked="@Playback.ClickTrackEnabled"
-                                                   @onchange="OnClickTrackEnabledShellChangedAsync"
-                                                   @onclick:stopPropagation="true"
-                                                   aria-label="Enable metronome" />
-
-                                            <span class="metronome-shell__status-switch-track" aria-hidden="true">
-                                                <span class="metronome-shell__status-switch-thumb"></span>
-                                            </span>
-                                        </label>
-                                    </HeaderActions>
-                                    <ChildContent>
-                                        <Metronome />
-                                    </ChildContent>
-                                </ToolbarElement>
-
-                                <ToolbarElement Title="Chords"
-                                                IconClass="bi-music-note-list">
-                                    <ChildContent>
-                                        <ChordBuilder />
-                                    </ChildContent>
-                                </ToolbarElement>
-                            </SubMenu>
-                        </ToolbarElement>
-                    }
-                </Toolbar>
-            </div>
+                            <ToolbarElement Title="Chords"
+                                            IconClass="bi-music-note-list">
+                                <ChildContent>
+                                    <ChordBuilder />
+                                </ChildContent>
+                            </ToolbarElement>
+                        </SubMenu>
+                    </ToolbarElement>
+                }
+            </Toolbar>
         </div>
     </header>
 
