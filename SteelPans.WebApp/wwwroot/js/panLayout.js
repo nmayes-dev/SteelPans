@@ -7,7 +7,8 @@
     label: ".pans-page__assigned-pan-copy-label",
     value: ".pans-page__assigned-pan-track, .pans-page__assigned-pan-type",
     panShape: ".sp-svg-circle, .sp-note, path, circle, ellipse, rect, polygon, polyline",
-    noDrag: "[data-pan-layout-no-drag], button, a, input, select, textarea, label"
+    panCircle: ".sp-svg-circle",
+    noDrag: "[data-pan-layout-no-drag], [data-pan-note], .sp-note, button, a, input, select, textarea, label"
 };
 
 const DEFAULTS = {
@@ -157,6 +158,11 @@ window.panLayout = {
         const items = this.getItems(container);
         const state = this.getState(container);
 
+        container.classList.toggle(
+            "pans-page__assigned-pans--can-drag",
+            items.length > 1
+        );
+
         if (items.length === 0) {
             state.layoutItems = [];
             return;
@@ -285,22 +291,112 @@ window.panLayout = {
         if (container._panLayoutPointerDown) return;
 
         container._panLayoutPointerDown = event => this.onPointerDown(container, event);
+        container._panLayoutPointerMove = event => this.onPointerMove(container, event);
+        container._panLayoutPointerLeave = () => this.clearPanBodyHover(container);
+
         container.addEventListener("pointerdown", container._panLayoutPointerDown, { capture: true });
+        container.addEventListener("pointermove", container._panLayoutPointerMove, { passive: true });
+        container.addEventListener("pointerleave", container._panLayoutPointerLeave);
     },
 
     detachDragHandlers(container) {
         if (!container?._panLayoutPointerDown) return;
 
         container.removeEventListener("pointerdown", container._panLayoutPointerDown, { capture: true });
+        container.removeEventListener("pointermove", container._panLayoutPointerMove);
+        container.removeEventListener("pointerleave", container._panLayoutPointerLeave);
+
         delete container._panLayoutPointerDown;
+        delete container._panLayoutPointerMove;
+        delete container._panLayoutPointerLeave;
+    },
+
+    onPointerMove(container, event) {
+        if (this.getState(container).drag) return;
+
+        const items = this.getItems(container);
+        const item = event.target?.closest?.(SELECTORS.item);
+
+        for (const candidate of items) {
+            const isCurrent = candidate === item;
+            const isInsidePanBody = isCurrent
+                && items.length > 1
+                && this.isPointerInsidePanCircle(candidate, event.clientX, event.clientY);
+
+            candidate.classList.toggle(
+                "pans-page__assigned-pan--pan-body-hover",
+                isInsidePanBody
+            );
+        }
+    },
+
+    clearPanBodyHover(container) {
+        for (const item of this.getItems(container)) {
+            item.classList.remove("pans-page__assigned-pan--pan-body-hover");
+        }
+    },
+
+    isNoDragStartTarget(item, event) {
+        if (event.target?.closest?.(SELECTORS.noDrag)) {
+            return true;
+        }
+
+        return this.isPointerInsidePanCircle(
+            item,
+            event.clientX,
+            event.clientY
+        );
+    },
+
+    isPointerInsidePanCircle(item, clientX, clientY) {
+        const circles = item.querySelectorAll(SELECTORS.panCircle);
+
+        for (const circle of circles) {
+            if (this.isPointerInsideSvgCircle(circle, clientX, clientY)) {
+                return true;
+            }
+        }
+
+        return false;
+    },
+
+    isPointerInsideSvgCircle(circle, clientX, clientY) {
+        const matrix = circle.getScreenCTM?.();
+
+        if (!matrix) {
+            return false;
+        }
+
+        let point;
+
+        try {
+            point = new DOMPoint(clientX, clientY).matrixTransform(matrix.inverse());
+        } catch {
+            return false;
+        }
+
+        const cx = circle.cx?.baseVal?.value ?? Number(circle.getAttribute("cx"));
+        const cy = circle.cy?.baseVal?.value ?? Number(circle.getAttribute("cy"));
+        const r = circle.r?.baseVal?.value ?? Number(circle.getAttribute("r"));
+
+        if (!Number.isFinite(cx) || !Number.isFinite(cy) || !Number.isFinite(r)) {
+            return false;
+        }
+
+        const dx = point.x - cx;
+        const dy = point.y - cy;
+
+        return dx * dx + dy * dy <= r * r;
     },
 
     onPointerDown(container, event) {
         if (event.button !== 0 || event.pointerType === "mouse" && event.buttons !== 1) return;
-        if (event.target?.closest?.(SELECTORS.noDrag)) return;
 
         const item = event.target?.closest?.(SELECTORS.item);
         if (!item || item.parentElement !== container) return;
+
+        if (this.getItems(container).length < 2) return;
+        if (this.isNoDragStartTarget(item, event)) return;
 
         const state = this.getState(container);
         if (state.drag || state.pendingDrag) return;

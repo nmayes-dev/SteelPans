@@ -29,9 +29,9 @@
     transition: opacity 800ms ease;
 }
 
-.pans-page__assigned-pans--loading .pans-page__assigned-pan {
-    transition: opacity 800ms ease;
-}
+    .pans-page__assigned-pans--loading .pans-page__assigned-pan {
+        transition: opacity 800ms ease;
+    }
 
 .pans-page__assigned-pans--dragging,
 .pans-page__assigned-pans--dragging * {
@@ -47,10 +47,30 @@
     min-width: 0;
     min-height: 0;
     overflow: visible;
-    cursor: grab;
+    cursor: default;
     touch-action: none;
     transition: left 220ms ease, top 220ms ease, width 220ms ease, height 220ms ease, opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease;
 }
+
+.pans-page__assigned-pans--can-drag .pans-page__assigned-pan {
+    cursor: grab;
+}
+
+.pans-page__assigned-pans--can-drag .pans-page__assigned-pan--pan-body-hover {
+    cursor: default;
+}
+
+.pans-page__assigned-pan .sp-svg,
+.pans-page__assigned-pan .sp-svg-circle,
+.pans-page__assigned-pan .sp-label {
+    cursor: default;
+}
+
+.pans-page__assigned-pan .sp-note,
+.pans-page__assigned-pan [data-pan-note] {
+    cursor: pointer;
+}
+
 
 @starting-style {
     .pans-page__assigned-pan {
@@ -58,34 +78,34 @@
     }
 }
 
-    .pans-page__assigned-pan::before,
-    .pans-page__assigned-pan::after {
-        content: "";
-        position: absolute;
-        z-index: 20;
-        pointer-events: none;
-        opacity: 0;
-        background: rgba(37, 99, 235, 0.92);
-        box-shadow: 0 0 0 0.18rem rgba(37, 99, 235, 0.16);
-        border-radius: 999px;
-        transition: opacity 120ms ease, transform 120ms ease;
-    }
+.pans-page__assigned-pan::before,
+.pans-page__assigned-pan::after {
+    content: "";
+    position: absolute;
+    z-index: 20;
+    pointer-events: none;
+    opacity: 0;
+    background: rgba(37, 99, 235, 0.92);
+    box-shadow: 0 0 0 0.18rem rgba(37, 99, 235, 0.16);
+    border-radius: 999px;
+    transition: opacity 120ms ease, transform 120ms ease;
+}
 
-    .pans-page__assigned-pan::before {
-        left: var(--pan-reorder-indicator-length-inset);
-        right: var(--pan-reorder-indicator-length-inset);
-        top: 0;
-        height: var(--pan-reorder-indicator-size);
-        transform: translateY(-50%) scaleX(0.72);
-    }
+.pans-page__assigned-pan::before {
+    left: var(--pan-reorder-indicator-length-inset);
+    right: var(--pan-reorder-indicator-length-inset);
+    top: 0;
+    height: var(--pan-reorder-indicator-size);
+    transform: translateY(-50%) scaleX(0.72);
+}
 
-    .pans-page__assigned-pan::after {
-        top: var(--pan-reorder-indicator-length-inset);
-        bottom: var(--pan-reorder-indicator-length-inset);
-        left: 0;
-        width: var(--pan-reorder-indicator-size);
-        transform: translateX(-50%) scaleY(0.72);
-    }
+.pans-page__assigned-pan::after {
+    top: var(--pan-reorder-indicator-length-inset);
+    bottom: var(--pan-reorder-indicator-length-inset);
+    left: 0;
+    width: var(--pan-reorder-indicator-size);
+    transform: translateX(-50%) scaleY(0.72);
+}
 
 .pans-page__assigned-pan--drop-before::after,
 .pans-page__assigned-pan--drop-after::after {
