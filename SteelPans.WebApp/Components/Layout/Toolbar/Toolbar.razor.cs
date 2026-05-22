@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 
 namespace SteelPans.WebApp.Components.Layout.Toolbar;
 
@@ -9,19 +10,27 @@ public partial class Toolbar
         Left,
         Right
     }
+    private ElementReference toolbarElement_;
+    private DotNetObjectReference<Toolbar>? dotNetReference_;
 
     private readonly List<ToolbarElement> elements_ = [];
 
     private bool menuOpen_;
+    private bool animating_;
 
     private bool anyOpen_ => menuOpen_ || ActiveElement is not null;
+
+    private ModalPopup? elementPopup_;
+
+    internal bool IsMenuOpen => menuOpen_;
+    internal bool IsPanelOpen => ActiveElement is not null;
+    internal bool IsAnyOpen => IsMenuOpen || IsPanelOpen;
+    internal bool IsAnimating => animating_;
 
     internal IReadOnlyList<ToolbarElement> Elements => elements_;
 
     internal ToolbarElement? ActiveElement { get; private set; }
     internal ToolbarElement? ModalElement { get; private set; }
-
-    private ModalPopup? elementPopup_ { get; set; }
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
@@ -35,15 +44,18 @@ public partial class Toolbar
 
     [Parameter] public ToolbarSide Side { get; set; } = ToolbarSide.Left;
 
-    private string SideClass => Side == ToolbarSide.Right
-        ? "toolbar--right"
-        : "toolbar--left";
+    private string ToolbarClass => string.Join(
+    " ",
+    new[]
+    {
+        "toolbar",
+        Side == ToolbarSide.Left ? "toolbar--left" : "toolbar--right",
+        IsAnyOpen ?  "toolbar__open" : null,
+        IsMenuOpen ? "toolbar--menu-open" : null,
+        IsPanelOpen ? "toolbar--panel-open" : null,
+        IsAnimating ? "toolbar--animating" : null
+    }.Where(x => !string.IsNullOrWhiteSpace(x)));
 
-    private string CssClass => $"toolbar " +
-        $"{SideClass} " +
-        $"{(anyOpen_ ? "toolbar__open" : "toolbar__closed")} " +
-        $"{(menuOpen_ ? "toolbar--menu-open" : "toolbar--menu-closed")} " +
-        $"{(ActiveElement is not null ? "toolbar--panel-open" : "toolbar--panel-closed")}";
 
     internal void RegisterElement(ToolbarElement element)
     {
@@ -62,6 +74,25 @@ public partial class Toolbar
             ActiveElement = null;
 
         StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnToolbarTransitionEnded()
+    {
+        animating_ = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task BeginToolbarAnimationAsync()
+    {
+        animating_ = true;
+
+        dotNetReference_ ??= DotNetObjectReference.Create(this);
+
+        await JS.InvokeVoidAsync(
+            "toolbar.waitForSurfaceTransition",
+            toolbarElement_,
+            dotNetReference_);
     }
 
     internal async Task OpenElementAsync(ToolbarElement element)
@@ -84,8 +115,10 @@ public partial class Toolbar
             menuOpen_ = false;
     }
 
-    private async Task ToggleMenu()
+    private async Task ToggleMenuAsync()
     {
+        await BeginToolbarAnimationAsync();
+
         if (ActiveElement is not null)
         {
             ActiveElement = null;
@@ -103,6 +136,7 @@ public partial class Toolbar
         if (ActiveElement is null || elementPopup_ is null)
             return;
 
+        await BeginToolbarAnimationAsync();
         ModalElement = ActiveElement;
         menuOpen_ = false;
         await elementPopup_.Open();
@@ -110,6 +144,7 @@ public partial class Toolbar
 
     protected override async Task OnCloseAsync()
     {
+        await BeginToolbarAnimationAsync();
         menuOpen_ = false;
         ActiveElement = null;
         await InvokeAsync(StateHasChanged);
@@ -117,6 +152,7 @@ public partial class Toolbar
 
     public override void Dispose()
     {
+        dotNetReference_?.Dispose();
         ActiveElement = null;
         elements_.Clear();
 

@@ -3,15 +3,15 @@
 <div class="toolbar__menu-tree toolbar__menu-tree--depth-@Depth" role="@(Depth == 0 ? null : "menu")">
     @foreach (var element in Items)
     {
-        <div class="@GetItemShellClass(element)">
-            <button class="toolbar__menu-item"
+        <div class="@GetItemShellClass(element)"
+                @onclick="async () => await Owner.OpenElementAsync(element)">
+            <div class="toolbar__menu-item"
                     type="button"
                     role="menuitem"
                     tabindex="0"
                     disabled="@element.Disabled"
                     aria-haspopup="@(element.HasSubMenu ? "menu" : null)"
-                    aria-expanded="@(element.HasSubMenu ? "false" : null)"
-                    @onclick="async() => await Owner.OpenElementAsync(element)">
+                    aria-expanded="@(element.HasSubMenu ? "false" : null)">
                 <span>@element.Title</span>
                 
                 @if (!string.IsNullOrWhiteSpace(element.IconClass))
@@ -22,7 +22,9 @@
                 {
                     <span class="bi toolbar__submenu-chevron" aria-hidden="true"></span>
                 }
-            </button>
+            </div>
+            
+            <div class="toolbar__submenu-overlap" />
 
             @if (element.HasSubMenu)
             {

@@ -1,17 +1,19 @@
 ﻿@implements IDisposable
 @inherits OverlayComponentBase
+@inject IJSRuntime JS
 
 <CascadingValue Value="this" IsFixed="true">
     @ChildContent
 </CascadingValue>
 
-<div class="@CssClass">
+<div class="@ToolbarClass"
+     @ref="toolbarElement_">
     <div class="toolbar__surface">
         <div class="toolbar__menu-button-container"
              role="button"
              aria-label="@MenuButtonLabel"
              aria-expanded="@anyOpen_"
-             @onclick="ToggleMenu">
+             @onclick="ToggleMenuAsync">
             <span class="toolbar__menu-button-icon">
                 <span class="bi @(anyOpen_ ? OpenIconClass : ClosedIconClass)" aria-hidden="true"></span>
             </span>

@@ -23,12 +23,10 @@
 .pans-page__hero-content {
     position: relative;
     display: flex;
+    flex-direction: row;
     align-items: center;
     justify-content: space-between;
     min-height: var(--ui-icon-button-size);
-}
-
-.pans-page__toolbar {
 }
 
 .pans-page__eyebrow {
