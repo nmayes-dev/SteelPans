@@ -27,24 +27,27 @@
                                     IconClass="bi-plus-lg"
                                     OnClick="async () => await addPanModal_!.Open()" />
 
-                    <ToolbarElement Title="Layout">
-                        <SubMenu>
-                            <ToolbarElement Title="Load"
-                                            IconClass="bi-folder2-open"
-                                            Disabled="!Playback.IsMidiLoaded"
-                                            OnClick="async () => await LoadConfigurationFileAsync()" />
+                    @if (Playback.IsMidiLoaded)
+                    {
+                        <ToolbarElement Title="Layout">
+                            <SubMenu>
+                                <ToolbarElement Title="Load"
+                                                IconClass="bi-folder2-open"
+                                                Disabled="!Playback.IsMidiLoaded"
+                                                OnClick="async () => await LoadConfigurationFileAsync()" />
 
-                            <ToolbarElement Title="Save"
-                                            IconClass="bi-floppy"
-                                            Disabled="@(string.IsNullOrWhiteSpace(lastFileName_) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                            OnClick="async () => await SaveConfigurationFileAsync(lastFileName_!)" />
+                                <ToolbarElement Title="Save"
+                                                IconClass="bi-floppy"
+                                                Disabled="@(string.IsNullOrWhiteSpace(lastFileName_) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
+                                                OnClick="async () => await SaveConfigurationFileAsync(lastFileName_!)" />
 
-                            <ToolbarElement Title="Save As..."
-                                            IconClass="bi-floppy2"
-                                            Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                            OnClick="async () => await saveModal_!.Open()" />
-                        </SubMenu>
-                    </ToolbarElement>
+                                <ToolbarElement Title="Save As..."
+                                                IconClass="bi-floppy2"
+                                                Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
+                                                OnClick="async () => await saveModal_!.Open()" />
+                            </SubMenu>
+                        </ToolbarElement>
+                    }
 
                     @if (Playback.ActivePans.Any())
                     {
