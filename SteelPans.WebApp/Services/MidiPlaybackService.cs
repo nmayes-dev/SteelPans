@@ -58,7 +58,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     public event Func<PlaybackTempoChangedEventArgs, Task>? TempoChanged;
 
     public List<MidiTrackAssignment> Assignments { get; } = [];
-    public List<MidiAssignedPan> ActivePans { get; } = [];
+    public List<MidiAssignedPan> ActivePans { get; private set; } = [];
     public List<MidiTrackInfo> Tracks { get; } = [];
 
     public bool IsMidiLoaded => midiPlaybackInfo_ is not null;
@@ -192,10 +192,11 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (!Assignments.Any())
             await StopAsync();
 
-        foreach (var removedPan in ActivePans.Where(x => x.Assignment.Track?.Index == index).ToList())
+        var toRemove = ActivePans.Where(x => index == (x.Assignment.Track?.Index ?? -1));
+        foreach (var removedPan in toRemove)
             steelPanViews_.Remove(removedPan.InstanceId);
 
-        ActivePans.RemoveAll(x => x.Assignment.Track?.Index == index);
+        ActivePans = ActivePans.Except(toRemove).ToList();
 
         RecalculateDuration();
         Position = TimeSpan.Zero;
