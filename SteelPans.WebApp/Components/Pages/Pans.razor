@@ -22,10 +22,53 @@
                 <Toolbar MenuButtonLabel="Open Tools"
                          MenuLabel="Pan Tools"
                          Side="Toolbar.ToolbarSide.Right">
-                         
+
                     <ToolbarElement Title="Add Pan"
                                     IconClass="bi-plus-lg"
                                     OnClick="async () => await addPanModal_!.Open()" />
+
+                    <ToolbarElement Title="MIDI">
+                        <SubMenu>
+                            <ToolbarElement Title="Open MIDI"
+                                            IconClass="bi-file-earmark-music"
+                                            OnClick="OpenMidiFileDialogAsync" />
+
+                            @if (Playback.IsMidiLoaded)
+                            {
+                                <ToolbarElement Title="Tracks"
+                                                IconClass="bi-music-note-list"
+                                                Disabled="@(!Playback.Tracks.Any())">
+                                    <ChildContent>
+                                        <div class="pans-page__track-panel">
+                                            <div class="pans-page__track-panel-header">
+                                                <span class="pans-page__track-panel-title">@midiFileName_</span>
+                                                <span class="pans-page__track-panel-count">@Playback.Tracks.Count track@(Playback.Tracks.Count == 1 ? "" : "s")</span>
+                                            </div>
+
+                                            <div class="pans-page__track-list">
+                                                @foreach (var track in Playback.Tracks)
+                                                {
+                                                    <div class="pans-page__track-item">
+                                                        <div class="pans-page__track-details">
+                                                            <div class="pans-page__track-name">@track.Index) @track.DisplayInfo</div>
+                                                            <div class="pans-page__track-meta">@GetMetaInfo(track)</div>
+                                                        </div>
+
+                                                        <button type="button"
+                                                                class="pans-page__track-button @(IsTrackAssigned(track) ? "pans-page__track-button--assigned" : null)"
+                                                                aria-label="@(IsTrackAssigned(track) ? "Remove track" : "Add track")"
+                                                                @onclick="async () => await OnTrackButtonPressedAsync(track)">
+                                                            <span class="bi @(IsTrackAssigned(track) ? "bi-dash-lg" : "bi-plus-lg")" aria-hidden="true"></span>
+                                                        </button>
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    </ChildContent>
+                                </ToolbarElement>
+                            }
+                        </SubMenu>
+                    </ToolbarElement>
 
                     @if (Playback.IsMidiLoaded)
                     {
@@ -107,50 +150,39 @@
     }
     else
     {
-        <section class="pans-page__top-grid">
-            <section class="pans-page__midi-loader">
-                <MidiLoader FileName="@midiFileName_"
-                            Tracks="@Playback.Tracks"
-                            OnSingleMidiSelected="OnSingleMidiSelectedAsync"
-                            OnMultipleMidiSelected="OnMultipleMidiSelectedAsync"
-                            OnTrackAdded="(track) => addPanModal_!.Open(track.Index)" />
-            </section>
+        var hasMidiControls = Playback.ActivePans.Any(x => x.Events.Count > 0);
 
-            @{
-                var hasMidiControls = Playback.ActivePans.Any(x => x.Events.Count > 0);
-                <section class="pans-page__midi-controls @(hasMidiControls ? "pans-page__midi-controls--visible" : "")">
-                    <MidiPlaybackControl Enabled="@hasMidiControls" />
-                </section>
-            }
-
-            <ModalPopup @ref="addMergedTrackModal_"
-                        Title="Merge MIDI tracks"
-                        OnClose="CloseMergeMidiModal"
-                        OnEnter="ConfirmMergeMidiAsync">
-                <ChildContent>
-                    <input class="pans-page__track_name form-control"
-                           placeholder="Enter merged track name..."
-                           @bind="mergeMidiFileName_"
-                           @bind:event="oninput" />
-                </ChildContent>
-
-                <Actions>
-                    <button type="button"
-                            class="btn btn-outline-secondary"
-                            @onclick="CloseMergeMidiModal">
-                        Cancel
-                    </button>
-
-                    <button type="button"
-                            class="btn btn-primary"
-                            disabled="@string.IsNullOrWhiteSpace(mergeMidiFileName_)"
-                            @onclick="ConfirmMergeMidiAsync">
-                        Merge
-                    </button>
-                </Actions>
-            </ModalPopup>
+        <section class="pans-page__midi-controls @(hasMidiControls ? "pans-page__midi-controls--visible" : "")">
+            <MidiPlaybackControl Enabled="@hasMidiControls" />
         </section>
-        
+
+        <ModalPopup @ref="addMergedTrackModal_"
+                    Title="Merge MIDI tracks"
+                    OnClose="CloseMergeMidiModal"
+                    OnEnter="ConfirmMergeMidiAsync">
+            <ChildContent>
+                <input class="pans-page__track_name form-control"
+                       placeholder="Enter merged track name..."
+                       @bind="mergeMidiFileName_"
+                       @bind:event="oninput" />
+            </ChildContent>
+
+            <Actions>
+                <button type="button"
+                        class="btn btn-outline-secondary"
+                        @onclick="CloseMergeMidiModal">
+                    Cancel
+                </button>
+
+                <button type="button"
+                        class="btn btn-primary"
+                        disabled="@string.IsNullOrWhiteSpace(mergeMidiFileName_)"
+                        @onclick="ConfirmMergeMidiAsync">
+                    Merge
+                </button>
+            </Actions>
+        </ModalPopup>
+
         <section class="pans-page__content">
             <PansDisplay Pans="@Playback.ActivePans"
                          OnRemovePan="OpenRemovePanModal" />

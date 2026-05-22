@@ -1,4 +1,41 @@
 ﻿window.fileDialogs = {
+
+    openMidiFiles: async () => {
+        return new Promise((resolve, reject) => {
+            const input = document.createElement("input");
+
+            input.type = "file";
+            input.accept = ".mid,.midi";
+            input.multiple = true;
+
+            input.onchange = async (event) => {
+                try {
+                    const files = Array.from(event.target.files ?? []);
+
+                    if (files.length === 0) {
+                        resolve([]);
+                        return;
+                    }
+
+                    resolve(files.map(file => ({
+                        name: file.name,
+                        size: file.size,
+                        stream: DotNet.createJSStreamReference(file),
+                    })));
+                }
+                catch (error) {
+                    reject(error);
+                }
+            };
+
+            input.oncancel = () => {
+                resolve([]);
+            };
+
+            input.click();
+        });
+    },
+
     saveConfigFile: async (fileName, data) => {
         const json = JSON.stringify(data, null, 4);
 

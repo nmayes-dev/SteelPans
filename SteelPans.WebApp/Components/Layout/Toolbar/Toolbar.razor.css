@@ -349,13 +349,9 @@
 
     .toolbar--left .toolbar__menu ::deep .toolbar__menu-item {
         flex-direction: row;
-        justify-content: flex-end;
+        justify-content: space-between;
         text-align: right;
         transform-origin: left;
-    }
-
-    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu > .toolbar__menu-item {
-        justify-content: space-between;
     }
 
     .toolbar--left .toolbar__menu ::deep .toolbar__submenu {
@@ -387,7 +383,7 @@
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item {
         flex-direction: row-reverse;
-        justify-content: flex-end;
+        justify-content: space-between;
         text-align: left;
         transform-origin: right;
     }
@@ -395,10 +391,6 @@
         .toolbar--right .toolbar__menu ::deep .toolbar__menu-item span:not(.bi) {
             text-align: left;
         }
-
-    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu > .toolbar__menu-item {
-        justify-content: space-between;
-    }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__submenu {
         right: 100%;

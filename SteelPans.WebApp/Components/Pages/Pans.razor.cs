@@ -1,6 +1,5 @@
 using Melanchall.DryWetMidi.Core;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using SteelPans.WebApp.Components.Elements;
@@ -12,13 +11,22 @@ namespace SteelPans.WebApp.Components.Pages;
 
 public partial class Pans : IAsyncDisposable
 {
+    private const long MaxMidiFileSize = 64L * 1024L * 1024L;
+
+    private sealed class BrowserDialogFile
+    {
+        public string Name { get; set; } = string.Empty;
+        public long Size { get; set; }
+        public IJSStreamReference? Stream { get; set; }
+    }
+
     private Settings Settings => SettingsAccessor.Value;
 
     private readonly List<SteelPan> pans_ = [];
     private string? loadError_;
     private string midiFileName_ = string.Empty;
     private string mergeMidiFileName_ = string.Empty;
-    private IReadOnlyList<IBrowserFile> pendingMergeMidiFiles_ = [];
+    private IReadOnlyList<BrowserDialogFile> pendingMergeMidiFiles_ = [];
 
     private AddPanModal? addPanModal_;
     private ModalPopup? addMergedTrackModal_;
@@ -185,12 +193,19 @@ public partial class Pans : IAsyncDisposable
 
         var loadTracks = async () =>
         {
-            var files = pendingMergeMidiFiles_
-                .Select(x => (x.Name, x.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024)))
-                .ToList();
+            var files = new List<(string Name, Stream Stream)>();
 
             try
             {
+                foreach (var file in pendingMergeMidiFiles_)
+                {
+                    if (file.Stream is null)
+                        continue;
+
+                    var stream = await file.Stream.OpenReadStreamAsync(MaxMidiFileSize);
+                    files.Add((file.Name, stream));
+                }
+
                 return await MidiService.MergeMidiTracksAsync(midiFileName_, files);
             }
             finally
@@ -209,7 +224,31 @@ public partial class Pans : IAsyncDisposable
         mergeMidiFileName_ = string.Empty;
     }
 
-    private async Task OnMultipleMidiSelectedAsync(IReadOnlyList<IBrowserFile> files)
+    private async Task OpenMidiFileDialogAsync()
+    {
+        try
+        {
+            loadError_ = null;
+
+            var files = await JS.InvokeAsync<List<BrowserDialogFile>>("fileDialogs.openMidiFiles");
+            if (files is null || files.Count == 0)
+                return;
+
+            if (files.Count == 1)
+            {
+                await OnSingleMidiSelectedAsync(files[0]);
+                return;
+            }
+
+            await OnMultipleMidiSelectedAsync(files);
+        }
+        catch (Exception)
+        {
+            loadError_ = "An error occured loading this MIDI file.";
+        }
+    }
+
+    private async Task OnMultipleMidiSelectedAsync(IReadOnlyList<BrowserDialogFile> files)
     {
         if (addMergedTrackModal_ is null)
             return;
@@ -218,14 +257,39 @@ public partial class Pans : IAsyncDisposable
         await addMergedTrackModal_.Open();
     }
 
-    private async Task OnSingleMidiSelectedAsync(IBrowserFile file)
+    private async Task OnSingleMidiSelectedAsync(BrowserDialogFile file)
     {
+        if (file.Stream is null)
+            return;
+
         midiFileName_ = file.Name;
         await OnMidiFileSelected(async () =>
         {
-            await using var stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            await using var stream = await file.Stream.OpenReadStreamAsync(MaxMidiFileSize);
             return await MidiService.OpenMidiFileAsync(stream);
         });
+    }
+
+    private bool IsTrackAssigned(MidiTrackInfo track)
+    {
+        return Playback.Assignments.Any(a => a.Track?.Index == track.Index);
+    }
+
+    private async Task OnTrackButtonPressedAsync(MidiTrackInfo track)
+    {
+        if (IsTrackAssigned(track))
+        {
+            await Playback.OnRemoveAssignmentAsync(track.Index);
+            return;
+        }
+
+        if (addPanModal_ is not null)
+            await addPanModal_.Open(track.Index);
+    }
+
+    private string GetMetaInfo(MidiTrackInfo track)
+    {
+        return $"{track.NoteCount} note{(track.NoteCount == 1 ? "" : "s")}{(IsTrackAssigned(track) ? " - Assigned" : "")}";
     }
 
     private async Task OnClickTrackEnabledShellChangedAsync(ChangeEventArgs e)
