@@ -18,7 +18,69 @@
     <header class="sp-section pans-page__hero">
         <div class="pans-page__hero-content">
             <h1 class="pans-page__title">Steel Pans</h1>
-            <label class="pans-page__eyebrow">Interactive practice tool</label>
+            <div class="pans-page__toolbar">
+                <Toolbar MenuButtonLabel="Open Tools"
+                         MenuLabel="Pan Tools"
+                         Side="Toolbar.ToolbarSide.Right">
+
+                    <ToolbarElement Title="Add Pan"
+                                    IconClass="bi bi-plus-lg"
+                                    OnClick="async () => await addPanModal_!.Open()" />
+
+                    <ToolbarElement Title="Load Layout"
+                                    IconClass="bi bi-folder2-open"
+                                    Disabled="!Playback.IsMidiLoaded"
+                                    OnClick="async () => await LoadConfigurationFileAsync()" />
+                         
+                    <ToolbarElement Title="Save Layout"
+                                    IconClass="bi bi-floppy"
+                                    Disabled="@(string.IsNullOrWhiteSpace(lastFileName_) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
+                                    OnClick="async () => await SaveConfigurationFileAsync(lastFileName_!)" />
+
+                    <ToolbarElement Title="Save Layout As..."
+                                    IconClass="bi bi-floppy2"
+                                    Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
+                                    OnClick="async () => await saveModal_!.Open()" />
+
+                    @if (Playback.ActivePans.Any())
+                    {
+                        <ToolbarElement Title="Mixer"
+                                        IconClass="bi bi-sliders2-vertical"
+                                        CanExpand="true"
+                                        CanMoveExpanded="true">
+                            <VolumeMixer />
+                        </ToolbarElement>
+
+                        <ToolbarElement Title="Metronome"
+                                        IconClass="bi bi-music-note-beamed">
+                            <HeaderActions>
+                                <label class="metronome-shell__status-switch">
+                                    <input class="metronome-shell__status-switch-input"
+                                           type="checkbox"
+                                           checked="@Playback.ClickTrackEnabled"
+                                           @onchange="OnClickTrackEnabledShellChangedAsync"
+                                           @onclick:stopPropagation="true"
+                                           aria-label="Enable metronome" />
+
+                                    <span class="metronome-shell__status-switch-track" aria-hidden="true">
+                                        <span class="metronome-shell__status-switch-thumb"></span>
+                                    </span>
+                                </label>
+                            </HeaderActions>
+                            <ChildContent>
+                                <Metronome />
+                            </ChildContent>
+                        </ToolbarElement>
+
+                        <ToolbarElement Title="Chords"
+                                        IconClass="bi bi-music-note-list">
+                            <ChordBuilder />
+                        </ToolbarElement>
+                    }
+
+
+                </Toolbar>
+            </div>
         </div>
     </header>
 
@@ -77,70 +139,6 @@
         </section>
         
         <section class="pans-page__content">
-            <div class="pans-page__toolbar">
-                <Toolbar MenuButtonLabel="Open Tools"
-                         MenuLabel="Pan Tools"
-                         Side="Toolbar.ToolbarSide.Left">
-
-                    <ToolbarElement Title="Load Layout"
-                                    IconClass="bi bi-folder2-open"
-                                    Disabled="!Playback.IsMidiLoaded"
-                                    OnClick="async () => await LoadConfigurationFileAsync()" />
-                         
-                    <ToolbarElement Title="Save Layout"
-                                    IconClass="bi bi-floppy"
-                                    Disabled="@(string.IsNullOrWhiteSpace(lastFileName_) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                    OnClick="async () => await SaveConfigurationFileAsync(lastFileName_!)" />
-
-                    <ToolbarElement Title="Save Layout As..."
-                                    IconClass="bi bi-floppy2"
-                                    Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                    OnClick="async () => await saveModal_!.Open()" />
-
-                    <ToolbarElement Title="Add Pan"
-                                    IconClass="bi bi-plus-lg"
-                                    OnClick="async () => await addPanModal_!.Open()" />
-
-                    @if (Playback.ActivePans.Any())
-                    {
-                        <ToolbarElement Title="Mixer"
-                                        IconClass="bi bi-sliders2-vertical"
-                                        CanExpand="true"
-                                        CanMoveExpanded="true">
-                            <VolumeMixer />
-                        </ToolbarElement>
-
-                        <ToolbarElement Title="Metronome"
-                                        IconClass="bi bi-music-note-beamed">
-                            <HeaderActions>
-                                <label class="metronome-shell__status-switch">
-                                    <input class="metronome-shell__status-switch-input"
-                                           type="checkbox"
-                                           checked="@Playback.ClickTrackEnabled"
-                                           @onchange="OnClickTrackEnabledShellChangedAsync"
-                                           @onclick:stopPropagation="true"
-                                           aria-label="Enable metronome" />
-
-                                    <span class="metronome-shell__status-switch-track" aria-hidden="true">
-                                        <span class="metronome-shell__status-switch-thumb"></span>
-                                    </span>
-                                </label>
-                            </HeaderActions>
-                            <ChildContent>
-                                <Metronome />
-                            </ChildContent>
-                        </ToolbarElement>
-
-                        <ToolbarElement Title="Chords"
-                                        IconClass="bi bi-music-note-list">
-                            <ChordBuilder />
-                        </ToolbarElement>
-                    }
-
-
-                </Toolbar>
-            </div>
-
             <PansDisplay Pans="@Playback.ActivePans"
                          OnRemovePan="OpenRemovePanModal" />
         </section>

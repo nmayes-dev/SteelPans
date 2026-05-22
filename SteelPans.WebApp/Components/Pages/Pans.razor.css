@@ -15,15 +15,24 @@
 }
 
 .pans-page__hero {
-    padding: clamp(0.4rem, 0.8vw, 0.8rem) clamp(0.8rem, 1vw, 1rem);
+    position: relative;
+    overflow: visible;
+    padding: clamp(0.2rem, 0.6vw, 0.5rem) clamp(0.8rem, 1vw, 1rem);
 }
 
 .pans-page__hero-content {
+    position: relative;
     display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: flex-end;
-    gap: 1rem;
+    align-items: center;
+    min-height: var(--ui-icon-button-size);
+    padding-inline-end: calc(var(--ui-icon-button-size) + 1rem);
+}
+
+.pans-page__toolbar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 400;
 }
 
 .pans-page__eyebrow {
@@ -106,13 +115,6 @@
     position: relative;
     min-width: 0;
     min-height: 0;
-}
-
-.pans-page__toolbar {
-    position: absolute;
-    top: 0.5rem;
-    left: 0.5rem;
-    z-index: 30;
 }
 
 .metronome-shell__status-switch {
@@ -213,10 +215,5 @@
 @media (max-width: 700px) {
     .pans-page__content {
         overflow: visible;
-    }
-
-    .pans-page__toolbar {
-        top: 0.6rem;
-        left: 0.6rem;
     }
 }

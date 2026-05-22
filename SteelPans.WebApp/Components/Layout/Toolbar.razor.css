@@ -199,8 +199,7 @@
 }
 
 .toolbar__menu-item {
-    display: grid;
-    grid-template-columns: auto 1fr;
+    display: flex;
     align-items: center;
     width: 100%;
     min-width: 0;
@@ -233,9 +232,15 @@
     .toolbar__menu-item .bi {
         display: grid;
         place-items: center;
+        flex: 0 0 clamp(1.2rem, 2vw, 1.6rem);
         width: clamp(1.2rem, 2vw, 1.6rem);
         aspect-ratio: 1 / 1;
         font-size: clamp(0.85rem, 1.2vw, 1.1rem);
+    }
+
+    .toolbar__menu-item span:not(.bi) {
+        min-width: 0;
+        flex: 1 1 auto;
     }
 
 .toolbar__panel {
@@ -278,6 +283,10 @@
         text-align: left;
     }
 
+        .toolbar--left .toolbar__menu-item span:not(.bi) {
+            text-align: left;
+        }
+
 .toolbar--right {
     justify-items: end;
 }
@@ -296,8 +305,12 @@
     }
 
     .toolbar--right .toolbar__menu-item {
-        flex-direction: row;
-        justify-content: flex-end;
+        flex-direction: row-reverse;
+        justify-content: flex-start;
         padding-left: 2rem;
         text-align: right;
     }
+
+        .toolbar--right .toolbar__menu-item span:not(.bi) {
+            text-align: right;
+        }
