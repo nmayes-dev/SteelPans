@@ -2,17 +2,25 @@
 
 @if (isOpen_)
 {
-    <div class="modal-popup__backdrop" @onclick="OnBackdropClickedAsync"></div>
+    @if (!Draggable)
+    {
+        <div class="modal-popup__backdrop" @onclick="OnBackdropClickedAsync"></div>
+    }
 
-    <div class="modal-popup"
+    <div class="@PopupClass"
          @ref="popupElement_"
          role="dialog"
-         aria-modal="true"
+         aria-modal="@(!Draggable).ToString().ToLowerInvariant()"
          aria-labelledby="@TitleId"
          tabindex="-1"
-         @onkeydown="@OnKeyDownAsync">
+         @onkeydown="@OnKeyDownAsync"
+         @onpointermove="OnPointerMoveAsync"
+         @onpointerup="OnPointerUpAsync"
+         @onpointercancel="OnPointerUpAsync"
+         style="@PopupStyle">
         <div class="modal-popup__card">
-            <div class="modal-popup__header">
+            <div class="modal-popup__header"
+                 @onpointerdown="OnHeaderPointerDownAsync">
                 <div>
                     <div id="@TitleId" class="modal-popup__title">@Title</div>
 
@@ -27,7 +35,8 @@
                     <button type="button"
                             class="btn-close"
                             aria-label="Close"
-                            @onclick="OnCloseAsync">
+                            @onclick="OnCloseAsync"
+                            @onpointerdown:stopPropagation="true">
                     </button>
                 }
             </div>

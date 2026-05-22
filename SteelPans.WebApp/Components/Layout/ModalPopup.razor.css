@@ -16,6 +16,15 @@
     pointer-events: none;
 }
 
+.modal-popup--draggable {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    display: block;
+    padding: 0;
+    transform: translate( calc(-50% + var(--modal-popup-offset-x, 0px)), calc(-50% + var(--modal-popup-offset-y, 0px)) );
+}
+
 .modal-popup__card {
     width: fit-content;
     background: #ffffff;
@@ -31,7 +40,17 @@
     align-items: center;
     justify-content: space-between;
     padding-left: 0.3rem;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.6rem;
+}
+
+.modal-popup--draggable .modal-popup__header {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+
+.modal-popup--dragging .modal-popup__header {
+    cursor: grabbing;
 }
 
 .modal-popup__title {

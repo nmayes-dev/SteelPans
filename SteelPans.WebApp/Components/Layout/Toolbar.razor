@@ -62,6 +62,7 @@
 
     <ModalPopup @ref="elementPopup_"
                 Title="@ModalElement?.Title"
+                Draggable="@(ModalElement?.CanMoveExpanded ?? false)"
                 OnClose="() => ModalElement = null">
         <ChildContent>
             @ModalElement?.ChildContent
