@@ -207,7 +207,7 @@
     min-width: min(22rem, 78vw);
     max-height: clamp(12rem, 46vw, 20rem);
     padding: var(--track-panel-padding);
-    overflow: hidden;
+    overflow: auto;
 }
 
 .pans-page__track-panel-header {

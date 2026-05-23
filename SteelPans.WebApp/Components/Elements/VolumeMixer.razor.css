@@ -12,6 +12,7 @@
     gap: var(--mixer-gap);
     width: 100%;
     min-width: 0;
+    overflow: auto;
 }
 
 .mixer__channels {

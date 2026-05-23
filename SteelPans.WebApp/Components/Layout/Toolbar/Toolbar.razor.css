@@ -7,13 +7,13 @@
     --toolbar__menu-icon-size: clamp(1.2rem, 2vw, 1.6rem);
     --toolbar__menu-item-padding: clamp(0.45rem, 0.4vw, 0.8rem);
     /* Submenu*/
-    --toolbar__submenu-base-width: 8rem;
+    --toolbar__submenu-base-width: 5rem;
     --toolbar__submenu-base-offset: calc(var(--toolbar__menu-icon-size) + 2 * var(--toolbar__menu-item-padding));
     --toolbar__submenu-width: calc(var(--toolbar__submenu-base-width) + 2 * var(--toolbar__submenu-base-offset));
     --toolbar__submenu-offset: calc(100% - var(--toolbar__submenu-base-offset));
     /* Content Panel */
-    --toolbar__panel-width: clamp(18rem, 30vw, 20rem);
-    --toolbar__panel-max-height: 30rem;
+    --toolbar__panel-width: clamp(18rem, 30vw, 26rem);
+    --toolbar__panel-max-height: clamp(18rem, 30vh, 26rem);
     /* Transition */
     --toolbar__transition-duration: 500ms;
     --toolbar__submenu-transition-duration: calc(var(--toolbar__transition-duration) * 0.5);
@@ -68,10 +68,11 @@
 
 .toolbar--panel-open .toolbar__surface {
     max-width: var(--toolbar__panel-width);
-    max-height: var(--toolbar__panel-max-height);
+    max-height: calc(var(--ui-icon-button-size) + var(--toolbar__panel-max-height));
     border-radius: 1rem;
     box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
     backdrop-filter: blur(10px);
+    overflow: hidden;
 }
 
 .toolbar__menu-button-container {
@@ -161,7 +162,7 @@
 }
 
 .toolbar__expand-button {
-    --expand-button-size: calc(var(--ui-icon-button-size) * 0.9);
+    --expand-button-size: calc(var(--ui-icon-button-size) * 0.8);
     --expand-button-icon-size: calc(var(--expand-button-size) * 0.45);
     display: grid;
     place-items: center;
@@ -221,6 +222,10 @@
     pointer-events: auto;
 }
 
+.toolbar--panel-open .toolbar__menu {
+    height: 0;
+}
+
 .toolbar__menu ::deep .toolbar__menu-tree {
     display: grid;
     transition: border-bottom-left-radius var(--toolbar__transition-duration) ease, border-bottom-right-radius var(--toolbar__transition-duration) ease;
@@ -229,15 +234,15 @@
 .toolbar--menu-open ::deep .toolbar__menu-tree {
 }
 
-.toolbar__menu ::deep .toolbar__menu-tree {
+.toolbar__menu ::deep .toolbar__menu-tree--depth-0 {
     border-radius: 0 0 1rem 1rem;
 }
 
-    .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell:last-child {
+    .toolbar__menu ::deep .toolbar__menu-tree--depth-0 > .toolbar__menu-item-shell:last-child {
         border-radius: 0 0 1rem 1rem;
     }
 
-        .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
+        .toolbar__menu ::deep .toolbar__menu-tree--depth-0 > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
             border-radius: 0 0 1rem 1rem;
         }
 
@@ -249,7 +254,7 @@
     grid-template-columns: auto 0 0;
     cursor: pointer;
     background: transparent;
-    transition: background var(--toolbar__submenu-transition-duration) cubic-bezier(0.2,-2,0.8,2), border-bottom-left-radius var(--toolbar__transition-duration) ease, border-bottom-right-radius var(--toolbar__transition-duration ) ease;
+    transition: background var(--toolbar__submenu-transition-duration) ease, border-bottom-left-radius var(--toolbar__transition-duration) ease, border-bottom-right-radius var(--toolbar__transition-duration ) ease;
 }
 
 .toolbar__menu-item-shell > .toolbar__menu-item {
@@ -340,56 +345,42 @@
         overflow: hidden;
     }
 
-        .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell {
-            grid-template-columns: var(--toolbar__submenu-tree-width) var(--toolbar__submenu-base-offset);
+        .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:hover:not(:disabled) > .toolbar__menu-item,
+        .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:hover:not(:disabled, :first-child) > .toolbar__submenu-overlap {
+            background: rgb(208, 218, 249);
         }
 
-            .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:hover:not(:disabled) > .toolbar__menu-item,
-            .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:hover:not(:disabled, :first-child) > .toolbar__submenu-overlap {
-                background: rgb(208, 218, 249);
-            }
+        .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
+            border-bottom: 1px solid var(--toolbar__border-color);
+        }
 
-            .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
-                border-bottom: 1px solid var(--toolbar__border-color);
-            }
+        .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__menu-item {
+            min-width: var(--toolbar__submenu-tree-width);
+            background: rgba(255, 255, 255, 0.98);
+        }
 
-            .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__menu-item {
-                background: rgba(255, 255, 255, 0.98);
-                border-left: 1px solid var(--toolbar__border-color);
-            }
+        .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item {
+            border-top: 1px solid var(--toolbar__border-color);
+        }
 
-            .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item {
-                border-top: 1px solid var(--toolbar__border-color);
-            }
+        .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__submenu-overlap {
+            min-width: var(--toolbar__submenu-base-offset);
+            background: rgba(255, 255, 255, 0.98);
+        }
 
-            .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__submenu-overlap {
-                background: rgba(255, 255, 255, 0.98);
-                border-right: 1px solid var(--toolbar__border-color);
-            }
+        .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__submenu-overlap {
+            background: transparent;
+        }
 
-            .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__submenu-overlap {
-                background: transparent;
-                border-right: none;
-            }
-
-            .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__submenu-overlap {
-                border-bottom: 1px solid var(--toolbar__border-color);
-            }
+        .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__submenu-overlap {
+            border-bottom: 1px solid var(--toolbar__border-color);
+        }
 
 .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__submenu {
     opacity: 1;
     pointer-events: auto;
     transform: scaleX(1);
     transition: opacity var(--toolbar__submenu-transition-duration) ease-in, transform var(--toolbar__submenu-transition-duration) ease;
-}
-
-.toolbar__menu ::deep .toolbar__submenu-chevron::before {
-    content: "\f285";
-}
-
-.toolbar__menu ::deep .toolbar__menu-item:focus-visible > .toolbar__submenu-chevron::before,
-.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__submenu-chevron::before {
-    content: "\f282";
 }
 
 .toolbar__panel {
@@ -409,7 +400,9 @@
     opacity: 1;
     pointer-events: auto;
     padding: 0.5rem;
+    overflow: auto;
 }
+
 
 .toolbar--left {
     transform-origin: left;
@@ -435,7 +428,7 @@
     .toolbar--left .toolbar__menu ::deep .toolbar__menu-item {
         flex-direction: row;
         justify-content: flex-end;
-        text-align: left;
+        text-align: right;
         padding-right: var(--toolbar__menu-item-padding);
     }
 
@@ -447,35 +440,67 @@
             border-top-left-radius: 0;
         }
 
-            .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item {
-                border-top-right-radius: 1rem;
+            .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell {
+                grid-template-columns: var(--toolbar__submenu-base-offset) var(--toolbar__submenu-tree-width);
             }
 
-            .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
-                border-bottom-right-radius: 1rem;
-            }
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__menu-item {
+                    grid-column: 2;
+                    border-right: 1px solid var(--toolbar__border-color);
+                }
 
-            .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__submenu-overlap {
-                border-bottom-left-radius: 1rem;
-            }
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__submenu-overlap {
+                    grid-column: 1;
+                    border-left: 1px solid var(--toolbar__border-color);
+                }
 
-.toolbar-left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:hover:not(:disabled)),
-.toolbar-left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:focus-visible),
-.toolbar-left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover {
-    border-bottom-right-radius: 0;
-}
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__submenu-overlap {
+                    border-left: none;
+                }
 
-.toolbar-left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu > .toolbar__menu-item {
-    border-bottom-right-radius: 2rem;
-}
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item {
+                    border-top-right-radius: 1rem;
+                }
 
-.toolbar-left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has( > .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover ) > .toolbar__menu-item {
-    border-bottom-right-radius: 0;
-}
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
+                    border-bottom-right-radius: 1rem;
+                }
 
-.toolbar--left .toolbar__menu-title-wrap {
-    flex-direction: row;
-}
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__submenu-overlap {
+                    border-bottom-left-radius: 1rem;
+                }
+
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:hover:not(:disabled)),
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:focus-visible),
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover {
+        border-bottom-right-radius: 0;
+    }
+
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu > .toolbar__menu-item:hover,
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has( > .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover ) > .toolbar__menu-item {
+        border-bottom-right-radius: calc(var(--toolbar__menu-item-height) * 0.5);
+    }
+
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has( > .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover ) > .toolbar__menu-item {
+        border-bottom-right-radius: 0;
+        transition: opacity var(--toolbar__transition-duration) ease, border-bottom-right-radius 0ms ease;
+    }
+
+
+    .toolbar--left .toolbar__menu ::deep .toolbar__submenu-chevron::before {
+        content: "\f285";
+        transition: transform 75ms ease;
+    }
+
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item:focus-visible > .toolbar__submenu-chevron::before,
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__submenu-chevron::before {
+        transform: rotateZ(90deg);
+    }
+
+    .toolbar--left .toolbar__menu-title-wrap {
+        flex-direction: row;
+    }
+
 
 .toolbar--right {
     transform-origin: right;
@@ -495,7 +520,7 @@
     }
 
     .toolbar--right .toolbar__menu-header {
-        justify-content: flex-start;
+        justify-content: flex-end;
     }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item {
@@ -513,17 +538,35 @@
             border-top-right-radius: 0;
         }
 
-            .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item {
-                border-top-left-radius: 1rem;
+            .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell {
+                grid-template-columns: var(--toolbar__submenu-tree-width) var(--toolbar__submenu-base-offset);
             }
 
-            .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
-                border-bottom-left-radius: 1rem;
-            }
+                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__menu-item {
+                    grid-column: 1;
+                    border-left: 1px solid var(--toolbar__border-color);
+                }
 
-            .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__submenu-overlap {
-                border-bottom-right-radius: 1rem;
-            }
+                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__submenu-overlap {
+                    grid-column: 2;
+                    border-right: 1px solid var(--toolbar__border-color);
+                }
+
+                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__submenu-overlap {
+                    border-right: none;
+                }
+
+                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item {
+                    border-top-left-radius: 1rem;
+                }
+
+                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
+                    border-bottom-left-radius: 1rem;
+                }
+
+                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__submenu-overlap {
+                    border-bottom-right-radius: 1rem;
+                }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:hover:not(:disabled)),
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:focus-visible),
@@ -533,16 +576,23 @@
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu > .toolbar__menu-item:hover,
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has( > .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover ) > .toolbar__menu-item {
-        border-bottom-left-radius: 2rem;
+        border-bottom-left-radius: calc(var(--toolbar__menu-item-height) * 0.5);
     }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has( > .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover ) > .toolbar__menu-item {
         border-bottom-left-radius: 0;
+        transition: opacity var(--toolbar__transition-duration) ease, border-bottom-left-radius 0ms ease;
     }
 
 
     .toolbar--right .toolbar__menu ::deep .toolbar__submenu-chevron::before {
         content: "\f284";
+        transition: transform 75ms ease;
+    }
+
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item:focus-visible > .toolbar__submenu-chevron::before,
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__submenu-chevron::before {
+        transform: rotateZ(-90deg);
     }
 
     .toolbar--right .toolbar__menu-title-wrap {

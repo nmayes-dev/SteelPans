@@ -67,6 +67,8 @@
 }
 
 .modal-popup__body {
+    max-height: 65vh;
+    overflow: auto;
     margin-bottom: 0.6rem;
 }
 
