@@ -7,7 +7,7 @@
     --toolbar__menu-icon-size: clamp(1.2rem, 2vw, 1.6rem);
     --toolbar__menu-item-padding: clamp(0.45rem, 0.4vw, 0.8rem);
     /* Submenu*/
-    --toolbar__submenu-base-width: 5rem;
+    --toolbar__submenu-base-width: 7rem;
     --toolbar__submenu-base-offset: calc(var(--toolbar__menu-icon-size) + 2 * var(--toolbar__menu-item-padding));
     --toolbar__submenu-width: calc(var(--toolbar__submenu-base-width) + 2 * var(--toolbar__submenu-base-offset));
     --toolbar__submenu-offset: calc(100% - var(--toolbar__submenu-base-offset));
@@ -348,6 +348,7 @@
         .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:hover:not(:disabled) > .toolbar__menu-item,
         .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:hover:not(:disabled, :first-child) > .toolbar__submenu-overlap {
             background: rgb(208, 218, 249);
+            color: #1d4ed8;
         }
 
         .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
@@ -462,11 +463,11 @@
                     border-top-right-radius: 1rem;
                 }
 
-                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child:not(:first-child) > .toolbar__menu-item {
                     border-bottom-right-radius: 1rem;
                 }
 
-                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__submenu-overlap {
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child:not(:first-child) > .toolbar__submenu-overlap {
                     border-bottom-left-radius: 1rem;
                 }
 
@@ -564,7 +565,7 @@
                     border-bottom-left-radius: 1rem;
                 }
 
-                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__submenu-overlap {
+                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child:not(:first-child) > .toolbar__submenu-overlap {
                     border-bottom-right-radius: 1rem;
                 }
 
