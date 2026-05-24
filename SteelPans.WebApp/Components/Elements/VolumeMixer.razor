@@ -1,6 +1,7 @@
 ﻿@using SteelPans.WebApp.Model
 @using SteelPans.WebApp.Services
 @using SteelPans.WebApp.Extensions
+@implements IAsyncDisposable
 @inject MidiPlaybackService Playback
 
 <div class="mixer">
@@ -16,7 +17,7 @@
 
     private bool IsSilent(MidiAssignedPan pan) => (pan.Volume <= 0.0001) || pan.Muted || OtherPans(pan).Any(p => p.Soloing);
 
-    private RenderFragment<MidiAssignedPan> Channel => pan => @<section class="mixer__channel" @key="pan.InstanceId">
+    private RenderFragment<MidiAssignedPan> Channel => pan =>@<section class="mixer__channel" @key="pan.InstanceId">
         <div class="mixer__channel-copy">
             <div class="mixer__channel-title">@pan.Assignment.Track?.Name</div>
             <div class="mixer__channel-subtitle">@pan.Assignment.AssignedPanType.ToSpacedPascal()</div>
@@ -54,6 +55,16 @@
         </div>
     </section>
     ;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Playback.StateChanged += OnStateChanged;
+    }
+
+    private async Task OnStateChanged()
+    {
+        await InvokeAsync(StateHasChanged);
+    }
 
     private IEnumerable<MidiAssignedPan> OtherPans(MidiAssignedPan pan) =>
         Playback.ActivePans.Where(x => x.InstanceId != pan.InstanceId);
@@ -107,5 +118,11 @@
     private async Task ToggleSoloAsync(MidiAssignedPan pan)
     {
         await Playback.SetPanSoloingAsync(pan, !pan.Soloing);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Playback.StateChanged -= OnStateChanged;
+        return ValueTask.CompletedTask;
     }
 }

@@ -10,13 +10,11 @@ public partial class Toolbar
         Left,
         Right
     }
-    private ElementReference toolbarElement_;
-    private DotNetObjectReference<Toolbar>? dotNetReference_;
 
-    private readonly List<ToolbarElement> elements_ = [];
+    private readonly List<ToolbarElement> contentElements_ = [];
+    private readonly List<ToolbarElement> rootElements_ = [];
 
     private bool menuOpen_;
-    private bool animating_;
 
     private bool anyOpen_ => menuOpen_ || ActiveElement is not null;
 
@@ -25,9 +23,8 @@ public partial class Toolbar
     internal bool IsMenuOpen => menuOpen_;
     internal bool IsPanelOpen => ActiveElement is not null;
     internal bool IsAnyOpen => IsMenuOpen || IsPanelOpen;
-    internal bool IsAnimating => animating_;
 
-    internal IReadOnlyList<ToolbarElement> Elements => elements_;
+    internal IReadOnlyList<ToolbarElement> Elements => rootElements_;
 
     internal ToolbarElement? ActiveElement { get; private set; }
     internal ToolbarElement? ModalElement { get; private set; }
@@ -50,49 +47,35 @@ public partial class Toolbar
     {
         "toolbar",
         Side == ToolbarSide.Left ? "toolbar--left" : "toolbar--right",
-        IsAnyOpen ?  "toolbar__open" : null,
+        IsAnyOpen ?  "toolbar--open" : null,
         IsMenuOpen ? "toolbar--menu-open" : null,
         IsPanelOpen ? "toolbar--panel-open" : null,
-        IsAnimating ? "toolbar--animating" : null
     }.Where(x => !string.IsNullOrWhiteSpace(x)));
 
 
-    internal void RegisterElement(ToolbarElement element)
+    internal void RegisterElement(ToolbarElement element, bool root)
     {
-        if (!elements_.Contains(element))
-        {
-            elements_.Add(element);
-            StateHasChanged();
-        }
+        if (element.HasBody)
+            contentElements_.Add(element);
+
+        if (root)
+            rootElements_.Add(element);
+
+        StateHasChanged();
     }
 
-    internal void UnregisterElement(ToolbarElement element)
+    internal void UnregisterElement(ToolbarElement element, bool root)
     {
-        elements_.Remove(element);
+        if (element.HasBody)
+            contentElements_.Remove(element);
+
+        if (root)
+            rootElements_.Remove(element);
 
         if (ReferenceEquals(ActiveElement, element))
             ActiveElement = null;
 
         StateHasChanged();
-    }
-
-    [JSInvokable]
-    public async Task OnToolbarTransitionEnded()
-    {
-        animating_ = false;
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task BeginToolbarAnimationAsync()
-    {
-        animating_ = true;
-
-        dotNetReference_ ??= DotNetObjectReference.Create(this);
-
-        await JS.InvokeVoidAsync(
-            "toolbar.waitForSurfaceTransition",
-            toolbarElement_,
-            dotNetReference_);
     }
 
     internal async Task OpenElementAsync(ToolbarElement element)
@@ -117,8 +100,6 @@ public partial class Toolbar
 
     private async Task ToggleMenuAsync()
     {
-        await BeginToolbarAnimationAsync();
-
         if (ActiveElement is not null)
         {
             ActiveElement = null;
@@ -136,7 +117,6 @@ public partial class Toolbar
         if (ActiveElement is null || elementPopup_ is null)
             return;
 
-        await BeginToolbarAnimationAsync();
         ModalElement = ActiveElement;
         menuOpen_ = false;
         await elementPopup_.Open();
@@ -144,7 +124,6 @@ public partial class Toolbar
 
     protected override async Task OnCloseAsync()
     {
-        await BeginToolbarAnimationAsync();
         menuOpen_ = false;
         ActiveElement = null;
         await InvokeAsync(StateHasChanged);
@@ -152,9 +131,9 @@ public partial class Toolbar
 
     public override void Dispose()
     {
-        dotNetReference_?.Dispose();
         ActiveElement = null;
-        elements_.Clear();
+        rootElements_.Clear();
+        contentElements_.Clear();
 
         base.Dispose();
     }

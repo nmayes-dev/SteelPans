@@ -198,16 +198,12 @@
 }
 
 .pans-page__track-panel {
-    --track-panel-padding: clamp(0.55rem, 1.2vw, 0.85rem);
-    --track-panel-gap: clamp(0.35rem, 0.8vw, 0.65rem);
-    --track-button-size: clamp(1.65rem, 4vw, 2rem);
+    --track-panel-base-padding: clamp(0.55rem, 0.8vw, 0.65rem);
+    --track-panel-gap: clamp(0.25rem, 0.6vw, 0.45rem);
+    --track-button-size: clamp(1.5rem, 4vw, 2rem);
     display: flex;
     flex-direction: column;
-    gap: var(--track-panel-gap);
-    min-width: min(22rem, 78vw);
-    max-height: clamp(12rem, 46vw, 20rem);
-    padding: var(--track-panel-padding);
-    overflow: auto;
+    height: 100%;
 }
 
 .pans-page__track-panel-header {
@@ -216,7 +212,7 @@
     justify-content: space-between;
     gap: var(--track-panel-gap);
     min-width: 0;
-    padding-bottom: calc(var(--track-panel-padding) * 0.6);
+    padding: var(--track-panel-base-padding) calc(var(--track-panel-base-padding) * 1.5) calc(var(--track-panel-base-padding) * 0.6) var(--track-panel-base-padding);
     border-bottom: 1px solid rgba(148, 163, 184, 0.28);
 }
 
@@ -245,8 +241,8 @@
     flex-direction: column;
     gap: calc(var(--track-panel-gap) * 0.6);
     min-height: 0;
-    overflow-y: auto;
-    padding-right: 0.15rem;
+    padding: calc(var(--track-panel-base-padding) * 0.55) calc(var(--track-panel-base-padding) * 0.5) calc(var(--track-panel-base-padding) * 0.3) calc(var(--track-panel-base-padding) * 0.5);
+    overflow: auto;
 }
 
 .pans-page__track-item {
@@ -254,7 +250,7 @@
     align-items: center;
     gap: var(--track-panel-gap);
     min-width: 0;
-    padding: calc(var(--track-panel-padding) * 0.7) calc(var(--track-panel-padding) * 0.8);
+    padding: calc(var(--track-panel-base-padding) * 0.7) calc(var(--track-panel-base-padding) * 0.8);
     border-radius: clamp(0.55rem, 1.8vw, 0.8rem);
     transition: background 120ms ease;
 }

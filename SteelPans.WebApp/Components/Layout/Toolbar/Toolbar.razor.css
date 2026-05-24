@@ -1,23 +1,23 @@
 ﻿.toolbar {
+    --toolbar__background-color: rgba(255, 255, 255, 0.98);
     --toolbar__border-color: rgba(148, 163, 184, 0.75);
     /* Menu*/
-    --toolbar__menu-width: 8rem;
-    --toolbar__menu-max-height: 20rem;
+    --toolbar__menu-min-width: 6rem;
+    --toolbar__menu-max-width: clamp(var(--toolbar__menu-min-width), 8vw, 8rem);
+    --toolbar__menu-min-height: 4rem;
+    --toolbar__menu-max-height: min(20rem, 50vh);
     --toolbar__menu-item-height: clamp(2rem, 3vw, 2.75rem);
-    --toolbar__menu-icon-size: clamp(1.2rem, 2vw, 1.6rem);
-    --toolbar__menu-item-padding: clamp(0.45rem, 0.4vw, 0.8rem);
+    --toolbar__menu-item-text-padding: clamp(0.6rem, 1.2vw, 1rem);
+    --toolbar__menu-item-icon-size: clamp(1.2rem, 2vw, 1.6rem);
+    --toolbar__menu-item-icon-padding: clamp(0.4rem, 0.4vw, 0.75rem);
+    --toolbar__menu-item-icon-container-size: calc(var(--toolbar__menu-item-icon-size) + 2 * var(--toolbar__menu-item-icon-padding));
     /* Submenu*/
-    --toolbar__submenu-base-width: 7rem;
-    --toolbar__submenu-base-offset: calc(var(--toolbar__menu-icon-size) + 2 * var(--toolbar__menu-item-padding));
-    --toolbar__submenu-width: calc(var(--toolbar__submenu-base-width) + 2 * var(--toolbar__submenu-base-offset));
-    --toolbar__submenu-offset: calc(100% - var(--toolbar__submenu-base-offset));
+    --toolbar__submenu-offset: calc(100% - var(--toolbar__menu-item-icon-container-size));
     /* Content Panel */
-    --toolbar__panel-width: clamp(18rem, 30vw, 26rem);
-    --toolbar__panel-max-height: clamp(18rem, 30vh, 26rem);
-    /* Transition */
-    --toolbar__transition-duration: 500ms;
-    --toolbar__submenu-transition-duration: calc(var(--toolbar__transition-duration) * 0.5);
-    --toolbar__submenu-exit-duration: calc(var(--toolbar__submenu-transition-duration) * 0.5);
+    --toolbar__panel-min-width: 7rem;
+    --toolbar__panel-max-width: min(45rem, 85vw);
+    --toolbar__panel-min-height: 4rem;
+    --toolbar__panel-max-height: min(40rem, 88vh);
     position: relative;
     z-index: 400;
     width: var(--ui-icon-button-radius);
@@ -39,87 +39,160 @@
     transform-origin: right;
 }
 
+
+
+
+
+
+
+
+
+/* =========================================
+   Shared Styling
+========================================= */
+
 .toolbar__surface {
     position: absolute;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--ui-icon-button-size) 1fr;
     top: 0;
     width: max-content;
     max-width: var(--ui-icon-button-size);
     height: max-content;
     max-height: var(--ui-icon-button-size);
-    background: rgba(255, 255, 255, 0.98);
-    overflow: visible;
-    border: 1px solid var(--toolbar__border-color);
+    background: var(--toolbar__background-color);
     border-radius: var(--ui-icon-button-radius);
-    box-sizing: content-box;
-    transition: max-width var(--toolbar__transition-duration) ease, max-height var(--toolbar__transition-duration) ease, box-shadow var(--toolbar__transition-duration) ease, border-radius var(--toolbar__transition-duration) ease;
+    transition: max-width var(--med-short-transition) ease, max-height var(--med-short-transition) ease-out, border-radius var(--med-transition) ease;
 }
 
-.toolbar--animating .toolbar__surface {
-    overflow: hidden;
+.toolbar--open .toolbar__surface {
+    grid-template-rows: var(--toolbar__menu-item-height) 1fr;
 }
 
 .toolbar--menu-open .toolbar__surface {
-    max-width: var(--toolbar__menu-width);
+    max-width: var(--toolbar__menu-max-width);
     max-height: var(--toolbar__menu-max-height);
     border-radius: 1rem;
-    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
-    backdrop-filter: blur(10px);
 }
 
 .toolbar--panel-open .toolbar__surface {
-    max-width: var(--toolbar__panel-width);
-    max-height: calc(var(--ui-icon-button-size) + var(--toolbar__panel-max-height));
+    max-width: var(--toolbar__panel-max-width);
+    max-height: var(--toolbar__panel-max-height);
     border-radius: 1rem;
-    box-shadow: 0 22px 60px rgba(15, 23, 42, 0.18);
-    backdrop-filter: blur(10px);
-    overflow: hidden;
 }
 
-.toolbar__menu-button-container {
+
+.toolbar__menu,
+.toolbar__panel {
+    grid-row: 2;
+    grid-column: 1;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    min-height: 0;
+    pointer-events: none;
+    padding: 0;
+    opacity: 0;
+    transition: opacity var(--short-transition) ease-out;
+}
+
+.toolbar__menu {
+    overflow: visible;
+}
+
+.toolbar__panel {
+    display: grid;
+}
+
+
+.toolbar--menu-open .toolbar__menu,
+.toolbar--panel-open .toolbar__panel {
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity var(--med-transition) ease-in;
+}
+
+.toolbar--menu-open .toolbar__menu {
+}
+
+.toolbar--panel-open .toolbar__panel {
+    overflow: hidden;
+    border: 1px solid var(--toolbar__border-color);
+    border-top: none;
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+}
+
+.toolbar--panel-open .toolbar__menu {
+    height: 0;
+}
+
+.toolbar--panel-open .toolbar__menu {
+}
+
+
+
+
+
+
+
+
+
+/* =========================================
+   Top Toolbar Header/Button
+========================================= */
+
+.toolbar__header {
+    --toolbar-header-height: var(--ui-icon-button-size);
     grid-row: 1;
     grid-column: 1;
     display: flex;
-    align-items: stretch;
-    width: 100%;
-    height: var(--ui-icon-button-size);
-    min-width: 0;
-    min-height: 0;
+    align-items: center;
     padding: 0;
+    width: 100%;
+    height: var(--toolbar-header-height);
     color: #2563eb;
     box-shadow: none;
     cursor: pointer;
     user-select: none;
     border-radius: inherit;
-    border-bottom: 0 solid rgba(148, 163, 184, 0.2);
-    transition: border-bottom 1000ms ease, border-bottom-left-radius 1000ms ease, border-bottom-right-radius 1000ms ease;
+    border: 1px solid var(--toolbar__border-color);
+    transition: height var(--med-transition) ease, border-bottom var(--med-transition) ease, border-bottom-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-transition) ease;
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .toolbar__menu-button-container:hover:not(:has(:is(button, input, select, textarea, label, a, [role="button"]):hover)) {
+    .toolbar__header:hover:not(:has(:is(button, input, select, textarea, label, a, [role="button"]):hover)) {
         background: rgb(208, 218, 249);
         color: #1d4ed8;
         border-color: rgba(96, 165, 250, 0.4);
     }
 }
 
-.toolbar__open .toolbar__menu-button-container {
-    border-bottom: 1px solid var(--toolbar__border-color);
+.toolbar--open .toolbar__header {
+    --toolbar-header-height: var(--toolbar__menu-item-height);
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
     transition: border-bottom 50ms ease, border-bottom-left-radius 50ms ease, border-bottom-right-radius 50ms ease;
 }
 
-.toolbar__menu-button-icon {
-    display: grid;
-    place-items: center;
-    flex: 0 0 var(--ui-icon-button-size);
-    width: var(--ui-icon-button-size);
-    height: var(--ui-icon-button-size);
-    min-width: var(--ui-icon-button-size);
+.toolbar__header-content {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
     color: inherit;
 }
 
-    .toolbar__menu-button-icon .bi {
+.toolbar__header-button-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 var(--ui-icon-button-size);
+    color: inherit;
+}
+
+    .toolbar__header-button-icon .bi {
         display: grid;
         place-items: center;
         padding: 0;
@@ -128,7 +201,7 @@
         transition: none;
     }
 
-.toolbar__menu-header {
+.toolbar__header-container {
     display: flex;
     align-items: center;
     width: 100%;
@@ -139,29 +212,29 @@
     overflow: hidden;
     opacity: 0;
     transform: scaleX(0);
-    transition: transform var(--toolbar__transition-duration) ease, opacity var(--toolbar__transition-duration) ease;
+    transition: transform var(--med-short-transition) ease, opacity var(--med-short-transition) ease, padding var(--med-short-transition) ease;
 }
 
-.toolbar--panel-open .toolbar__menu-header {
+.toolbar--panel-open .toolbar__header-container {
     opacity: 1;
     transform: scaleX(1);
-    padding: 0.45rem 0.75rem;
+    padding: 0 0.75rem;
 }
 
-.toolbar__menu-header-actions {
+.toolbar__header-actions {
     display: inline-flex;
     align-items: center;
     gap: 0.65rem;
 }
 
-.toolbar__menu-title-wrap {
+.toolbar__header-title-wrap {
     display: inline-flex;
     align-items: center;
     min-width: 0;
     gap: 0.6rem;
 }
 
-.toolbar__expand-button {
+.toolbar__header-expand-button {
     --expand-button-size: calc(var(--ui-icon-button-size) * 0.8);
     --expand-button-icon-size: calc(var(--expand-button-size) * 0.45);
     display: grid;
@@ -176,14 +249,14 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .toolbar__expand-button:hover {
-        background: linear-gradient(180deg, rgb(238, 244, 252), rgb(208, 218, 249));
+    .toolbar__header-expand-button:hover {
+        background: linear-gradient( 180deg, rgb(238, 244, 252), rgb(208, 218, 249) );
         color: #1d4ed8;
         border-color: rgba(96, 165, 250, 0.4);
     }
 }
 
-.toolbar__menu-title {
+.toolbar__header-title {
     min-width: 0;
     overflow: hidden;
     color: #334155;
@@ -196,42 +269,25 @@
     white-space: nowrap;
 }
 
-.toolbar__menu,
-.toolbar__panel {
-    grid-row: 2;
-    grid-column: 1;
-    width: 0;
-    min-width: 0;
-    background: transparent;
-}
 
-.toolbar__menu {
-    display: grid;
-    width: 100%;
-    min-width: 0;
-    height: 100%;
-    min-height: 0;
-    pointer-events: none;
-    padding: 0;
-    opacity: 0;
-    overflow: visible;
-}
 
-.toolbar--menu-open .toolbar__menu {
-    opacity: 1;
-    pointer-events: auto;
-}
 
-.toolbar--panel-open .toolbar__menu {
-    height: 0;
-}
+
+
+
+
+
+
+
+
+
+/* =========================================
+   Menu + Submenus
+========================================= */
 
 .toolbar__menu ::deep .toolbar__menu-tree {
     display: grid;
-    transition: border-bottom-left-radius var(--toolbar__transition-duration) ease, border-bottom-right-radius var(--toolbar__transition-duration) ease;
-}
-
-.toolbar--menu-open ::deep .toolbar__menu-tree {
+    transition: border-bottom-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-transition) ease;
 }
 
 .toolbar__menu ::deep .toolbar__menu-tree--depth-0 {
@@ -246,44 +302,63 @@
             border-radius: 0 0 1rem 1rem;
         }
 
+.toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item > .toolbar__menu-item-text {
+    border-bottom: 0px solid var(--toolbar__border-color);
+}
+
+.toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item > .toolbar__menu-item-icon {
+    border-bottom: 0px solid var(--toolbar__border-color);
+}
+
+
+.toolbar--menu-open .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item > .toolbar__menu-item-text {
+    border-bottom-width: 1px;
+}
+
+.toolbar--menu-open .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item > .toolbar__menu-item-icon {
+    border-bottom-width: 1px;
+}
+
+
 .toolbar__menu ::deep .toolbar__menu-item-shell {
     position: relative;
     width: 100%;
     height: 100%;
     display: grid;
-    grid-template-columns: auto 0 0;
+    grid-template-columns: auto 0;
     cursor: pointer;
     background: transparent;
-    transition: background var(--toolbar__submenu-transition-duration) ease, border-bottom-left-radius var(--toolbar__transition-duration) ease, border-bottom-right-radius var(--toolbar__transition-duration ) ease;
+    transition: background var(--med-transition) ease, border-bottom-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-transition) ease;
 }
 
-.toolbar__menu-item-shell > .toolbar__menu-item {
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-}
+    .toolbar__menu ::deep .toolbar__menu-item-shell > .toolbar__menu-item {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
 
 .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:hover:not(:disabled)),
 .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:focus-visible),
 .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover {
-    background: rgba(255, 255, 255, 0.98);
+    background: var(--toolbar__background-color);
 }
 
+    .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item {
+        background: rgb(208, 218, 249);
+        color: #1d4ed8;
+    }
+
 .toolbar__menu ::deep .toolbar__menu-item {
-    display: flex;
-    align-items: center;
+    display: grid;
+    place-items: center;
     width: 100%;
-    opacity: 0;
     min-width: 0;
     height: var(--toolbar__menu-item-height);
-    gap: clamp(0.75rem, 1.2vw, 1.2rem);
-    padding: clamp(0.5rem, 1vw, 0.75rem) clamp(0.6rem, 1.2vw, 1rem);
-    border: 0;
     background: transparent;
     color: #0f172a;
     font-size: clamp(0.8rem, 1.1vw, 0.95rem);
     font-weight: 700;
     white-space: nowrap;
-    transition: opacity var(--toolbar__transition-duration) ease, border-bottom-left-radius var(--toolbar__submenu-transition-duration) ease, border-bottom-right-radius var(--toolbar__submenu-transition-duration) ease;
+    transition: border-bottom-left-radius var(--med-short-transition) ease, border-bottom-right-radius var(--med-short-transition) ease;
 }
 
     .toolbar__menu ::deep .toolbar__menu-item:disabled {
@@ -301,43 +376,59 @@
         color: #1d4ed8;
     }
 
-.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item {
-    background: rgb(208, 218, 249);
-    color: #1d4ed8;
-}
-
-.toolbar__menu ::deep .toolbar__menu-item .bi {
-    display: grid;
-    place-items: center;
-    flex: 0 0 var(--toolbar__menu-icon-size);
-    width: var(--toolbar__menu-icon-size);
-    aspect-ratio: 1 / 1;
-    font-size: clamp(0.85rem, 1.2vw, 1.1rem);
-}
-
-.toolbar__menu ::deep .toolbar__menu-item span:not(.bi) {
-    min-width: 0;
-}
-
-.toolbar--menu-open ::deep .toolbar__menu-item {
-    opacity: 1;
-}
-
-    .toolbar--menu-open ::deep .toolbar__menu-item span:not(.bi) {
+    .toolbar__menu ::deep .toolbar__menu-item .toolbar__menu-item-text {
+        display: flex;
+        place-items: center;
+        min-width: 0;
+        width: 100%;
+        height: 100%;
+        transition: border-color var(--med-transition) ease;
     }
 
+        .toolbar__menu ::deep .toolbar__menu-item .toolbar__menu-item-text > span {
+            transform: scale(0);
+            transition: transform var(--med-short-transition) ease-out;
+        }
 
+    .toolbar__menu ::deep .toolbar__menu-item .toolbar__menu-item-icon {
+        display: grid;
+        place-items: center;
+        min-width: 0;
+        height: 100%;
+        transition: border-color var(--med-transition) ease;
+    }
+
+    .toolbar__menu ::deep .toolbar__menu-item .bi {
+        display: grid;
+        place-items: center;
+        width: var(--toolbar__menu-item-icon-size);
+        aspect-ratio: 1 / 1;
+        font-size: clamp(0.85rem, 1.2vw, 1.1rem);
+    }
+
+.toolbar--menu-open ::deep .toolbar__menu-item .toolbar__menu-item-text {
+    transition: border-color var(--med-transition) ease, border-width var(--med-long-transition) ease;
+}
+
+    .toolbar--menu-open ::deep .toolbar__menu-item .toolbar__menu-item-text > span {
+        transform: scale(1);
+        transition: transform var(--med-short-transition) ease-in;
+    }
+
+.toolbar--menu-open ::deep .toolbar__menu-item .toolbar__menu-item-icon {
+    transition: border-color var(--med-transition) ease, border-width var(--med-long-transition) ease;
+}
 
 .toolbar__menu ::deep .toolbar__submenu {
-    --toolbar__submenu-tree-width: calc(var(--toolbar__submenu-width) - var(--toolbar__submenu-base-offset));
     position: absolute;
     top: 0;
     z-index: 1;
-    min-width: var(--toolbar__submenu-width);
+    min-width: 0;
+    width: max-content;
     opacity: 0;
     pointer-events: none;
     transform: scaleX(0);
-    transition: opacity var(--toolbar__submenu-exit-duration) ease-out, transform var(--toolbar__submenu-exit-duration) ease;
+    transition: opacity var(--short-transition) ease-out, transform var(--short-transition) ease;
 }
 
     .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree {
@@ -351,22 +442,14 @@
             color: #1d4ed8;
         }
 
-        .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
-            border-bottom: 1px solid var(--toolbar__border-color);
-        }
-
         .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__menu-item {
-            min-width: var(--toolbar__submenu-tree-width);
-            background: rgba(255, 255, 255, 0.98);
-        }
-
-        .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item {
-            border-top: 1px solid var(--toolbar__border-color);
+            min-width: 0;
+            background: var(--toolbar__background-color);
         }
 
         .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__submenu-overlap {
-            min-width: var(--toolbar__submenu-base-offset);
-            background: rgba(255, 255, 255, 0.98);
+            min-width: var(--toolbar__menu-item-icon-container-size);
+            background: var(--toolbar__background-color);
         }
 
         .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__submenu-overlap {
@@ -381,29 +464,52 @@
     opacity: 1;
     pointer-events: auto;
     transform: scaleX(1);
-    transition: opacity var(--toolbar__submenu-transition-duration) ease-in, transform var(--toolbar__submenu-transition-duration) ease;
+    transition: opacity var(--med-short-transition) ease-in, transform var(--med-short-transition) ease;
 }
 
-.toolbar__panel {
-    transform: scale(0);
-    max-height: 0;
-    opacity: 0;
-    pointer-events: none;
-    padding: 0;
-    overflow: hidden;
-    transition: transform var(--toolbar__transition-duration) ease, opacity var(--toolbar__transition-duration) ease, padding var(--toolbar__transition-duration) ease;
-}
 
-.toolbar--panel-open .toolbar__panel {
-    transform: scale(1);
+
+
+
+
+
+
+
+/* =========================================
+   Content Panel
+========================================= */
+
+
+.toolbar__panel-content {
+    grid-area: 1 / 1;
     width: 100%;
-    max-height: var(--toolbar__panel-max-height);
-    opacity: 1;
-    pointer-events: auto;
-    padding: 0.5rem;
-    overflow: auto;
+    height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: opacity var(--med-transition) ease;
 }
 
+.toolbar__panel-content-active {
+    opacity: 1;
+    height: 100%;
+    padding: clamp(0.5rem, 0.75vw, 1rem);
+}
+
+
+
+
+
+
+
+
+
+/* =========================================
+   Side Dependent Styles
+========================================= */
+
+/* =========================================
+            Left
+========================================= */
 
 .toolbar--left {
     transform-origin: left;
@@ -414,23 +520,66 @@
         left: 0;
     }
 
-    .toolbar--left .toolbar__menu-button-container {
+    .toolbar--left .toolbar__header-content {
         flex-direction: row;
     }
 
-    .toolbar--left .toolbar__menu-button-icon .bi {
+    .toolbar--left .toolbar__header-button-icon .bi {
         justify-self: center;
     }
 
-    .toolbar--left .toolbar__menu-header {
-        justify-content: flex-end;
+    .toolbar--left .toolbar__header-container {
+        justify-content: flex-start;
+    }
+
+    .toolbar--left .toolbar__menu {
+        transform-origin: top left;
+    }
+
+    .toolbar--left .toolbar__header-title-wrap {
+        flex-direction: row;
+    }
+
+    .toolbar--left .toolbar__panel {
+        transform-origin: top left;
     }
 
     .toolbar--left .toolbar__menu ::deep .toolbar__menu-item {
-        flex-direction: row;
-        justify-content: flex-end;
         text-align: right;
-        padding-right: var(--toolbar__menu-item-padding);
+        grid-template-columns: 1fr var(--toolbar__menu-item-icon-container-size);
+    }
+
+        .toolbar--left .toolbar__menu ::deep .toolbar__menu-item > .toolbar__menu-item-icon {
+            grid-column: 2;
+            grid-row: 1;
+            border-right: 0px solid var(--toolbar__border-color);
+            padding: 0 var(--toolbar__menu-item-icon-padding);
+        }
+
+        .toolbar--left .toolbar__menu ::deep .toolbar__menu-item > .toolbar__menu-item-text {
+            grid-column: 1;
+            grid-row: 1;
+            justify-content: flex-end;
+            border-left: 0px solid var(--toolbar__border-color);
+            padding-left: var(--toolbar__menu-item-text-padding);
+            padding-right: calc(0.5 * var(--toolbar__menu-item-text-padding));
+        }
+
+            .toolbar--left .toolbar__menu ::deep .toolbar__menu-item > .toolbar__menu-item-text > span {
+                transform-origin: right;
+            }
+
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item > .toolbar__menu-item-text {
+        border-bottom-left-radius: inherit;
+    }
+
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item > .toolbar__menu-item-icon {
+        border-bottom-right-radius: inherit;
+    }
+
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__menu-item-icon {
+        border-bottom-color: transparent;
+        border-right-color: transparent;
     }
 
     .toolbar--left .toolbar__menu ::deep .toolbar__submenu {
@@ -442,29 +591,44 @@
         }
 
             .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell {
-                grid-template-columns: var(--toolbar__submenu-base-offset) var(--toolbar__submenu-tree-width);
+                grid-template-columns: var(--toolbar__menu-item-icon-container-size) minmax(0, 1fr);
             }
 
                 .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__menu-item {
                     grid-column: 2;
-                    border-right: 1px solid var(--toolbar__border-color);
+                    grid-row: 1;
                 }
 
                 .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__submenu-overlap {
                     grid-column: 1;
+                    grid-row: 1;
                     border-left: 1px solid var(--toolbar__border-color);
                 }
 
-                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__submenu-overlap {
-                    border-left: none;
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__menu-item > .toolbar__menu-item-text {
+                    justify-content: flex-end;
+                    border-left-color: transparent;
+                }
+
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item > .toolbar__menu-item-text {
+                    border-top: 1px solid var(--toolbar__border-color);
+                }
+
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item > .toolbar__menu-item-icon {
+                    border-top: 1px solid var(--toolbar__border-color);
+                    border-top-right-radius: inherit;
                 }
 
                 .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item {
                     border-top-right-radius: 1rem;
                 }
 
-                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child:not(:first-child) > .toolbar__menu-item {
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
                     border-bottom-right-radius: 1rem;
+                }
+
+                .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__submenu-overlap {
+                    border-left-color: transparent;
                 }
 
                 .toolbar--left .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child:not(:first-child) > .toolbar__submenu-overlap {
@@ -478,30 +642,46 @@
     }
 
     .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu > .toolbar__menu-item:hover,
-    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has( > .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover ) > .toolbar__menu-item {
-        border-bottom-right-radius: calc(var(--toolbar__menu-item-height) * 0.5);
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item {
+        border-bottom-right-radius: calc(var(--toolbar__menu-item-height) * 0.65);
     }
 
-    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has( > .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover ) > .toolbar__menu-item {
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item {
         border-bottom-right-radius: 0;
-        transition: opacity var(--toolbar__transition-duration) ease, border-bottom-right-radius 0ms ease;
+        transition: opacity var(--med-transition) ease, border-bottom-right-radius 0ms ease;
     }
-
 
     .toolbar--left .toolbar__menu ::deep .toolbar__submenu-chevron::before {
         content: "\f285";
-        transition: transform 75ms ease;
+        transition: transform var(--short-transition) ease;
     }
 
-    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item:focus-visible > .toolbar__submenu-chevron::before,
-    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__submenu-chevron::before {
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item:focus-visible > .toolbar__menu-item-icon > .toolbar__submenu-chevron::before,
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__menu-item-icon > .toolbar__submenu-chevron::before {
         transform: rotateZ(90deg);
+        transition: transform var(--med-short-transition) ease;
     }
 
-    .toolbar--left .toolbar__menu-title-wrap {
-        flex-direction: row;
+    .toolbar--left.toolbar--menu-open .toolbar__menu ::deep .toolbar__menu-item > .toolbar__menu-item-icon {
+        border-right-width: 1px;
     }
 
+    .toolbar--left.toolbar--menu-open .toolbar__menu ::deep .toolbar__menu-item > .toolbar__menu-item-text {
+        border-left-width: 1px;
+    }
+
+    .toolbar--left .toolbar__panel-content {
+        transform-origin: top left;
+    }
+
+
+
+
+
+
+/* =========================================
+   Right
+========================================= */
 
 .toolbar--right {
     transform-origin: right;
@@ -512,23 +692,66 @@
         right: 0;
     }
 
-    .toolbar--right .toolbar__menu-button-container {
+    .toolbar--right .toolbar__header-content {
         flex-direction: row-reverse;
     }
 
-    .toolbar--right .toolbar__menu-button-icon .bi {
+    .toolbar--right .toolbar__header-button-icon .bi {
         justify-self: center;
     }
 
-    .toolbar--right .toolbar__menu-header {
-        justify-content: flex-end;
+    .toolbar--right .toolbar__header-container {
+        justify-content: flex-start;
+    }
+
+    .toolbar--right .toolbar__menu {
+        transform-origin: top right;
+    }
+
+    .toolbar--right .toolbar__header-title-wrap {
+        flex-direction: row-reverse;
+    }
+
+    .toolbar--right .toolbar__panel {
+        transform-origin: top right;
     }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item {
-        flex-direction: row-reverse;
-        justify-content: flex-end;
         text-align: left;
-        padding-left: var(--toolbar__menu-item-padding);
+        grid-template-columns: var(--toolbar__menu-item-icon-container-size) 1fr;
+    }
+
+        .toolbar--right .toolbar__menu ::deep .toolbar__menu-item > .toolbar__menu-item-icon {
+            grid-column: 1;
+            grid-row: 1;
+            border-left: 0px solid var(--toolbar__border-color);
+            padding: 0 var(--toolbar__menu-item-icon-padding);
+        }
+
+        .toolbar--right .toolbar__menu ::deep .toolbar__menu-item > .toolbar__menu-item-text {
+            grid-column: 2;
+            grid-row: 1;
+            justify-content: flex-start;
+            border-right: 0px solid var(--toolbar__border-color);
+            padding-right: var(--toolbar__menu-item-text-padding);
+            padding-left: calc(0.5 * var(--toolbar__menu-item-text-padding));
+        }
+
+            .toolbar--right .toolbar__menu ::deep .toolbar__menu-item > .toolbar__menu-item-text > span {
+                transform-origin: left;
+            }
+
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item > .toolbar__menu-item-text {
+        border-bottom-right-radius: inherit;
+    }
+
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item > .toolbar__menu-item-icon {
+        border-bottom-left-radius: inherit;
+    }
+
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__menu-item-icon {
+        border-bottom-color: transparent;
+        border-left-color: transparent;
     }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__submenu {
@@ -540,21 +763,32 @@
         }
 
             .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell {
-                grid-template-columns: var(--toolbar__submenu-tree-width) var(--toolbar__submenu-base-offset);
+                grid-template-columns: minmax(0, 1fr) var(--toolbar__menu-item-icon-container-size);
             }
 
                 .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__menu-item {
                     grid-column: 1;
-                    border-left: 1px solid var(--toolbar__border-color);
+                    grid-row: 1;
                 }
 
                 .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__submenu-overlap {
                     grid-column: 2;
+                    grid-row: 1;
                     border-right: 1px solid var(--toolbar__border-color);
                 }
 
-                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__submenu-overlap {
-                    border-right: none;
+                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > .toolbar__menu-item > .toolbar__menu-item-text {
+                    justify-content: flex-start;
+                    border-right-color: transparent;
+                }
+
+                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item > .toolbar__menu-item-text {
+                    border-top: 1px solid var(--toolbar__border-color);
+                }
+
+                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item > .toolbar__menu-item-icon {
+                    border-top: 1px solid var(--toolbar__border-color);
+                    border-top-left-radius: inherit;
                 }
 
                 .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__menu-item {
@@ -563,6 +797,10 @@
 
                 .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child > .toolbar__menu-item {
                     border-bottom-left-radius: 1rem;
+                }
+
+                .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__submenu-overlap {
+                    border-right-color: transparent;
                 }
 
                 .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child:not(:first-child) > .toolbar__submenu-overlap {
@@ -576,26 +814,34 @@
     }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu > .toolbar__menu-item:hover,
-    .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has( > .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover ) > .toolbar__menu-item {
-        border-bottom-left-radius: calc(var(--toolbar__menu-item-height) * 0.5);
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item {
+        border-bottom-left-radius: calc(var(--toolbar__menu-item-height) * 0.65);
     }
 
-    .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has( > .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover ) > .toolbar__menu-item {
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item {
         border-bottom-left-radius: 0;
-        transition: opacity var(--toolbar__transition-duration) ease, border-bottom-left-radius 0ms ease;
+        transition: opacity var(--med-transition) ease, border-bottom-left-radius 0ms ease;
     }
-
 
     .toolbar--right .toolbar__menu ::deep .toolbar__submenu-chevron::before {
         content: "\f284";
-        transition: transform 75ms ease;
+        transition: transform var(--short-transition) ease;
     }
 
-    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item:focus-visible > .toolbar__submenu-chevron::before,
-    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__submenu-chevron::before {
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item:focus-visible > .toolbar__menu-item-icon > .toolbar__submenu-chevron::before,
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__menu-item-icon > .toolbar__submenu-chevron::before {
         transform: rotateZ(-90deg);
+        transition: transform var(--med-short-transition) ease;
     }
 
-    .toolbar--right .toolbar__menu-title-wrap {
-        flex-direction: row-reverse;
+    .toolbar--right.toolbar--menu-open .toolbar__menu ::deep .toolbar__menu-item > .toolbar__menu-item-icon {
+        border-left-width: 1px;
+    }
+
+    .toolbar--right.toolbar--menu-open .toolbar__menu ::deep .toolbar__menu-item > .toolbar__menu-item-text {
+        border-right-width: 1px;
+    }
+
+    .toolbar--right .toolbar__panel-content {
+        transform-origin: top right;
     }

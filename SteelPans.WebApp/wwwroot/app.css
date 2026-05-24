@@ -165,6 +165,15 @@ h4 {
         background: transparent;
     }
 
+
+.content {
+    --med-transition: 500ms;
+    --med-long-transition: calc(var(--med-transition) * 2);
+    --long-transition: calc(var(--med-long-transition) * 2);
+    --med-short-transition: calc(var(--med-transition) * 0.5);
+    --short-transition: calc(var(--med-short-transition) * 0.5);
+}
+
 .sp-section {
     min-width: 0;
     min-height: 0;

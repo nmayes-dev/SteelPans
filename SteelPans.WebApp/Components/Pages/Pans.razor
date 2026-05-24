@@ -22,19 +22,19 @@
                      MenuLabel="Pan Tools"
                      Side="Toolbar.ToolbarSide.Right">
 
-                <ToolbarElement Title="Add Pan"
+                <ToolbarElement Text="Add Pan"
                                 IconClass="bi-plus-lg"
                                 OnClick="async () => await addPanModal_!.Open()" />
 
-                <ToolbarElement Title="MIDI">
+                <ToolbarElement Text="MIDI">
                     <SubMenu>
-                        <ToolbarElement Title="Open MIDI"
+                        <ToolbarElement Text="Open MIDI"
                                         IconClass="bi-file-earmark-music"
                                         OnClick="OpenMidiFileDialogAsync" />
 
                         @if (Playback.IsMidiLoaded)
                         {
-                            <ToolbarElement Title="Tracks"
+                            <ToolbarElement Text="Tracks"
                                             IconClass="bi-music-note-list"
                                             Disabled="@(!Playback.Tracks.Any())">
                                 <ChildContent>
@@ -71,19 +71,19 @@
 
                 @if (Playback.IsMidiLoaded)
                 {
-                    <ToolbarElement Title="Layout">
+                    <ToolbarElement Text="Layout">
                         <SubMenu>
-                            <ToolbarElement Title="Load"
+                            <ToolbarElement Text="Load"
                                             IconClass="bi-folder2-open"
                                             Disabled="!Playback.IsMidiLoaded"
                                             OnClick="async () => await LoadConfigurationFileAsync()" />
 
-                            <ToolbarElement Title="Save"
+                            <ToolbarElement Text="Save"
                                             IconClass="bi-floppy"
                                             Disabled="@(string.IsNullOrWhiteSpace(lastFileName_) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
                                             OnClick="async () => await SaveConfigurationFileAsync(lastFileName_!)" />
 
-                            <ToolbarElement Title="Save As..."
+                            <ToolbarElement Text="Save As..."
                                             IconClass="bi-floppy2"
                                             Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
                                             OnClick="async () => await saveModal_!.Open()" />
@@ -93,9 +93,9 @@
 
                 @if (Playback.ActivePans.Any())
                 {
-                    <ToolbarElement Title="Music">
+                    <ToolbarElement Text="Music">
                         <SubMenu>
-                            <ToolbarElement Title="Mixer"
+                            <ToolbarElement Text="Mixer"
                                             IconClass="bi-sliders2-vertical"
                                             Disabled="@(!Playback.ActivePans.Any())"
                                             CanExpand="true"
@@ -104,7 +104,7 @@
                                     <VolumeMixer />
                                 </ChildContent>
                             </ToolbarElement>
-                            <ToolbarElement Title="Metronome"
+                            <ToolbarElement Text="Metronome"
                                             IconClass="bi-music-note-beamed">
                                 <HeaderActions>
                                     <label class="metronome-shell__status-switch">
@@ -125,7 +125,7 @@
                                 </ChildContent>
                             </ToolbarElement>
 
-                            <ToolbarElement Title="Chords"
+                            <ToolbarElement Text="Chords"
                                             IconClass="bi-music-note-list">
                                 <ChildContent>
                                     <ChordBuilder />

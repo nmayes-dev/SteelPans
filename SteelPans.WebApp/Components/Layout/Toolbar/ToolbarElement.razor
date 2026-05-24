@@ -23,7 +23,7 @@
     public ElementMode Mode { get; set; }
 
     [Parameter]
-    public string Title { get; set; } = "";
+    public string Text { get; set; } = "";
 
     [Parameter]
     public string? IconClass { get; set; }
@@ -58,6 +58,9 @@
 
     internal bool HasSubMenu => children_.Count > 0;
 
+    public string IconDisplayCss => "bi " + (HasSubMenu ? "toolbar__submenu-chevron" : IconClass);
+
+
     internal void RegisterChild(ToolbarElement element)
     {
         if (!children_.Contains(element))
@@ -71,17 +74,19 @@
 
     protected override void OnInitialized()
     {
-        if (ParentElement is not null)
-            ParentElement.RegisterChild(this);
-        else
-            Parent?.RegisterElement(this);
+        bool isChild = ParentElement is not null;
+        if (isChild)
+            ParentElement!.RegisterChild(this);
+
+        Parent?.RegisterElement(this, !isChild);
     }
 
     public void Dispose()
     {
-        if (ParentElement is not null)
-            ParentElement.UnregisterChild(this);
-        else
-            Parent?.UnregisterElement(this);
+        bool isChild = ParentElement is not null;
+        if (isChild)
+            ParentElement!.UnregisterChild(this);
+
+        Parent?.UnregisterElement(this, !isChild);
     }
 }

@@ -10,6 +10,7 @@
     --mixer-value-width: clamp(2.5rem, 2vw, 4rem);
     display: grid;
     gap: var(--mixer-gap);
+    padding: var(--mixer-padding);
     width: 100%;
     min-width: 0;
     overflow: auto;

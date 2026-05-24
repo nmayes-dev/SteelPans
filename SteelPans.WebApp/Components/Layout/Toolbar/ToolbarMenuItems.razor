@@ -4,24 +4,21 @@
     @foreach (var element in Items)
     {
         <div class="@GetItemShellClass(element)"
-                @onclick="async () => await Owner.OpenElementAsync(element)">
+             @onclick="async () => await Owner.OpenElementAsync(element)">
             <div class="toolbar__menu-item"
-                    type="button"
-                    role="menuitem"
-                    tabindex="0"
-                    disabled="@element.Disabled"
-                    aria-haspopup="@(element.HasSubMenu ? "menu" : null)"
-                    aria-expanded="@(element.HasSubMenu ? "false" : null)">
-                <span>@element.Title</span>
-                
-                @if (!string.IsNullOrWhiteSpace(element.IconClass))
-                {
-                    <span class="bi @element.IconClass" aria-hidden="true"></span>
-                }
-                @if (element.HasSubMenu)
-                {
-                    <span class="bi toolbar__submenu-chevron" aria-hidden="true"></span>
-                }
+                 type="button"
+                 role="menuitem"
+                 tabindex="0"
+                 disabled="@element.Disabled"
+                 aria-haspopup="@(element.HasSubMenu ? "menu" : null)"
+                 aria-expanded="@(element.HasSubMenu ? "false" : null)">
+                <div class="toolbar__menu-item-text">
+                    <span>@element.Text</span>
+                </div>
+                <div class="toolbar__menu-item-icon">
+                    <span class="@element.IconDisplayCss" aria-hidden="true"></span>
+                </div>
+
             </div>
             
             <div class="toolbar__submenu-overlap" />
