@@ -176,8 +176,6 @@ window.panLayout = {
         }
 
         const gaps = this.getGaps(container);
-        const minPanWidth = this.numberFromDataset(container, "minPanWidth", 260);
-        const minPanHeight = this.numberFromDataset(container, "minPanHeight", 260);
         const aspects = items.map(item => this.getPanAspect(item));
 
         const layout = this.findBestLayout(
@@ -185,9 +183,7 @@ window.panLayout = {
             bounds.width,
             bounds.height,
             gaps.column,
-            gaps.row,
-            minPanWidth,
-            minPanHeight
+            gaps.row
         );
 
         container.dataset.rows = String(layout.rows.length);
@@ -830,7 +826,7 @@ window.panLayout = {
         return item._panAspect;
     },
 
-    findBestLayout(aspects, width, height, columnGap, rowGap, minPanWidth, minPanHeight) {
+    findBestLayout(aspects, width, height, columnGap, rowGap) {
         let bestRows = null;
         let bestScore = -Infinity;
 
@@ -844,16 +840,21 @@ window.panLayout = {
             if (naturalHeightTotal <= 0) continue;
 
             const scale = Math.min(1, availableHeight / naturalHeightTotal);
+            const laidOutRows = this.layoutRowsForScale(rows, scale);
 
-            if (!this.resolveRows(rows, scale, minPanWidth, minPanHeight)) {
+            if (!this.rowsMeetHeightRatio(laidOutRows, height)) {
                 continue;
             }
 
-            const score = this.scoreLayout(rows, width, availableHeight, aspects.length);
+            if (!this.rowsFillWidth(laidOutRows, width, columnGap)) {
+                continue;
+            }
+
+            const score = this.scoreLayout(laidOutRows, width, availableHeight, aspects.length);
 
             if (score > bestScore) {
                 bestScore = score;
-                bestRows = rows;
+                bestRows = laidOutRows;
             }
         }
 
@@ -878,17 +879,39 @@ window.panLayout = {
         });
     },
 
-    resolveRows(rows, scale, minPanWidth, minPanHeight) {
-        for (const row of rows) {
-            row.height = row.naturalHeight * scale;
-            row.widths = row.aspects.map(aspect => row.availableWidth * aspect / row.aspectTotal);
+    layoutRowsForScale(rows, scale) {
+        return rows.map(row => {
+            const height = row.naturalHeight * scale;
 
-            if (row.height < minPanHeight || row.widths.some(width => width < minPanWidth)) {
-                return false;
-            }
+            return {
+                ...row,
+                height,
+                widths: row.aspects.map(aspect => aspect * height)
+            };
+        });
+    },
+
+    rowsMeetHeightRatio(rows, totalHeight) {
+        if (rows.length === 0 || totalHeight <= 0) {
+            return false;
         }
 
-        return true;
+        const minimumRowRatio = 0.8 / rows.length;
+
+        return rows.every(row => {
+            return row.height / totalHeight > minimumRowRatio;
+        });
+    },
+
+    rowsFillWidth(rows, containerWidth, columnGap) {
+        const tolerance = 20;
+
+        return rows.every(row => {
+            const rowWidth = row.widths.reduce((sum, width) => sum + width, 0)
+                + columnGap * (row.count - 1);
+
+            return Math.abs(rowWidth - containerWidth) <= tolerance;
+        });
     },
 
     scoreLayout(rows, width, availableHeight, totalCount) {

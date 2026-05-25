@@ -75,13 +75,13 @@ public partial class ModalPopup
         await popupElement_.Value.FocusAsync();
     }
 
-    public async Task Open()
+    public async Task Open(bool closeOthers = true)
     {
         isOpen_ = true;
         focusOnRender_ = true;
         ResetDrag();
 
-        await NotifyOpenedAsync();
+        await NotifyOpenedAsync(closeOthers);
         await InvokeAsync(StateHasChanged);
     }
 

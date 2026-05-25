@@ -1,6 +1,6 @@
 ﻿.mixer {
     --mixer-gap: clamp(0.25rem, 0.75vw, 0.5rem);
-    --mixer-padding: clamp(0.35rem, 0vw, 0.75rem);
+    --mixer-padding: clamp(0.35rem, 0.6vw, 0.75rem);
     --mixer-radius: clamp(0.55rem, 2vw, 0.75rem);
     --mixer-button-size: clamp(1.5rem, 2.4vw, 2.25rem);
     --mixer-button-icon-size: calc(var(--mixer-button-size) * 0.45);
@@ -10,7 +10,6 @@
     --mixer-value-width: clamp(2.5rem, 2vw, 4rem);
     display: grid;
     gap: var(--mixer-gap);
-    padding: var(--mixer-padding);
     width: 100%;
     min-width: 0;
     overflow: auto;

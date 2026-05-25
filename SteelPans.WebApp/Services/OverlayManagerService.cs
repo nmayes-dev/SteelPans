@@ -19,13 +19,13 @@ public abstract class OverlayComponentBase : ComponentBase, IDisposable
         Registry.Unregister(this);
     }
 
-    public async Task NotifyOpenedAsync()
+    public async Task NotifyOpenedAsync(bool closeOthers = true)
     {
         if (IsOpen)
             return;
 
         IsOpen = true;
-        await Registry.OnOpenComponentAsync(this);
+        await Registry.OnOpenComponentAsync(this, closeOthers);
     }
 
     public Task RequestCloseAsync()
@@ -66,8 +66,11 @@ public class OverlayManagerService
         }
     }
 
-    public async Task OnOpenComponentAsync(OverlayComponentBase component)
+    public async Task OnOpenComponentAsync(OverlayComponentBase component, bool closeOthers)
     {
+        if (!closeOthers)
+            return;
+
         foreach (var other in components_.ToArray())
         {
             if (component != other)

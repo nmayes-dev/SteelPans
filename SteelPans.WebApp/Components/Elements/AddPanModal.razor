@@ -169,7 +169,7 @@
         else
             addModalType_ = AddModalType.Pan;
 
-        await modal_.Open();
+        await modal_.Open(closeOthers: false);
     }
 
     private async Task Close()
