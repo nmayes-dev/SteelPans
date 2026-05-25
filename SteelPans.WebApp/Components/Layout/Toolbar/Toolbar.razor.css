@@ -114,6 +114,7 @@
 }
 
 .toolbar--menu-open .toolbar__menu {
+
 }
 
 .toolbar--panel-open .toolbar__panel {
@@ -130,6 +131,10 @@
 
 .toolbar--panel-open .toolbar__menu {
 }
+
+
+
+
 
 
 
@@ -281,11 +286,14 @@
 
 
 
+
+
 /* =========================================
    Menu + Submenus
 ========================================= */
 
 .toolbar__menu ::deep .toolbar__menu-tree {
+    width: 100%;
     display: grid;
     transition: border-bottom-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-transition) ease;
 }
@@ -338,11 +346,13 @@
 
 .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:hover:not(:disabled)),
 .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:focus-visible),
+.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within,
 .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover {
     background: var(--toolbar__background-color);
 }
 
-    .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item {
+    .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item,
+    .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within > .toolbar__menu-item {
         background: rgb(208, 218, 249);
         color: #1d4ed8;
     }
@@ -422,7 +432,7 @@
 .toolbar__menu ::deep .toolbar__submenu {
     position: absolute;
     top: 0;
-    z-index: 1;
+    z-index: inherit;
     min-width: 0;
     width: max-content;
     opacity: 0;
@@ -460,14 +470,25 @@
             border-bottom: 1px solid var(--toolbar__border-color);
         }
 
-.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__submenu {
+.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__submenu,
+.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within > .toolbar__submenu {
     opacity: 1;
     pointer-events: auto;
     transform: scaleX(1);
     transition: opacity var(--med-short-transition) ease-in, transform var(--med-short-transition) ease;
 }
 
+.toolbar__menu ::deep .toolbar__menu-item-shell--submenu {
+    z-index: 1;
+}
 
+    .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within {
+        z-index: 2;
+    }
+
+    .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover {
+        z-index: 3;
+    }
 
 
 
@@ -642,11 +663,13 @@
     }
 
     .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu > .toolbar__menu-item:hover,
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:focus-within > .toolbar__menu-item,
     .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item {
         border-bottom-right-radius: calc(var(--toolbar__menu-item-height) * 0.65);
     }
 
-    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item {
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item,
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:focus-within:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child:focus-within) > .toolbar__menu-item {
         border-bottom-right-radius: 0;
         transition: opacity var(--med-transition) ease, border-bottom-right-radius 0ms ease;
     }
@@ -657,7 +680,8 @@
     }
 
     .toolbar--left .toolbar__menu ::deep .toolbar__menu-item:focus-visible > .toolbar__menu-item-icon > .toolbar__submenu-chevron::before,
-    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__menu-item-icon > .toolbar__submenu-chevron::before {
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__menu-item-icon > .toolbar__submenu-chevron::before,
+    .toolbar--left .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within > .toolbar__menu-item > .toolbar__menu-item-icon > .toolbar__submenu-chevron::before {
         transform: rotateZ(90deg);
         transition: transform var(--med-short-transition) ease;
     }
@@ -749,6 +773,7 @@
         border-bottom-left-radius: inherit;
     }
 
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within > .toolbar__menu-item > .toolbar__menu-item-icon,
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__menu-item-icon {
         border-bottom-color: transparent;
         border-left-color: transparent;
@@ -809,16 +834,19 @@
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:hover:not(:disabled)),
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:focus-visible),
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within,
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover {
         border-bottom-left-radius: 0;
     }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu > .toolbar__menu-item:hover,
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:focus-within > .toolbar__menu-item,
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item {
         border-bottom-left-radius: calc(var(--toolbar__menu-item-height) * 0.65);
     }
 
-    .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item {
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item,
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:focus-within:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child:focus-within) > .toolbar__menu-item {
         border-bottom-left-radius: 0;
         transition: opacity var(--med-transition) ease, border-bottom-left-radius 0ms ease;
     }
@@ -829,7 +857,8 @@
     }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item:focus-visible > .toolbar__menu-item-icon > .toolbar__submenu-chevron::before,
-    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__menu-item-icon > .toolbar__submenu-chevron::before {
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item > .toolbar__menu-item-icon > .toolbar__submenu-chevron::before,
+    .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within > .toolbar__menu-item > .toolbar__menu-item-icon > .toolbar__submenu-chevron::before {
         transform: rotateZ(-90deg);
         transition: transform var(--med-short-transition) ease;
     }
