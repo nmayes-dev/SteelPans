@@ -20,7 +20,7 @@
     --toolbar__panel-max-height: min(40rem, 88vh);
     position: relative;
     z-index: 400;
-    width: var(--ui-icon-button-radius);
+    width: var(--ui-icon-button-size);
     height: var(--ui-icon-button-size);
     min-width: var(--ui-icon-button-size);
     min-height: var(--ui-icon-button-size);
