@@ -32,14 +32,14 @@
     border-radius: 1rem;
     box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, 0.2);
     pointer-events: auto;
-    padding: 1.25rem 1rem 0.75rem;
+    padding: clamp(0.5rem, 1vw, 1.25rem) clamp(0.3rem, 0.75vw, 1rem) clamp(0.25rem, 0.5vw, 0.75rem);
 }
 
 .modal-popup__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-left: 0.3rem;
+    padding: 0 0.3rem;
     margin-bottom: 0.6rem;
 }
 
@@ -69,11 +69,11 @@
 .modal-popup__body {
     max-height: 65vh;
     overflow: auto;
-    margin-bottom: 0.6rem;
 }
 
 .modal-popup__actions {
     display: flex;
     justify-content: flex-end;
+    margin-top: 0.6rem;
     gap: 0.75rem;
 }

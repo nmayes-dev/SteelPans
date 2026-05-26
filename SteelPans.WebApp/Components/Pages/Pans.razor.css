@@ -1,5 +1,5 @@
 .pans-page {
-    --ui-icon-button-size: clamp(2.1rem, 2.25vw, 3rem);
+    --ui-icon-button-size: clamp(1.8rem, 2.25vw, 2.25rem);
     --ui-icon-button-radius: calc(0.5 * var(--ui-icon-button-size));
     --ui-icon-size: calc(var(--ui-icon-button-size) * 0.5);
     display: grid;
@@ -212,7 +212,7 @@
     justify-content: space-between;
     gap: var(--track-panel-gap);
     min-width: 0;
-    padding: var(--track-panel-base-padding) calc(var(--track-panel-base-padding) * 1.5) calc(var(--track-panel-base-padding) * 0.6) var(--track-panel-base-padding);
+    padding: calc(var(--track-panel-base-padding) * 0.25) calc(var(--track-panel-base-padding) * 1.5) calc(var(--track-panel-base-padding) * 0.6) var(--track-panel-base-padding);
     border-bottom: 1px solid rgba(148, 163, 184, 0.28);
 }
 
