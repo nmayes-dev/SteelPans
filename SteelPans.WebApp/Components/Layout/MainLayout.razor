@@ -1,5 +1,6 @@
 ﻿@inherits LayoutComponentBase
 @inject KeyboardManagerService KeyboardManager
+@inject IJSRuntime JS
 
 <div class="page">
     <main>
@@ -19,9 +20,18 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-        {
-            await KeyboardManager.InitializeAsync();
-        }
+        if (!firstRender)
+            return;
+
+        await LogInitialConnectionAsync();
+        await KeyboardManager.InitializeAsync();
+    }
+
+    private async Task LogInitialConnectionAsync()
+    {
+        var details = await JS.InvokeAsync<ConnectionDetails>(
+            "diagnostics.logInitialConnection");
+
+        Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(details));
     }
 }
