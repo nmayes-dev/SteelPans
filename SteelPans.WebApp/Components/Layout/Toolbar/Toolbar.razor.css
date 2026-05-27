@@ -4,9 +4,9 @@
     --toolbar__border-color: rgba(148, 163, 184, 0.75);
     --toolbar__border-radius: min(1rem, 2vw);
     /* Menu*/
-    --toolbar__menu-min-width: clamp(5.25rem, 13vw, 8.5rem);
+    --toolbar__menu-min-width: clamp(5.5rem, 8vw, 9rem);
     --toolbar__menu-max-width: min(12rem, 80vw);
-    --toolbar__menu-min-height: clamp(4.5rem, 12vh, 13rem);
+    --toolbar__menu-min-height: clamp(4rem, 8vh, 13rem);
     --toolbar__menu-max-height: min(20rem, 80vh);
     --toolbar__menu-item-height: clamp(1.5rem, 3vw, 2.75rem);
     --toolbar__menu-item-text-padding: clamp(0.35rem, 1vw, 1rem);
@@ -109,6 +109,7 @@
     min-height: 0;
     padding: 0;
     border-radius: 0 0 var(--toolbar__border-radius) var(--toolbar__border-radius);
+    visibility: hidden;
 }
 
 .toolbar__menu {
@@ -130,6 +131,7 @@
     border: 1px solid var(--toolbar__border-color);
     border-top: none;
     pointer-events: auto;
+    visibility: visible;
 }
 
 .toolbar--menu-open .toolbar__menu {
@@ -175,6 +177,7 @@
     cursor: pointer;
     user-select: none;
     pointer-events: auto;
+    background: transparent;
     border: 1px solid var(--toolbar__border-color);
     border-radius: inherit;
     transition: height var(--short-transition) ease-in, padding var(--short-transition) ease-in, border-bottom-left-radius var(--short-transition) ease-in, border-bottom-right-radius var(--short-transition) ease-in;
@@ -548,14 +551,6 @@
 /* =========================================
    Content Panel
 ========================================= */
-
-.toolbar--panel-open ::deep .toolbar__menu {
-    visibility: hidden;
-}
-
-.toolbar--panel-open ::deep .toolbar__submenu {
-    visibility: hidden;
-}
 
 .toolbar__panel-content {
     grid-area: 1 / 1;
