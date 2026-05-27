@@ -19,8 +19,8 @@
     --toolbar__submenu-offset: calc(100% - var(--toolbar__menu-item-icon-container-size));
     /* Content Panel */
     --toolbar__panel-header-height: clamp(2.25rem, 4vw, 3rem);
-    --toolbar__panel-min-width: clamp(14rem, 60vw, 24rem);
-    --toolbar__panel-max-width: min(45rem, 87vw);
+    --toolbar__panel-min-width: clamp(12rem, 33vw, 20rem);
+    --toolbar__panel-max-width: min(45rem, 85.5vw);
     --toolbar__panel-min-height: clamp(5rem, 10vh, 24rem);
     --toolbar__panel-max-height: min(40rem, 88vh);
     position: relative;
@@ -68,10 +68,10 @@
     display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: var(--toolbar-header-height) 0;
-    width: auto;
+    width: max-content;
     min-width: var(--ui-icon-button-size);
     max-width: var(--ui-icon-button-size);
-    height: auto;
+    height: max-content;
     min-height: var(--ui-icon-button-size);
     max-height: var(--ui-icon-button-size);
     background: var(--toolbar__background-color);
@@ -100,8 +100,12 @@
     min-height: var(--toolbar__panel-min-height);
     max-height: var(--toolbar__panel-max-height);
     border-radius: var(--toolbar__border-radius);
-    transition: min-width var(--med-short-transition) ease, min-height var(--med-short-transition) ease, max-height var(--med-short-transition) ease, border-radius var(--med-transition) ease;
+    transition: min-width var(--med-short-transition) ease, min-height var(--med-short-transition) ease, max-width var(--med-short-transition) ease, max-height var(--med-short-transition) ease, border-radius var(--med-transition) ease;
 }
+
+    .toolbar--panel-open .toolbar__surface:has(.toolbar__panel-content-active > .toolbar__shrink_to_fit) {
+        width: auto;
+    }
 
 
 .toolbar__menu,
@@ -370,7 +374,6 @@
 
     .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item:not(:disabled),
     .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within > .toolbar__menu-item:not(:disabled) {
-        border-top: 1px solid var(--toolbar__background-color);
         background: var(--toolbar__hover-color);
         color: #1d4ed8;
     }
@@ -394,6 +397,7 @@
     padding: 0;
     display: grid;
     place-items: center;
+    cursor: pointer;
     pointer-events: auto;
 }
 
@@ -452,7 +456,7 @@
 
 .toolbar__menu ::deep .toolbar__submenu {
     position: absolute;
-    top: 1px;
+    top: 0;
     z-index: inherit;
     min-width: 0;
     width: max-content;
@@ -570,7 +574,7 @@
 .toolbar__panel-content-active {
     opacity: 1;
     height: 100%;
-    padding: clamp(0.5rem, 1vw, 1.25rem) clamp(0.3rem, 0.75vw, 1rem) clamp(0.25rem, 0.5vw, 0.75rem);
+    padding: clamp(0.4rem, 0.85vw, 0.85rem) clamp(0.3rem, 0.75vw, 1rem) clamp(0.35rem, 0.5vw, 0.75rem);
 }
 
 
@@ -925,7 +929,7 @@
                     }
 
                     .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__submenu-overlap {
-                        border-bottom-left-radius: var(--toolbar__menu-item-height);
+                        border-bottom-left-radius: calc(0.75 * var(--toolbar__menu-item-height));
                         border-bottom-color: transparent;
                     }
 
@@ -933,10 +937,6 @@
                         border-bottom-right-radius: var(--toolbar__border-radius);
                     }
 
-    .toolbar--right ::deep .toolbar__menu:has( > .toolbar__menu-tree--depth-0 > .toolbar__menu-item-shell--submenu:last-child:is(:hover, :focus-within) ) {
-        border-bottom-left-radius: 0;
-        transition: border-bottom-left-radius var(--med-transition) ease;
-    }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:hover:not(:disabled)),
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:focus-visible),
@@ -949,7 +949,7 @@
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu > .toolbar__menu-item:hover,
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:focus-within > .toolbar__menu-item,
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item {
-        border-bottom-left-radius: var(--toolbar__menu-item-height);
+        border-bottom-left-radius: calc(0.75 * var(--toolbar__menu-item-height));
     }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item,

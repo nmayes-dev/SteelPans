@@ -64,33 +64,45 @@ public partial class Pans : IAsyncDisposable
         }
     }
 
-    public async Task LoadConfigurationFileAsync()
+    private async Task OnLoadConfigurationFileAsync(InputFileChangeEventArgs e)
     {
         try
         {
-            var result = await JS.InvokeAsync<Configuration>("fileDialogs.openConfigFile");
+            loadError_ = null;
 
-            if (result is not null)
+            var file = e.File;
+
+            await using var stream = file.OpenReadStream(
+                maxAllowedSize: 1024 * 1024);
+
+            var result = await JsonSerializer.DeserializeAsync<Configuration>(
+                stream,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                });
+
+            if (result is null)
+                return;
+
+            if (result.Version != Settings.LayoutFileVersion)
             {
-                if (result.Version != Settings.LayoutFileVersion)
-                {
-                    loadError_ = "Incompatible layout file version.";
-                    return;
-                }
-
-                if (!string.Equals(result.MidiFile, midiFileName_, StringComparison.OrdinalIgnoreCase))
-                {
-                    pendingLoadConfiguration_ = result;
-                    await warningModal_!.Open();
-                    return;
-                }
-
-                await LoadPanLayoutAsync(result.Layout);
+                loadError_ = "Incompatible layout file version.";
+                return;
             }
+
+            if (!string.Equals(result.MidiFile, midiFileName_, StringComparison.OrdinalIgnoreCase))
+            {
+                pendingLoadConfiguration_ = result;
+                await warningModal_!.Open();
+                return;
+            }
+
+            await LoadPanLayoutAsync(result.Layout);
         }
         catch (Exception)
         {
-            loadError_ = "An error occured loading this file.";
+            loadError_ = "An error occurred loading this file.";
         }
     }
 
@@ -125,12 +137,23 @@ public partial class Pans : IAsyncDisposable
 
         try
         {
-            await JS.InvokeVoidAsync("fileDialogs.saveConfigFile", fileName, configuration);
+            var json = JsonSerializer.Serialize(configuration, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+
+            await JS.InvokeVoidAsync(
+                "fileHandling.submitDownloadForm",
+                "/api/download",
+                fileName,
+                json,
+                "application/json;charset=utf-8");
+
             lastFileName_ = fileName;
         }
         catch (Exception)
         {
-            loadError_ = "An error occured saving this file.";
+            loadError_ = "An error occurred saving this file.";
         }
     }
 
@@ -288,8 +311,16 @@ public partial class Pans : IAsyncDisposable
     {
         if (IsTrackAssigned(track))
         {
-            await Playback.OnRemoveAssignmentAsync(track.Index);
+            if (removePanModal_ is null)
+            {
+                await Playback.OnRemoveAssignmentAsync(track.Index);
+                return;
+            }
+
+            panPendingRemoval_ = Playback.ActivePans.First(a => a.Assignment.Track?.Index == track.Index);
+            await removePanModal_.Open(closeOthers: false);
             return;
+
         }
 
         if (addPanModal_ is not null)

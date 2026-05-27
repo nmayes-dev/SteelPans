@@ -114,7 +114,7 @@
 }
 
 
-::deep .midi-loader__file-input {
+::deep .pans__file-input {
     position: fixed;
     inline-size: 1px;
     block-size: 1px;
@@ -212,6 +212,7 @@
     --track-panel-gap: clamp(0.25rem, 0.6vw, 0.45rem);
     --track-button-size: clamp(1.5rem, 4vw, 2rem);
     display: flex;
+    min-width: clamp(6rem, 33vw, 20rem);
     flex-direction: column;
     height: 100%;
 }

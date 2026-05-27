@@ -34,8 +34,6 @@
                 : null
         };
 
-        console.log("Initial connection info", details);
-
         return details;
     }
 };

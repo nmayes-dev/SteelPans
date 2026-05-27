@@ -1,48 +1,80 @@
 using SteelPans.WebApp.Components;
-using SteelPans.WebApp.Services;
 using SteelPans.WebApp.Model;
+using SteelPans.WebApp.Services;
+using System.Text;
 
-namespace SteelPans.WebApp
+namespace SteelPans.WebApp;
+
+public sealed record DownloadFileRequest(
+    string FileName,
+    string Content,
+    string? ContentType);
+
+public class Program
 {
-    public class Program
+    public static void Main(string[] args)
     {
-        public static void Main(string[] args)
+        var builder = WebApplication.CreateBuilder(args);
+
+        // Add services to the container.
+        builder.Services.AddRazorComponents()
+            .AddInteractiveServerComponents();
+
+        builder.Services.AddSingleton<SteelPanLoader>();
+        builder.Services.AddSingleton<SteelPanSvgService>();
+        builder.Services.AddScoped<MidiLoaderService>();
+        builder.Services.AddScoped<MidiPlaybackService>();
+        builder.Services.AddScoped<OverlayManagerService>();
+        builder.Services.AddScoped<KeyboardManagerService>();
+
+        builder.Services.Configure<Settings>(builder.Configuration.GetSection("Settings"));
+
+        var app = builder.Build();
+
+        // Configure the HTTP request pipeline.
+        if (!app.Environment.IsDevelopment())
         {
-            var builder = WebApplication.CreateBuilder(args);
+            app.UseExceptionHandler("/Error");
+            // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+            app.UseHsts();
+        }
 
-            // Add services to the container.
-            builder.Services.AddRazorComponents()
-                .AddInteractiveServerComponents();
+        app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+        app.UseHttpsRedirection();
 
-            builder.Services.AddSingleton<SteelPanLoader>();
-            builder.Services.AddSingleton<SteelPanSvgService>();
-            builder.Services.AddScoped<MidiLoaderService>();
-            builder.Services.AddScoped<MidiPlaybackService>();
-            builder.Services.AddScoped<OverlayManagerService>();
-            builder.Services.AddScoped<KeyboardManagerService>();
+        app.UseAntiforgery();
 
-            builder.Services.Configure<Settings>(builder.Configuration.GetSection("Settings"));
+        app.MapStaticAssets();
+        app.MapRazorComponents<App>()
+            .AddInteractiveServerRenderMode();
 
-            var app = builder.Build();
+        app.MapPost("/api/download", async (HttpRequest request) =>
+        {
+            var form = await request.ReadFormAsync();
 
-            // Configure the HTTP request pipeline.
-            if (!app.Environment.IsDevelopment())
+            var fileName =
+                Path.GetFileName(form["fileName"].ToString());
+
+            var content =
+                form["content"].ToString();
+
+            var contentType =
+                form["contentType"].ToString();
+
+            if (string.IsNullOrWhiteSpace(contentType))
             {
-                app.UseExceptionHandler("/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-                app.UseHsts();
+                contentType = "application/octet-stream";
             }
 
-            app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
-            app.UseHttpsRedirection();
+            var bytes = Encoding.UTF8.GetBytes(content);
 
-            app.UseAntiforgery();
+            return Results.File(
+                bytes,
+                contentType,
+                fileName,
+                enableRangeProcessing: false);
+        });
 
-            app.MapStaticAssets();
-            app.MapRazorComponents<App>()
-                .AddInteractiveServerRenderMode();
-
-            app.Run();
-        }
+        app.Run();
     }
 }

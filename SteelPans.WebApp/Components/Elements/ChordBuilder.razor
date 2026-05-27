@@ -2,7 +2,7 @@
 @using SteelPans.WebApp.Services
 @inject MidiPlaybackService Playback
 
-<div class="steel-pan__chord-builder @(IsDisabled ? "steel-pan__chord-builder--disabled" : null)">
+<div class="steel-pan__chord-builder toolbar__shrink_to_fit @(IsDisabled ? "steel-pan__chord-builder--disabled" : null)">
     <div class="steel-pan__chord-selector">
         <div class="steel-pan__chord-select--note">
             <select class="form-select steel-pan__chord-select--tone"
