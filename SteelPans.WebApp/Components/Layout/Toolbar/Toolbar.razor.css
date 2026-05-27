@@ -169,6 +169,7 @@
     box-shadow: none;
     cursor: pointer;
     user-select: none;
+    pointer-events: auto;
     border: 1px solid var(--toolbar__border-color);
     border-radius: inherit;
     transition: height var(--short-transition) ease-in, padding var(--short-transition) ease-in, border-bottom-left-radius var(--short-transition) ease-in, border-bottom-right-radius var(--short-transition) ease-in;
