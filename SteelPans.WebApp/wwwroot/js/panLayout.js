@@ -13,7 +13,9 @@
 
 const DEFAULTS = {
     resizeSettleDelayMs: 40,
-    dragStartThresholdPx: 6
+    dragStartThresholdPx: 6,
+    startupTimeoutMs: 10000,
+    startupFinishWaitMs: 50,
 };
 
 window.panLayout = {
@@ -23,8 +25,9 @@ window.panLayout = {
     observe(container, dotNetRef = null) {
         if (!container) return;
 
-        container.classList.add("pans-display__items--loading");
         this.disconnect(container);
+
+        container.classList.add("pans-display__items--startup");
 
         container._panLayoutState = this.getState(container);
         container._panLayoutState.dotNetRef = dotNetRef;
@@ -123,15 +126,147 @@ window.panLayout = {
             return;
         }
 
-        state.startupComplete = true;
+        requestAnimationFrame(async () => {
+            await this.waitForStartupPanLayout(container);
 
-        /*
-           Wait one more frame so layout + text sizing have definitely
-           been painted before revealing the starting layout.
-        */
-        requestAnimationFrame(() => {
-            container.classList.remove("pans-display__items--loading");
+            container.classList.remove("pans-display__items--startup");
+
             state.startupInProgress = false;
+            state.startupComplete = true;
+        });
+    },
+
+    waitForStartupPanLayout(container) {
+        return new Promise((resolve) => {
+            const selector = ".pans-display__item";
+            const tracked = new Set();
+            const transitioning = new Set();
+
+            let hasSeenPan = false;
+            let settledRaf = 0;
+            let finished = false;
+            let finishing = false;
+            let finishTimeoutId = 0;
+
+            const hasTransition = (element) => {
+                const styles = getComputedStyle(element);
+
+                if (styles.transitionProperty === "none") {
+                    return false;
+                }
+
+                return styles.transitionDuration
+                    .split(",")
+                    .some(duration => parseFloat(duration) > 0);
+            };
+
+            const cleanup = () => {
+                clearTimeout(timeoutId);
+                clearTimeout(finishTimeoutId);
+                cancelAnimationFrame(settledRaf);
+                observer.disconnect();
+
+                tracked.forEach((pan) => {
+                    pan.removeEventListener("transitionend", onTransitionEnd);
+                    pan.removeEventListener("transitioncancel", onTransitionCancel);
+                });
+            };
+
+            const finish = () => {
+                if (finished || finishing) return;
+
+                finishing = true;
+
+                clearTimeout(finishTimeoutId);
+                cancelAnimationFrame(settledRaf);
+
+                finishTimeoutId = setTimeout(() => {
+                    scanForPans();
+
+                    if (transitioning.size > 0) {
+                        finishing = false;
+                        scheduleSettledCheck();
+                        return;
+                    }
+
+                    finished = true;
+                    cleanup();
+                    resolve();
+                }, DEFAULTS.startupFinishWaitMs);
+            };
+
+            const scheduleSettledCheck = () => {
+                if (finished) return;
+
+                finishing = false;
+                clearTimeout(finishTimeoutId);
+                cancelAnimationFrame(settledRaf);
+
+                settledRaf = requestAnimationFrame(() => {
+                    settledRaf = requestAnimationFrame(() => {
+                        if (hasSeenPan && transitioning.size === 0) {
+                            finish();
+                        }
+                    });
+                });
+            };
+
+            const trackPan = (pan) => {
+                if (tracked.has(pan)) {
+                    return;
+                }
+
+                tracked.add(pan);
+                hasSeenPan = true;
+
+                pan.addEventListener("transitionend", onTransitionEnd);
+                pan.addEventListener("transitioncancel", onTransitionCancel);
+
+                if (hasTransition(pan)) {
+                    transitioning.add(pan);
+                }
+
+                scheduleSettledCheck();
+            };
+
+            const scanForPans = () => {
+                container
+                    .querySelectorAll(selector)
+                    .forEach(trackPan);
+
+                scheduleSettledCheck();
+            };
+
+            const onTransitionEnd = (event) => {
+                if (event.target !== event.currentTarget) {
+                    return;
+                }
+
+                transitioning.delete(event.currentTarget);
+                scheduleSettledCheck();
+            };
+
+            const onTransitionCancel = (event) => {
+                transitioning.delete(event.currentTarget);
+                scheduleSettledCheck();
+            };
+
+            const observer = new MutationObserver(() => {
+                scanForPans();
+            });
+
+            observer.observe(container, {
+                childList: true,
+                subtree: true
+            });
+
+            scanForPans();
+
+            const timeoutId = setTimeout(() => {
+                finished = true;
+                cleanup();
+                resolve();
+            }, DEFAULTS.startupTimeoutMs);
         });
     },
 

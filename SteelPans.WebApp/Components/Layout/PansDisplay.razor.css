@@ -8,30 +8,34 @@
 
 .pans-display__items {
     --pan-layout-width: 1vw;
+    --pan-layout-gap: 0.25rem;
     --pan-reorder-indicator-size: clamp(0.08rem, 0.4vw, 0.18rem);
     --pan-reorder-indicator-length-inset: clamp(0.18rem, 0.55vw, 0.35rem);
     position: relative;
     display: block;
     gap: 0.25rem;
+    opacity: 1;
     width: 100%;
     height: 100%;
     min-width: 0;
     min-height: 0;
+    transition: opacity var(--med-transition) ease;
+}
+
+.pans-display__items--startup {
+    opacity: 0;
 }
 
 @starting-style {
     .pans-display__items {
         opacity: 0;
     }
-}
 
-.pans-display__items--loading {
-    transition: opacity 800ms ease;
-}
-
-    .pans-display__items--loading .pans-display__item {
-        transition: opacity 800ms ease;
+    .pans-display__item {
+        width: 0%;
+        height: 0%;
     }
+}
 
 .pans-display__items--dragging,
 .pans-display__items--dragging * {
@@ -50,7 +54,7 @@
     overflow: visible;
     cursor: default;
     touch-action: none;
-    transition: left 220ms ease, top 220ms ease, width 220ms ease, height 220ms ease, opacity 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+    transition: left var(--med-short-transition) ease-out, top var(--med-short-transition) ease-out, width var(--med-short-transition) ease-out, height var(--med-short-transition) ease-out, opacity var(--med-short-transition) ease, transform var(--med-short-transition) ease, box-shadow var(--med-short-transition) ease;
 }
 
 .pans-display__items--can-drag .pans-display__item {
