@@ -87,6 +87,7 @@ public partial class Toolbar
         {
             ActiveElement = element;
             menuOpen_ = false;
+            await NotifyOpenedAsync();
             await InvokeAsync(StateHasChanged);
             return;
         }
@@ -96,6 +97,8 @@ public partial class Toolbar
 
         if (element.CloseOnAction)
             menuOpen_ = false;
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task ToggleMenuAsync()
@@ -104,6 +107,8 @@ public partial class Toolbar
         {
             ActiveElement = null;
             menuOpen_ = true;
+            await NotifyOpenedAsync();
+            await InvokeAsync(StateHasChanged);
             return;
         }
 
@@ -118,8 +123,10 @@ public partial class Toolbar
             return;
 
         ModalElement = ActiveElement;
+        ActiveElement = null;
         menuOpen_ = false;
         await elementPopup_.Open();
+        await InvokeAsync(StateHasChanged);
     }
 
     protected override async Task OnCloseAsync()

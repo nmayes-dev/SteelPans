@@ -112,10 +112,16 @@
 }
 
 .toolbar__menu {
+    pointer-events: none;
 }
 
 .toolbar__panel {
     display: grid;
+    pointer-events: none;
+}
+
+.toolbar__submenu {
+    pointer-events: none;
 }
 
 
@@ -388,10 +394,6 @@
         cursor: default;
     }
 
-        .toolbar__menu ::deep .toolbar__menu-item:disabled span {
-            opacity: 0.55;
-        }
-
     .toolbar__menu ::deep .toolbar__menu-item:hover:not(:disabled),
     .toolbar__menu ::deep .toolbar__menu-item:focus-visible,
     .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item {
@@ -434,6 +436,10 @@
         transition: transform var(--med-short-transition) ease-in, opacity var(--med-short-transition) ease-in;
     }
 
+.toolbar__menu ::deep .toolbar__menu-item:disabled span {
+    opacity: 0.55;
+}
+
 
 .toolbar__menu ::deep .toolbar__submenu {
     position: absolute;
@@ -466,8 +472,8 @@
                     transition: opacity var(--short-transition) ease-out, transform var(--short-transition) ease-out;
                 }
 
-                .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:hover:not(:disabled) > .toolbar__menu-item,
-                .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:hover:not(:disabled) > .toolbar__submenu-overlap {
+                .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:hover > .toolbar__menu-item:not(:disabled),
+                .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:hover > .toolbar__submenu-overlap:not(:disabled) {
                     background: var(--toolbar__hover-color);
                     color: #1d4ed8;
                 }
@@ -972,3 +978,53 @@
     .toolbar--right .toolbar__panel-content {
         transform-origin: top right;
     }
+
+/* =========================================
+   Pointer Event Hardening
+========================================= */
+
+/* Closed/inactive layers must never intercept taps/clicks. This matters most on iOS Safari,
+   where transformed or zero-sized descendants can still affect hit testing. */
+.toolbar__menu,
+.toolbar__panel,
+.toolbar__submenu {
+    pointer-events: none;
+}
+
+.toolbar--menu-open .toolbar__menu,
+.toolbar--panel-open .toolbar__panel {
+    pointer-events: auto;
+}
+
+/* Only allow submenu hit-testing while the owning shell is actually active. */
+.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__submenu,
+.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within > .toolbar__submenu {
+    pointer-events: auto;
+}
+
+/* Submenu buttons are visually collapsed with opacity/transform when inactive. Keep them
+   non-interactive until the submenu is visible, otherwise they can sit above real buttons. */
+.toolbar__menu ::deep .toolbar__submenu .toolbar__menu-item,
+.toolbar__menu ::deep .toolbar__submenu .toolbar__submenu-overlap {
+    pointer-events: none;
+}
+
+.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__submenu .toolbar__menu-item,
+.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__submenu .toolbar__submenu-overlap,
+.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within > .toolbar__submenu .toolbar__menu-item,
+.toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within > .toolbar__submenu .toolbar__submenu-overlap {
+    pointer-events: auto;
+}
+
+/* The overlap button is now rendered only for submenu shells. Keep it out of the tab order
+   and prevent it from stealing interaction when a submenu is not active. */
+.toolbar__menu ::deep .toolbar__menu-item-shell:not(.toolbar__menu-item-shell--submenu) > .toolbar__submenu-overlap {
+    pointer-events: none;
+}
+
+/* Do not let inactive layers be focusable/clickable during open-state transitions. */
+.toolbar--menu-open .toolbar__panel,
+.toolbar--panel-open .toolbar__menu,
+.toolbar--panel-open .toolbar__submenu {
+    pointer-events: none;
+}

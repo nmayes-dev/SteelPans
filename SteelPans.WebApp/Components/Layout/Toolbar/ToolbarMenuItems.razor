@@ -10,26 +10,28 @@
                     disabled="@element.Disabled"
                     aria-haspopup="@(element.HasSubMenu ? "menu" : null)"
                     aria-expanded="@(element.HasSubMenu ? "false" : null)"
-                    @onclick="async() => await Owner.OpenElementAsync(element)">
+                    @onclick="async () => await Owner.OpenElementAsync(element)">
                 <div class="toolbar__menu-item-text">
                     <span>@element.Text</span>
                 </div>
                 <div class="toolbar__menu-item-icon">
                     <span class="@element.IconDisplayCss" aria-hidden="true"></span>
                 </div>
-
             </button>
-            
+
             <button class="bi toolbar__submenu-overlap"
                     type="button"
                     role="menuitem"
                     disabled="@element.Disabled"
-                    aria-haspopup="@(element.HasSubMenu ? "menu" : null)"
-                    aria-expanded="@(element.HasSubMenu ? "false" : null)"
-                    @onclick="async() => await Owner.OpenElementAsync(element)" />
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                    tabindex="-1"
+                    aria-hidden="true"
+                    @onclick="async () => await Owner.OpenElementAsync(element)" />
 
             @if (element.HasSubMenu)
             {
+
                 <div class="toolbar__submenu">
                     <ToolbarMenuItems Items="element.Children"
                                       Owner="Owner"
