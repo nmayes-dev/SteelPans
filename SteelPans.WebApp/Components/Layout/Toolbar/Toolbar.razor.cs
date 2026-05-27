@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Components;
-using Microsoft.JSInterop;
 
 namespace SteelPans.WebApp.Components.Layout.Toolbar;
 
@@ -79,7 +78,9 @@ public partial class Toolbar
     }
 
     internal async Task OpenElementAsync(ToolbarElement element)
-    {
+    {   
+        Console.WriteLine($"Fired @onclick for \"{element.Text}\"");
+
         if (element.Disabled || element.HasSubMenu)
             return;
 

@@ -10,7 +10,8 @@
                     disabled="@element.Disabled"
                     aria-haspopup="@(element.HasSubMenu ? "menu" : null)"
                     aria-expanded="@(element.HasSubMenu ? "false" : null)"
-                    @onclick="async () => await Owner.OpenElementAsync(element)">
+                    @onclick="() => Owner.OpenElementAsync(element)"
+                    @onclick:stopPropagation="true">
                 <div class="toolbar__menu-item-text">
                     <span>@element.Text</span>
                 </div>
@@ -27,7 +28,8 @@
                     aria-expanded="false"
                     tabindex="-1"
                     aria-hidden="true"
-                    @onclick="async () => await Owner.OpenElementAsync(element)" />
+                    @onclick="() => Owner.OpenElementAsync(element)"
+                    @onclick:stopPropagation="true" />
 
             @if (element.HasSubMenu)
             {

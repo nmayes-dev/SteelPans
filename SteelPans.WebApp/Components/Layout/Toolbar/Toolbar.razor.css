@@ -59,10 +59,15 @@
 .toolbar__surface {
     --toolbar-header-height: var(--ui-icon-button-size);
     position: absolute;
+    top: 0;
+    pointer-events: auto;
+    contain: none;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    touch-action: manipulation;
     display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: var(--toolbar-header-height) 0;
-    top: 0;
     width: auto;
     min-width: var(--ui-icon-button-size);
     max-width: var(--ui-icon-button-size);
@@ -365,6 +370,7 @@
 
     .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:hover > .toolbar__menu-item:not(:disabled),
     .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:focus-within > .toolbar__menu-item:not(:disabled) {
+        border-top: 1px solid var(--toolbar__background-color);
         background: var(--toolbar__hover-color);
         color: #1d4ed8;
     }
@@ -446,7 +452,7 @@
 
 .toolbar__menu ::deep .toolbar__submenu {
     position: absolute;
-    top: 0;
+    top: 1px;
     z-index: inherit;
     min-width: 0;
     width: max-content;
@@ -918,13 +924,19 @@
                         transition: transform var(--short-transition) ease;
                     }
 
-                    .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child:not(:last-child) > .toolbar__submenu-overlap {
-                        border-bottom-left-radius: calc(var(--toolbar__menu-item-height) * 0.65);
+                    .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > .toolbar__submenu-overlap {
+                        border-bottom-left-radius: var(--toolbar__menu-item-height);
+                        border-bottom-color: transparent;
                     }
 
                     .toolbar--right .toolbar__menu ::deep .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:last-child:not(:first-child) > .toolbar__submenu-overlap {
                         border-bottom-right-radius: var(--toolbar__border-radius);
                     }
+
+    .toolbar--right ::deep .toolbar__menu:has( > .toolbar__menu-tree--depth-0 > .toolbar__menu-item-shell--submenu:last-child:is(:hover, :focus-within) ) {
+        border-bottom-left-radius: 0;
+        transition: border-bottom-left-radius var(--med-transition) ease;
+    }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:hover:not(:disabled)),
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-item-shell--submenu:has(> .toolbar__menu-item:focus-visible),
@@ -937,7 +949,7 @@
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu > .toolbar__menu-item:hover,
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:focus-within > .toolbar__menu-item,
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item {
-        border-bottom-left-radius: calc(var(--toolbar__menu-item-height) * 0.65);
+        border-bottom-left-radius: var(--toolbar__menu-item-height);
     }
 
     .toolbar--right .toolbar__menu ::deep .toolbar__menu-tree > .toolbar__menu-item-shell--submenu:has(> .toolbar__submenu > .toolbar__menu-tree > .toolbar__menu-item-shell:first-child > :is(.toolbar__submenu-overlap, .toolbar__menu-item):hover) > .toolbar__menu-item,
@@ -973,6 +985,10 @@
     .toolbar--right .toolbar__panel-content {
         transform-origin: top right;
     }
+
+
+
+
 
 /* =========================================
    Pointer Event Hardening
