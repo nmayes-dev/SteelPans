@@ -4,21 +4,30 @@
     @foreach (var element in Items)
     {
         <div class="@GetItemShellClass(element)">
-            <button class="toolbar__menu-item"
-                    type="button"
-                    role="menuitem"
-                    disabled="@element.Disabled"
-                    aria-haspopup="@(element.HasSubMenu ? "menu" : null)"
-                    aria-expanded="@(element.HasSubMenu ? "false" : null)"
-                    @onclick="() => Owner.OpenElementAsync(element)"
-                    @onclick:stopPropagation="true">
-                <div class="toolbar__menu-item-text">
-                    <span>@element.Text</span>
-                </div>
-                <div class="toolbar__menu-item-icon">
-                    <span class="@element.IconDisplayCss" aria-hidden="true"></span>
-                </div>
-            </button>
+            @if (element.LabelFor is not null)
+            {
+                <label class="toolbar__menu-item"
+                       role="menuitem"
+                       for="@element.LabelFor">
+                    <span class="toolbar__menu-item-text">@element.Text</span>
+                    <span class="toolbar__menu-item-icon">
+                        <span class="bi @element.IconDisplayCss" aria-hidden="true"></span>
+                    </span>
+                </label>
+            }
+            else
+            {
+                <button class="toolbar__menu-item"
+                        type="button"
+                        role="menuitem"
+                        @onclick="() => Owner.OpenElementAsync(element)"
+                        @onclick:stopPropagation="true">
+                    <span class="toolbar__menu-item-text">@element.Text</span>
+                    <span class="toolbar__menu-item-icon">
+                        <span class="bi @element.IconDisplayCss" aria-hidden="true"></span>
+                    </span>
+                </button>
+            }
 
             <button class="bi toolbar__submenu-overlap"
                     type="button"

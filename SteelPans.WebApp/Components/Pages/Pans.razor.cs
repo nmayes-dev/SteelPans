@@ -1,5 +1,6 @@
 using Melanchall.DryWetMidi.Core;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using SteelPans.WebApp.Components.Elements;
@@ -17,7 +18,7 @@ public partial class Pans : IAsyncDisposable
     {
         public string Name { get; set; } = string.Empty;
         public long Size { get; set; }
-        public IJSStreamReference? Stream { get; set; }
+        public IBrowserFile? File { get; set; }
     }
 
     private Settings Settings => SettingsAccessor.Value;
@@ -199,10 +200,10 @@ public partial class Pans : IAsyncDisposable
             {
                 foreach (var file in pendingMergeMidiFiles_)
                 {
-                    if (file.Stream is null)
+                    if (file.File is null)
                         continue;
 
-                    var stream = await file.Stream.OpenReadStreamAsync(MaxMidiFileSize);
+                    var stream = file.File.OpenReadStream(MaxMidiFileSize);
                     files.Add((file.Name, stream));
                 }
 
@@ -224,14 +225,22 @@ public partial class Pans : IAsyncDisposable
         mergeMidiFileName_ = string.Empty;
     }
 
-    private async Task OpenMidiFileDialogAsync()
+    private async Task OnMidiFilesChangedAsync(InputFileChangeEventArgs e)
     {
         try
         {
             loadError_ = null;
 
-            var files = await JS.InvokeAsync<List<BrowserDialogFile>>("fileDialogs.openMidiFiles");
-            if (files is null || files.Count == 0)
+            var files = e.GetMultipleFiles()
+                .Select(file => new BrowserDialogFile
+                {
+                    Name = file.Name,
+                    Size = file.Size,
+                    File = file
+                })
+                .ToList();
+
+            if (files.Count == 0)
                 return;
 
             if (files.Count == 1)
@@ -244,7 +253,7 @@ public partial class Pans : IAsyncDisposable
         }
         catch (Exception)
         {
-            loadError_ = "An error occured loading this MIDI file.";
+            loadError_ = "An error occurred loading this MIDI file.";
         }
     }
 
@@ -259,13 +268,13 @@ public partial class Pans : IAsyncDisposable
 
     private async Task OnSingleMidiSelectedAsync(BrowserDialogFile file)
     {
-        if (file.Stream is null)
+        if (file.File is null)
             return;
 
         midiFileName_ = file.Name;
         await OnMidiFileSelected(async () =>
         {
-            await using var stream = await file.Stream.OpenReadStreamAsync(MaxMidiFileSize);
+            await using var stream = file.File.OpenReadStream(MaxMidiFileSize);
             return await MidiService.OpenMidiFileAsync(stream);
         });
     }

@@ -113,6 +113,16 @@
     min-height: 0;
 }
 
+
+::deep .midi-loader__file-input {
+    position: fixed;
+    inline-size: 1px;
+    block-size: 1px;
+    opacity: 0;
+    pointer-events: none;
+    inset-inline-start: -9999px;
+}
+
 .metronome-shell__status-switch {
     --switch-base-size: 1.8rem;
     --switch-track-width: clamp(2rem, var(--switch-base-size) + 0.8vw, 3rem);

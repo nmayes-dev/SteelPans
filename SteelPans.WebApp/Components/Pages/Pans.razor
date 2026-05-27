@@ -30,7 +30,13 @@
                     <SubMenu>
                         <ToolbarElement Text="Open MIDI"
                                         IconClass="bi-file-earmark-music"
-                                        OnClick="OpenMidiFileDialogAsync" />
+                                        LabelFor="midi-file-input" />
+
+                        <InputFile id="midi-file-input"
+                                   class="midi-loader__file-input"
+                                   OnChange="OnMidiFilesChangedAsync"
+                                   multiple
+                                   accept=".mid,.midi,audio/midi,audio/x-midi" />
 
                         @if (Playback.IsMidiLoaded)
                         {
