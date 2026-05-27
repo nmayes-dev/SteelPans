@@ -15,7 +15,7 @@ jobs:
         if: github.ref == 'refs/heads/master'
         run: |
           cd "$PANS_PROD_PATH"
-          docker compose restart steel-pans
+          docker compose restart
         env:
           PANS_PROD_PATH: ${{ vars.PANS_PROD_PATH }}
 
@@ -23,6 +23,14 @@ jobs:
         if: github.ref == 'refs/heads/develop'
         run: |
           cd "$PANS_DEV_PATH"
-          docker compose restart steel-pans
+          docker compose restart
         env:
           PANS_DEV_PATH: ${{ vars.PANS_DEV_PATH }}
+
+      - name: Deploy LAN
+        if: github.ref == 'refs/heads/develop'
+        run: |
+          cd "$PANS_LAN_PATH"
+          docker compose restart
+        env:
+          PANS_DEV_PATH: ${{ vars.PANS_LAN_PATH }}
