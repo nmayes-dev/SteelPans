@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using SteelPans.EnsembleService.Auth;
-using SteelPans.EnsembleService.Data;
+using SteelPans.Shared.Auth;
+using SteelPans.Shared.Data;
 using SteelPans.Shared.Ensembles;
 
 namespace SteelPans.EnsembleService.Endpoints;
@@ -9,7 +9,8 @@ public static class GroupEndpoints
 {
     public static IEndpointRouteBuilder MapGroupEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/groups");
+        var group = app.MapGroup("/api/groups")
+            .RequireAuthorization();
 
         group.MapGet("/mine", GetMyGroups);
         group.MapPost("/", CreateGroup);
@@ -41,28 +42,33 @@ public static class GroupEndpoints
         ICurrentUserAccessor currentUser,
         CancellationToken cancellationToken)
     {
-        var user = await db.Users.FindAsync(
-            [currentUser.UserId],
+        var name = request.Name.Trim();
+        var slug = request.Slug.Trim().ToLowerInvariant();
+
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return Results.BadRequest("Group name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            return Results.BadRequest("Group slug is required.");
+        }
+
+        var slugExists = await db.Groups.AnyAsync(
+            x => x.Slug == slug,
             cancellationToken);
 
-        if (user is null)
+        if (slugExists)
         {
-            user = new EnsembleUser
-            {
-                Id = currentUser.UserId,
-                Email = currentUser.Email,
-                DisplayName = currentUser.Email,
-                CreatedAt = DateTimeOffset.UtcNow
-            };
-
-            db.Users.Add(user);
+            return Results.Conflict("A group with this slug already exists.");
         }
 
         var ensembleGroup = new EnsembleGroup
         {
             Id = Guid.NewGuid(),
-            Name = request.Name.Trim(),
-            Slug = request.Slug.Trim().ToLowerInvariant(),
+            Name = name,
+            Slug = slug,
             CreatedByUserId = currentUser.UserId,
             CreatedAt = DateTimeOffset.UtcNow
         };

@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using SteelPans.EnsembleService.Auth;
-using SteelPans.EnsembleService.Data;
 using SteelPans.EnsembleService.Files;
 using SteelPans.EnsembleService.Security;
+using SteelPans.Shared.Auth;
+using SteelPans.Shared.Data;
 using SteelPans.Shared.Ensembles;
 
 namespace SteelPans.EnsembleService.Endpoints;
@@ -11,9 +11,12 @@ public static class MidiFileEndpoints
 {
     public static IEndpointRouteBuilder MapMidiFileEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/files");
+        var group = app.MapGroup("/api/files")
+            .RequireAuthorization();
 
-        group.MapPost("/groups/{groupId:guid}", UploadMidiFile);
+        group.MapPost("/groups/{groupId:guid}", UploadMidiFile)
+            .RequireRateLimiting("Uploads");
+
         group.MapGet("/{fileId:guid}", GetMidiFileDetails);
         group.MapGet("/{fileId:guid}/download", DownloadMidiFile);
         group.MapPost("/{fileId:guid}/assignments", SaveAssignments);

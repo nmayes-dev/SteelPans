@@ -8,6 +8,7 @@ using SteelPans.PracticeWebApp.Components.Layout;
 using System.Text.Json;
 using SteelPans.Shared.Music;
 using SteelPans.Shared.Config;
+using SteelPans.Components.Layout;
 
 namespace SteelPans.PracticeWebApp.Components.Pages;
 

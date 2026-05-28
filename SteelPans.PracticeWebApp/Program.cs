@@ -1,6 +1,10 @@
 using SteelPans.PracticeWebApp.Components;
 using SteelPans.PracticeWebApp.Services;
+using SteelPans.Shared.Auth;
 using SteelPans.Shared.Config;
+using SteelPans.Shared.Extensions;
+using SteelPans.Components.Services;
+using System.Reflection;
 using System.Text;
 
 namespace SteelPans.PracticeWebApp;
@@ -15,6 +19,8 @@ public class Program
     public static void Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
+
+        builder.AddIdentityServices("SteelPans.Web.Auth");
 
         // Add services to the container.
         builder.Services.AddRazorComponents()
@@ -31,6 +37,9 @@ public class Program
 
         var app = builder.Build();
 
+        app.UseAuthentication();
+        app.UseAuthorization();
+
         // Configure the HTTP request pipeline.
         if (!app.Environment.IsDevelopment())
         {
@@ -43,6 +52,8 @@ public class Program
         app.UseHttpsRedirection();
 
         app.UseAntiforgery();
+
+        app.MapAccountEndpoints();
 
         app.MapStaticAssets();
         app.MapRazorComponents<App>()

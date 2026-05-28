@@ -2,17 +2,7 @@
 using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Music;
 
-namespace SteelPans.EnsembleService.Data;
-
-public sealed class EnsembleUser
-{
-    public Guid Id { get; set; }
-    public string Email { get; set; } = "";
-    public string DisplayName { get; set; } = "";
-    public DateTimeOffset CreatedAt { get; set; }
-
-    public List<EnsembleGroupMember> Memberships { get; set; } = [];
-}
+namespace SteelPans.Shared.Data;
 
 public sealed class EnsembleGroup
 {
@@ -34,7 +24,7 @@ public sealed class EnsembleGroupMember
     public DateTimeOffset JoinedAt { get; set; }
 
     public EnsembleGroup Group { get; set; } = null!;
-    public EnsembleUser User { get; set; } = null!;
+    public ApplicationUser User { get; set; } = null!;
 }
 
 public sealed class EnsembleMidiFile

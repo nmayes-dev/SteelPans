@@ -7,4 +7,9 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SteelPans.Components\SteelPans.Components.csproj" />
+    <ProjectReference Include="..\SteelPans.Shared\SteelPans.Shared.csproj" />
+  </ItemGroup>
+
 </Project>

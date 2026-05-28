@@ -1,4 +1,7 @@
 using SteelPans.LeaderWebApp.Components;
+using SteelPans.Shared.Auth;
+using SteelPans.Shared.Extensions;
+using SteelPans.Shared.Services;
 
 namespace SteelPans.LeaderWebApp
 {
@@ -12,7 +15,12 @@ namespace SteelPans.LeaderWebApp
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
+            builder.AddIdentityServices("SteelPans.Leader.Auth");
+
             var app = builder.Build();
+
+            app.UseAuthentication();
+            app.UseAuthorization();
 
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
@@ -26,6 +34,8 @@ namespace SteelPans.LeaderWebApp
             app.UseHttpsRedirection();
 
             app.UseAntiforgery();
+
+            app.MapAccountEndpoints();
 
             app.MapStaticAssets();
             app.MapRazorComponents<App>()

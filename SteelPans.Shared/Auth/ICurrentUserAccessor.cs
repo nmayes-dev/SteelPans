@@ -1,4 +1,4 @@
-﻿namespace SteelPans.EnsembleService.Auth;
+﻿namespace SteelPans.Shared.Auth;
 
 public interface ICurrentUserAccessor
 {

@@ -1,6 +1,6 @@
-﻿using SteelPans.Shared.Model.Music;
+﻿using SteelPans.Shared.Music;
 
-namespace SteelPans.PracticeWebApp.Extensions;
+namespace SteelPans.Shared.Extensions;
 
 public static class ReadOnlyListExtensions
 {

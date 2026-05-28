@@ -16,10 +16,13 @@
 
   <ItemGroup>
     <PackageReference Include="Melanchall.DryWetMidi" Version="8.0.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
     <PackageReference Include="NAudio" Version="2.3.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.18.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\SteelPans.Components\SteelPans.Components.csproj" />
     <ProjectReference Include="..\SteelPans.Shared\SteelPans.Shared.csproj" />
   </ItemGroup>
 

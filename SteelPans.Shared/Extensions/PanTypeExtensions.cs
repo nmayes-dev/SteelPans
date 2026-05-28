@@ -1,7 +1,7 @@
 ﻿using SteelPans.Shared.Music;
 using System.Text.RegularExpressions;
 
-namespace SteelPans.PracticeWebApp.Extensions;
+namespace SteelPans.Shared.Extensions;
 
 public static class EnumExtensions
 {

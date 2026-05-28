@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.JSInterop;
 
-namespace SteelPans.PracticeWebApp.Services;
+namespace SteelPans.Components.Services;
 
 public interface IKeyboardListener
 {

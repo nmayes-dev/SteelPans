@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
+using SteelPans.Components.Layout;
 
-namespace SteelPans.PracticeWebApp.Components.Layout.Toolbar;
+namespace SteelPans.Components.Toolbar;
 
 public partial class Toolbar
 {

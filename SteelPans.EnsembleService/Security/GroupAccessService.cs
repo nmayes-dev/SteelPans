@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using SteelPans.EnsembleService.Data;
+using SteelPans.Shared.Data;
 using SteelPans.Shared.Ensembles;
 
 namespace SteelPans.EnsembleService.Security;

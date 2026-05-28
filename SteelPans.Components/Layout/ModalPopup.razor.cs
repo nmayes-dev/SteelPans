@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 
-namespace SteelPans.PracticeWebApp.Components.Layout;
+namespace SteelPans.Components.Layout;
 
 public partial class ModalPopup
 {

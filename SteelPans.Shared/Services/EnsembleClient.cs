@@ -1,75 +1,46 @@
-﻿using System.Net.Http.Json;
+﻿using Microsoft.AspNetCore.Components.Authorization;
 using SteelPans.Shared.Ensembles;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
 
 namespace SteelPans.Shared.Services;
 
-public sealed class EnsembleClient(HttpClient http)
+public sealed class EnsembleClient(
+    HttpClient http,
+    AuthenticationStateProvider authenticationStateProvider,
+    EnsembleApiTokenService tokenService)
 {
-    public async Task<IReadOnlyList<GroupSummaryDto>> GetMyGroupsAsync(
-        CancellationToken cancellationToken = default)
+    private async Task<HttpRequestMessage> CreateRequestAsync(
+        HttpMethod method,
+        string path)
     {
-        return await http.GetFromJsonAsync<List<GroupSummaryDto>>(
-            "/api/groups/mine",
-            cancellationToken) ?? [];
+        var authState = await authenticationStateProvider.GetAuthenticationStateAsync();
+
+        if (authState.User.Identity?.IsAuthenticated != true)
+        {
+            throw new InvalidOperationException("User is not authenticated.");
+        }
+
+        var token = tokenService.CreateToken(authState.User);
+
+        var request = new HttpRequestMessage(method, path);
+
+        request.Headers.Authorization =
+            new AuthenticationHeaderValue("Bearer", token);
+
+        return request;
     }
 
-    public async Task<GroupSummaryDto> CreateGroupAsync(
-        CreateGroupRequest request,
-        CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<GroupSummaryDto>> GetMyGroupsAsync()
     {
-        var response = await http.PostAsJsonAsync(
-            "/api/groups",
-            request,
-            cancellationToken);
+        using var request = await CreateRequestAsync(
+            HttpMethod.Get,
+            "/api/groups/mine");
+
+        using var response = await http.SendAsync(request);
 
         response.EnsureSuccessStatusCode();
 
-        return await response.Content.ReadFromJsonAsync<GroupSummaryDto>(
-            cancellationToken) ?? throw new InvalidOperationException("No group returned.");
-    }
-
-    public async Task<IReadOnlyList<GroupFileDto>> GetGroupFilesAsync(
-        Guid groupId,
-        CancellationToken cancellationToken = default)
-    {
-        return await http.GetFromJsonAsync<List<GroupFileDto>>(
-            $"/api/groups/{groupId}/files",
-            cancellationToken) ?? [];
-    }
-
-    public async Task<MidiFileDetailsDto?> GetFileDetailsAsync(
-        Guid fileId,
-        CancellationToken cancellationToken = default)
-    {
-        return await http.GetFromJsonAsync<MidiFileDetailsDto>(
-            $"/api/files/{fileId}",
-            cancellationToken);
-    }
-
-    public async Task<Stream> DownloadFileAsync(
-        Guid fileId,
-        CancellationToken cancellationToken = default)
-    {
-        var response = await http.GetAsync(
-            $"/api/files/{fileId}/download",
-            HttpCompletionOption.ResponseHeadersRead,
-            cancellationToken);
-
-        response.EnsureSuccessStatusCode();
-
-        return await response.Content.ReadAsStreamAsync(cancellationToken);
-    }
-
-    public async Task SaveAssignmentsAsync(
-        Guid fileId,
-        SaveMidiAssignmentsRequest request,
-        CancellationToken cancellationToken = default)
-    {
-        var response = await http.PostAsJsonAsync(
-            $"/api/files/{fileId}/assignments",
-            request,
-            cancellationToken);
-
-        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<List<GroupSummaryDto>>() ?? [];
     }
 }

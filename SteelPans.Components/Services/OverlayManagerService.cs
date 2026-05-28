@@ -1,6 +1,7 @@
-﻿namespace SteelPans.PracticeWebApp.Services;
+﻿namespace SteelPans.Components.Services;
 
 using Microsoft.AspNetCore.Components;
+
 
 public abstract class OverlayComponentBase : ComponentBase, IDisposable
 {

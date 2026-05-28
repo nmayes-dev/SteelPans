@@ -1,6 +1,4 @@
-﻿@namespace SteelPans.PracticeWebApp.Components.Layout.Toolbar
-
-<div class="toolbar__menu-tree toolbar__menu-tree--depth-@Depth" role="@(Depth == 0 ? null : "menu")">
+﻿<div class="toolbar__menu-tree toolbar__menu-tree--depth-@Depth" role="@(Depth == 0 ? null : "menu")">
     @foreach (var element in Items)
     {
         <div class="@GetItemShellClass(element)">
