@@ -1,0 +1,123 @@
+@using SteelPans.Shared.Model.Music
+@using SteelPans.PracticeWebApp.Services
+@inject MidiPlaybackService Playback
+
+<div class="steel-pan__chord-builder toolbar__shrink_to_fit @(IsDisabled ? "steel-pan__chord-builder--disabled" : null)">
+    <div class="steel-pan__chord-selector">
+        <div class="steel-pan__chord-select--note">
+            <select class="form-select steel-pan__chord-select--tone"
+                    value="@rootLetter_"
+                    disabled="@IsDisabled"
+                    @onchange="OnRootLetterChanged">
+                @foreach (var letter in Enum.GetValues<NoteLetter>())
+                {
+                    <option value="@letter">@letter</option>
+                }
+            </select>
+
+            <select class="form-select steel-pan__chord-select--accidental"
+                    value="@rootAccidental_"
+                    disabled="@IsDisabled"
+                    @onchange="OnRootAccidentalChanged">
+                <option value="-1">♭</option>
+                <option value="0">♮</option>
+                <option value="1">♯</option>
+            </select>
+        </div>
+
+        <select class="form-select steel-pan__chord-select--scale"
+                value="@selectedChord_"
+                disabled="@IsDisabled"
+                @onchange="OnChordChanged">
+            @foreach (var chord in chordOptions_.Keys)
+            {
+                <option value="@chord">@chord</option>
+            }
+        </select>
+    </div>
+    
+    <button class="btn btn-primary steel-pan__chord-play"
+            type="button"
+            disabled="@IsDisabled"
+            @onclick="PlayClickedAsync">
+        Play
+    </button>
+</div>
+
+@code {
+    private bool IsDisabled => Playback.IsPlaying || Playback.ActivePans.Count == 0;
+
+    private NoteLetter rootLetter_ = NoteLetter.C;
+    private int rootAccidental_ = 0;
+    private int octave_ = 4;
+    private string selectedChord_ = "Major";
+
+    private readonly Dictionary<string, Interval[]> chordOptions_ = new()
+    {
+        ["Major"] = ChordFormulas.MajorTriad,
+        ["Minor"] = ChordFormulas.MinorTriad,
+        ["Diminished"] = ChordFormulas.DiminishedTriad,
+        ["Augmented"] = ChordFormulas.AugmentedTriad,
+        ["Dominant 7"] = ChordFormulas.DominantSeventh,
+        ["Major 7"] = ChordFormulas.MajorSeventh,
+        ["Minor 7"] = ChordFormulas.MinorSeventh,
+    };
+
+    private void OnRootLetterChanged(ChangeEventArgs e)
+    {
+        if (IsDisabled)
+            return;
+
+        if (Enum.TryParse<NoteLetter>(e.Value?.ToString(), out var value))
+            rootLetter_ = value;
+    }
+
+    private void OnRootAccidentalChanged(ChangeEventArgs e)
+    {
+        if (IsDisabled)
+            return;
+
+        if (int.TryParse(e.Value?.ToString(), out var value))
+            rootAccidental_ = value;
+    }
+
+    private void OnChordChanged(ChangeEventArgs e)
+    {
+        if (IsDisabled)
+            return;
+
+        var value = e.Value?.ToString();
+        if (!string.IsNullOrWhiteSpace(value) && chordOptions_.ContainsKey(value))
+            selectedChord_ = value;
+    }
+
+    private async Task ClearChordAsync()
+    {
+        if (IsDisabled)
+            return;
+
+        await Playback.SelectChordAsync(new());
+    }
+
+    private async Task ApplyChordAsync()
+    {
+        if (IsDisabled)
+            return;
+
+        var root = new Note(rootLetter_, new Accidental(rootAccidental_), octave_);
+        var chord = root.BuildChord(chordOptions_[selectedChord_]);
+
+        var pitchClasses = chord.Select(n => n.PitchClass).ToHashSet();
+        await Playback.SelectChordAsync(pitchClasses);
+    }
+
+    private async Task PlayClickedAsync()
+    {
+        if (IsDisabled)
+            return;
+
+        await ApplyChordAsync();
+
+        await Playback.PlaySelectedNotesAsync();
+    }
+}

@@ -1,0 +1,261 @@
+@using NAudio.Wave
+@using SteelPans.Shared.Model.Music
+@using SteelPans.PracticeWebApp.Services
+@using SteelPans.PracticeWebApp.Extensions
+@inject SteelPanSvgService SvgService
+@inject MidiPlaybackService Playback
+@inject IJSRuntime JS
+@inject IWebHostEnvironment Env
+@implements IAsyncDisposable
+
+@if (Pan is not null)
+{
+    <div class="@RootCssClass">
+        <div class="steel-pan__canvas">
+            <div class="steel-pan @Class" style="@Style">
+                @((MarkupString)panSvg_)
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="steel-pan steel-pan--empty">
+        Pan failed to load.
+    </div>
+}
+
+@code {
+    public string ComponentId => componentId_;
+
+    [Parameter, EditorRequired]
+    public SteelPan? Pan { get; set; }
+
+    [Parameter]
+    public string? Class { get; set; }
+
+    [Parameter]
+    public string? Style { get; set; }
+
+    [Parameter]
+    public Guid? PlaybackInstanceId { get; set; }
+
+    private bool notesPreloaded_;
+    private readonly string componentId_ = $"steelpan_{Guid.NewGuid():N}";
+    private DotNetObjectReference<SteelPanView>? selfRef_;
+    private string panSvg_ = string.Empty;
+    private string svgPath_ = string.Empty;
+    private TimeSpan sampleDuration_;
+    private CancellationTokenSource? playSelectedCts_;
+
+    private MidiAssignedPan? AssignedPan =>
+        PlaybackInstanceId is Guid instanceId
+            ? Playback.ActivePans.FirstOrDefault(x => x.InstanceId == instanceId)
+            : null;
+
+    private IEnumerable<MidiAssignedPan> OtherPans =>
+        PlaybackInstanceId is Guid instanceId
+            ? Playback.ActivePans.Where(x => x.InstanceId != instanceId)
+            : Enumerable.Empty<MidiAssignedPan>();
+
+    private bool IsMuted => AssignedPan?.Muted == true;
+    private bool IsOtherSolo => AssignedPan?.Soloing == false && OtherPans.Any(p => p.Soloing);
+
+    private string RootCssClass =>
+        $"steel-pan__root{((IsMuted || IsOtherSolo) ? " steel-pan__root--muted" : string.Empty)}";
+
+    protected override Task OnInitializedAsync()
+    {
+        selfRef_ = DotNetObjectReference.Create(this);
+        sampleDuration_ = GetWavDuration();
+        return Task.CompletedTask;
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Pan is null)
+        {
+            panSvg_ = string.Empty;
+            svgPath_ = string.Empty;
+            return;
+        }
+        
+        notesPreloaded_ = false;
+        svgPath_ = $"images/pans/{Pan.Type.ToKebabCase()}.svg";
+
+        await SvgService.PrebuildNoteFragmentsAsync(svgPath_, Pan.Notes);
+        await RebuildSvgAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && selfRef_ is not null)
+            await JS.InvokeVoidAsync("steelPan.register", componentId_, selfRef_);
+
+        if (firstRender && PlaybackInstanceId is not null)
+            await Playback.RegisterSteelPanViewAsync(PlaybackInstanceId.Value, this);
+
+        if (firstRender && !string.IsNullOrWhiteSpace(panSvg_))
+            await JS.InvokeVoidAsync("steelPan.bindPanElements", componentId_);
+            
+        if (!notesPreloaded_ && Pan is not null && await JS.InvokeAsync<bool>("steelPan.hasUserGestureOccurred"))
+        {
+            await JS.InvokeVoidAsync(
+                "steelPan.preloadNotes",
+                (object)Pan.Notes.Select(n => n.ToString()).Distinct().ToArray());
+
+            notesPreloaded_ = true;
+        }
+    }
+
+    public async Task RebuildSvgAsync()
+    {
+        if (Pan is null || string.IsNullOrWhiteSpace(svgPath_))
+        {
+            panSvg_ = string.Empty;
+            return;
+        }
+
+        panSvg_ = await SvgService.BuildPanSvgAsync(svgPath_, componentId_, Pan.Notes);
+    }
+
+    public async Task ClearMidiVisualStateAsync()
+    {
+        if (Pan is null)
+            return;
+
+        foreach (var note in Pan.Notes)
+            note.Playing = false;
+
+        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_);
+    }
+
+    public async Task ClearSelectionAndMidiVisualStateAsync()
+    {
+        if (Pan is null)
+            return;
+
+        foreach (var note in Pan.Notes)
+        {
+            note.Selected = false;
+            note.Playing = false;
+        }
+
+        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_);
+
+        await RebuildSvgAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task SelectChordAsync(HashSet<int> pitchClasses)
+    {
+        if (Pan is null)
+            return;
+
+        playSelectedCts_?.Cancel();
+        playSelectedCts_?.Dispose();
+        playSelectedCts_ = null;
+
+        foreach (var note in Pan.Notes)
+        {
+            note.Selected = pitchClasses.Contains(note.Note.PitchClass);
+            note.Playing = false;
+        }
+
+        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_);
+
+        await RebuildSvgAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task PlaySelectedNotesAsync()
+    {
+        if (Pan is null)
+            return;
+
+        var selectedNotes = Pan.Notes.Where(n => n.Selected).ToArray();
+        if (selectedNotes.Length == 0)
+            return;
+
+        var selectedNoteKeys = selectedNotes
+            .Select(n => n.ToString())
+            .Distinct()
+            .ToArray();
+
+        playSelectedCts_?.Cancel();
+        playSelectedCts_?.Dispose();
+
+        foreach (var note in Pan.Notes)
+            note.Playing = false;
+
+        var cts = new CancellationTokenSource();
+        playSelectedCts_ = cts;
+
+        await JS.InvokeVoidAsync("steelPan.playNotes", componentId_, (object)selectedNoteKeys);
+        await JS.InvokeVoidAsync(
+            "steelPan.flashNotes",
+            componentId_,
+            (object)selectedNoteKeys,
+            (int)Math.Max(120, sampleDuration_.TotalMilliseconds));
+
+        _ = ClearSelectedAfterDelayAsync(selectedNoteKeys, cts);
+    }
+
+    private async Task ClearSelectedAfterDelayAsync(string[] noteKeys, CancellationTokenSource cts)
+    {
+        try
+        {
+            await Task.Delay(sampleDuration_, cts.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
+        }
+
+        if (cts.IsCancellationRequested || playSelectedCts_ != cts)
+            return;
+
+        if (playSelectedCts_ == cts)
+        {
+            playSelectedCts_.Dispose();
+            playSelectedCts_ = null;
+        }
+
+        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_, (object)noteKeys);
+    }
+
+    private TimeSpan GetWavDuration()
+    {
+        var samplesPath = Path.Combine(Env.WebRootPath, "audio", "samples");
+        var path = Directory.Exists(samplesPath)
+            ? Directory.EnumerateFiles(samplesPath, "*.wav", SearchOption.AllDirectories).FirstOrDefault()
+            : null;
+
+        if (path is null)
+            return TimeSpan.Zero;
+
+        using var reader = new AudioFileReader(path);
+        return reader.TotalTime;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (PlaybackInstanceId is not null)
+            Playback.UnregisterSteelPanView(PlaybackInstanceId.Value);
+
+        playSelectedCts_?.Cancel();
+        playSelectedCts_?.Dispose();
+        playSelectedCts_ = null;
+
+        try
+        {
+            await JS.InvokeVoidAsync("steelPan.stopMidiSchedule", componentId_);
+            await JS.InvokeVoidAsync("steelPan.unregister", componentId_);
+        }
+        catch
+        {
+        }
+
+        selfRef_?.Dispose();
+    }
+}

@@ -1,0 +1,41 @@
+﻿using SteelPans.Shared.Music;
+
+namespace SteelPans.Shared.Ensembles;
+
+public sealed record GroupSummaryDto(
+    Guid Id,
+    string Name,
+    string Slug,
+    GroupRole Role);
+
+public sealed record CreateGroupRequest(
+    string Name,
+    string Slug);
+
+public sealed record GroupFileDto(
+    Guid Id,
+    Guid GroupId,
+    string Title,
+    string OriginalFileName,
+    long SizeBytes,
+    DateTimeOffset UploadedAt);
+
+public sealed record MidiTrackDto(
+    int TrackIndex,
+    string? TrackName,
+    PanType? SuggestedPanType);
+
+public sealed record MidiFileDetailsDto(
+    Guid Id,
+    string Title,
+    string OriginalFileName,
+    IReadOnlyList<MidiTrackDto> Tracks,
+    IReadOnlyList<MidiTrackAssignmentDto> Assignments);
+
+public sealed record MidiTrackAssignmentDto(
+    int TrackIndex,
+    PanType PanType,
+    string Label);
+
+public sealed record SaveMidiAssignmentsRequest(
+    IReadOnlyList<MidiTrackAssignmentDto> Assignments);
