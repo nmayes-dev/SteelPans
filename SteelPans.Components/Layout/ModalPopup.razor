@@ -1,4 +1,6 @@
 ﻿@inherits OverlayComponentBase
+@inject KeyboardManagerService Keyboard
+@implements IDisposable
 
 @if (isOpen_)
 {
@@ -12,8 +14,6 @@
          role="dialog"
          aria-modal="@(!Draggable).ToString().ToLowerInvariant()"
          aria-labelledby="@TitleId"
-         tabindex="-1"
-         @onkeydown="@OnKeyDownAsync"
          @onpointermove="OnPointerMoveAsync"
          @onpointerup="OnPointerUpAsync"
          @onpointercancel="OnPointerUpAsync"

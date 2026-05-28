@@ -66,6 +66,22 @@ public partial class ModalPopup
         ? $"--modal-popup-offset-x: {offsetX_}px; --modal-popup-offset-y: {offsetY_}px;"
         : null;
 
+    private readonly List<IDisposable> keyCallbacks_ = [];
+
+    protected override void OnInitialized()
+    {
+        keyCallbacks_.Add(
+            Keyboard.Register(
+                e => isOpen_ && e.Key == "Escape" && !e.IsEditableTarget,
+                async _ => await OnCloseAsync()));
+
+        keyCallbacks_.Add(
+                Keyboard.Register(
+                    e => isOpen_ && e.Key == "Enter" && !e.IsEditableTarget,
+                    async _ => await OnEnter.InvokeAsync()));
+
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!focusOnRender_ || popupElement_ is null)
@@ -75,7 +91,7 @@ public partial class ModalPopup
         await popupElement_.Value.FocusAsync();
     }
 
-    public async Task Open(bool closeOthers = true)
+    public async Task OpenAsync(bool closeOthers = true)
     {
         isOpen_ = true;
         focusOnRender_ = true;
@@ -100,19 +116,6 @@ public partial class ModalPopup
             return;
 
         await RequestCloseAsync();
-    }
-
-    private async Task OnKeyDownAsync(KeyboardEventArgs e)
-    {
-        switch (e.Key)
-        {
-            case "Escape":
-                await RequestCloseAsync();
-                break;
-            case "Enter":
-                await OnEnter.InvokeAsync();
-                break;
-        }
     }
 
     private Task OnHeaderPointerDownAsync(PointerEventArgs e)
@@ -155,5 +158,15 @@ public partial class ModalPopup
         dragStartClientY_ = 0;
         dragStartOffsetX_ = 0;
         dragStartOffsetY_ = 0;
+    }
+
+    public override void Dispose()
+    {
+        foreach (var registration in keyCallbacks_)
+            registration.Dispose();
+
+        keyCallbacks_.Clear();
+
+        base.Dispose();
     }
 }

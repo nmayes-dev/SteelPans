@@ -9,6 +9,7 @@ using System.Text.Json;
 using SteelPans.Shared.Music;
 using SteelPans.Shared.Config;
 using SteelPans.Components.Layout;
+using SteelPans.Components.Auth;
 
 namespace SteelPans.PracticeWebApp.Components.Pages;
 
@@ -33,7 +34,6 @@ public partial class Pans : IAsyncDisposable
 
     private AddPanModal? addPanModal_;
     private ModalPopup? addMergedTrackModal_;
-    private ModalPopup? removePanModal_;
 
     private FileSaveModal? saveModal_;
     private string? lastFileName_;
@@ -41,7 +41,10 @@ public partial class Pans : IAsyncDisposable
     private ModalPopup? warningModal_;
     private Configuration? pendingLoadConfiguration_;
 
+    private ModalPopup? removePanModal_;
     private MidiAssignedPan? panPendingRemoval_;
+
+    private Logout? logoutModal_;
 
     protected override async Task OnInitializedAsync()
     {
@@ -64,6 +67,19 @@ public partial class Pans : IAsyncDisposable
             await LoadStartupFileAsync(Settings.StartupConfig.MidiFilePath);
             await LoadPanLayoutAsync(Settings.StartupConfig.Layout);
         }
+    }
+
+    private void NavigateToLogin()
+    {
+        Nav.NavigateTo("/account/login");
+    }
+    private void NavigateToRegister()
+    {
+        Nav.NavigateTo("/account/register");
+    }
+    private void NavigateToProfile()
+    {
+        Nav.NavigateTo("/account/profile");
     }
 
     private async Task OnLoadConfigurationFileAsync(InputFileChangeEventArgs e)
@@ -96,7 +112,7 @@ public partial class Pans : IAsyncDisposable
             if (!string.Equals(result.MidiFile, midiFileName_, StringComparison.OrdinalIgnoreCase))
             {
                 pendingLoadConfiguration_ = result;
-                await warningModal_!.Open();
+                await warningModal_!.OpenAsync();
                 return;
             }
 
@@ -288,7 +304,7 @@ public partial class Pans : IAsyncDisposable
             return;
 
         pendingMergeMidiFiles_ = files;
-        await addMergedTrackModal_.Open();
+        await addMergedTrackModal_.OpenAsync();
     }
 
     private async Task OnSingleMidiSelectedAsync(BrowserDialogFile file)
@@ -320,7 +336,7 @@ public partial class Pans : IAsyncDisposable
             }
 
             panPendingRemoval_ = Playback.ActivePans.First(a => a.Assignment.Track?.Index == track.Index);
-            await removePanModal_.Open(closeOthers: false);
+            await removePanModal_.OpenAsync(closeOthers: false);
             return;
 
         }
@@ -355,7 +371,7 @@ public partial class Pans : IAsyncDisposable
             return;
 
         panPendingRemoval_ = pan;
-        await removePanModal_.Open();
+        await removePanModal_.OpenAsync();
     }
 
     private async Task CloseRemovePanModal()

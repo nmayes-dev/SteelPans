@@ -25,14 +25,14 @@
                 <button type="button"
                         class="mixer__button @(pan.Soloing ? "mixer__button--soloing" : "")"
                         disabled="@(!OtherPans(pan).Any())"
-                        @onclick="async () => await ToggleSoloAsync(pan)"
+                        @onclick="() => ToggleSoloAsync(pan)"
                         aria-label="Toggle Solo">
                     <span class="@SoloCssClass(pan)"></span>
                 </button>
 
                 <button type="button"
                         class="mixer__button @(IsSilent(pan) ? "mixer__button--muted" : "")"
-                        @onclick="async () => await ToggleMuteAsync(pan)"
+                        @onclick="() => ToggleMuteAsync(pan)"
                         aria-label="Toggle Mute">
                     <span class="@VolumeCssClass(pan)"></span>
                 </button>

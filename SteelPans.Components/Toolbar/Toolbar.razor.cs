@@ -127,7 +127,7 @@ public partial class Toolbar
         ModalElement = ActiveElement;
         ActiveElement = null;
         menuOpen_ = false;
-        await elementPopup_.Open();
+        await elementPopup_.OpenAsync();
         await InvokeAsync(StateHasChanged);
     }
 

@@ -1,78 +1,13 @@
-﻿using Microsoft.AspNetCore.Components;
-using Microsoft.JSInterop;
+﻿using Microsoft.JSInterop;
 
 namespace SteelPans.Components.Services;
 
-public interface IKeyboardListener
-{
-    Task HandleKeyboardEventAsync(KeyboardEventData eventData);
-}
-
-public abstract class KeyboardComponentBase : ComponentBase, IKeyboardListener, IDisposable
-{
-    [Inject]
-    protected KeyboardManagerService Keyboard { get; set; } = null!;
-
-    private readonly List<KeyboardCallbackRegistration> callbacks_ = [];
-
-    protected override void OnInitialized()
-    {
-        Keyboard.Register(this);
-    }
-
-    protected void RegisterKeyboardCallback(
-        Func<KeyboardEventData, bool> predicate,
-        Func<KeyboardEventData, Task> callback)
-    {
-        Keyboard.Register(this);
-        callbacks_.Add(new KeyboardCallbackRegistration(
-            predicate,
-            callback,
-            OneShot: false));
-    }
-
-    protected void RegisterOneShotKeyboardCallback(
-        Func<KeyboardEventData, bool> predicate,
-        Func<KeyboardEventData, Task> callback)
-    {
-        Keyboard.Register(this);
-        callbacks_.Add(new KeyboardCallbackRegistration(
-            predicate,
-            callback,
-            OneShot: true));
-    }
-
-    public async Task HandleKeyboardEventAsync(KeyboardEventData eventData)
-    {
-        foreach (var registration in callbacks_.ToArray())
-        {
-            if (!registration.Predicate(eventData))
-                continue;
-
-            await registration.Callback(eventData);
-
-            if (registration.OneShot)
-                callbacks_.Remove(registration);
-        }
-    }
-
-    public virtual void Dispose()
-    {
-        callbacks_.Clear();
-        Keyboard.Unregister(this);
-    }
-
-    private sealed record KeyboardCallbackRegistration(
-        Func<KeyboardEventData, bool> Predicate,
-        Func<KeyboardEventData, Task> Callback,
-        bool OneShot);
-}
-
-public sealed class KeyboardManagerService
+public sealed class KeyboardManagerService : IAsyncDisposable
 {
     private readonly IJSRuntime js_;
+    private readonly List<KeyboardCallbackRegistration> callbacks_ = [];
+
     private DotNetObjectReference<KeyboardManagerService>? dotNetRef_;
-    private readonly List<IKeyboardListener> listeners_ = [];
 
     public KeyboardManagerService(IJSRuntime js)
     {
@@ -88,23 +23,54 @@ public sealed class KeyboardManagerService
         await js_.InvokeVoidAsync("keyboardManager.initialize", dotNetRef_);
     }
 
-    public void Register(IKeyboardListener listener)
+    public IDisposable Register(
+        Func<KeyboardEventData, bool> predicate,
+        Func<KeyboardEventData, Task> callback)
     {
-        if (!listeners_.Contains(listener))
-            listeners_.Add(listener);
+        var registration = new KeyboardCallbackRegistration(
+            predicate,
+            callback,
+            OneShot: false);
+
+        callbacks_.Add(registration);
+
+        return new KeyboardRegistration(this, registration);
     }
 
-    public void Unregister(IKeyboardListener listener)
+    public IDisposable RegisterOneShot(
+        Func<KeyboardEventData, bool> predicate,
+        Func<KeyboardEventData, Task> callback)
     {
-        listeners_.Remove(listener);
+        var registration = new KeyboardCallbackRegistration(
+            predicate,
+            callback,
+            OneShot: true);
+
+        callbacks_.Add(registration);
+
+        return new KeyboardRegistration(this, registration);
+    }
+
+    private void Unregister(KeyboardCallbackRegistration registration)
+    {
+        callbacks_.Remove(registration);
     }
 
     [JSInvokable]
     public async Task OnKeyDownAsync(KeyboardEventData eventData)
     {
-        foreach (var listener in listeners_.ToArray())
+        foreach (var registration in callbacks_.ToArray())
         {
-            await listener.HandleKeyboardEventAsync(eventData);
+            if (!callbacks_.Contains(registration))
+                continue;
+
+            if (!registration.Predicate(eventData))
+                continue;
+
+            await registration.Callback(eventData);
+
+            if (registration.OneShot)
+                callbacks_.Remove(registration);
         }
     }
 
@@ -121,8 +87,36 @@ public sealed class KeyboardManagerService
         {
         }
 
+        callbacks_.Clear();
+
         dotNetRef_?.Dispose();
+        dotNetRef_ = null;
     }
+
+    private sealed class KeyboardRegistration : IDisposable
+    {
+        private KeyboardManagerService? owner_;
+        private readonly KeyboardCallbackRegistration registration_;
+
+        public KeyboardRegistration(
+            KeyboardManagerService owner,
+            KeyboardCallbackRegistration registration)
+        {
+            owner_ = owner;
+            registration_ = registration;
+        }
+
+        public void Dispose()
+        {
+            owner_?.Unregister(registration_);
+            owner_ = null;
+        }
+    }
+
+    private sealed record KeyboardCallbackRegistration(
+        Func<KeyboardEventData, bool> Predicate,
+        Func<KeyboardEventData, Task> Callback,
+        bool OneShot);
 }
 
 public sealed class KeyboardEventData

@@ -1,9 +1,52 @@
-@page "/account/logout"
+@inject IJSRuntime JS
 
-<h1>Logout</h1>
+<ModalPopup @ref="modal_"
+            Title="Logout"
+            OnClose="CloseAsync"
+            OnEnter="SubmitAsync">
+    <ChildContent>
+        <div class="account-card__header">
+            <p class="account-card__subtitle">End this session on the current device.</p>
+        </div>
 
-<form method="post" action="/account/logout">
-    <AntiforgeryToken />
-    <input type="hidden" name="returnUrl" value="/" />
-    <button type="submit">Log out</button>
-</form>
+        <form class="account-form"
+              @ref="form_"
+              method="post"
+              action="/account/logout">
+            <AntiforgeryToken />
+            <input type="hidden" name="returnUrl" value="/" />
+
+            <button class="account-button account-button--danger"
+                    type="submit">
+                Logout
+            </button>
+        </form>
+    </ChildContent>
+</ModalPopup>
+
+@code {
+    private ModalPopup? modal_;
+    private ElementReference form_;
+
+    public async Task OpenAsync()
+    {
+        await modal_!.OpenAsync();
+    }
+
+    public async Task CloseAsync()
+    {
+        await modal_!.RequestCloseAsync();
+    }
+
+    public async Task SubmitAsync()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("modalPopup.submitForm", form_);
+        }
+        catch (JSDisconnectedException)
+        {
+            // Expected if the form submission causes navigation.
+        }
+    }
+}

@@ -9,12 +9,6 @@ public abstract class OverlayComponentBase : ComponentBase, IDisposable
     protected OverlayManagerService Registry { get; set; } = default!;
     public bool IsOpen { get; private set; } = false;
 
-    protected override void OnInitialized()
-    {
-        base.OnInitialized();
-        Registry.Register(this);
-    }
-
     public virtual void Dispose()
     {
         Registry.Unregister(this);

@@ -4,6 +4,7 @@
 @inject MidiLoaderService MidiService
 @inject MidiPlaybackService Playback
 @inject KeyboardManagerService KeyboardManager
+@inject NavigationManager Nav
 @inject IJSRuntime JS
 @inject IOptions<Settings> SettingsAccessor
 
@@ -21,7 +22,31 @@
 
                 <ToolbarElement Text="Add Pan"
                                 IconClass="bi-plus-lg"
-                                OnClick="async () => await addPanModal_!.Open()" />
+                                OnClick="() => addPanModal_!.Open()" />
+
+                <ToolbarElement Text="Account">
+                    <SubMenu>
+                        <AuthorizeView>
+                            <Authorized>
+                                <ToolbarElement Text="Profile"
+                                                IconClass="bi-person"
+                                                OnClick="NavigateToProfile" />
+                                <ToolbarElement Text="Logout"
+                                                IconClass="bi-box-arrow-right" 
+                                                OnClick="() => logoutModal_!.OpenAsync()"/>
+                                <Logout @ref="logoutModal_" />
+                            </Authorized>
+                            <NotAuthorized>
+                                <ToolbarElement Text="Login"
+                                                IconClass="bi-box-arrow-in-right"
+                                                OnClick="NavigateToLogin" />
+                                <ToolbarElement Text="Register"
+                                                IconClass="bi-person-plus"
+                                                OnClick="NavigateToRegister" />
+                            </NotAuthorized>
+                        </AuthorizeView>
+                    </SubMenu>
+                </ToolbarElement>
 
                 <ToolbarElement Text="Import">
                     <SubMenu>
@@ -60,7 +85,7 @@
                                                     <button type="button"
                                                             class="pans-page__track-button @(IsTrackAssigned(track) ? "pans-page__track-button--assigned" : null)"
                                                             aria-label="@(IsTrackAssigned(track) ? "Remove Track" : "Add Track")"
-                                                            @onclick="async () => await OnTrackButtonPressedAsync(track)">
+                                                            @onclick="() => OnTrackButtonPressedAsync(track)">
                                                         <span class="bi @(IsTrackAssigned(track) ? "bi-dash-lg" : "bi-plus-lg")" aria-hidden="true"></span>
                                                     </button>
                                                 </div>
@@ -90,12 +115,12 @@
                             <ToolbarElement Text="Save"
                                             IconClass="bi-floppy"
                                             Disabled="@(string.IsNullOrWhiteSpace(lastFileName_) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                            OnClick="async () => await SaveConfigurationFileAsync(lastFileName_!)" />
+                                            OnClick="() => SaveConfigurationFileAsync(lastFileName_!)" />
 
                             <ToolbarElement Text="Save As..."
                                             IconClass="bi-floppy2"
                                             Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                            OnClick="async () => await saveModal_!.Open()" />
+                                            OnClick="() => saveModal_!.Open()" />
                         </SubMenu>
                     </ToolbarElement>
                 }

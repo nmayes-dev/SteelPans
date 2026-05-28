@@ -1,8 +1,8 @@
 @using Microsoft.AspNetCore.Components.Web
 @using SteelPans.PracticeWebApp.Services
 @implements IDisposable
-@inherits KeyboardComponentBase
 @inject OverlayManagerService Overlays
+@inject KeyboardManagerService Keyboard
 
 <div class="sp-section midi-playback">
     <div class="midi-playback__top-row">
@@ -63,6 +63,8 @@
     [Parameter]
     public bool Enabled { get; set; } = false;
 
+    private readonly List<IDisposable> keyCallbacks_ = [];
+
     private bool isSeeking_;
     private double previewSeconds_;
 
@@ -87,10 +89,10 @@
         Playback.StateChanged += HandlePlaybackStateChangedAsync;
         Playback.PositionChanged += HandlePlaybackPositionChangedAsync;
 
-        RegisterKeyboardCallback(
+        keyCallbacks_.Add(Keyboard.Register(
             e => Enabled && !Overlays.AnyOpen && e.Code.Equals("Space", StringComparison.OrdinalIgnoreCase),
             async _ => await HandlePlayPauseAsync()
-        );
+        ));
     }
 
     protected override void OnParametersSet()
@@ -195,11 +197,14 @@
             : $"{time.Minutes}:{time.Seconds:00}.{time.Milliseconds:000}";
     }
 
-    public override void Dispose()
+    public void Dispose()
     {
         Playback.StateChanged -= HandlePlaybackStateChangedAsync;
         Playback.PositionChanged -= HandlePlaybackPositionChangedAsync;
 
-        base.Dispose();
+        foreach (var registration in keyCallbacks_)
+            registration.Dispose();
+
+        keyCallbacks_.Clear();
     }
 }

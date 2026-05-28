@@ -6,8 +6,8 @@ import time
 
 URLS = [
     "https://localhost:7103",
-    "https://localhost:7102",
     "https://localhost:7101",
+    "https://localhost:7102",
 ]
 
 FIREFOX = r"C:\Program Files\Mozilla Firefox\firefox.exe"
@@ -57,6 +57,7 @@ for name in ["sessionstore.jsonlz4", "sessionstore-backups"]:
 process = subprocess.Popen([
     FIREFOX,
     "-no-remote",
+    "--start-maximized",
     "--new-window",
     "-profile",
     str(profile),
