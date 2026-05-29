@@ -22,15 +22,11 @@ jobs:
       - name: Deploy Dev
         if: github.ref == 'refs/heads/develop'
         run: |
+          cd "$PANS_LAN_PATH"
+          docker compose restart
+          
           cd "$PANS_DEV_PATH"
           docker compose restart
         env:
-          PANS_DEV_PATH: ${{ vars.PANS_DEV_PATH }}
-
-      - name: Deploy LAN
-        if: github.ref == 'refs/heads/develop'
-        run: |
-          cd "$PANS_LAN_PATH"
-          docker compose restart
-        env:
           PANS_LAN_PATH: ${{ vars.PANS_LAN_PATH }}
+          PANS_DEV_PATH: ${{ vars.PANS_DEV_PATH }}
