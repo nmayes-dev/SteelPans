@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -67,5 +68,7 @@ public static class WebApplicationBuilderExtensions
             sp.GetRequiredService<LocalEnsembleFileStore>());
 
         builder.Services.AddScoped<DbService>();
+
+        builder.Services.AddScoped<IEmailSender, EmailSender>();
     }
 }

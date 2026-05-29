@@ -22,4 +22,8 @@
     <Folder Include="Auth\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SteelPans.Shared\SteelPans.Shared.csproj" />
+  </ItemGroup>
+
 </Project>
