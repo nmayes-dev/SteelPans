@@ -5,7 +5,6 @@ import subprocess
 import time
 
 URLS = [
-    "https://localhost:7101",
     "https://localhost:7103",
     "https://localhost:7102",
 ]

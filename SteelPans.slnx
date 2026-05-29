@@ -3,9 +3,7 @@
     <Project Path="SteelPans.LeaderWebApp/SteelPans.LeaderWebApp.csproj" Id="47265c80-146f-42b0-acf3-1e40c645081e" />
     <Project Path="SteelPans.PracticeWebApp/SteelPans.PracticeWebApp.csproj" />
   </Folder>
-  <Folder Name="/Services/">
-    <Project Path="SteelPans.EnsembleService/SteelPans.EnsembleService.csproj" Id="d9703dec-1fcd-4432-8952-bb4d7e871c62" />
-  </Folder>
+  <Folder Name="/Services/" />
   <Folder Name="/Shared/">
     <Project Path="SteelPans.Components/SteelPans.Components.csproj" Id="9e4df647-e2c9-4740-a604-a9cdd95a2c55" />
     <Project Path="SteelPans.Shared/SteelPans.Shared.csproj" Id="6134a7c3-8eb4-4316-a8d0-2c14222f5b5b" />
