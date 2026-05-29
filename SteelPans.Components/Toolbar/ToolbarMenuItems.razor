@@ -1,0 +1,76 @@
+﻿<div class="toolbar__menu-tree toolbar__menu-tree--depth-@Depth" role="@(Depth == 0 ? null : "menu")">
+    @foreach (var element in Items)
+    {
+        <div class="@GetItemShellClass(element)">
+            @if (element.LabelFor is not null)
+            {
+                <label class="toolbar__menu-item"
+                       role="menuitem"
+                       disabled="@element.Disabled"
+                       for="@element.LabelFor">
+                    <span class="toolbar__menu-item-text">
+                        <span>@element.Text</span>
+                    </span>
+                    <span class="toolbar__menu-item-icon">
+                        <span class="bi @element.IconDisplayCss" aria-hidden="true"></span>
+                    </span>
+                </label>
+            }
+            else
+            {
+                <button class="toolbar__menu-item"
+                        type="button"
+                        role="menuitem"
+                        disabled="@element.Disabled"
+                        @onclick="() => Owner.OpenElementAsync(element)"
+                        @onclick:stopPropagation="true">
+                    <span class="toolbar__menu-item-text">
+                        <span>@element.Text</span>
+                    </span>
+                    <span class="toolbar__menu-item-icon">
+                        <span class="bi @element.IconDisplayCss" aria-hidden="true"></span>
+                    </span>
+                </button>
+            }
+
+            <button class="bi toolbar__submenu-overlap"
+                    type="button"
+                    role="menuitem"
+                    disabled="@element.Disabled"
+                    aria-haspopup="menu"
+                    aria-expanded="false"
+                    tabindex="-1"
+                    aria-hidden="true"
+                    @onclick="() => Owner.OpenElementAsync(element)"
+                    @onclick:stopPropagation="true" />
+
+            @if (element.HasSubMenu)
+            {
+
+                <div class="toolbar__submenu">
+                    <ToolbarMenuItems Items="element.Children"
+                                      Owner="Owner"
+                                      Depth="@(Depth + 1)" />
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<ToolbarElement> Items { get; set; } = [];
+
+    [Parameter, EditorRequired]
+    public Toolbar Owner { get; set; } = null!;
+
+    [Parameter]
+    public int Depth { get; set; }
+
+    private static string GetItemShellClass(ToolbarElement element)
+    {
+        return element.HasSubMenu
+            ? "toolbar__menu-item-shell toolbar__menu-item-shell--submenu"
+            : "toolbar__menu-item-shell";
+    }
+}

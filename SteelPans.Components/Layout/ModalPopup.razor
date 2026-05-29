@@ -1,0 +1,59 @@
+﻿@inherits OverlayComponentBase
+@inject KeyboardManagerService Keyboard
+@implements IDisposable
+
+@if (isOpen_)
+{
+    @if (!Draggable)
+    {
+        <div class="modal-popup__backdrop" @onclick="OnBackdropClickedAsync"></div>
+    }
+
+    <div class="@PopupClass"
+         @ref="popupElement_"
+         role="dialog"
+         aria-modal="@(!Draggable).ToString().ToLowerInvariant()"
+         aria-labelledby="@TitleId"
+         @onpointermove="OnPointerMoveAsync"
+         @onpointerup="OnPointerUpAsync"
+         @onpointercancel="OnPointerUpAsync"
+         style="@PopupStyle">
+        <div class="modal-popup__card">
+            <div class="modal-popup__header"
+                 @onpointerdown="OnHeaderPointerDownAsync">
+                <div>
+                    <div id="@TitleId" class="modal-popup__title">@Title</div>
+
+                    @if (!string.IsNullOrWhiteSpace(Subtitle))
+                    {
+                        <div class="modal-popup__subtitle">@Subtitle</div>
+                    }
+                </div>
+
+                @if (ShowCloseButton)
+                {
+                    <button type="button"
+                            class="btn-close"
+                            aria-label="Close"
+                            @onclick="OnCloseAsync"
+                            @onpointerdown:stopPropagation="true">
+                    </button>
+                }
+            </div>
+
+            @if (ChildContent is not null)
+            {
+                <div class="modal-popup__body">
+                    @ChildContent
+                </div>
+            }
+
+            @if (Actions is not null)
+            {
+                <div class="modal-popup__actions">
+                    @Actions
+                </div>
+            }
+        </div>
+    </div>
+}

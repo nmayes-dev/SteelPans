@@ -1,0 +1,42 @@
+@page "/"
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Ensemble Manager</PageTitle>
+
+<AuthorizeView>
+    <Authorized Context="auth">
+        <section class="leader-page leader-page--home">
+            <div class="leader-hero">
+                <h1>Steel Pans</h1>
+                <p>Create groups, share join links, and manage MIDI files for ensemble practice.</p>
+            </div>
+
+            <div class="leader-actions">
+                <a class="leader-action-card" href="/groups">
+                    <span class="leader-action-card__icon bi bi-people"></span>
+                    <span class="leader-action-card-detail">
+                        <strong>Groups</strong>
+                        <small>Create groups and copy invite links.</small>
+                    </span>
+                </a>
+
+                <a class="leader-action-card" href="/midi-files">
+                    <span class="leader-action-card__icon bi bi-music-note-list"></span>
+                    <span class="leader-action-card-detail">
+                        <strong>MIDI Files</strong>
+                        <small>Preview tracks, upload files, and assign group access.</small>
+                    </span>
+                </a>
+            </div>
+        </section>
+    </Authorized>
+
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    
+}

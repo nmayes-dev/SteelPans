@@ -1,0 +1,60 @@
+
+.leader-card--link input {
+    width: 100%;
+    min-height: 2.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.18);
+    border-radius: 0.6rem;
+    padding: 0.45rem 0.65rem;
+    background: #fff;
+}
+
+.leader-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.leader-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 0.8rem;
+    padding: 0.85rem;
+    flex-wrap: wrap;
+}
+
+.leader-list-item > div {
+    min-width: 0;
+}
+
+.leader-list-item strong,
+.leader-list-item small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.leader-list-item small {
+    color: #586579;
+}
+
+.leader-list-item__members {
+    flex-basis: 100%;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    padding-top: 0.75rem;
+}
+
+
+.leader-member-list {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.leader-member {
+    display: grid;
+    gap: 0.15rem;
+    border-radius: 0.65rem;
+    background: rgba(0, 0, 0, 0.035);
+    padding: 0.65rem;
+}

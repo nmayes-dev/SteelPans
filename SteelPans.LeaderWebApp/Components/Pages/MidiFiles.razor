@@ -1,0 +1,641 @@
+@page "/midi-files"
+@attribute [Authorize]
+@inject DbService Db
+@inject MidiInspectionService MidiInspection
+
+<PageTitle>MIDI Files</PageTitle>
+
+<section class="leader-page midi-files">
+    <div class="leader-page__header">
+        <p class="leader-page__eyebrow">Ensemble Tools</p>
+        <h1>MIDI Files</h1>
+        <p>Preview a MIDI file locally, upload it privately, then optionally share it with a group.</p>
+    </div>
+
+    <p class="leader-alert leader-alert--error @(string.IsNullOrWhiteSpace(error_) ? "leader-alert--hidden" : "")">@error_</p>
+    <p class="leader-alert leader-alert--success @(string.IsNullOrWhiteSpace(message_) ? "leader-alert--hidden" : "")">@message_</p>
+
+    <div class="leader-grid leader-grid--two midi-files-forms">
+        <div class="leader-card leader-form">
+            <h2>Preview and Upload</h2>
+
+            <div class="leader-form__row">
+                <div class="leader-field">
+                    <label for="group-select">Upload Access</label>
+                    <select id="group-select"
+                            @bind="selectedGroupId_"
+                            @bind:after="LoadSelectedGroupFilesAsync">
+                        <option value="">No group yet</option>
+                        @foreach (var group in groups_)
+                        {
+                            <option value="@group.Id">@group.Name</option>
+                        }
+                    </select>
+                    <small>Leave this empty to upload the file privately.</small>
+                </div>
+
+                <div class="leader-field">
+                    <label for="midi-file">MIDI file</label>
+                    <div class="midi-file-picker">
+                        <label for="midi-file" class="midi-file-button">
+                            Browse
+                        </label>
+
+                        <label for="midi-file"
+                               class="midi-file-name @(string.IsNullOrWhiteSpace(selectedFile_?.Name) ? "midi-file-name--placeholder" : null)">
+                            <span class="midi-file-name-text">@(selectedFile_?.Name ?? "No file selected")</span>
+                        </label>
+                        <InputFile id="midi-file"
+                                   class="midi-file-input"
+                                   OnChange="PreviewFileAsync"
+                                   accept=".mid,.midi" />
+                    </div>
+                </div>
+            </div>
+
+            @if (localPreview_ is not null)
+            {
+                <div class="leader-preview">
+                    <h3>Preview</h3>
+                    <p><strong>@localFileName_</strong> - Tracks</p>
+                    @RenderTracks(localPreview_)
+                </div>
+            }
+
+            <button class="leader-button leader-button--primary"
+                    type="button"
+                    @onclick="UploadAsync"
+                    disabled="@(selectedFile_ is null || isBusy_)">
+                Upload
+            </button>
+        </div>
+
+        <div class="leader-card">
+            <h2>Group Files</h2>
+
+            <div class="leader-field">
+                <label for="group-file-select">Group</label>
+                <select id="group-file-select" @bind="selectedGroupId_" @bind:after="LoadSelectedGroupFilesAsync">
+                    <option value="">Choose a group...</option>
+                    @foreach (var group in groups_)
+                    {
+                        <option value="@group.Id">@group.Name</option>
+                    }
+                </select>
+            </div>
+
+            @if (selectedGroupId_ is null)
+            {
+                <p>Choose a group to show shared files.</p>
+            }
+            else if (groupFiles_ is null)
+            {
+                <p>Loading files...</p>
+            }
+            else if (groupFiles_.Count == 0)
+            {
+                <p>No MIDI files have been shared with this group.</p>
+            }
+            else
+            {
+                <div class="leader-list">
+                    @foreach (var file in groupFiles_)
+                    {
+                        <article class="leader-list-item">
+                            <div>
+                                <strong>@file.Title</strong>
+                                <small>@file.OriginalFileName · @FormatSize(file.SizeBytes)</small>
+                            </div>
+
+                            <button class="leader-button"
+                                    type="button"
+                                    @onclick="() => LoadFileDetailsAsync(file.Id)">
+                                Preview
+                            </button>
+                        </article>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="leader-card leader-card--wide midi-file-list">
+        <h2>My MIDI files</h2>
+
+        @if (myFiles_ is null)
+        {
+            <p>Loading files...</p>
+        }
+        else if (myFiles_.Count == 0)
+        {
+            <p>You have not uploaded any MIDI files yet.</p>
+        }
+        else
+        {
+            <div class="leader-list">
+                @foreach (var file in myFiles_)
+                {
+                    <article class="leader-list-item">
+                        <div>
+                            <strong>@file.Title</strong>
+                            <small>
+                                @file.OriginalFileName · @FormatSize(file.SizeBytes) · @GetFileAccessLabel(file)
+                            </small>
+                        </div>
+
+                        <div class="leader-list-item__actions">
+                            <button class="leader-button"
+                                    type="button"
+                                    @onclick="() => LoadFileDetailsAsync(file.Id)">
+                                Preview
+                            </button>
+                            <button class="leader-button leader-alert--error"
+                                    type="button"
+                                    @onclick="() => OpenDeleteFileModal(file)">
+                                Delete
+                            </button>
+
+                            <select class="leader-button"
+                                    value="@GetShareGroupIdString(file.Id)"
+                                    @onchange="e => SetShareGroupId(file.Id, e.Value?.ToString())"
+                                    disabled="@isBusy_">
+                                <option value="">Share with...</option>
+                                @foreach (var group in groups_)
+                                {
+                                    <option value="@group.Id">@group.Name</option>
+                                }
+                            </select>
+
+                            <button class="leader-button leader-button--primary"
+                                    type="button"
+                                    disabled="@(!CanShareFile(file.Id) || isBusy_)"
+                                    @onclick="() => ShareFileAsync(file.Id)">
+                                Share
+                            </button>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="leader-card leader-card--wide midi-files-upload-preview @(isPreviewOpen_ ? "" : "midi-files-upload-preview-closed")">
+        <div class="midi-files-upload-preview-header">
+            <h2>Track Assignments</h2>
+            <button class="midi-files-upload-preview-close"
+                    @onclick="ClosePreviewAsync">
+                <span class="bi bi-x-lg"></span>
+            </button>
+        </div>
+        <p><strong>@uploadedPreview_?.Title</strong> <span>@uploadedPreview_?.OriginalFileName</span></p>
+
+        <div class="leader-table-wrap">
+            <table class="leader-table">
+                <thead>
+                    <tr>
+                        <th>Track</th>
+                        <th>Name</th>
+                        <th>Pan</th>
+                        <th>Label</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var track in uploadedPreview_?.Tracks ?? [])
+                    {
+                        var assignment = assignments_.GetValueOrDefault(track.TrackIndex);
+
+                        <tr>
+                            <td>@(track.TrackIndex)</td>
+                            <td>@(track.TrackName ?? "Unnamed")</td>
+                            <td>
+                                <select value="@(assignment?.PanType ?? PanType.LeadTenor)"
+                                        @onchange="e => SetPanType(track.TrackIndex, e.Value?.ToString())">
+                                    @foreach (var panType in panTypes_)
+                                    {
+                                        <option value="@panType">@panType.ToSpacedPascal()</option>
+                                    }
+                                </select>
+                            </td>
+                            <td>
+                                <input value="@(assignment?.Label ?? track.TrackName ?? $"Track {track.TrackIndex}")"
+                                       @onchange="e => SetLabel(track.TrackIndex, e.Value?.ToString())" />
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <button class="leader-button leader-button--primary"
+                type="button"
+                @onclick="SaveAssignmentsAsync"
+                disabled="@isBusy_">
+            Save Assignments
+        </button>
+    </div>
+
+    
+    <ModalPopup @ref="deleteFileModal_"
+                Title="Delete file"
+                OnEnter="ConfirmDeleteFileAsync">
+        <ChildContent>
+            <div class="leader-form">
+                <p class="leader-delete-text">
+                    Delete <strong>@pendingFileDelete_?.OriginalFileName</strong>?
+                </p>
+
+                <p class="leader-alert leader-alert--error">
+                    This cannot be undone. Members will no longer be able to use this file.
+                </p>
+
+                <div class="leader-button-bar">
+                    <button class="leader-button"
+                            type="button"
+                            disabled="@isBusy_"
+                            @onclick="CancelDeleteFileAsync">
+                        Cancel
+                    </button>
+
+                    <button class="leader-button leader-button--error"
+                            type="button"
+                            disabled="@isBusy_"
+                            @onclick="ConfirmDeleteFileAsync">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </ChildContent>
+    </ModalPopup>
+</section>
+
+@code {
+    private readonly PanType[] panTypes_ = Enum.GetValues<PanType>();
+
+    private List<GroupSummaryDto> groups_ = [];
+    private List<GroupFileDto>? myFiles_;
+    private List<GroupFileDto>? groupFiles_;
+
+    private Guid? selectedGroupId_;
+    private readonly Dictionary<Guid, Guid> shareGroupIds_ = [];
+
+    private IBrowserFile? selectedFile_;
+    private byte[]? selectedFileBytes_;
+    private string? localFileName_;
+    private IReadOnlyList<MidiTrackInfo>? localPreview_;
+
+    private MidiFileDetailsDto? uploadedPreview_;
+    private Dictionary<int, MidiTrackAssignmentDto> assignments_ = [];
+
+    private ModalPopup? deleteFileModal_;
+    private GroupFileDto? pendingFileDelete_;
+
+    private string? error_;
+    private string? message_;
+    private bool isBusy_;
+
+    private bool isPreviewOpen_;
+    private CancellationTokenSource? closeCts_;
+
+    protected override async Task OnInitializedAsync()
+    {
+        groups_ = (await Db.Groups.GetMyGroupsAsync()).ToList();
+        await LoadMyFilesAsync();
+    }
+
+    private async Task PreviewFileAsync(InputFileChangeEventArgs args)
+    {
+        error_ = null;
+        message_ = null;
+        uploadedPreview_ = null;
+        selectedFile_ = args.File;
+        localFileName_ = selectedFile_.Name;
+
+        try
+        {
+            await using var input = selectedFile_.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
+            using var buffer = new MemoryStream();
+            await input.CopyToAsync(buffer);
+
+            selectedFileBytes_ = buffer.ToArray();
+
+            buffer.Position = 0;
+            var midiFile = await MidiInspection.ReadAsync(buffer);
+            localPreview_ = MidiInspection.GetTrackInfos(midiFile);
+        }
+        catch (Exception ex)
+        {
+            selectedFile_ = null;
+            selectedFileBytes_ = null;
+            localPreview_ = null;
+            error_ = ex.Message;
+        }
+    }
+
+    private async Task UploadAsync()
+    {
+        if (selectedFile_ is null || selectedFileBytes_ is null)
+        {
+            return;
+        }
+
+        error_ = null;
+        message_ = null;
+        isBusy_ = true;
+
+        try
+        {
+            await using var stream = new MemoryStream(selectedFileBytes_);
+
+            var uploaded = await Db.MidiFiles.UploadMidiFileAsync(
+                selectedGroupId_,
+                selectedFile_.Name,
+                selectedFile_.ContentType,
+                stream.Length,
+                stream);
+
+            message_ = selectedGroupId_ is null
+                ? "MIDI file uploaded privately."
+                : "MIDI file uploaded and shared with group.";
+
+            await LoadMyFilesAsync();
+            await LoadSelectedGroupFilesAsync();
+            await LoadFileDetailsAsync(uploaded.Id);
+
+            selectedFile_ = null;
+            selectedFileBytes_ = null;
+            localPreview_ = null;
+            isPreviewOpen_ = false;
+        }
+        catch (Exception ex)
+        {
+            error_ = ex.Message;
+        }
+        finally
+        {
+            isBusy_ = false;
+        }
+    }
+
+    private async Task LoadMyFilesAsync()
+    {
+        myFiles_ = (await Db.MidiFiles.GetMyMidiFilesAsync()).ToList();
+    }
+
+    private async Task LoadSelectedGroupFilesAsync()
+    {
+        uploadedPreview_ = null;
+        groupFiles_ = null;
+
+        if (selectedGroupId_ is null)
+        {
+            return;
+        }
+
+        groupFiles_ = (await Db.Groups.GetGroupFilesAsync(selectedGroupId_.Value)).ToList();
+    }
+
+    private async Task LoadFileDetailsAsync(Guid fileId)
+    {
+        error_ = null;
+
+        var preview = await Db.MidiFiles.GetMidiFileDetailsAsync(fileId);
+
+        if (preview is null)
+            return;
+
+        assignments_ = preview.Tracks.ToDictionary(
+            x => x.TrackIndex,
+            x => preview.Assignments.FirstOrDefault(a => a.TrackIndex == x.TrackIndex)
+                ?? new MidiTrackAssignmentDto(
+                    x.TrackIndex,
+                    x.SuggestedPanType ?? PanType.None,
+                    x.TrackName ?? $"Track {x.TrackIndex + 1}"));
+
+        OpenPreview(preview);
+    }
+
+    private async Task OpenDeleteFileModal(GroupFileDto file)
+    {
+        pendingFileDelete_ = file;
+        await deleteFileModal_!.OpenAsync();
+    }
+
+    private async Task ConfirmDeleteFileAsync()
+    {
+        if (pendingFileDelete_ is null)
+        {
+            return;
+        }
+
+        error_ = null;
+        message_ = null;
+        isBusy_ = true;
+
+        try
+        {
+            var deletedFileId = pendingFileDelete_.Id;
+
+            await Db.MidiFiles.DeleteMidiFileAsync(deletedFileId);
+
+            message_ = "MIDI file deleted.";
+            pendingFileDelete_ = null;
+
+            await LoadMyFilesAsync();
+            await LoadSelectedGroupFilesAsync();
+
+            if (uploadedPreview_?.Id == deletedFileId)
+            {
+                uploadedPreview_ = null;
+                assignments_.Clear();
+            }
+
+            shareGroupIds_.Remove(deletedFileId);
+        }
+        catch (Exception ex)
+        {
+            error_ = ex.Message;
+        }
+        finally
+        {
+            isBusy_ = false;
+            await deleteFileModal_!.RequestCloseAsync();
+        }
+    }
+
+    private async Task CancelDeleteFileAsync()
+    {
+        pendingFileDelete_ = null;
+        await deleteFileModal_!.RequestCloseAsync();
+    }
+
+    private async Task ShareFileAsync(Guid fileId)
+    {
+        if (!shareGroupIds_.TryGetValue(fileId, out var groupId))
+        {
+            return;
+        }
+
+        error_ = null;
+        message_ = null;
+        isBusy_ = true;
+
+        try
+        {
+            await Db.MidiFiles.ShareMidiFileWithGroupAsync(fileId, groupId);
+
+            message_ = "MIDI file shared with group.";
+
+            await LoadMyFilesAsync();
+
+            if (selectedGroupId_ == groupId)
+            {
+                await LoadSelectedGroupFilesAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            error_ = ex.Message;
+        }
+        finally
+        {
+            isBusy_ = false;
+        }
+    }
+
+    private void SetShareGroupId(Guid fileId, string? value)
+    {
+        if (Guid.TryParse(value, out var groupId))
+        {
+            shareGroupIds_[fileId] = groupId;
+        }
+        else
+        {
+            shareGroupIds_.Remove(fileId);
+        }
+    }
+
+    private string GetShareGroupIdString(Guid fileId)
+    {
+        return shareGroupIds_.TryGetValue(fileId, out var groupId)
+            ? groupId.ToString()
+            : "";
+    }
+
+    private bool CanShareFile(Guid fileId)
+    {
+        return shareGroupIds_.ContainsKey(fileId);
+    }
+
+    private string GetFileAccessLabel(GroupFileDto file)
+    {
+        if (file.GroupId is null)
+        {
+            return "Private";
+        }
+
+        var group = groups_.FirstOrDefault(x => x.Id == file.GroupId.Value);
+
+        return group is null
+            ? "Shared with group"
+            : $"Shared with {group.Name}";
+    }
+
+    private void SetPanType(int trackIndex, string? value)
+    {
+        if (!Enum.TryParse<PanType>(value, out var panType))
+        {
+            return;
+        }
+
+        var current = assignments_[trackIndex];
+        assignments_[trackIndex] = current with { PanType = panType };
+    }
+
+    private void SetLabel(int trackIndex, string? value)
+    {
+        var current = assignments_[trackIndex];
+        assignments_[trackIndex] = current with
+        {
+            Label = string.IsNullOrWhiteSpace(value)
+                ? $"Track {trackIndex + 1}"
+                : value.Trim()
+        };
+    }
+
+    private async Task SaveAssignmentsAsync()
+    {
+        if (uploadedPreview_ is null)
+        {
+            return;
+        }
+
+        isBusy_ = true;
+        error_ = null;
+        message_ = null;
+
+        try
+        {
+            await Db.MidiFiles.SaveMidiAssignmentsAsync(
+                uploadedPreview_.Id,
+                new SaveMidiAssignmentsRequest(
+                    assignments_.Values
+                        .OrderBy(x => x.TrackIndex)
+                        .ToList()));
+
+            message_ = "Assignments saved.";
+            await LoadFileDetailsAsync(uploadedPreview_.Id);
+        }
+        catch (Exception ex)
+        {
+            error_ = ex.Message;
+        }
+        finally
+        {
+            isBusy_ = false;
+        }
+    }
+
+    private void OpenPreview(MidiFileDetailsDto preview)
+    {
+        closeCts_?.Cancel();
+
+        uploadedPreview_ = preview;
+        isPreviewOpen_ = true;
+    }
+
+    private async Task ClosePreviewAsync()
+    {
+        isPreviewOpen_ = false;
+
+        closeCts_?.Cancel();
+        closeCts_ = new();
+
+        try
+        {
+            await Task.Delay(500, closeCts_.Token); // match CSS duration
+
+            uploadedPreview_ = null;
+            StateHasChanged();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private RenderFragment RenderTracks(IReadOnlyList<MidiTrackInfo> tracks) => @<div class="leader-track-list">
+        @foreach (var track in tracks.Where(x => x.NoteCount > 0))
+        {
+            <div class="leader-track-list__item">
+                <strong>@(track.Name ?? $"Track {track.Index + 1}")</strong>
+                <span>@track.NoteCount notes</span>
+            </div>
+        }
+    </div>;
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.#} KB";
+        return $"{bytes / 1024d / 1024d:0.#} MB";
+    }
+}

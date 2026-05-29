@@ -1,0 +1,44 @@
+@page "/"
+@page "/pans"
+@inject SteelPanLoader PanLoader
+@inject MidiLoaderService MidiService
+@inject MidiPlaybackService Playback
+@inject KeyboardManagerService KeyboardManager
+@inject NavigationManager Nav
+@inject DbService Db
+@inject IJSRuntime JS
+@inject IOptions<Settings> SettingsAccessor
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Steel Pans</PageTitle>
+
+<div class="pans-page">
+    <header class="sp-section pans-page__hero">
+        <div class="pans-page__hero-content">
+            <h1 class="pans-page__title">Steel Pans</h1>
+            <ControlToolbar @ref="controlToolbar_"
+                            MidiFileName="@midiFileName_"
+                            Pans="@pans_"
+                            Groups="@groupFiles_"
+                            Error="@loadError_" />
+        </div>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(loadError_))
+    {
+        <div class="alert alert-danger">@loadError_</div>
+    }
+    else if (pans_.Count > 0)
+    {
+        var hasMidiControls = Playback.ActivePans.Any(x => x.Events.Count > 0);
+
+        <section class="pans-page__midi-controls @(Playback.IsMidiLoaded ? "pans-page__midi-controls--visible" : "")">
+            <MidiPlaybackControl Enabled="@hasMidiControls" />
+        </section>
+
+        <section class="pans-page__content">
+            <PansDisplay Pans="@Playback.ActivePans"
+                         OnRemovePan="(p) =>  controlToolbar_!.OpenRemovePanModalAsync(p)" />
+        </section>
+    }
+</div>

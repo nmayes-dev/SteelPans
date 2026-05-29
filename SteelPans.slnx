@@ -1,3 +1,16 @@
 <Solution>
-  <Project Path="SteelPans.WebApp/SteelPans.WebApp.csproj" />
+  <Folder Name="/Apps/">
+    <Project Path="SteelPans.LeaderWebApp/SteelPans.LeaderWebApp.csproj" Id="47265c80-146f-42b0-acf3-1e40c645081e" />
+    <Project Path="SteelPans.PracticeWebApp/SteelPans.PracticeWebApp.csproj" />
+  </Folder>
+  <Folder Name="/Services/" />
+  <Folder Name="/Shared/">
+    <Project Path="SteelPans.Components/SteelPans.Components.csproj" Id="9e4df647-e2c9-4740-a604-a9cdd95a2c55" />
+    <Project Path="SteelPans.Shared/SteelPans.Shared.csproj" Id="6134a7c3-8eb4-4316-a8d0-2c14222f5b5b" />
+  </Folder>
+  <Folder Name="/Startup/">
+    <Project Path="SteelPans.Launcher/SteelPans.Launcher.pyproj" Type="888888a0-9f3d-457c-b088-3a5042f75d52" Id="164763d0-9539-4339-9276-59192393a150">
+      <Build Project="false" />
+    </Project>
+  </Folder>
 </Solution>

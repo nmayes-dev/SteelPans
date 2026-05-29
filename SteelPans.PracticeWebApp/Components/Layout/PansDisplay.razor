@@ -1,0 +1,125 @@
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject MidiPlaybackService Playback
+
+<div class="pans-display">
+    <div class="pans-display__items"
+         @ref="assignedPansElement_"
+         data-pan-count="@Pans.Count">
+        @foreach (var assignedPan in Pans)
+        {
+            <section class="sp-section pans-display__item"
+                     @key="assignedPan.InstanceId"
+                     data-pan-id="@assignedPan.InstanceId">
+                <div class="pans-display__item-container">
+                    <SteelPanView Pan="@assignedPan.Pan"
+                                  PlaybackInstanceId="@assignedPan.InstanceId" />
+                </div>
+
+                <div class="pans-display__item-header">
+                    <div class="pans-display__item-copy">
+                        <div class="pans-display__item-copy-group pans-display__item-copy-group--left">
+                            <div class="pans-display__item-copy-label">Pan</div>
+                            <div class="pans-display__item-type">
+                                @assignedPan.Assignment.AssignedPanType.ToSpacedPascal()
+                            </div>
+                        </div>
+
+                        <div class="pans-display__item-copy-group pans-display__item-copy-group--right">
+                            <div class="pans-display__item-copy-label">Track</div>
+                            <div class="pans-display__item-track">
+                                @assignedPan.Assignment.Track?.Name
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="button"
+                            class="pans-display__remove-button"
+                            title="Remove pan"
+                            aria-label="Remove pan"
+                            data-pan-layout-no-drag
+                            @onclick="() => OnRemovePan.InvokeAsync(assignedPan)">
+                        <span class="bi bi-trash3"></span>
+                    </button>
+                </div>
+            </section>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public IReadOnlyList<MidiAssignedPan> Pans { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<MidiAssignedPan> OnRemovePan { get; set; }
+
+    [Parameter]
+    public EventCallback<IReadOnlyList<Guid>> OnPansReordered { get; set; }
+
+    private ElementReference assignedPansElement_;
+    private DotNetObjectReference<PansDisplay>? dotNetReference_;
+    private bool panLayoutObserved_;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        Playback.StateChanged += OnPlaybackStateChangedAsync;
+        await InitialiseLayoutAsync();
+    }
+
+    private async Task InitialiseLayoutAsync()
+    {
+        dotNetReference_?.Dispose();
+        dotNetReference_ = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("panLayout.observe", assignedPansElement_, dotNetReference_);
+        panLayoutObserved_ = true;
+    }
+
+    [JSInvokable]
+    public async Task NotifyPansReordered(IReadOnlyList<string> panIds)
+    {
+        if (!OnPansReordered.HasDelegate)
+            return;
+
+        var orderedIds = panIds
+            .Select(id => Guid.TryParse(id, out var guid) ? guid : (Guid?)null)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .ToArray();
+
+        await OnPansReordered.InvokeAsync(orderedIds);
+    }
+
+    private async Task OnPlaybackStateChangedAsync()
+    {
+        if (Playback.ActivePans.Any())
+            return;
+
+        await InitialiseLayoutAsync();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (panLayoutObserved_)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
+            }
+            catch (InvalidOperationException)
+            {
+                // JS interop is not available during prerender/static disposal.
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit/browser already disconnected.
+            }
+        }
+        
+        Playback.StateChanged -= OnPlaybackStateChangedAsync;
+        dotNetReference_?.Dispose();
+    }
+}

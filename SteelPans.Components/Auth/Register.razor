@@ -1,0 +1,52 @@
+@page "/account/register"
+@using Microsoft.AspNetCore.Components
+
+<section class="account-page account-page--register">
+    <div class="account-card">
+        <div class="account-card__header">
+            <p class="account-card__eyebrow">Steel Pans</p>
+            <h1 class="account-card__title">Create Account</h1>
+            <p class="account-card__subtitle">Set up access for your practice and ensemble tools.</p>
+        </div>
+        
+        @foreach (var error in Errors ?? [])
+        {
+            <p class="account-error" role="alert">@error</p>
+        }
+
+        <form class="account-form" method="post" action="/account/register">
+            <AntiforgeryToken />
+            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+
+            <div class="account-field">
+                <label for="display-name">Username</label>
+                <input id="display-name" name="userName" type="text" autocomplete="username" />
+            </div>
+
+            <div class="account-field">
+                <label for="email">Email</label>
+                <input id="email" name="email" type="email" autocomplete="email" required />
+            </div>
+
+            <div class="account-field">
+                <label for="password">Password</label>
+                <input id="password" name="password" type="password" autocomplete="new-password" required />
+            </div>
+
+            <button class="account-button account-button--primary" type="submit">Create Account</button>
+        </form>
+
+        <p class="account-card__footer">
+            Already registered?
+            <a href="/account/login">Log in</a>
+        </p>
+    </div>
+</section>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string[]? Errors { get; set; }
+}

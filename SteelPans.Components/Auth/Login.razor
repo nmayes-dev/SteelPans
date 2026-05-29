@@ -1,0 +1,64 @@
+@page "/account/login"
+@using Microsoft.AspNetCore.Components
+
+<PageTitle>Login</PageTitle>
+
+<section class="account-page account-page--login">
+    <div class="account-card">
+        <div class="account-card__header">
+            <p class="account-card__eyebrow">Steel Pans</p>
+            <h1 class="account-card__title">Log in</h1>
+            <p class="account-card__subtitle">Continue to your practice tools and saved layouts.</p>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Error))
+        {
+            <p class="account-error" role="alert">@Error</p>
+        }
+
+        <form class="account-form" method="post" action="/account/login">
+            <AntiforgeryToken />
+            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+
+            <div class="account-field">
+                <label for="user-name-or-email">Username or email</label>
+                <input id="user-name-or-email"
+                       name="userNameOrEmail"
+                       type="text"
+                       autocomplete="username"
+                       required />
+            </div>
+
+            <div class="account-field">
+                <label for="password">Password</label>
+                <input id="password"
+                       name="password"
+                       type="password"
+                       autocomplete="current-password"
+                       required />
+            </div>
+
+            <input type="hidden" name="rememberMe" value="false" />
+
+            <label class="account-checkbox">
+                <input name="rememberMe" type="checkbox" value="true" />
+                <span>Remember me</span>
+            </label>
+
+            <button class="account-button account-button--primary" type="submit">Log in</button>
+        </form>
+
+        <p class="account-card__footer">
+            New to Steel Pans?
+            <a href="/account/register">Create an account</a>
+        </p>
+    </div>
+</section>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery]
+    public string? Error { get; set; }
+}

@@ -1,0 +1,53 @@
+@page "/join/{InviteCode}"
+@attribute [Authorize]
+@inject DbService Db
+@inject NavigationManager Nav
+
+<PageTitle>Join Group</PageTitle>
+
+<section class="leader-page leader-page--join">
+    <div class="leader-card leader-card--centered">
+        <p class="leader-page__eyebrow">Group invite</p>
+        <h1>Join Group</h1>
+
+        @if (isBusy_)
+        {
+            <p>Joining group...</p>
+        }
+        else if (!string.IsNullOrWhiteSpace(error_))
+        {
+            <p class="leader-alert leader-alert--error">@error_</p>
+            <a class="leader-button" href="/groups">Go to groups</a>
+        }
+        else if (joinedGroup_ is not null)
+        {
+            <p>You have joined <strong>@joinedGroup_.Name</strong>.</p>
+            <a class="leader-button leader-button--primary" href="/">Go to leader home</a>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public string InviteCode { get; set; } = "";
+
+    private GroupSummaryDto? joinedGroup_;
+    private string? error_;
+    private bool isBusy_ = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            joinedGroup_ = await Db.Groups.JoinGroupAsync(InviteCode);
+        }
+        catch (Exception ex)
+        {
+            error_ = ex.Message;
+        }
+        finally
+        {
+            isBusy_ = false;
+        }
+    }
+}

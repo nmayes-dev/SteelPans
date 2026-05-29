@@ -1,0 +1,91 @@
+﻿@page "/account/profile"
+
+@attribute [Authorize]
+@inject NavigationManager Nav
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Profile</PageTitle>
+
+<AuthorizeView>
+    <Authorized Context="auth">
+        <section class="account-page account-page--profile">
+            <div class="account-card account-card--compact">
+                <div class="account-card__header">
+                    <p class="account-card__eyebrow">Steel Pans</p>
+                    <h1 class="account-card__title">Profile</h1>
+                    <p class="account-card__subtitle">
+                        Manage the account signed in on this device.
+                    </p>
+                </div>
+
+                <div class="account-profile">
+                    <div class="account-profile__row">
+                        <span class="account-profile__label">Signed in as</span>
+                        <span class="account-profile__value">
+                            @Username
+                        </span>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(user_?.UserName))
+                    {
+                        <div class="account-profile__row">
+                            <span class="account-profile__label">Username</span>
+                            <span class="account-profile__value">@user_.UserName</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="account-form__actions">
+                    <button type="button"
+                            class="account-button account-button--secondary"
+                            @onclick="NavigateHome">
+                        Back to pans
+                    </button>
+                </div>
+            </div>
+        </section>
+    </Authorized>
+
+    <NotAuthorized>
+        <section class="account-page account-page--profile">
+            <div class="account-card account-card--compact">
+                <div class="account-card__header">
+                    <p class="account-card__eyebrow">Steel Pans</p>
+                    <h1 class="account-card__title">Profile</h1>
+                    <p class="account-card__subtitle">
+                        You need to log in before viewing your profile.
+                    </p>
+                </div>
+
+                <button type="button"
+                        class="account-button"
+                        @onclick="NavigateToLogin">
+                    Log in
+                </button>
+            </div>
+        </section>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+
+    private ApplicationUser? user_;
+
+    private string Username => user_?.UserName ?? "Unknown user";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        user_ = await UserManager.GetUserAsync(authState.User);
+    }
+
+    private void NavigateHome()
+    {
+        Nav.NavigateTo("/");
+    }
+    private void NavigateToLogin()
+    {
+        Nav.NavigateTo("/account/login");
+    }
+}

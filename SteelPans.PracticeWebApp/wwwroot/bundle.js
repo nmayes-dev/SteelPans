@@ -1,0 +1,7 @@
+﻿import "./js/diagnostics.js"
+import "./js/controlFilters.js"
+import "./js/steelPan.js"
+import "./js/panLayout.js"
+import "./js/keyboardManager.js"
+import "./js/fileHandling.js"
+import "./js/modalPopup.js"
