@@ -1,4 +1,6 @@
-﻿namespace SteelPans.EnsembleService.Files;
+﻿using Microsoft.Extensions.Configuration;
+
+namespace SteelPans.Shared.Services;
 
 public sealed class LocalEnsembleFileStore(IConfiguration configuration) : IEnsembleFileStore
 {

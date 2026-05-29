@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using SteelPans.Shared.Auth;
 using SteelPans.Shared.Data;
 using SteelPans.Shared.Ensembles;
@@ -14,6 +14,7 @@ public static class GroupEndpoints
 
         group.MapGet("/mine", GetMyGroups);
         group.MapPost("/", CreateGroup);
+        group.MapPost("/join/{slug}", JoinGroup);
         group.MapGet("/{groupId:guid}/files", GetGroupFiles);
 
         return app;
@@ -29,7 +30,7 @@ public static class GroupEndpoints
             .Select(x => new GroupSummaryDto(
                 x.Group.Id,
                 x.Group.Name,
-                x.Group.Slug,
+                x.Group.InviteCode,
                 x.Role))
             .ToListAsync(cancellationToken);
 
@@ -43,20 +44,23 @@ public static class GroupEndpoints
         CancellationToken cancellationToken)
     {
         var name = request.Name.Trim();
-        var slug = request.Slug.Trim().ToLowerInvariant();
 
         if (string.IsNullOrWhiteSpace(name))
         {
             return Results.BadRequest("Group name is required.");
         }
 
-        if (string.IsNullOrWhiteSpace(slug))
+        var inviteCode = EnsembleGroup.GenerateInviteCode();
+
+        while (await db.Groups.AnyAsync(
+            x => x.InviteCode == inviteCode,
+            cancellationToken))
         {
-            return Results.BadRequest("Group slug is required.");
+            inviteCode = EnsembleGroup.GenerateInviteCode();
         }
 
         var slugExists = await db.Groups.AnyAsync(
-            x => x.Slug == slug,
+            x => x.InviteCode == inviteCode,
             cancellationToken);
 
         if (slugExists)
@@ -68,7 +72,7 @@ public static class GroupEndpoints
         {
             Id = Guid.NewGuid(),
             Name = name,
-            Slug = slug,
+            InviteCode = inviteCode,
             CreatedByUserId = currentUser.UserId,
             CreatedAt = DateTimeOffset.UtcNow
         };
@@ -87,8 +91,51 @@ public static class GroupEndpoints
         return Results.Ok(new GroupSummaryDto(
             ensembleGroup.Id,
             ensembleGroup.Name,
-            ensembleGroup.Slug,
+            ensembleGroup.InviteCode,
             GroupRole.Leader));
+    }
+
+
+    private static async Task<IResult> JoinGroup(
+        string inviteCode,
+        EnsembleDbContext db,
+        ICurrentUserAccessor currentUser,
+        CancellationToken cancellationToken)
+    {
+        inviteCode = inviteCode.Trim().ToLowerInvariant();
+
+        var ensembleGroup = await db.Groups
+            .Include(x => x.Members)
+            .FirstOrDefaultAsync(x => x.InviteCode == inviteCode, cancellationToken);
+
+        if (ensembleGroup is null)
+        {
+            return Results.NotFound("Group not found.");
+        }
+
+        var existingMember = ensembleGroup.Members
+            .FirstOrDefault(x => x.UserId == currentUser.UserId);
+
+        if (existingMember is null)
+        {
+            ensembleGroup.Members.Add(new EnsembleGroupMember
+            {
+                GroupId = ensembleGroup.Id,
+                UserId = currentUser.UserId,
+                Role = GroupRole.Member,
+                JoinedAt = DateTimeOffset.UtcNow
+            });
+
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        var role = existingMember?.Role ?? GroupRole.Member;
+
+        return Results.Ok(new GroupSummaryDto(
+            ensembleGroup.Id,
+            ensembleGroup.Name,
+            ensembleGroup.InviteCode,
+            role));
     }
 
     private static async Task<IResult> GetGroupFiles(

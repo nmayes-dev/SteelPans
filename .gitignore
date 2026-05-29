@@ -9,6 +9,7 @@ Properties/
 temp/
 
 App_Data/
+Migrations/
 
 # Code for retrieving samples
 sample-data/

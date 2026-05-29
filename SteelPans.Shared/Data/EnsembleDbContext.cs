@@ -32,13 +32,13 @@ public sealed class EnsembleDbContext
         {
             entity.HasKey(x => x.Id);
 
-            entity.HasIndex(x => x.Slug)
+            entity.HasIndex(x => x.InviteCode)
                 .IsUnique();
 
             entity.Property(x => x.Name)
                 .HasMaxLength(200);
 
-            entity.Property(x => x.Slug)
+            entity.Property(x => x.InviteCode)
                 .HasMaxLength(100);
 
             entity.HasOne<ApplicationUser>()
@@ -73,7 +73,8 @@ public sealed class EnsembleDbContext
             entity.HasOne(x => x.Group)
                 .WithMany(x => x.MidiFiles)
                 .HasForeignKey(x => x.GroupId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .IsRequired(false)
+                .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasOne<ApplicationUser>()
                 .WithMany()

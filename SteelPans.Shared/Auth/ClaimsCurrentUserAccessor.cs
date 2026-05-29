@@ -6,12 +6,15 @@ namespace SteelPans.Shared.Auth;
 public sealed class ClaimsCurrentUserAccessor(IHttpContextAccessor httpContextAccessor)
     : ICurrentUserAccessor
 {
+    private ClaimsPrincipal User =>
+        httpContextAccessor.HttpContext?.User
+        ?? throw new UnauthorizedAccessException("No HTTP context.");
+
     public Guid UserId
     {
         get
         {
-            var value = httpContextAccessor.HttpContext?.User
-                .FindFirstValue(ClaimTypes.NameIdentifier);
+            var value = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
             if (!Guid.TryParse(value, out var userId))
             {
@@ -23,7 +26,6 @@ public sealed class ClaimsCurrentUserAccessor(IHttpContextAccessor httpContextAc
     }
 
     public string Email =>
-        httpContextAccessor.HttpContext?.User
-            .FindFirstValue(ClaimTypes.Email)
-        ?? "";
+        User.FindFirstValue(ClaimTypes.Email)
+        ?? string.Empty;
 }

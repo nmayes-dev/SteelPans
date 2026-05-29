@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SteelPans.EnsembleService.Endpoints;
-using SteelPans.EnsembleService.Files;
 using SteelPans.EnsembleService.Security;
 using SteelPans.Shared.Auth;
 using SteelPans.Shared.Data;
+using SteelPans.Shared.Services;
 using System.Text;
 using System.Threading.RateLimiting;
 
@@ -52,6 +52,7 @@ public class Program
 
         builder.Services.AddScoped<ICurrentUserAccessor, ClaimsCurrentUserAccessor>();
         builder.Services.AddScoped<GroupAccessService>();
+        builder.Services.AddScoped<MidiInspectionService>();
 
         builder.Services.AddSingleton<IEnsembleFileStore, LocalEnsembleFileStore>();
 

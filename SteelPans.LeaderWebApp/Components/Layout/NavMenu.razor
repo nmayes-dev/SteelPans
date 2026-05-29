@@ -1,6 +1,6 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">SteelPans.LeaderWebApp</a>
+        <a class="navbar-brand" href="">Ensemble Manager</a>
     </div>
 </div>
 
@@ -15,16 +15,38 @@
         </div>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+            <NavLink class="nav-link" href="groups">
+                <span class="bi bi-people-fill-nav-menu" aria-hidden="true"></span> Groups
             </NavLink>
         </div>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+            <NavLink class="nav-link" href="midi-files">
+                <span class="bi bi-music-note-list-nav-menu" aria-hidden="true"></span> MIDI Files
             </NavLink>
         </div>
+        
+        <AuthorizeView>
+            <Authorized Context="auth">
+                <div class="nav-item px-3">
+                    <button class="nav-link" @onclick="() => logoutModal_!.OpenAsync()">
+                        <span class="bi bi-box-arrow-right-nav-menu" aria-hidden="true"></span> Logout
+                    </button>
+                    <Logout @ref="logoutModal_" />
+                </div>
+            </Authorized>
+
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <a class="nav-link" href="/account/login">
+                        <span class="bi bi-box-arrow-left-nav-menu" aria-hidden="true"></span> Login
+                    </a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
     </nav>
 </div>
 
+@code {
+    Logout? logoutModal_;
+                        }

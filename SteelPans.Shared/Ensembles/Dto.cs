@@ -5,16 +5,15 @@ namespace SteelPans.Shared.Ensembles;
 public sealed record GroupSummaryDto(
     Guid Id,
     string Name,
-    string Slug,
+    string InviteCode,
     GroupRole Role);
 
 public sealed record CreateGroupRequest(
-    string Name,
-    string Slug);
+    string Name);
 
 public sealed record GroupFileDto(
     Guid Id,
-    Guid GroupId,
+    Guid? GroupId,
     string Title,
     string OriginalFileName,
     long SizeBytes,

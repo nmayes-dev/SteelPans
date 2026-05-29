@@ -27,4 +27,40 @@ public sealed class GroupAccessService(EnsembleDbContext db)
                  x.Role == GroupRole.Leader,
             cancellationToken);
     }
+
+    public async Task<bool> CanAccessFileAsync(
+        EnsembleMidiFile file,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        if (file.UploadedByUserId == userId)
+        {
+            return true;
+        }
+
+        if (file.GroupId is null)
+        {
+            return false;
+        }
+
+        return await IsMemberAsync(file.GroupId.Value, userId, cancellationToken);
+    }
+
+    public async Task<bool> CanEditFileAsync(
+        EnsembleMidiFile file,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        if (file.UploadedByUserId == userId)
+        {
+            return true;
+        }
+
+        if (file.GroupId is null)
+        {
+            return false;
+        }
+
+        return await IsLeaderAsync(file.GroupId.Value, userId, cancellationToken);
+    }
 }

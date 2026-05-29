@@ -1,6 +1,8 @@
 @page "/account/login"
 @using Microsoft.AspNetCore.Components
 
+<PageTitle>Login</PageTitle>
+
 <section class="account-page account-page--login">
     <div class="account-card">
         <div class="account-card__header">
@@ -27,6 +29,8 @@
                 <label for="password">Password</label>
                 <input id="password" name="password" type="password" autocomplete="current-password" required />
             </div>
+
+            <input type="hidden" name="rememberMe" value="false" />
 
             <label class="account-checkbox">
                 <input name="rememberMe" type="checkbox" value="true" />

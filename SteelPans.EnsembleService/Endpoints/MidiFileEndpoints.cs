@@ -1,9 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
-using SteelPans.EnsembleService.Files;
+using Microsoft.EntityFrameworkCore;
 using SteelPans.EnsembleService.Security;
 using SteelPans.Shared.Auth;
 using SteelPans.Shared.Data;
 using SteelPans.Shared.Ensembles;
+using SteelPans.Shared.Services;
 
 namespace SteelPans.EnsembleService.Endpoints;
 
@@ -31,6 +31,7 @@ public static class MidiFileEndpoints
         ICurrentUserAccessor currentUser,
         GroupAccessService access,
         IEnsembleFileStore fileStore,
+        MidiInspectionService midiInspection,
         CancellationToken cancellationToken)
     {
         if (!await access.IsLeaderAsync(groupId, currentUser.UserId, cancellationToken))
@@ -53,13 +54,17 @@ public static class MidiFileEndpoints
 
         var fileId = Guid.NewGuid();
 
-        await using var input = file.OpenReadStream();
+        await using var parseInput = file.OpenReadStream();
+        var parsedMidiFile = await midiInspection.ReadAsync(parseInput, cancellationToken);
+        var tracks = midiInspection.GetTrackInfos(parsedMidiFile);
+
+        await using var storageInput = file.OpenReadStream();
 
         var storageKey = await fileStore.SaveAsync(
             groupId,
             fileId,
             file.FileName,
-            input,
+            storageInput,
             cancellationToken);
 
         var midiFile = new EnsembleMidiFile
@@ -75,14 +80,16 @@ public static class MidiFileEndpoints
             UploadedAt = DateTimeOffset.UtcNow
         };
 
-        // Later: parse real tracks using your MidiService/DryWetMIDI logic.
-        midiFile.Tracks.Add(new EnsembleMidiTrack
+        foreach (var track in tracks)
         {
-            Id = Guid.NewGuid(),
-            MidiFileId = fileId,
-            TrackIndex = 0,
-            TrackName = "Track 1"
-        });
+            midiFile.Tracks.Add(new EnsembleMidiTrack
+            {
+                Id = Guid.NewGuid(),
+                MidiFileId = fileId,
+                TrackIndex = track.Index,
+                TrackName = track.Name
+            });
+        }
 
         db.MidiFiles.Add(midiFile);
         await db.SaveChangesAsync(cancellationToken);
@@ -113,7 +120,7 @@ public static class MidiFileEndpoints
             return Results.NotFound();
         }
 
-        if (!await access.IsMemberAsync(file.GroupId, currentUser.UserId, cancellationToken))
+        if (!await access.CanAccessFileAsync(file, currentUser.UserId, cancellationToken))
         {
             return Results.Forbid();
         }
@@ -144,6 +151,7 @@ public static class MidiFileEndpoints
         ICurrentUserAccessor currentUser,
         GroupAccessService access,
         IEnsembleFileStore fileStore,
+        MidiInspectionService midiInspection,
         CancellationToken cancellationToken)
     {
         var file = await db.MidiFiles
@@ -154,7 +162,7 @@ public static class MidiFileEndpoints
             return Results.NotFound();
         }
 
-        if (!await access.IsMemberAsync(file.GroupId, currentUser.UserId, cancellationToken))
+        if (!await access.CanAccessFileAsync(file, currentUser.UserId, cancellationToken))
         {
             return Results.Forbid();
         }
@@ -184,7 +192,7 @@ public static class MidiFileEndpoints
             return Results.NotFound();
         }
 
-        if (!await access.IsLeaderAsync(file.GroupId, currentUser.UserId, cancellationToken))
+        if (!await access.CanAccessFileAsync(file, currentUser.UserId, cancellationToken))
         {
             return Results.Forbid();
         }

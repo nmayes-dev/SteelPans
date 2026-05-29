@@ -1,10 +1,10 @@
-﻿
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using SteelPans.Shared.Auth;
 using SteelPans.Shared.Data;
 using SteelPans.Shared.Services;
 
@@ -12,7 +12,7 @@ namespace SteelPans.Shared.Extensions;
 
 public static class WebApplicationBuilderExtensions
 {
-    public static void AddIdentityServices(this IHostApplicationBuilder builder, string cookieName)
+    public static void AddWebAppServices(this IHostApplicationBuilder builder, string cookieName)
     {
         builder.Services.AddDbContext<EnsembleDbContext>(options =>
         {
@@ -56,12 +56,16 @@ public static class WebApplicationBuilderExtensions
 
         builder.Services.AddCascadingAuthenticationState();
 
-        builder.Services.AddScoped<EnsembleApiTokenService>();
+        builder.Services.AddHttpContextAccessor();
+        builder.Services.AddScoped<ICurrentUserAccessor, ClaimsCurrentUserAccessor>();
 
-        builder.Services.AddHttpClient<EnsembleClient>(client =>
-        {
-            client.BaseAddress = new Uri(
-                builder.Configuration["EnsembleService:BaseUrl"]!);
-        });
+        builder.Services.AddScoped<EnsembleApiTokenService>();
+        builder.Services.AddScoped<MidiInspectionService>();
+
+        builder.Services.AddScoped<LocalEnsembleFileStore>();
+        builder.Services.AddScoped<IEnsembleFileStore>(sp =>
+            sp.GetRequiredService<LocalEnsembleFileStore>());
+
+        builder.Services.AddScoped<DbService>();
     }
 }

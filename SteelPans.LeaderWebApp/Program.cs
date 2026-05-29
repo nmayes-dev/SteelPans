@@ -1,7 +1,9 @@
+using SteelPans.Components.Services;
 using SteelPans.LeaderWebApp.Components;
 using SteelPans.Shared.Auth;
 using SteelPans.Shared.Extensions;
 using SteelPans.Shared.Services;
+using System.Text;
 
 namespace SteelPans.LeaderWebApp
 {
@@ -15,29 +17,35 @@ namespace SteelPans.LeaderWebApp
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
-            builder.AddIdentityServices("SteelPans.Leader.Auth");
+            builder.AddWebAppServices("SteelPans.Leader.Auth"); 
+            builder.Services.AddAntiforgery(options =>
+            {
+                options.Cookie.Name = "SteelPans.Leader.Antiforgery";
+            });
+
+            builder.Services.AddScoped<OverlayManagerService>();
+            builder.Services.AddScoped<KeyboardManagerService>();
 
             var app = builder.Build();
 
-            app.UseAuthentication();
-            app.UseAuthorization();
-
-            // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
             {
                 app.UseExceptionHandler("/Error");
-                // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
                 app.UseHsts();
             }
 
-            app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
             app.UseHttpsRedirection();
 
+            app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+
+            app.UseAuthentication();
+            app.UseAuthorization();
             app.UseAntiforgery();
 
             app.MapAccountEndpoints();
 
             app.MapStaticAssets();
+
             app.MapRazorComponents<App>()
                 .AddInteractiveServerRenderMode();
 

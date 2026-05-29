@@ -1,0 +1,227 @@
+@page "/groups"
+@attribute [Authorize]
+@inject DbService Db
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Groups</PageTitle>
+
+<section class="leader-page">
+    <div class="leader-page__header">
+        <p class="leader-page__eyebrow">Leader tools</p>
+        <h1>Groups</h1>
+        <p>Create invite links that signed-in users can use to join your ensemble groups.</p>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(error_))
+    {
+        <p class="leader-alert leader-alert--error">@error_</p>
+    }
+    
+    <p class="leader-alert leader-alert--success @(string.IsNullOrWhiteSpace(message_) ? "leader-alert--hidden" : "")">@message_</p>
+
+    <div class="leader-grid leader-grid--two">
+        <form class="leader-card leader-form" @onsubmit="CreateGroupAsync">
+            <h2>Create Group</h2>
+
+            <div class="leader-field">
+                <label for="group-name">Name</label>
+                <input id="group-name"
+                       @bind="newGroupName_"
+                       @bind:event="oninput"
+                       placeholder="Enter group name..."
+                       required />
+            </div>
+
+            <button class="leader-button leader-button--primary" type="submit" disabled="@isBusy_">
+                Create
+            </button>
+        </form>
+
+        <div class="leader-card">
+            <h2>Your Groups</h2>
+
+            @if (groups_ is null)
+            {
+                <p>Loading groups...</p>
+            }
+            else if (groups_.Count == 0)
+            {
+                <p>No groups yet.</p>
+            }
+            else
+            {
+                <div class="leader-list">
+                    @foreach (var group in groups_)
+                    {
+                        <article class="leader-list-item">
+                            <div>
+                                <strong>@group.Name</strong>
+                                <small>@group.Role · @BuildJoinLink(group.InviteCode)</small>
+                            </div>
+
+                            <div class="leader-list-item__actions">
+                                <button class="leader-button"
+                                        type="button"
+                                        @onclick="() => SelectLink(group.InviteCode)">
+                                    Invite Link
+                                </button>
+
+                                <button class="leader-button leader-button--danger"
+                                        type="button"
+                                        disabled="@isBusy_"
+                                        @onclick="() => OpenDeleteGroupModalAsync(group)">
+                                    Delete
+                                </button>
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+</section>
+
+<ModalPopup @ref="deleteGroupModal_"
+            Title="Delete group"
+            OnEnter="DeleteSelectedGroupAsync">
+    <ChildContent>
+        <div class="leader-form">
+            <p>
+                Delete <strong>@groupToDelete_?.Name</strong>?
+            </p>
+
+            <p class="leader-alert leader-alert--error">
+                This cannot be undone. Members and invite links for this group will no longer be usable.
+            </p>
+
+            <div class="leader-actions">
+                <button class="leader-button"
+                        type="button"
+                        disabled="@isBusy_"
+                        @onclick="CloseDeleteGroupModalAsync">
+                    Cancel
+                </button>
+
+                <button class="leader-button leader-button--danger"
+                        type="button"
+                        disabled="@isBusy_"
+                        @onclick="DeleteSelectedGroupAsync">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </ChildContent>
+</ModalPopup>
+
+@code {
+    private List<GroupSummaryDto>? groups_;
+    private GroupSummaryDto? groupToDelete_;
+    private ModalPopup? deleteGroupModal_;
+
+    private string newGroupName_ = "";
+    private string? error_;
+    private string? message_;
+    private bool isBusy_;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadGroupsAsync();
+    }
+
+    private async Task LoadGroupsAsync()
+    {
+        groups_ = (await Db.Groups.GetMyGroupsAsync()).ToList();
+    }
+
+    private async Task CreateGroupAsync()
+    {
+        error_ = null;
+        message_ = null;
+        isBusy_ = true;
+
+        try
+        {
+            var group = await Db.Groups.CreateGroupAsync(new CreateGroupRequest(
+                newGroupName_.Trim()));
+
+            groups_ ??= [];
+            groups_.Insert(0, group);
+            newGroupName_ = "";
+            message_ = "Group created.";
+        }
+        catch (Exception ex)
+        {
+            error_ = ex.Message;
+        }
+        finally
+        {
+            isBusy_ = false;
+        }
+    }
+
+    private async Task OpenDeleteGroupModalAsync(GroupSummaryDto group)
+    {
+        error_ = null;
+        message_ = null;
+        groupToDelete_ = group;
+
+        await deleteGroupModal_!.OpenAsync();
+    }
+
+    private async Task CloseDeleteGroupModalAsync()
+    {
+        groupToDelete_ = null;
+
+        await deleteGroupModal_!.RequestCloseAsync();
+    }
+
+    private async Task DeleteSelectedGroupAsync()
+    {
+        if (groupToDelete_ is null)
+        {
+            return;
+        }
+
+        error_ = null;
+        message_ = null;
+        isBusy_ = true;
+
+        try
+        {
+            await Db.Groups.DeleteGroupAsync(groupToDelete_.Id);
+
+            groups_?.Remove(groupToDelete_);
+
+            message_ = "Group deleted.";
+            groupToDelete_ = null;
+
+            await deleteGroupModal_!.RequestCloseAsync();
+        }
+        catch (Exception ex)
+        {
+            error_ = ex.Message;
+        }
+        finally
+        {
+            isBusy_ = false;
+        }
+    }
+
+    private async Task SelectLink(string code)
+    {
+        var joinLink = BuildJoinLink(code);
+
+        await JS.InvokeVoidAsync(
+            "navigator.clipboard.writeText",
+            joinLink);
+
+        message_ = "Invite link copied to clipboard";
+    }
+
+    private string BuildJoinLink(string inviteCode)
+        => Nav.ToAbsoluteUri(
+            $"/join/{Uri.EscapeDataString(inviteCode)}")
+        .ToString();
+}

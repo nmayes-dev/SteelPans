@@ -1,4 +1,4 @@
-﻿namespace SteelPans.EnsembleService.Files;
+namespace SteelPans.Shared.Services;
 
 public interface IEnsembleFileStore
 {

@@ -1,9 +1,12 @@
-﻿@using System.Net.Http
+@using System.Net.Http
 @using System.Net.Http.Json
+@using System.Security.Cryptography;
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Components.Routing
 @using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web  
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
 @using static Microsoft.AspNetCore.Components.Web.RenderMode
 @using Microsoft.AspNetCore.Components.Web.Virtualization
 @using Microsoft.JSInterop
@@ -11,3 +14,9 @@
 @using SteelPans.LeaderWebApp.Components
 @using SteelPans.LeaderWebApp.Components.Layout
 @using SteelPans.Components.Auth;
+@using SteelPans.Shared.Ensembles
+@using SteelPans.Shared.Music
+@using SteelPans.Shared.Services
+@using SteelPans.Shared.Data
+@using SteelPans.Shared.Extensions
+@using SteelPans.Components.Layout

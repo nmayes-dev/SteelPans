@@ -20,7 +20,11 @@ public class Program
     {
         var builder = WebApplication.CreateBuilder(args);
 
-        builder.AddIdentityServices("SteelPans.Web.Auth");
+        builder.AddWebAppServices("SteelPans.Web.Auth");
+        builder.Services.AddAntiforgery(options =>
+        {
+            options.Cookie.Name = "SteelPans.Web.Antiforgery";
+        });
 
         // Add services to the container.
         builder.Services.AddRazorComponents()
