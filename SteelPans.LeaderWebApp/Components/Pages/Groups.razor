@@ -8,7 +8,7 @@
 
 <section class="leader-page">
     <div class="leader-page__header">
-        <p class="leader-page__eyebrow">Leader tools</p>
+        <p class="leader-page__eyebrow">Ensemble Tools</p>
         <h1>Groups</h1>
         <p>Create invite links that signed-in users can use to join your ensemble groups.</p>
     </div>
@@ -60,7 +60,15 @@
                                 <small>@group.Role · @BuildJoinLink(group.InviteCode)</small>
                             </div>
 
+
                             <div class="leader-list-item__actions">
+                                <button class="leader-button"
+                                        type="button"
+                                        disabled="@isBusy_"
+                                        @onclick="() => ToggleMembersAsync(group)">
+                                    Members
+                                </button>
+
                                 <button class="leader-button"
                                         type="button"
                                         @onclick="() => SelectLink(group.InviteCode)">
@@ -74,11 +82,39 @@
                                     Delete
                                 </button>
                             </div>
+
+                            @if (expandedGroups_.Contains(group.Id))
+                            {
+                                <div class="leader-list-item__members">
+                                    @if (loadingMembers_.Contains(group.Id))
+                                    {
+                                        <small>Loading members...</small>
+                                    }
+                                    else if (!groupMembers_.TryGetValue(group.Id, out var members) || members.Count == 0)
+                                    {
+                                        <small>No members yet.</small>
+                                    }
+                                    else
+                                    {
+                                        <div class="leader-member-list">
+                                            @foreach (var member in members)
+                                            {
+                                                <div class="leader-member">
+                                                    <strong>@member.UserName@(member.Role == GroupRole.Leader ? " - Leader" : "")</strong>
+                                                    <small>@member.Email</small>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            }
                         </article>
                     }
                 </div>
             }
         </div>
+
+
     </div>
 
 </section>
@@ -119,6 +155,10 @@
     private List<GroupSummaryDto>? groups_;
     private GroupSummaryDto? groupToDelete_;
     private ModalPopup? deleteGroupModal_;
+
+    private readonly Dictionary<Guid, List<GroupMemberSummaryDto>> groupMembers_ = [];
+    private readonly HashSet<Guid> loadingMembers_ = [];
+    private readonly HashSet<Guid> expandedGroups_ = [];
 
     private string newGroupName_ = "";
     private string? error_;
@@ -206,6 +246,35 @@
         finally
         {
             isBusy_ = false;
+        }
+    }
+
+    private async Task ToggleMembersAsync(GroupSummaryDto group)
+    {
+        if (!expandedGroups_.Add(group.Id))
+        {
+            expandedGroups_.Remove(group.Id);
+            return;
+        }
+
+        if (groupMembers_.ContainsKey(group.Id))
+        {
+            return;
+        }
+
+        loadingMembers_.Add(group.Id);
+
+        try
+        {
+            groupMembers_[group.Id] = await Db.Groups.GetGroupMembersAsync(group.Id);
+        }
+        catch (Exception ex)
+        {
+            error_ = ex.Message;
+        }
+        finally
+        {
+            loadingMembers_.Remove(group.Id);
         }
     }
 

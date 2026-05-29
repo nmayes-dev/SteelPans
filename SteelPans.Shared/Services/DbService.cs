@@ -178,6 +178,23 @@ public sealed class DbService
             await db.SaveChangesAsync(cancellationToken);
         }
 
+        public async Task<List<GroupMemberSummaryDto>> GetGroupMembersAsync(
+            Guid groupId,
+            CancellationToken cancellationToken = default)
+        {
+            return await db.GroupMembers
+                .Where(x => x.GroupId == groupId)
+                .Include(x => x.User)
+                .OrderBy(x => x.Role)
+                .ThenBy(x => x.User.UserName)
+                .Select(x => new GroupMemberSummaryDto(
+                    x.UserId,
+                    x.User.UserName ?? string.Empty,
+                    x.User.Email ?? string.Empty,
+                    x.Role))
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<bool> IsMemberAsync(
             Guid groupId,
             CancellationToken cancellationToken = default)

@@ -19,6 +19,13 @@ public sealed record GroupFileDto(
     long SizeBytes,
     DateTimeOffset UploadedAt);
 
+public sealed record GroupMemberSummaryDto(
+    Guid UserId,
+    string UserName,
+    string Email,
+    GroupRole Role);
+
+
 public sealed record MidiTrackDto(
     int TrackIndex,
     string? TrackName,
