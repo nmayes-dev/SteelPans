@@ -17,7 +17,6 @@ public sealed class MidiInspectionService
     public IReadOnlyList<MidiTrackInfo> GetTrackInfos(MidiFile midiFile)
     {
         return midiFile.GetTrackChunks()
-            .Where(x => x.GetNotes().Count > 0)
             .Select((track, index) => new MidiTrackInfo
             {
                 Index = index,
@@ -26,6 +25,7 @@ public sealed class MidiInspectionService
                     .FirstOrDefault()?.Text,
                 NoteCount = track.GetNotes().Count
             })
+            .Where(x => x.NoteCount > 0)
             .ToList();
     }
 }

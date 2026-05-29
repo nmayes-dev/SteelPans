@@ -12,11 +12,7 @@
         <p>Preview a MIDI file locally, upload it privately, then optionally share it with a group.</p>
     </div>
 
-    @if (!string.IsNullOrWhiteSpace(error_))
-    {
-        <p class="leader-alert leader-alert--error">@error_</p>
-    }
-    
+    <p class="leader-alert leader-alert--error @(string.IsNullOrWhiteSpace(error_) ? "leader-alert--hidden" : "")">@error_</p>
     <p class="leader-alert leader-alert--success @(string.IsNullOrWhiteSpace(message_) ? "leader-alert--hidden" : "")">@message_</p>
 
     <div class="leader-grid leader-grid--two midi-files-forms">
@@ -209,7 +205,7 @@
                         var assignment = assignments_.GetValueOrDefault(track.TrackIndex);
 
                         <tr>
-                            <td>@(track.TrackIndex + 1)</td>
+                            <td>@(track.TrackIndex)</td>
                             <td>@(track.TrackName ?? "Unnamed")</td>
                             <td>
                                 <select value="@(assignment?.PanType ?? PanType.LeadTenor)"
@@ -221,7 +217,7 @@
                                 </select>
                             </td>
                             <td>
-                                <input value="@(assignment?.Label ?? track.TrackName ?? $"Track {track.TrackIndex + 1}")"
+                                <input value="@(assignment?.Label ?? track.TrackName ?? $"Track {track.TrackIndex}")"
                                        @onchange="e => SetLabel(track.TrackIndex, e.Value?.ToString())" />
                             </td>
                         </tr>
@@ -412,7 +408,7 @@
             x => preview.Assignments.FirstOrDefault(a => a.TrackIndex == x.TrackIndex)
                 ?? new MidiTrackAssignmentDto(
                     x.TrackIndex,
-                    x.SuggestedPanType ?? PanType.LeadTenor,
+                    x.SuggestedPanType ?? PanType.None,
                     x.TrackName ?? $"Track {x.TrackIndex + 1}"));
 
         OpenPreview(preview);

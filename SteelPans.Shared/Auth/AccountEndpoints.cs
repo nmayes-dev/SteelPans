@@ -25,13 +25,13 @@ public static class AccountEndpoints
     }
 
     private sealed record RegisterRequest(
+        string UserName,
         string Email,
         string Password,
-        string? DisplayName,
         string? ReturnUrl);
 
     private sealed record LoginRequest(
-        string Email,
+        string UserNameOrEmail,
         string Password,
         bool RememberMe,
         string? ReturnUrl);
@@ -46,11 +46,8 @@ public static class AccountEndpoints
         var user = new ApplicationUser
         {
             Id = Guid.NewGuid(),
-            UserName = request.Email,
+            UserName = request.UserName,
             Email = request.Email,
-            DisplayName = string.IsNullOrWhiteSpace(request.DisplayName)
-                ? request.Email
-                : request.DisplayName,
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -58,10 +55,9 @@ public static class AccountEndpoints
 
         if (!result.Succeeded)
         {
-            var error = Uri.EscapeDataString(
-                string.Join(" ", result.Errors.Select(e => e.Description)));
+            var error = string.Join("&", result.Errors.Select(e => $"errors={Uri.EscapeDataString(e.Description)}"));
 
-            return Results.Redirect($"/account/register?error={error}&returnUrl={Uri.EscapeDataString(returnUrl)}");
+            return Results.Redirect($"/account/register?{error}&returnUrl={Uri.EscapeDataString(returnUrl)}");
         }
 
         await signInManager.SignInAsync(user, isPersistent: false);
@@ -71,20 +67,39 @@ public static class AccountEndpoints
 
     private static async Task<IResult> LoginAsync(
         [FromForm] LoginRequest request,
+        UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager)
     {
         var returnUrl = SafeReturnUrl(request.ReturnUrl);
+        var userNameOrEmail = request.UserNameOrEmail.Trim();
+
+        ApplicationUser? user;
+
+        if (userNameOrEmail.Contains('@'))
+        {
+            user = await userManager.FindByEmailAsync(userNameOrEmail);
+        }
+        else
+        {
+            user = await userManager.FindByNameAsync(userNameOrEmail);
+        }
+
+        if (user is null)
+        {
+            return Results.Redirect(
+                $"/account/login?error={Uri.EscapeDataString("Invalid username/email or password.")}&returnUrl={Uri.EscapeDataString(returnUrl)}");
+        }
 
         var result = await signInManager.PasswordSignInAsync(
-            request.Email,
+            user,
             request.Password,
             request.RememberMe,
-            lockoutOnFailure: true);
+            lockoutOnFailure: false);
 
         if (!result.Succeeded)
         {
-            var error = Uri.EscapeDataString("Invalid email or password.");
-            return Results.Redirect($"/account/login?error={error}&returnUrl={Uri.EscapeDataString(returnUrl)}");
+            return Results.Redirect(
+                $"/account/login?error={Uri.EscapeDataString("Invalid username/email or password.")}&returnUrl={Uri.EscapeDataString(returnUrl)}");
         }
 
         return Results.Redirect(returnUrl);

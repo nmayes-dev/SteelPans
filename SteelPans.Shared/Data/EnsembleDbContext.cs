@@ -24,7 +24,7 @@ public sealed class EnsembleDbContext
 
         builder.Entity<ApplicationUser>(entity =>
         {
-            entity.Property(x => x.DisplayName)
+            entity.Property(x => x.UserName)
                 .HasMaxLength(200);
         });
 

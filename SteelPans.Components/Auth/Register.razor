@@ -5,13 +5,13 @@
     <div class="account-card">
         <div class="account-card__header">
             <p class="account-card__eyebrow">Steel Pans</p>
-            <h1 class="account-card__title">Create account</h1>
+            <h1 class="account-card__title">Create Account</h1>
             <p class="account-card__subtitle">Set up access for your practice and ensemble tools.</p>
         </div>
-
-        @if (!string.IsNullOrWhiteSpace(Error))
+        
+        @foreach (var error in Errors ?? [])
         {
-            <p class="account-error" role="alert">@Error</p>
+            <p class="account-error" role="alert">@error</p>
         }
 
         <form class="account-form" method="post" action="/account/register">
@@ -19,13 +19,13 @@
             <input type="hidden" name="returnUrl" value="@ReturnUrl" />
 
             <div class="account-field">
-                <label for="display-name">Display name</label>
-                <input id="display-name" name="displayName" type="text" autocomplete="name" />
+                <label for="display-name">Username</label>
+                <input id="display-name" name="userName" type="text" autocomplete="username" />
             </div>
 
             <div class="account-field">
                 <label for="email">Email</label>
-                <input id="email" name="email" type="email" autocomplete="username" required />
+                <input id="email" name="email" type="email" autocomplete="email" required />
             </div>
 
             <div class="account-field">
@@ -33,7 +33,7 @@
                 <input id="password" name="password" type="password" autocomplete="new-password" required />
             </div>
 
-            <button class="account-button account-button--primary" type="submit">Create account</button>
+            <button class="account-button account-button--primary" type="submit">Create Account</button>
         </form>
 
         <p class="account-card__footer">
@@ -48,5 +48,5 @@
     public string? ReturnUrl { get; set; }
 
     [SupplyParameterFromQuery]
-    public string? Error { get; set; }
+    public string[]? Errors { get; set; }
 }

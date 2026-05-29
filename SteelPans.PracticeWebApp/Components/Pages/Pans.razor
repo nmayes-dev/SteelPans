@@ -5,170 +5,22 @@
 @inject MidiPlaybackService Playback
 @inject KeyboardManagerService KeyboardManager
 @inject NavigationManager Nav
+@inject DbService Db
 @inject IJSRuntime JS
 @inject IOptions<Settings> SettingsAccessor
+@inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Steel Pans</PageTitle>
 
-<div class="pans-page"
-     @onkeydown="OnKeyPressedAsync"
-     @onkeydown:preventDefault="true">
+<div class="pans-page">
     <header class="sp-section pans-page__hero">
         <div class="pans-page__hero-content">
             <h1 class="pans-page__title">Steel Pans</h1>
-            <Toolbar MenuButtonLabel="Open Tools"
-                     MenuLabel="Pan Tools"
-                     Side="Toolbar.ToolbarSide.Right">
-
-                <ToolbarElement Text="Add Pan"
-                                IconClass="bi-plus-lg"
-                                OnClick="() => addPanModal_!.Open()" />
-
-                <ToolbarElement Text="Account">
-                    <SubMenu>
-                        <AuthorizeView>
-                            <Authorized>
-                                <ToolbarElement Text="Profile"
-                                                IconClass="bi-person"
-                                                OnClick="NavigateToProfile" />
-                                <ToolbarElement Text="Logout"
-                                                IconClass="bi-box-arrow-right" 
-                                                OnClick="() => logoutModal_!.OpenAsync()"/>
-                                <Logout @ref="logoutModal_" />
-                            </Authorized>
-                            <NotAuthorized>
-                                <ToolbarElement Text="Login"
-                                                IconClass="bi-box-arrow-in-right"
-                                                OnClick="NavigateToLogin" />
-                                <ToolbarElement Text="Register"
-                                                IconClass="bi-person-plus"
-                                                OnClick="NavigateToRegister" />
-                            </NotAuthorized>
-                        </AuthorizeView>
-                    </SubMenu>
-                </ToolbarElement>
-
-                <ToolbarElement Text="Import">
-                    <SubMenu>
-                        <ToolbarElement Text="MIDI File"
-                                        IconClass="bi-file-earmark-music"
-                                        LabelFor="midi-file-input" />
-
-                        <InputFile id="midi-file-input"
-                                   class="pans__file-input"
-                                   OnChange="OnMidiFilesChangedAsync"
-                                   multiple
-                                   accept=".mid,.midi,audio/midi,audio/x-midi" />
-
-                        @if (Playback.IsMidiLoaded)
-                        {
-                            <ToolbarElement Text="Tracks"
-                                            IconClass="bi-music-note-list"
-                                            Disabled="@(!Playback.Tracks.Any())"
-                                            CanExpand="true">
-                                <ChildContent>
-                                    <div class="pans-page__track-panel">
-                                        <div class="pans-page__track-panel-header">
-                                            <span class="pans-page__track-panel-title">@midiFileName_</span>
-                                            <span class="pans-page__track-panel-count">@Playback.Tracks.Count track@(Playback.Tracks.Count == 1 ? "" : "s")</span>
-                                        </div>
-
-                                        <div class="pans-page__track-list">
-                                            @foreach (var track in Playback.Tracks)
-                                            {
-                                                <div class="pans-page__track-item">
-                                                    <div class="pans-page__track-details">
-                                                        <div class="pans-page__track-name">@track.Index) @track.DisplayInfo</div>
-                                                        <div class="pans-page__track-meta">@GetMetaInfo(track)</div>
-                                                    </div>
-
-                                                    <button type="button"
-                                                            class="pans-page__track-button @(IsTrackAssigned(track) ? "pans-page__track-button--assigned" : null)"
-                                                            aria-label="@(IsTrackAssigned(track) ? "Remove Track" : "Add Track")"
-                                                            @onclick="() => OnTrackButtonPressedAsync(track)">
-                                                        <span class="bi @(IsTrackAssigned(track) ? "bi-dash-lg" : "bi-plus-lg")" aria-hidden="true"></span>
-                                                    </button>
-                                                </div>
-                                            }
-                                        </div>
-                                    </div>
-                                </ChildContent>
-                            </ToolbarElement>
-                        }
-                    </SubMenu>
-                </ToolbarElement>
-
-                @if (Playback.IsMidiLoaded)
-                {
-                    <ToolbarElement Text="Layout">
-                        <SubMenu>
-                            <ToolbarElement Text="Load"
-                                            IconClass="bi-folder2-open"
-                                            Disabled="!Playback.IsMidiLoaded"
-                                            LabelFor="layout-file-input" />
-
-                            <InputFile id="layout-file-input"
-                                       class="pans__file-input"
-                                       OnChange="OnLoadConfigurationFileAsync"
-                                       accept=".pans" />
-
-                            <ToolbarElement Text="Save"
-                                            IconClass="bi-floppy"
-                                            Disabled="@(string.IsNullOrWhiteSpace(lastFileName_) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                            OnClick="() => SaveConfigurationFileAsync(lastFileName_!)" />
-
-                            <ToolbarElement Text="Save As..."
-                                            IconClass="bi-floppy2"
-                                            Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                            OnClick="() => saveModal_!.Open()" />
-                        </SubMenu>
-                    </ToolbarElement>
-                }
-
-                @if (Playback.ActivePans.Any())
-                {
-                    <ToolbarElement Text="Music">
-                        <SubMenu>
-                            <ToolbarElement Text="Mixer"
-                                            IconClass="bi-sliders2-vertical"
-                                            Disabled="@(!Playback.ActivePans.Any())"
-                                            CanExpand="true"
-                                            CanMoveExpanded="true">
-                                <ChildContent>
-                                    <VolumeMixer />
-                                </ChildContent>
-                            </ToolbarElement>
-                            <ToolbarElement Text="Metronome"
-                                            IconClass="bi-music-note-beamed">
-                                <HeaderActions>
-                                    <label class="metronome-shell__status-switch">
-                                        <input class="metronome-shell__status-switch-input"
-                                               type="checkbox"
-                                               checked="@Playback.ClickTrackEnabled"
-                                               @onchange="OnClickTrackEnabledShellChangedAsync"
-                                               @onclick:stopPropagation="true"
-                                               aria-label="Enable metronome" />
-
-                                        <span class="metronome-shell__status-switch-track" aria-hidden="true">
-                                            <span class="metronome-shell__status-switch-thumb"></span>
-                                        </span>
-                                    </label>
-                                </HeaderActions>
-                                <ChildContent>
-                                    <Metronome />
-                                </ChildContent>
-                            </ToolbarElement>
-
-                            <ToolbarElement Text="Chords"
-                                            IconClass="bi-music-note-list">
-                                <ChildContent>
-                                    <ChordBuilder />
-                                </ChildContent>
-                            </ToolbarElement>
-                        </SubMenu>
-                    </ToolbarElement>
-                }
-            </Toolbar>
+            <ControlToolbar @ref="controlToolbar_"
+                            MidiFileName="@midiFileName_"
+                            Pans="@pans_"
+                            Groups="@groupFiles_"
+                            Error="@loadError_" />
         </div>
     </header>
 
@@ -176,99 +28,17 @@
     {
         <div class="alert alert-danger">@loadError_</div>
     }
-    else if (pans_.Count == 0)
-    {
-        <div class="pans-page__empty">No pans found.</div>
-    }
-    else
+    else if (pans_.Count > 0)
     {
         var hasMidiControls = Playback.ActivePans.Any(x => x.Events.Count > 0);
 
-        <section class="pans-page__midi-controls @(hasMidiControls ? "pans-page__midi-controls--visible" : "")">
+        <section class="pans-page__midi-controls @(Playback.IsMidiLoaded ? "pans-page__midi-controls--visible" : "")">
             <MidiPlaybackControl Enabled="@hasMidiControls" />
         </section>
 
-        <ModalPopup @ref="addMergedTrackModal_"
-                    Title="Merge MIDI tracks"
-                    OnClose="CloseMergeMidiModal"
-                    OnEnter="ConfirmMergeMidiAsync">
-            <ChildContent>
-                <input class="pans-page__track_name form-control"
-                       placeholder="Enter merged track name..."
-                       @bind="mergeMidiFileName_"
-                       @bind:event="oninput" />
-            </ChildContent>
-
-            <Actions>
-                <button type="button"
-                        class="btn btn-outline-secondary"
-                        @onclick="CloseMergeMidiModal">
-                    Cancel
-                </button>
-
-                <button type="button"
-                        class="btn btn-primary"
-                        disabled="@string.IsNullOrWhiteSpace(mergeMidiFileName_)"
-                        @onclick="ConfirmMergeMidiAsync">
-                    Merge
-                </button>
-            </Actions>
-        </ModalPopup>
-
         <section class="pans-page__content">
             <PansDisplay Pans="@Playback.ActivePans"
-                         OnRemovePan="OpenRemovePanModal" />
+                         OnRemovePan="(p) =>  controlToolbar_!.OpenRemovePanModalAsync(p)" />
         </section>
-
-        <AddPanModal @ref="addPanModal_"
-                     Pans="@pans_"
-                     Tracks="@Playback.Tracks" />
-
-        <ModalPopup @ref="warningModal_"
-                    Title="Loading Layout For Different MIDI"
-                    ShowCloseButton="false"
-                    OnEnter="ConfirmLoadConfigurationAsync">
-            <Actions>
-                <button type="button"
-                        class="btn btn-outline-secondary"
-                        @onclick="CancelLoadConfigurationAsync">
-                    Cancel
-                </button>
-
-                <button type="button"
-                        class="btn btn-danger"
-                        @onclick="ConfirmLoadConfigurationAsync">
-                    Confirm
-                </button>
-            </Actions>
-        </ModalPopup>
-
-        <FileSaveModal @ref="saveModal_"
-                       LastFileName="@lastFileName_"
-                       OnSave="SaveConfigurationFileAsync" />
-
-        var removeTitle = panPendingRemoval_ is not null
-            ? $"Remove {panPendingRemoval_.Pan.Type.ToSpacedPascal()}?"
-            : "Remove Pan?";
-
-        <ModalPopup @ref="removePanModal_"
-                    Title="@removeTitle"
-                    ShowCloseButton="false"
-                    OnEnter="ConfirmRemovePanAsync">
-            <Actions>
-                <button type="button"
-                        class="btn btn-outline-secondary"
-                        @onclick="CloseRemovePanModal">
-                    Cancel
-                </button>
-
-                <button type="button"
-                        class="btn btn-danger"
-                        disabled="@(panPendingRemoval_ is null)"
-                        @onclick="ConfirmRemovePanAsync">
-                    Remove
-                </button>
-            </Actions>
-        </ModalPopup>
     }
 </div>

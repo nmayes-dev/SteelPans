@@ -6,6 +6,7 @@ using SteelPans.Shared.Extensions;
 using SteelPans.Components.Services;
 using System.Reflection;
 using System.Text;
+using SteelPans.Components.Auth;
 
 namespace SteelPans.PracticeWebApp;
 
@@ -60,7 +61,8 @@ public class Program
         app.MapStaticAssets();
 
         app.MapRazorComponents<App>()
-            .AddInteractiveServerRenderMode();
+            .AddInteractiveServerRenderMode()
+            .AddAdditionalAssemblies(typeof(Register).Assembly);
 
         app.MapPost("/api/download", async (HttpRequest request) =>
         {

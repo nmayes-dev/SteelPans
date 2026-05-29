@@ -88,23 +88,17 @@
 
 .pans-page__midi-controls {
     min-width: 0;
-    max-height: 0;
     overflow: clip;
     border-radius: 1.35rem;
     opacity: 0;
-    visibility: hidden;
-    transform: translateY(-0.25rem);
     pointer-events: none;
-    transition: opacity 250ms ease, visibility 0ms linear 350ms, transform 350ms ease, max-height 350ms ease;
+    transition: opacity 250ms ease, transform 350ms ease, max-height 350ms ease;
 }
 
 .pans-page__midi-controls--visible {
     max-height: 12rem;
     opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
     pointer-events: auto;
-    transition: opacity 250ms ease, visibility 0ms linear 0ms, transform 350ms ease, max-height 350ms ease;
 }
 
 .pans-page__content {
@@ -205,122 +199,4 @@
     .pans-page__content {
         overflow: visible;
     }
-}
-
-.pans-page__track-panel {
-    --track-panel-base-padding: clamp(0.55rem, 0.8vw, 0.65rem);
-    --track-panel-gap: clamp(0.25rem, 0.6vw, 0.45rem);
-    --track-button-size: clamp(1.5rem, 4vw, 2rem);
-    display: flex;
-    min-width: clamp(6rem, 33vw, 20rem);
-    flex-direction: column;
-    height: 100%;
-}
-
-.pans-page__track-panel-header {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: var(--track-panel-gap);
-    min-width: 0;
-    padding: calc(var(--track-panel-base-padding) * 0.25) calc(var(--track-panel-base-padding) * 1.5) calc(var(--track-panel-base-padding) * 0.6) var(--track-panel-base-padding);
-    border-bottom: 1px solid rgba(148, 163, 184, 0.28);
-}
-
-.pans-page__track-panel-title {
-    min-width: 0;
-    overflow: hidden;
-    color: #0f172a;
-    font-size: clamp(0.72rem, 1.7vw, 0.9rem);
-    font-weight: 800;
-    line-height: 1.15;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-.pans-page__track-panel-count {
-    flex: 0 0 auto;
-    color: #64748b;
-    font-size: clamp(0.62rem, 1.5vw, 0.75rem);
-    font-weight: 700;
-    line-height: 1.1;
-    white-space: nowrap;
-}
-
-.pans-page__track-list {
-    display: flex;
-    flex-direction: column;
-    gap: calc(var(--track-panel-gap) * 0.6);
-    min-height: 0;
-    padding: calc(var(--track-panel-base-padding) * 0.55) calc(var(--track-panel-base-padding) * 0.5) calc(var(--track-panel-base-padding) * 0.3) calc(var(--track-panel-base-padding) * 0.5);
-    overflow: auto;
-}
-
-.pans-page__track-item {
-    display: flex;
-    align-items: center;
-    gap: var(--track-panel-gap);
-    min-width: 0;
-    padding: calc(var(--track-panel-base-padding) * 0.7) calc(var(--track-panel-base-padding) * 0.8);
-    border-radius: clamp(0.55rem, 1.8vw, 0.8rem);
-    transition: background 120ms ease;
-}
-
-    .pans-page__track-item:hover:not(:has(.pans-page__track-button:hover)) {
-        background: #f8fafc;
-    }
-
-.pans-page__track-details {
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    gap: clamp(0.08rem, 0.5vw, 0.2rem);
-    min-width: 0;
-}
-
-.pans-page__track-name {
-    min-width: 0;
-    overflow: hidden;
-    color: #0f172a;
-    font-size: clamp(0.72rem, 1.8vw, 0.92rem);
-    font-weight: 600;
-    line-height: 1.15;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-}
-
-.pans-page__track-meta {
-    color: #64748b;
-    font-size: clamp(0.6rem, 1.45vw, 0.75rem);
-    line-height: 1.1;
-}
-
-.pans-page__track-button {
-    flex: 0 0 auto;
-    display: inline-grid;
-    place-items: center;
-    width: var(--track-button-size);
-    height: var(--track-button-size);
-    border: 1px solid rgba(148, 163, 184, 0.24);
-    border-radius: clamp(0.45rem, 1.4vw, 0.65rem);
-    background: rgba(212, 222, 236, 0.96);
-    color: #2563eb;
-    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.12);
-    transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
-}
-
-    .pans-page__track-button:hover {
-        transform: translateY(-1px);
-        border-color: rgba(37, 99, 235, 0.28);
-        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
-    }
-
-    .pans-page__track-button .bi {
-        font-size: clamp(0.72rem, 2vw, 0.95rem);
-        line-height: 1;
-    }
-
-.pans-page__track-button--assigned {
-    background: rgba(236, 226, 202, 0.96);
-    color: #b45309;
 }

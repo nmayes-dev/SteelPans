@@ -1,5 +1,6 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject MidiPlaybackService Playback
 
 <div class="pans-display">
     <div class="pans-display__items"
@@ -65,6 +66,13 @@
         if (!firstRender)
             return;
 
+        Playback.StateChanged += OnPlaybackStateChangedAsync;
+        await InitialiseLayoutAsync();
+    }
+
+    private async Task InitialiseLayoutAsync()
+    {
+        dotNetReference_?.Dispose();
         dotNetReference_ = DotNetObjectReference.Create(this);
         await JS.InvokeVoidAsync("panLayout.observe", assignedPansElement_, dotNetReference_);
         panLayoutObserved_ = true;
@@ -85,6 +93,14 @@
         await OnPansReordered.InvokeAsync(orderedIds);
     }
 
+    private async Task OnPlaybackStateChangedAsync()
+    {
+        if (Playback.ActivePans.Any())
+            return;
+
+        await InitialiseLayoutAsync();
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (panLayoutObserved_)
@@ -102,7 +118,8 @@
                 // Circuit/browser already disconnected.
             }
         }
-
+        
+        Playback.StateChanged -= OnPlaybackStateChangedAsync;
         dotNetReference_?.Dispose();
     }
 }

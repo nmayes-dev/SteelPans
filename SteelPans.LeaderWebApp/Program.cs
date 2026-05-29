@@ -1,3 +1,4 @@
+using SteelPans.Components.Auth;
 using SteelPans.Components.Services;
 using SteelPans.LeaderWebApp.Components;
 using SteelPans.Shared.Auth;
@@ -17,7 +18,7 @@ namespace SteelPans.LeaderWebApp
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
-            builder.AddWebAppServices("SteelPans.Leader.Auth"); 
+            builder.AddWebAppServices("SteelPans.Leader.Auth");
             builder.Services.AddAntiforgery(options =>
             {
                 options.Cookie.Name = "SteelPans.Leader.Antiforgery";
@@ -47,7 +48,8 @@ namespace SteelPans.LeaderWebApp
             app.MapStaticAssets();
 
             app.MapRazorComponents<App>()
-                .AddInteractiveServerRenderMode();
+                .AddInteractiveServerRenderMode()
+                .AddAdditionalAssemblies(typeof(Register).Assembly);
 
             app.Run();
         }

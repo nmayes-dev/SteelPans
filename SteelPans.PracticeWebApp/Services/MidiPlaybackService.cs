@@ -62,6 +62,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     public List<MidiTrackInfo> Tracks { get; } = [];
 
     public bool IsMidiLoaded => midiPlaybackInfo_ is not null;
+
     public bool IsPlaying { get; private set; }
     public TimeSpan Position { get; private set; }
     public TimeSpan Duration { get; private set; }

@@ -1,9 +1,9 @@
 .midi-files {
-    grid-template-rows: min-content min-content min-content auto 0;
+    grid-template-rows: min-content min-content min-content min-content auto 0;
 }
 
     .midi-files:has(.leader-preview) {
-        grid-template-rows: min-content min-content minmax(auto, 60vh) auto 0;
+        grid-template-rows: min-content min-content min-content minmax(auto, 60vh) auto 0;
     }
 
 

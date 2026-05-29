@@ -285,10 +285,30 @@ public sealed class DbService
                     TrackIndex = track.Index,
                     TrackName = track.Name
                 });
+
+                midiFile.Assignments.Add(new EnsembleMidiTrackAssignment
+                {
+                    Id = Guid.NewGuid(),
+                    MidiFileId = fileId,
+                    TrackIndex = track.Index,
+                    PanType = Music.PanType.None,
+                    Label = track.Name ?? $"Track {track.Index + 1}",
+                });
             }
 
             db.MidiFiles.Add(midiFile);
+
             await db.SaveChangesAsync(cancellationToken);
+
+            await SaveMidiAssignmentsAsync(
+                fileId,
+                new SaveMidiAssignmentsRequest(midiFile.Assignments
+                    .OrderBy(x => x.TrackIndex)
+                    .Select(x => new MidiTrackAssignmentDto(
+                            x.TrackIndex,
+                            x.PanType,
+                            x.Label))
+                    .ToList()));
 
             return new GroupFileDto(
                 midiFile.Id,
@@ -417,21 +437,21 @@ public sealed class DbService
         }
         public async Task<IReadOnlyList<GroupFileDto>> GetMyMidiFilesAsync(
             CancellationToken cancellationToken = default)
-                {
-                    return await db.MidiFiles
-                        .AsNoTracking()
-                        .Where(x => x.UploadedByUserId == currentUser.UserId &&
-                                    x.ArchivedAt == null)
-                        .OrderByDescending(x => x.UploadedAt)
-                        .Select(x => new GroupFileDto(
-                            x.Id,
-                            x.GroupId,
-                            x.Title,
-                            x.OriginalFileName,
-                            x.SizeBytes,
-                            x.UploadedAt))
-                        .ToListAsync(cancellationToken);
-                }
+        {
+            return await db.MidiFiles
+                .AsNoTracking()
+                .Where(x => x.UploadedByUserId == currentUser.UserId &&
+                            x.ArchivedAt == null)
+                .OrderByDescending(x => x.UploadedAt)
+                .Select(x => new GroupFileDto(
+                    x.Id,
+                    x.GroupId,
+                    x.Title,
+                    x.OriginalFileName,
+                    x.SizeBytes,
+                    x.UploadedAt))
+                .ToListAsync(cancellationToken);
+        }
 
         public async Task ShareMidiFileWithGroupAsync(
             Guid fileId,

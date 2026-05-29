@@ -27,9 +27,10 @@ window.panLayout = {
 
         this.disconnect(container);
 
-        container.classList.add("pans-display__items--startup");
+        container.classList.remove("pans-display__items--ready");
 
         container._panLayoutState = this.getState(container);
+        container._panLayoutState.startupComplete = false;
         container._panLayoutState.dotNetRef = dotNetRef;
         this.attachDragHandlers(container);
 
@@ -129,7 +130,7 @@ window.panLayout = {
         requestAnimationFrame(async () => {
             await this.waitForStartupPanLayout(container);
 
-            container.classList.remove("pans-display__items--startup");
+            container.classList.add("pans-display__items--ready");
 
             state.startupInProgress = false;
             state.startupComplete = true;

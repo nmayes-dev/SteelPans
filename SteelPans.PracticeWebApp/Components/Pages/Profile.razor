@@ -23,7 +23,7 @@
                     <div class="account-profile__row">
                         <span class="account-profile__label">Signed in as</span>
                         <span class="account-profile__value">
-                            @DisplayName
+                            @Username
                         </span>
                     </div>
 
@@ -72,7 +72,7 @@
 
     private ApplicationUser? user_;
 
-    private string DisplayName => user_?.DisplayName ?? "Unknown user";
+    private string Username => user_?.UserName ?? "Unknown user";
 
     protected override async Task OnInitializedAsync()
     {
