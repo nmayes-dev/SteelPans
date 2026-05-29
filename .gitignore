@@ -16,3 +16,5 @@ SteelPans.Samples
 SteelPans.Decode
 
 **.user
+SteelPans.PracticeWebApp/appsettings.Development.json
+SteelPans.LeaderWebApp/appsettings.Development.json
