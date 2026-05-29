@@ -33,4 +33,4 @@ jobs:
           cd "$PANS_LAN_PATH"
           docker compose restart
         env:
-          PANS_DEV_PATH: ${{ vars.PANS_LAN_PATH }}
+          PANS_LAN_PATH: ${{ vars.PANS_LAN_PATH }}
