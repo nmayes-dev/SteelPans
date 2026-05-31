@@ -1,61 +1,92 @@
 .page {
+    --layout-nav-top-height: clamp(1.45rem, 3.5vw, 3.5rem);
+    --layout-nav-top-padding-x: clamp(0.5rem, 2.5vw, 1rem);
+    --layout-nav-top-padding-y: clamp(0.25rem, 1vw, 0.75rem);
+    --layout-nav-link-height: clamp(2.35rem, 7vw, 3rem);
+    --layout-nav-link-gap: clamp(0.2rem, 1.4vw, 0.5rem);
+    --layout-nav-item-padding-x: clamp(0.45rem, 2.5vw, 1rem);
+    --layout-nav-font-size: clamp(0.78rem, 2.65vw, 0.9rem);
+    --layout-nav-brand-font-size: clamp(0.7rem, 2.4vw, 1.1rem);
+    --layout-nav-icon-size: clamp(1rem, 3.6vw, 1.25rem);
+    --layout-nav-toggler-size: clamp(1.5rem, 3.2vw, 2.5rem);
+    --layout-nav-toggler-icon-size: calc(var(--layout-nav-toggler-size) * 0.5);
     position: relative;
     display: flex;
     flex-direction: column;
+    min-height: 100dvh;
 }
 
 main {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.content {
+    min-width: 0;
 }
 
 .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    flex: 0 0 auto;
+    width: 100%;
     background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
 }
 
 .top-row {
-    background-color: #f7f7f7;
-    border-bottom: 1px solid #d6d5d5;
-    justify-content: flex-end;
-    height: 3.5rem;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    height: var(--layout-nav-top-height);
+    min-height: var(--layout-nav-top-height);
+    background-color: #f7f7f7;
+    border-bottom: 1px solid #d6d5d5;
 }
 
-    .top-row ::deep a, .top-row ::deep .btn-link {
+    .top-row ::deep a,
+    .top-row ::deep .btn-link {
         white-space: nowrap;
-        margin-left: 1.5rem;
+        margin-left: clamp(0.5rem, 3vw, 1.5rem);
         text-decoration: none;
     }
 
-    .top-row ::deep a:hover, .top-row ::deep .btn-link:hover {
-        text-decoration: underline;
-    }
+        .top-row ::deep a:hover,
+        .top-row ::deep .btn-link:hover {
+            text-decoration: underline;
+        }
 
-    .top-row ::deep a:first-child {
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+        .top-row ::deep a:first-child {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
 
 @media (max-width: 640.98px) {
     .top-row {
         justify-content: space-between;
     }
 
-    .top-row ::deep a, .top-row ::deep .btn-link {
-        margin-left: 0;
-    }
+        .top-row ::deep a,
+        .top-row ::deep .btn-link {
+            margin-left: 0;
+        }
 }
 
 @media (min-width: 641px) {
     .page {
+        --layout-nav-top-height: 3.5rem;
+        --layout-nav-link-height: 3rem;
+        --layout-nav-link-gap: 0.5rem;
+        --layout-nav-item-padding-x: 1rem;
+        --layout-nav-font-size: 0.9rem;
+        --layout-nav-brand-font-size: 1.1rem;
+        --layout-nav-icon-size: 1.25rem;
         flex-direction: row;
     }
 
     .sidebar {
         width: fit-content;
-        height: 100vh;
-        position: sticky;
-        top: 0;
+        height: 100dvh;
     }
 
     .top-row {
@@ -64,11 +95,11 @@ main {
         z-index: 1;
     }
 
-    .top-row.auth ::deep a:first-child {
-        flex: 1;
-        text-align: right;
-        width: 0;
-    }
+        .top-row.auth ::deep a:first-child {
+            flex: 1;
+            width: 0;
+            text-align: right;
+        }
 }
 
 #blazor-error-ui {

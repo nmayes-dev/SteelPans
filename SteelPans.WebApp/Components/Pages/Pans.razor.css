@@ -18,10 +18,10 @@
 
 
 .pans-page__toolbar {
-    --toolbar__button-override-size: calc(1.4 * var(--ui-icon-button-size));
+    --toolbar__button-override-size: calc(1.2 * var(--ui-icon-button-size));
     position: relative;
     overflow: visible;
-    padding: clamp(0.4rem, 0.75vw, 0.75rem) clamp(0.8rem, 1vw, 1rem);
+    padding: clamp(0.4rem, 0.6vw, 0.6rem);
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -46,10 +46,10 @@
 
 .pans-page__midi-message {
     width: 100%;
-    padding: clamp(0.9rem, 1.2vw, 1.35rem);
+    padding: clamp(0.6rem, 1vw, 1rem);
     text-align: center;
     color: rgba(15, 23, 42, 0.58);
-    font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1.05rem);
+    font-size: clamp(0.6rem, 0.65rem + 0.25vw, 1rem);
     font-weight: 600;
 }
 

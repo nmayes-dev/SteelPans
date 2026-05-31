@@ -1,15 +1,20 @@
+.navbar {
+    padding: var(--layout-nav-top-padding-y) 0;
+}
+
 .navbar-toggler {
     appearance: none;
     cursor: pointer;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 1.25rem;
+    width: var(--layout-nav-toggler-size);
+    height: var(--layout-nav-toggler-size);
+    border-radius: calc(var(--layout-nav-toggler-size) * 0.5);
     color: white;
     position: absolute;
-    top: 0.5rem;
-    right: 1rem;
+    top: var(--layout-nav-top-padding-y);
+    right: var(--layout-nav-top-padding-x);
+    z-index: 2;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center/1.25rem rgba(255, 255, 255, 0.1);
+    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center / var(--layout-nav-toggler-icon-size, clamp(1rem, 4vw, 1.25rem)) rgba(255, 255, 255, 0.1);
 }
 
     .navbar-toggler:checked {
@@ -17,20 +22,32 @@
     }
 
 .top-row {
-    min-height: 3.5rem;
-    background-color: rgba(0,0,0,0.4);
+    min-height: var(--layout-nav-top-height);
+    background-color: rgba(0, 0, 0, 0.4);
 }
 
+    .top-row .container-fluid {
+        min-height: var(--layout-nav-top-height);
+        padding-right: calc(var(--layout-nav-toggler-size) + (var(--layout-nav-top-padding-x) * 2));
+        padding-left: var(--layout-nav-top-padding-x);
+    }
+
 .navbar-brand {
-    font-size: 1.1rem;
+    font-size: var(--layout-nav-brand-font-size);
+    text-transform: uppercase;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+    font-weight: 700;
 }
 
 .bi {
     display: inline-block;
     position: relative;
-    width: 1.25rem;
-    height: 1.25rem;
-    margin-right: 0.75rem;
+    flex: 0 0 auto;
+    width: var(--layout-nav-icon-size);
+    height: var(--layout-nav-icon-size);
+    margin-right: clamp(0.45rem, 2.2vw, 0.75rem);
     top: -1px;
     background-size: cover;
 }
@@ -52,16 +69,18 @@
 }
 
 .nav-item {
-    font-size: 0.9rem;
-    padding-bottom: 0.5rem;
+    font-size: var(--layout-nav-font-size);
+    padding-right: var(--layout-nav-item-padding-x) !important;
+    padding-bottom: var(--layout-nav-link-gap);
+    padding-left: var(--layout-nav-item-padding-x) !important;
 }
 
     .nav-item:first-of-type {
-        padding-top: 1rem;
+        padding-top: clamp(0.45rem, 2.2vw, 1rem);
     }
 
     .nav-item:last-of-type {
-        padding-bottom: 1rem;
+        padding-bottom: clamp(0.45rem, 2.2vw, 1rem);
     }
 
     .nav-item ::deep .nav-link {
@@ -69,10 +88,10 @@
         background: none;
         border: none;
         border-radius: 4px;
-        height: 3rem;
+        min-height: var(--layout-nav-link-height);
         display: flex;
         align-items: center;
-        line-height: 3rem;
+        line-height: 1.1;
         width: 100%;
     }
 
@@ -92,7 +111,16 @@
     }
 
 .nav-scrollable {
+    position: absolute;
+    top: var(--layout-nav-top-height, clamp(2.45rem, 7.5vw, 3.5rem));
+    right: 0;
+    left: 0;
+    z-index: 1;
     display: none;
+    max-height: calc(100dvh - var(--layout-nav-top-height, clamp(2.45rem, 7.5vw, 3.5rem)));
+    overflow-y: auto;
+    background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
+    box-shadow: 0 0.75rem 1.5rem rgba(15, 23, 42, 0.3);
 }
 
 .navbar-toggler:checked ~ .nav-scrollable {
@@ -100,15 +128,24 @@
 }
 
 @media (min-width: 641px) {
+    .top-row .container-fluid {
+        padding-right: var(--layout-nav-top-padding-x);
+    }
+
     .navbar-toggler {
         display: none;
     }
 
     .nav-scrollable {
         /* Never collapse the sidebar for wide screens */
+        position: static;
+        z-index: auto;
         display: block;
-        /* Allow sidebar to scroll for tall menus */
-        height: calc(100vh - 3.5rem);
+        width: auto;
+        max-height: none;
+        height: calc(100dvh - var(--layout-nav-top-height, 3.5rem));
+        background-image: none;
+        box-shadow: none;
     }
 }
 
