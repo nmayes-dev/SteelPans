@@ -35,7 +35,7 @@
                     <button type="button"
                             class="btn-close"
                             aria-label="Close"
-                            @onclick="OnCloseAsync"
+                            @onclick="RequestCloseAsync"
                             @onpointerdown:stopPropagation="true">
                     </button>
                 }
@@ -48,12 +48,35 @@
                 </div>
             }
 
-            @if (Actions is not null)
-            {
-                <div class="modal-popup__actions">
-                    @Actions
-                </div>
-            }
+            @RenderButtons
         </div>
     </div>
+}
+
+@code {
+    private RenderFragment RenderButtons => @<div class="modal-popup__actions">
+        @if (Buttons is not null)
+        {
+
+        }
+        else 
+        {
+            @if (!string.IsNullOrEmpty(CloseButton))
+            {
+                <button type="button"
+                        class="btn @(string.IsNullOrWhiteSpace(CloseButtonClass) ? "btn-outline-secondary" : CloseButtonClass)"
+                        @onclick="RequestCloseAsync">
+                    @CloseButton
+                </button>
+            }
+            @if (!string.IsNullOrEmpty(ConfirmButton))
+            {
+                <button type="button"
+                        class="btn @(string.IsNullOrWhiteSpace(ConfirmButtonClass) ? "btn-primary" : ConfirmButtonClass)"
+                        @onclick="ConfirmAsync">
+                    @ConfirmButton
+                </button>
+            }
+        }
+    </div>;
 }

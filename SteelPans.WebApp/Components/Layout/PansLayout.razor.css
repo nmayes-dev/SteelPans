@@ -26,6 +26,24 @@
     transition: opacity var(--med-transition) ease;
 }
 
+    .pans-display__items--ready ::deep .sp-label {
+        transition: fill 80ms ease, transform 80ms ease;
+    }
+
+    .pans-display__items--ready ::deep .sp-label--on {
+        fill: #ffffff !important;
+    }
+
+    .pans-display__items--ready ::deep .sp-note {
+        cursor: pointer;
+        transition: fill 50ms ease, transform 50ms ease;
+    }
+
+    .pans-display__items--ready ::deep .sp-note--on {
+        fill: #e2201c !important;
+    }
+
+
 .pans-display__items--dragging,
 .pans-display__items--dragging * {
     cursor: grabbing !important;

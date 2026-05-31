@@ -14,12 +14,14 @@ public sealed class DbService
 {
     public readonly GroupService Groups;
     public readonly MidiFileService MidiFiles;
+    public Guid User { get; init; }
 
     public DbService(EnsembleDbContext db,
         ICurrentUserAccessor currentUser,
         IEnsembleFileStore fileStore,
         MidiInspectionService midiInspection)
     {
+        User = currentUser.UserId;
         Groups = new(db, currentUser);
         MidiFiles = new(db, currentUser, Groups, fileStore, midiInspection);
     }

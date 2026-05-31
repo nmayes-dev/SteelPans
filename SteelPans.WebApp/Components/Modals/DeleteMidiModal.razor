@@ -1,0 +1,57 @@
+﻿@inject InstanceStateService State
+@inject DbService Db
+
+<ModalPopup Id="DeleteMidi"
+            Title="Delete file"
+            CloseButton="Cancel"
+            OnClose="OnCancel"
+            ConfirmButton="Delete"
+            ConfirmButtonClass="btn-danger"
+            OnConfirm="OnConfirmAsync">
+    <ChildContent>
+        <div class="leader-form">
+            <p class="leader-delete-text">
+                Delete <strong>@State.Pending.DeleteMidi?.OriginalFileName</strong>?
+            </p>
+
+            <p class="leader-alert leader-alert--error">
+                This cannot be undone. Members will no longer be able to use this file.
+            </p>
+        </div>
+    </ChildContent>
+</ModalPopup>
+
+@code {
+
+    private async Task OnConfirmAsync()
+    {
+        if (State.Pending.DeleteMidi is null)
+        {
+            return;
+        }
+
+        await State.Task.RunSafe(async () =>
+        {
+            var deletedFileId = State.Pending.DeleteMidi.Id;
+
+            await Db.MidiFiles.DeleteMidiFileAsync(deletedFileId);
+
+            State.Pending.DeleteMidi = null;
+
+            await State.User.RefreshAsync();
+
+            if (State.Preview.File?.Id == deletedFileId)
+            {
+                State.Preview.File = null;
+                State.Preview.Assigments.Clear();
+            }
+
+            return "MIDI file deleted.";
+        });
+    }
+
+    private void OnCancel()
+    {
+        State.Pending.DeleteMidi = null;
+    }
+}

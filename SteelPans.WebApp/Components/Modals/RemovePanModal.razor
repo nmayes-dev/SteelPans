@@ -1,0 +1,33 @@
+﻿@inject InstanceStateService State
+@inject MidiPlaybackService Playback
+
+<ModalPopup Id="RemovePan"
+            Title="@Title"
+            ShowCloseButton="false"
+            CloseButton="Cancel"
+            OnClose="CloseRemovePanModal"
+            ConfirmButton="Remove"
+            ConfirmButtonClass="btn-danger"
+            OnConfirm="ConfirmRemovePanAsync" />
+
+@code {
+    private string Title => State.Pending.PanRemoval is not null
+        ? $"Remove {State.Pending.PanRemoval.Pan.Type.ToSpacedPascal()}?"
+        : "Remove Pan?";
+
+    private async Task CloseRemovePanModal()
+    {
+        State.Pending.PanRemoval = null;
+    }
+
+    private async Task ConfirmRemovePanAsync()
+    {
+        if (State.Pending.PanRemoval is null)
+            return;
+
+        var index = State.Pending.PanRemoval.Assignment.Track?.Index ?? -1;
+
+        await Playback.OnRemoveAssignmentAsync(index);
+    }
+
+}

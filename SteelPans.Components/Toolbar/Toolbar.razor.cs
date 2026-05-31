@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.Components;
 using SteelPans.Components.Layout;
+using SteelPans.Components.Services;
+
 
 namespace SteelPans.Components.Toolbar;
 
-public partial class Toolbar
+public partial class Toolbar : OverlayComponentBase
 {
     public enum ToolbarSide
     {
@@ -17,8 +19,6 @@ public partial class Toolbar
     private bool menuOpen_;
 
     private bool anyOpen_ => menuOpen_ || ActiveElement is not null;
-
-    private ModalPopup? elementPopup_;
 
     internal bool IsMenuOpen => menuOpen_;
     internal bool IsPanelOpen => ActiveElement is not null;
@@ -117,25 +117,25 @@ public partial class Toolbar
         menuOpen_ = !menuOpen_;
         if (menuOpen_)
             await NotifyOpenedAsync();
+        else
+            await RequestCloseAsync();
     }
 
     private async Task OpenModalElement()
     {
-        if (ActiveElement is null || elementPopup_ is null)
+        if (ActiveElement is null)
             return;
 
         ModalElement = ActiveElement;
         ActiveElement = null;
         menuOpen_ = false;
-        await elementPopup_.OpenAsync();
-        await InvokeAsync(StateHasChanged);
+        await Modals.OpenAsync("ToolbarContent");
     }
 
     protected override async Task OnCloseAsync()
     {
         menuOpen_ = false;
         ActiveElement = null;
-        await InvokeAsync(StateHasChanged);
     }
 
     public override void Dispose()

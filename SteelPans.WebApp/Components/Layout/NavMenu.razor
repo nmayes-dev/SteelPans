@@ -1,3 +1,5 @@
+﻿@inject ModalPopupService Modals
+
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">Steel Pans</a>
@@ -35,10 +37,9 @@
         <AuthorizeView>
             <Authorized Context="auth">
                 <div class="nav-item px-3">
-                    <button class="nav-link" @onclick="() => logoutModal_!.OpenAsync()">
+                    <button class="nav-link" @onclick="OpenLogoutAsync">
                         <span class="bi bi-box-arrow-right-nav-menu" aria-hidden="true"></span> Logout
                     </button>
-                    <Logout @ref="logoutModal_" />
                 </div>
             </Authorized>
 
@@ -54,5 +55,8 @@
 </div>
 
 @code {
-    Logout? logoutModal_;
+    private async Task OpenLogoutAsync()
+    {
+        await Modals.OpenAsync("Logout");
+    }
 }

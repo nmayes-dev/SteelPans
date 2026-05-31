@@ -1,5 +1,6 @@
 ﻿@implements IDisposable
 @inherits OverlayComponentBase
+@inject ModalPopupService Modals
 
 <CascadingValue Value="this" IsFixed="true">
     @ChildContent
@@ -61,7 +62,7 @@
         </div>
     </div>
 
-    <ModalPopup @ref="elementPopup_"
+    <ModalPopup Id="ToolbarContent"
                 Title="@ModalElement?.Text"
                 Draggable="@(ModalElement?.CanMoveExpanded ?? false)"
                 OnClose="() => ModalElement = null">

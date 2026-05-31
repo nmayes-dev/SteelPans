@@ -12,9 +12,6 @@ public partial class Pans : IAsyncDisposable
 
     private IReadOnlyDictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>> groupFiles_ = new Dictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>>();
 
-    private string loadError_ = string.Empty;
-
-
 
     protected override async Task OnInitializedAsync()
     {
@@ -36,10 +33,10 @@ public partial class Pans : IAsyncDisposable
             return;
 
         var fileInfo = new FileInfo(filePath);
-        await OnMidiFileSelected(async () =>
+        await Playback.OnLoadMidiAsync(async () =>
         {
             await using var stream = File.OpenRead(filePath);
-            return await MidiService.OpenMidiFileAsync(stream);
+            return (fileInfo.Name, await MidiService.OpenMidiFileAsync(stream));
         });
     }
 
@@ -68,10 +65,6 @@ public partial class Pans : IAsyncDisposable
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task OnMidiFileSelected(Func<Task<MidiFile>> getMidiFile)
-    {
-        await Playback.OnLoadMidiAsync(getMidiFile);
-    }
 
     public ValueTask DisposeAsync()
     {

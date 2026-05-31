@@ -1,17 +1,22 @@
 @using SteelPans.WebApp.Services
 @inject MidiPlaybackService Playback
+@inject InstanceStateService State
 
-<ModalPopup @ref="modal_"
+<ModalPopup Id="AddPan"
             Title="Add Pan"
-            OnClose="Close"
-            OnEnter="ConfirmAddAsync">
+            OnOpen="OnOpen"
+            CloseButton="Cancel"
+            OnClose="OnClose"
+            ConfirmButton="Add"
+            OnConfirm="OnAddAsync"
+            CanOpen="async () => CanOpen">
     <ChildContent>
         <div class="add__body">
             @if (addModalType_ == AddModalType.Track)
             {
                 <select id="midi-track-select-modal"
                         class="form-select"
-                        disabled="@(Disabled || UnassignedTracks.Count == 0)"
+                        disabled="@(UnassignedTracks.Count == 0)"
                         @bind="selectedTrackIndexString_">
                     @if (UnassignedTracks.Count == 0)
                     {
@@ -44,27 +49,9 @@
             </select>
         </div>
     </ChildContent>
-
-    <Actions>
-        <button type="button"
-                class="btn btn-outline-secondary"
-                @onclick="Close">
-            Cancel
-        </button>
-
-        <button type="button"
-                class="btn btn-primary"
-                disabled="@(!CanConfirmAdd)"
-                @onclick="ConfirmAddAsync">
-            Add
-        </button>
-    </Actions>
 </ModalPopup>
 
 @code {
-    [Parameter]
-    public bool Disabled { get; set; }
-
     private IReadOnlyList<PanType> AvailablePanTypes => Playback.AvailablePans.Select(x => x.Type).ToList();
 
     private enum AddModalType
@@ -74,7 +61,6 @@
         Track
     }
 
-    private ModalPopup? modal_;
     private AddModalType addModalType_;
     private string? selectedTrackIndexString_;
     private string? selectedPanTypeString_;
@@ -103,14 +89,12 @@
             .ToList();
 
     private bool CanOpenTrackAddModal =>
-        !Disabled &&
         HasTracks &&
         AvailablePanTypes.Count > 0 &&
         UnassignedTracks.Count > 0 &&
         int.TryParse(selectedTrackIndexString_, out _);
 
     private bool CanOpenPanAddModal =>
-        !Disabled &&
         AvailablePanTypes.Count > 0;
 
     private bool CanConfirmAddTrack =>
@@ -125,9 +109,10 @@
         Enum.TryParse<PanType>(selectedPanTypeString_, out var panType) &&
         AvailablePanTypes.Contains(panType);
 
+    private bool CanOpen => CanOpenTrackAddModal || CanOpenPanAddModal;
     private bool CanConfirmAdd => CanConfirmAddPan || CanConfirmAddTrack;
 
-    private void GetInitialParameters(int? initialTrack)
+    private void GetInitialParameters(int? initialTrack = null)
     {
         selectedPanTypeString_ = AvailablePanTypes.FirstOrDefault().ToString();
 
@@ -152,28 +137,38 @@
         GetInitialParameters(initialTrack: null);
     }
 
-
-    public async Task Open(int? initialTrack = null)
+    public void OnOpen()
     {
-        if (!(CanOpenTrackAddModal || CanOpenPanAddModal) || modal_ is null)
+        if (!(CanOpenTrackAddModal || CanOpenPanAddModal))
             return;
 
-        GetInitialParameters(initialTrack);
+        GetInitialParameters(State.Pending.Track);
         if (HasTracks)
             addModalType_ = AddModalType.Track;
         else
             addModalType_ = AddModalType.Pan;
-
-        await modal_.OpenAsync(closeOthers: false);
     }
 
-    private async Task Close()
+    private void OnClose()
     {
-        if (addModalType_ == AddModalType.None || modal_ is null)
+        addModalType_ = AddModalType.None;
+    }
+
+    private async Task OnAddAsync()
+    {
+        if (!Enum.TryParse<PanType>(selectedPanTypeString_, out var panType))
             return;
 
-        addModalType_ = AddModalType.None;
-        await modal_.RequestCloseAsync();
+        switch (addModalType_)
+        {
+            case AddModalType.Pan:
+                await ConfirmAddPanAsync(panType);
+                break;
+
+            case AddModalType.Track:
+                await ConfirmAddTrackAsync(panType);
+                break;
+        }
     }
 
     private async Task ConfirmAddPanAsync(PanType panType)
@@ -203,27 +198,5 @@
         };
 
         await Playback.OnAddAssignmentAsync(assignment);
-    }
-
-    private async Task ConfirmAddAsync()
-    {
-        if (modal_ is null)
-            return;
-
-        if (!Enum.TryParse<PanType>(selectedPanTypeString_, out var panType))
-            return;
-
-        switch (addModalType_)
-        {
-            case AddModalType.Pan:
-                await ConfirmAddPanAsync(panType);
-                break;
-
-            case AddModalType.Track:
-                await ConfirmAddTrackAsync(panType);
-                break;
-        }
-
-        await Close();
     }
 }

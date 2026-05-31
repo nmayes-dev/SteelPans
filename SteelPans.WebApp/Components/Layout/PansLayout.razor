@@ -1,6 +1,8 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
 @inject MidiPlaybackService Playback
+@inject ModalPopupService Modals
+@inject InstanceStateService State
 
 <div class="pans-display">
     <div class="pans-display__items"
@@ -38,7 +40,7 @@
                             title="Remove pan"
                             aria-label="Remove pan"
                             data-pan-layout-no-drag
-                            @onclick="() => OnRemovePan.InvokeAsync(assignedPan)">
+                            @onclick="() => OnRemovePan(assignedPan)">
                         <span class="bi bi-trash3"></span>
                     </button>
                 </div>
@@ -52,13 +54,10 @@
     public IReadOnlyList<MidiAssignedPan> Pans { get; set; } = [];
 
     [Parameter]
-    public EventCallback<MidiAssignedPan> OnRemovePan { get; set; }
-
-    [Parameter]
     public EventCallback<IReadOnlyList<Guid>> OnPansReordered { get; set; }
 
     private ElementReference assignedPansElement_;
-    private DotNetObjectReference<PansDisplay>? dotNetReference_;
+    private DotNetObjectReference<PansLayout>? dotNetReference_;
     private bool panLayoutObserved_;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -68,6 +67,12 @@
 
         Playback.StateChanged += OnPlaybackStateChangedAsync;
         await InitialiseLayoutAsync();
+    }
+
+    private async Task OnRemovePan(MidiAssignedPan pan)
+    {
+        State.Pending.PanRemoval = pan;
+        await Modals.OpenAsync("RemovePan");
     }
 
     private async Task InitialiseLayoutAsync()

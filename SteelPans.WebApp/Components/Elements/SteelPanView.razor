@@ -24,8 +24,8 @@ else
 @code {
     public string ComponentId => componentId_;
 
-    [Parameter, EditorRequired]
-    public SteelPan? Pan { get; set; }
+    [Parameter]
+    public required SteelPan Pan { get; set; }
 
     [Parameter]
     public string? Class { get; set; }
@@ -40,7 +40,6 @@ else
     private readonly string componentId_ = $"steelpan_{Guid.NewGuid():N}";
     private DotNetObjectReference<SteelPanView>? selfRef_;
     private string panSvg_ = string.Empty;
-    private string svgPath_ = string.Empty;
     private TimeSpan sampleDuration_;
     private CancellationTokenSource? playSelectedCts_;
 
@@ -69,17 +68,7 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        if (Pan is null)
-        {
-            panSvg_ = string.Empty;
-            svgPath_ = string.Empty;
-            return;
-        }
-        
         notesPreloaded_ = false;
-        svgPath_ = $"images/pans/{Pan.Type.ToKebabCase()}.svg";
-
-        await SvgService.PrebuildNoteFragmentsAsync(svgPath_, Pan.Notes);
         await RebuildSvgAsync();
     }
 
@@ -94,7 +83,7 @@ else
         if (firstRender && !string.IsNullOrWhiteSpace(panSvg_))
             await JS.InvokeVoidAsync("steelPan.bindPanElements", componentId_);
             
-        if (!notesPreloaded_ && Pan is not null && await JS.InvokeAsync<bool>("steelPan.hasUserGestureOccurred"))
+        if (!notesPreloaded_ && await JS.InvokeAsync<bool>("steelPan.hasUserGestureOccurred"))
         {
             await JS.InvokeVoidAsync(
                 "steelPan.preloadNotes",
@@ -106,13 +95,7 @@ else
 
     public async Task RebuildSvgAsync()
     {
-        if (Pan is null || string.IsNullOrWhiteSpace(svgPath_))
-        {
-            panSvg_ = string.Empty;
-            return;
-        }
-
-        panSvg_ = await SvgService.BuildPanSvgAsync(svgPath_, componentId_, Pan.Notes);
+        panSvg_ = await SvgService.LoadPanAsync(Pan, componentId_);
     }
 
     public async Task ClearMidiVisualStateAsync()
@@ -128,9 +111,6 @@ else
 
     public async Task ClearSelectionAndMidiVisualStateAsync()
     {
-        if (Pan is null)
-            return;
-
         foreach (var note in Pan.Notes)
         {
             note.Selected = false;
@@ -145,9 +125,6 @@ else
 
     public async Task SelectChordAsync(HashSet<int> pitchClasses)
     {
-        if (Pan is null)
-            return;
-
         playSelectedCts_?.Cancel();
         playSelectedCts_?.Dispose();
         playSelectedCts_ = null;
@@ -166,9 +143,6 @@ else
 
     public async Task PlaySelectedNotesAsync()
     {
-        if (Pan is null)
-            return;
-
         var selectedNotes = Pan.Notes.Where(n => n.Selected).ToArray();
         if (selectedNotes.Length == 0)
             return;

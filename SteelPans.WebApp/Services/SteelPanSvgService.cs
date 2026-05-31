@@ -1,4 +1,6 @@
-﻿using SteelPans.Shared.Music;
+﻿using SteelPans.Shared.Extensions;
+using SteelPans.Shared.Music;
+using System.Collections.Concurrent;
 using System.Text;
 using System.Xml.Linq;
 
@@ -45,63 +47,54 @@ public sealed class SteelPanSvgService
     };
 
     private readonly IWebHostEnvironment env_;
+    private readonly SteelPanLoaderService panLoader_;
 
-    private readonly Dictionary<string, string> fileCache_ = new();
-    private readonly Dictionary<string, XDocument> masterDocCache_ = new();
-    private readonly Dictionary<string, string> skeletonCache_ = new();
+    private IReadOnlyDictionary<string, string> fileCache_ =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+
+    private IReadOnlyDictionary<string, XDocument> masterDocCache_ =
+        new Dictionary<string, XDocument>(StringComparer.Ordinal);
+
+    private IReadOnlyDictionary<string, string> skeletonCache_ =
+        new Dictionary<string, string>(StringComparer.Ordinal);
 
     // key = "{relativePath}|{noteKey}"
     // value = (noteFragmentTemplate, labelFragmentTemplate)
-    private readonly Dictionary<string, (string, string)> noteFragmentCache_ = new();
+    private IReadOnlyDictionary<string, (string NoteFragment, string LabelFragment)> noteFragmentCache_ =
+        new Dictionary<string, (string NoteFragment, string LabelFragment)>(StringComparer.Ordinal);
 
-    public SteelPanSvgService(IWebHostEnvironment env)
+    public SteelPanSvgService(IWebHostEnvironment env, SteelPanLoaderService panLoader)
     {
         env_ = env;
+        panLoader_ = panLoader;
     }
 
-    public async Task PrebuildNoteFragmentsAsync(
-        string relativePath,
-        IEnumerable<PanNote> notes)
+    public async Task InitializeAsync()
     {
-        var masterDoc = await GetMasterDocumentAsync(relativePath);
-        if (masterDoc is null)
-            return;
+        var panBuildInfos = BuildPanBuildInfos();
 
-        _ = GetOrBuildSkeleton(relativePath, masterDoc);
-
-        var noteKeys = notes
-            .Select(n => n.ToString())
-            .Where(k => !string.IsNullOrWhiteSpace(k))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-
-        foreach (var noteKey in noteKeys)
-        {
-            await GetNoteFragmentTemplateAsync(relativePath, noteKey);
-        }
+        fileCache_ = await BuildFileCacheAsync(panBuildInfos);
+        masterDocCache_ = BuildMasterDocumentCache(fileCache_);
+        skeletonCache_ = BuildSkeletonCache(masterDocCache_);
+        noteFragmentCache_ = BuildNoteFragmentCache(panBuildInfos, masterDocCache_);
     }
 
-    public async Task<string> BuildPanSvgAsync(
-        string relativePath,
-        string componentId,
-        IEnumerable<PanNote> notes)
+    public Task<string> LoadPanAsync(SteelPan pan, string componentId)
     {
-        var masterDoc = await GetMasterDocumentAsync(relativePath);
-        if (masterDoc is null)
-            return string.Empty;
+        var relativePath = pan.Type.ToPath();
 
-        var skeleton = GetOrBuildSkeleton(relativePath, masterDoc);
+        var skeleton = GetSkeleton(relativePath);
+        if (string.IsNullOrWhiteSpace(skeleton))
+            return Task.FromResult(string.Empty);
 
         var noteMarkup = new StringBuilder();
         var labelMarkup = new StringBuilder();
 
-        foreach (var note in notes)
+        foreach (var note in pan.Notes)
         {
             var noteKey = note.ToString();
 
-            var (noteTemplate, labelTemplate) = await GetNoteFragmentTemplateAsync(
-                relativePath,
-                noteKey);
+            var (noteTemplate, labelTemplate) = GetNoteFragmentTemplate(relativePath, noteKey);
 
             if (string.IsNullOrWhiteSpace(noteTemplate))
                 continue;
@@ -133,39 +126,169 @@ public sealed class SteelPanSvgService
         if (labelMarkup.Length > 0)
             rebuilt = rebuilt.Replace("</svg>", labelMarkup + "</svg>", StringComparison.Ordinal);
 
-        return rebuilt;
+        return Task.FromResult(rebuilt);
     }
 
-    private async Task<XDocument?> GetMasterDocumentAsync(string relativePath)
+    private List<PanSvgBuildInfo> BuildPanBuildInfos()
     {
-        if (masterDocCache_.TryGetValue(relativePath, out var cached))
-            return new XDocument(cached);
-
-        var svg = await LoadSvgFileAsync(relativePath);
-        if (string.IsNullOrWhiteSpace(svg))
-            return null;
-
-        XDocument doc;
-        try
-        {
-            doc = XDocument.Parse(svg, LoadOptions.PreserveWhitespace);
-        }
-        catch
-        {
-            return null;
-        }
-
-        RewriteRootSvg(doc, "sp-svg");
-
-        masterDocCache_[relativePath] = new XDocument(doc);
-        return new XDocument(doc);
+        return panLoader_.Pans
+            .Select(pan => new PanSvgBuildInfo(
+                pan.Type.ToPath(),
+                pan.Notes
+                    .Select(n => n.ToString())
+                    .Where(k => !string.IsNullOrWhiteSpace(k))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray()))
+            .GroupBy(x => x.RelativePath, StringComparer.Ordinal)
+            .Select(g => new PanSvgBuildInfo(
+                g.Key,
+                g.SelectMany(x => x.NoteKeys)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray()))
+            .ToList();
     }
 
-    private string GetOrBuildSkeleton(string relativePath, XDocument masterDoc)
+    private async Task<IReadOnlyDictionary<string, string>> BuildFileCacheAsync(
+        IReadOnlyList<PanSvgBuildInfo> panBuildInfos)
     {
-        if (skeletonCache_.TryGetValue(relativePath, out var cached))
-            return cached;
+        var cache = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
 
+        var tasks = panBuildInfos.Select(async buildInfo =>
+        {
+            var svg = await LoadSvgFileUncachedAsync(buildInfo.RelativePath);
+
+            if (!string.IsNullOrWhiteSpace(svg))
+                cache[buildInfo.RelativePath] = svg;
+        });
+
+        await Task.WhenAll(tasks);
+
+        return cache.ToDictionary(
+            x => x.Key,
+            x => x.Value,
+            StringComparer.Ordinal);
+    }
+
+    private static IReadOnlyDictionary<string, XDocument> BuildMasterDocumentCache(
+        IReadOnlyDictionary<string, string> fileCache)
+    {
+        var cache = new ConcurrentDictionary<string, XDocument>(StringComparer.Ordinal);
+
+        Parallel.ForEach(fileCache, pair =>
+        {
+            try
+            {
+                var doc = XDocument.Parse(pair.Value, LoadOptions.PreserveWhitespace);
+                RewriteRootSvg(doc, "sp-svg");
+
+                cache[pair.Key] = doc;
+            }
+            catch
+            {
+                // Ignore invalid SVG documents.
+            }
+        });
+
+        return cache.ToDictionary(
+            x => x.Key,
+            x => x.Value,
+            StringComparer.Ordinal);
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildSkeletonCache(
+        IReadOnlyDictionary<string, XDocument> masterDocCache)
+    {
+        var cache = new ConcurrentDictionary<string, string>(StringComparer.Ordinal);
+
+        Parallel.ForEach(masterDocCache, pair =>
+        {
+            var skeleton = BuildSkeleton(pair.Value);
+
+            if (!string.IsNullOrWhiteSpace(skeleton))
+                cache[pair.Key] = skeleton;
+        });
+
+        return cache.ToDictionary(
+            x => x.Key,
+            x => x.Value,
+            StringComparer.Ordinal);
+    }
+
+    private static IReadOnlyDictionary<string, (string NoteFragment, string LabelFragment)> BuildNoteFragmentCache(
+        IReadOnlyList<PanSvgBuildInfo> panBuildInfos,
+        IReadOnlyDictionary<string, XDocument> masterDocCache)
+    {
+        var cache = new ConcurrentDictionary<string, (string NoteFragment, string LabelFragment)>(
+            StringComparer.Ordinal);
+
+        Parallel.ForEach(panBuildInfos, buildInfo =>
+        {
+            if (!masterDocCache.TryGetValue(buildInfo.RelativePath, out var masterDoc) ||
+                masterDoc.Root is null)
+            {
+                return;
+            }
+
+            foreach (var noteKey in buildInfo.NoteKeys)
+            {
+                var noteFragment = ExtractAndRewriteNoteElementTemplate(masterDoc.Root, noteKey);
+                var labelFragment = ExtractAndRewriteLabelElementTemplate(masterDoc.Root, noteKey);
+
+                cache[BuildNoteFragmentCacheKey(buildInfo.RelativePath, noteKey)] =
+                    (noteFragment, labelFragment);
+            }
+        });
+
+        return cache.ToDictionary(
+            x => x.Key,
+            x => x.Value,
+            StringComparer.Ordinal);
+    }
+
+    private string GetSkeleton(string relativePath)
+    {
+        return skeletonCache_.TryGetValue(relativePath, out var skeleton)
+            ? skeleton
+            : string.Empty;
+    }
+
+    private (string NoteFragment, string LabelFragment) GetNoteFragmentTemplate(
+        string relativePath,
+        string noteKey)
+    {
+        return noteFragmentCache_.TryGetValue(BuildNoteFragmentCacheKey(relativePath, noteKey), out var fragments)
+            ? fragments
+            : (string.Empty, string.Empty);
+    }
+
+    private static string BuildNoteFragmentCacheKey(string relativePath, string noteKey)
+    {
+        return $"{relativePath}|{noteKey}";
+    }
+
+    private async Task<string> LoadSvgFileUncachedAsync(string relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+            return string.Empty;
+
+        var fullPath = Path.Combine(
+            env_.WebRootPath,
+            relativePath.Replace('/', Path.DirectorySeparatorChar));
+
+        if (!File.Exists(fullPath))
+            return string.Empty;
+
+        var svg = await File.ReadAllTextAsync(fullPath);
+        return DecodeIllustratorIds(svg);
+    }
+
+    private static string DecodeIllustratorIds(string svg)
+    {
+        return svg.Replace("_x23_", "#", StringComparison.Ordinal);
+    }
+
+    private static string BuildSkeleton(XDocument masterDoc)
+    {
         var skeletonDoc = new XDocument(masterDoc);
         var root = skeletonDoc.Root;
         if (root is null)
@@ -187,58 +310,7 @@ public sealed class SteelPanSvgService
 
         root.Add(new XComment(" NOTE_SHAPES "));
 
-        var result = SerializeDocument(skeletonDoc);
-        skeletonCache_[relativePath] = result;
-        return result;
-    }
-
-    private async Task<(string NoteFragment, string LabelFragment)> GetNoteFragmentTemplateAsync(
-        string relativePath,
-        string noteKey)
-    {
-        var cacheKey = $"{relativePath}|{noteKey}";
-
-        if (noteFragmentCache_.TryGetValue(cacheKey, out var cached))
-            return cached;
-
-        var masterDoc = await GetMasterDocumentAsync(relativePath);
-        if (masterDoc is null || masterDoc.Root is null)
-            return (string.Empty, string.Empty);
-
-        var noteFragment = ExtractAndRewriteNoteElementTemplate(masterDoc.Root, noteKey);
-        var labelFragment = ExtractAndRewriteLabelElementTemplate(masterDoc.Root, noteKey);
-
-        var fragments = (noteFragment, labelFragment);
-        noteFragmentCache_[cacheKey] = fragments;
-        return fragments;
-    }
-
-    private async Task<string> LoadSvgFileAsync(string relativePath)
-    {
-        if (string.IsNullOrWhiteSpace(relativePath))
-            return string.Empty;
-
-        if (fileCache_.TryGetValue(relativePath, out var cached))
-            return cached;
-
-        var fullPath = Path.Combine(
-            env_.WebRootPath,
-            relativePath.Replace('/', Path.DirectorySeparatorChar));
-
-        if (!File.Exists(fullPath))
-            return string.Empty;
-
-        var svg = await File.ReadAllTextAsync(fullPath);
-
-        svg = DecodeIllustratorIds(svg);
-
-        fileCache_[relativePath] = svg;
-        return svg;
-    }
-
-    private static string DecodeIllustratorIds(string svg)
-    {
-        return svg.Replace("_x23_", "#", StringComparison.Ordinal);
+        return SerializeDocument(skeletonDoc);
     }
 
     private static void RewriteRootSvg(XDocument doc, string cssClass)
@@ -302,7 +374,10 @@ public sealed class SteelPanSvgService
                 return !string.IsNullOrWhiteSpace(id) &&
                        id.StartsWith("label-", StringComparison.Ordinal);
             })
-            .Where(e => IsShapeElement(e) || IsTextElement(e) || string.Equals(e.Name.LocalName, "g", StringComparison.OrdinalIgnoreCase));
+            .Where(e =>
+                IsShapeElement(e) ||
+                IsTextElement(e) ||
+                string.Equals(e.Name.LocalName, "g", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string ExtractAndRewriteNoteElementTemplate(
@@ -347,7 +422,8 @@ public sealed class SteelPanSvgService
                 .Descendants()
                 .FirstOrDefault(e =>
                     string.Equals((string?)e.Attribute("id"), noteId, StringComparison.Ordinal) &&
-                    (IsShapeElement(e) || string.Equals(e.Name.LocalName, "g", StringComparison.OrdinalIgnoreCase)));
+                    (IsShapeElement(e) ||
+                     string.Equals(e.Name.LocalName, "g", StringComparison.OrdinalIgnoreCase)));
 
             if (source is not null)
                 return source;
@@ -366,7 +442,9 @@ public sealed class SteelPanSvgService
                 .Descendants()
                 .FirstOrDefault(e =>
                     string.Equals((string?)e.Attribute("id"), labelId, StringComparison.Ordinal) &&
-                    (IsShapeElement(e) || IsTextElement(e) || string.Equals(e.Name.LocalName, "g", StringComparison.OrdinalIgnoreCase)));
+                    (IsShapeElement(e) ||
+                     IsTextElement(e) ||
+                     string.Equals(e.Name.LocalName, "g", StringComparison.OrdinalIgnoreCase)));
 
             if (source is not null)
                 return source;
@@ -433,7 +511,6 @@ public sealed class SteelPanSvgService
         element.SetAttributeValue("data-pan-component", "__COMPONENT_ID__");
         element.SetAttributeValue("data-pan-note", "__NOTE_KEY__");
         element.SetAttributeValue("onpointerdown", "__NOTE_CLICK__");
-        EnsureStyleContains(element, "cursor:pointer;");
 
         if (IsShapeElement(element))
         {
@@ -522,27 +599,6 @@ public sealed class SteelPanSvgService
         element.SetAttributeValue("class", string.Join(" ", classes));
     }
 
-    private static void AddClass(XElement element, string className)
-    {
-        var existingAllowed = ((string?)element.Attribute("class") ?? string.Empty)
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(AllowedSvgClasses.Contains)
-            .Where(c => !string.Equals(c, className, StringComparison.Ordinal));
-
-        SetOnlyClasses(element, existingAllowed.Append(className).ToArray());
-    }
-
-    private static void RemoveClass(XElement element, string className)
-    {
-        var existingAllowed = ((string?)element.Attribute("class") ?? string.Empty)
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Where(AllowedSvgClasses.Contains)
-            .Where(c => !string.Equals(c, className, StringComparison.Ordinal))
-            .ToArray();
-
-        SetOnlyClasses(element, existingAllowed);
-    }
-
     private static void RemoveLegacyClasses(XElement element)
     {
         var existingAllowed = ((string?)element.Attribute("class") ?? string.Empty)
@@ -551,21 +607,6 @@ public sealed class SteelPanSvgService
             .ToArray();
 
         SetOnlyClasses(element, existingAllowed);
-    }
-
-    private static void EnsureStyleContains(XElement element, string declaration)
-    {
-        var style = ((string?)element.Attribute("style"))?.Trim() ?? string.Empty;
-
-        if (!style.Contains("cursor:", StringComparison.OrdinalIgnoreCase))
-        {
-            if (style.Length > 0 && !style.EndsWith(';'))
-                style += ";";
-
-            style += declaration;
-        }
-
-        element.SetAttributeValue("style", style);
     }
 
     private static string BindNoteFragmentToComponent(
@@ -639,4 +680,8 @@ public sealed class SteelPanSvgService
     {
         return element.ToString(SaveOptions.DisableFormatting);
     }
+
+    private sealed record PanSvgBuildInfo(
+        string RelativePath,
+        IReadOnlyList<string> NoteKeys);
 }

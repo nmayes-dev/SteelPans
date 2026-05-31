@@ -16,7 +16,7 @@ public sealed record DownloadFileRequest(
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -30,12 +30,14 @@ public class Program
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
 
-        builder.Services.AddSingleton<SteelPanLoader>();
+        builder.Services.AddSingleton<SteelPanLoaderService>();
         builder.Services.AddSingleton<SteelPanSvgService>();
         builder.Services.AddScoped<MidiLoaderService>();
         builder.Services.AddScoped<MidiPlaybackService>();
         builder.Services.AddScoped<OverlayManagerService>();
+        builder.Services.AddScoped<ModalPopupService>();
         builder.Services.AddScoped<KeyboardManagerService>();
+        builder.Services.AddScoped<InstanceStateService>();
 
         builder.Services.Configure<Settings>(builder.Configuration.GetSection("Settings"));
 
@@ -90,6 +92,9 @@ public class Program
                 enableRangeProcessing: false);
         });
 
-        app.Run();
+        await app.Services.GetRequiredService<SteelPanLoaderService>().InitializeAsync();
+        await app.Services.GetRequiredService<SteelPanSvgService>().InitializeAsync();
+
+        await app.RunAsync();
     }
 }

@@ -27,15 +27,17 @@ public abstract class OverlayComponentBase : ComponentBase, IDisposable
 
         IsOpen = true;
         await Registry.OnOpenComponentAsync(this, closeOthers);
+        await InvokeAsync(StateHasChanged);
     }
 
-    public Task RequestCloseAsync()
+    public async Task RequestCloseAsync()
     {
         if (!IsOpen)
-            return Task.CompletedTask;
+            return;
 
         IsOpen = false;
-        return InvokeAsync(OnCloseAsync);
+        await OnCloseAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     protected abstract Task OnCloseAsync();

@@ -1,0 +1,114 @@
+﻿@inject MidiPlaybackService Playback
+@inject IOptions<Settings> SettingsAccessor
+@inject InstanceStateService State
+@inject IJSRuntime JS
+
+<ModalPopup @ref="modal_"
+            Id="SaveLayout"
+            Title="Save"
+            OnOpen="OnOpenAsync"
+            CloseButton="Cancel"
+            OnClose="OnCloseAsync"
+            ConfirmButton="Save"
+            OnConfirm="OnConfirmAsync">
+    <ChildContent>
+        <div class="file-save__body">
+            <input class="form-control"
+                   value="@fileName_"
+                   @oninput="OnFileNameChanged"
+                   placeholder="settings.pans" />
+
+            @if (!string.IsNullOrWhiteSpace(error_))
+            {
+                <div class="file-save__error">@error_</div>
+            }
+        </div>
+    </ChildContent>
+</ModalPopup>
+
+@code {
+    private const string DefaultFileName = "layout.pans";
+    private const string RequiredExtension = ".pans";
+
+    private ModalPopup? modal_;
+    private string fileName_ = DefaultFileName;
+    private string? error_;
+        
+    private Settings Settings => SettingsAccessor.Value;
+
+    private bool CanSave =>
+        !string.IsNullOrWhiteSpace(fileName_);
+
+    private async Task OnOpenAsync()
+    {
+        fileName_ = string.IsNullOrWhiteSpace(State.User.CurrentLayout)
+            ? DefaultFileName
+            : State.User.CurrentLayout;
+
+        error_ = null;
+    }
+
+    private async Task OnCloseAsync()
+    {
+        error_ = null;
+    }
+
+    private async Task OnConfirmAsync()
+    {
+        var fileName = fileName_.Trim();
+
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            error_ = "Enter a file name.";
+            return;
+        }
+
+        if (!fileName.EndsWith(RequiredExtension, StringComparison.OrdinalIgnoreCase))
+            fileName += RequiredExtension;
+
+        await SaveConfigurationFileAsync(fileName);
+    }
+
+    
+
+    private async Task SaveConfigurationFileAsync(string fileName)
+    {
+        var configuration = new Configuration
+        {
+            Version = Settings.Version,
+            MidiFile = Playback.MidiFileName,
+            Layout = Playback.Assignments.Select(a => new ConfigurationPan
+            {
+                Pan = a.AssignedPanType,
+                Track = a.Track?.Index ?? -1,
+            }).ToList()
+        };
+
+        try
+        {
+            var json = JsonSerializer.Serialize(configuration, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+
+            await JS.InvokeVoidAsync(
+                "fileHandling.submitDownloadForm",
+                "/api/download",
+                fileName,
+                json,
+                "application/json;charset=utf-8");
+
+            State.User.CurrentLayout = fileName;
+        }
+        catch (Exception)
+        {
+            error_ = "An error_ occurred saving this file.";
+        }
+    }
+
+    private void OnFileNameChanged(ChangeEventArgs e)
+    {
+        fileName_ = e.Value?.ToString() ?? string.Empty;
+        error_ = null;
+    }
+}

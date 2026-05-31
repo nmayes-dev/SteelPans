@@ -339,23 +339,11 @@ h4 {
 
 .sp-label {
     pointer-events: none;
-    transition: fill 80ms ease, transform 80ms ease;
     fill: #000000;
 }
-
-.sp-label--on {
-    fill: #ffffff !important;
-}
-
 .sp-note {
-    cursor: pointer;
-    transition: fill 50ms ease, transform 50ms ease;
     touch-action: none;
     fill: #ffffff;
-}
-
-.sp-note--on {
-    fill: #e2201c !important;
 }
 
 @media (hover: hover) and (pointer: fine) {

@@ -1,10 +1,9 @@
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
-<ModalPopup @ref="modal_"
+<ModalPopup Id="Logout"
             Title="Logout"
-            OnClose="CloseAsync"
-            OnEnter="SubmitAsync">
+            OnConfirm="SubmitAsync">
     <ChildContent>
         <div class="account-card__header">
             <p class="account-card__subtitle">End this session on the current device.</p>
@@ -26,7 +25,6 @@
 </ModalPopup>
 
 @code {
-    private ModalPopup? modal_;
     private ElementReference form_;
 
     private string CurrentPath
@@ -41,15 +39,6 @@
         }
     }
 
-    public async Task OpenAsync()
-    {
-        await modal_!.OpenAsync();
-    }
-
-    public async Task CloseAsync()
-    {
-        await modal_!.RequestCloseAsync();
-    }
 
     public async Task SubmitAsync()
     {

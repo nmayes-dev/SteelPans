@@ -1,0 +1,66 @@
+﻿@inject MidiLoaderService MidiService
+@inject MidiPlaybackService Playback
+@inject InstanceStateService State
+
+<ModalPopup Id="MergeMidiFiles"
+            Title="Merge MIDI tracks"
+            CloseButton="Cancel"
+            OnClose="CloseMergeMidiModal"
+            ConfirmButton="Merge"
+            OnConfirm="ConfirmMergeMidiAsync">
+    <ChildContent>
+        <input class="pans-page__track_name form-control"
+               placeholder="Enter merged track name..."
+               @bind="mergeMidiFileName_"
+               @bind:event="oninput" />
+    </ChildContent>
+</ModalPopup>
+
+@code {
+    private string mergeMidiFileName_ = string.Empty;
+
+
+    private Task CloseMergeMidiModal()
+    {
+        mergeMidiFileName_ = string.Empty;
+        State.Pending.MergeMidiFiles = [];
+        return Task.CompletedTask;
+    }
+
+    
+    private async Task ConfirmMergeMidiAsync()
+    {
+        if (State.Pending.MergeMidiFiles.Count == 0)
+            return;
+
+        var midiFileName = $"{mergeMidiFileName_.Trim()}.mid";
+
+        var loadTracks = async () =>
+        {
+            var files = new List<(string Name, Stream Stream)>();
+
+            try
+            {
+                foreach (var file in State.Pending.MergeMidiFiles)
+                {
+                    if (file.File is null)
+                        continue;
+
+                    var stream = file.File.OpenReadStream(State.MaxMidiFileSize);
+                    files.Add((file.Name, stream));
+                }
+
+                return (midiFileName, await MidiService.MergeMidiTracksAsync(midiFileName, files));
+            }
+            finally
+            {
+                foreach (var (_, stream) in files)
+                {
+                    await stream.DisposeAsync();
+                }
+            }
+        };
+        
+        await Playback.OnLoadMidiAsync(loadTracks);
+    }
+}

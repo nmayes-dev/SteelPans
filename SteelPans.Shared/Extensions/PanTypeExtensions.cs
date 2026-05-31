@@ -17,8 +17,7 @@ public static class EnumExtensions
         return splitKebab_.Replace(name, "$1-$2").ToLowerInvariant();
     }
 
-    public static string ToSpacedPascal(this Enum value)
-    {
-        return splitPascal_.Replace(value.ToString(), " $1");
-    }
+    public static string ToSpacedPascal(this PanType value) => splitPascal_.Replace(value.ToString(), " $1");
+
+    public static string ToPath(this PanType value) => $"images/pans/{value.ToKebabCase()}.svg";
 }

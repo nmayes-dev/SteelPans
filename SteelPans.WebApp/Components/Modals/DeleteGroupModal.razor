@@ -1,0 +1,47 @@
+﻿@inject InstanceStateService State
+@inject DbService Db
+
+<ModalPopup Id="DeleteGroup"
+            Title="@title_"
+            OnOpen="OnOpen"
+            CloseButton="Cancel"
+            OnClose="OnClose"
+            ConfirmButton="Delete"
+            ConfirmButtonClass="btn-danger"
+            OnConfirm="OnConfirmAsync">
+    <ChildContent>
+        <div class="leader-form">
+            <p class="leader-alert leader-alert--error">
+                This cannot be undone. Members and invite links for this group will no longer be usable.
+            </p>
+        </div>
+    </ChildContent>
+</ModalPopup>
+
+@code {
+    private string title_ = string.Empty;
+
+    private void OnOpen()
+    {
+        title_ = $"Delete {(State.Pending.DeleteGroup?.Name ?? "This Group")}?";
+    }
+
+    private void OnClose()
+    {
+        State.Pending.DeleteGroup = null;
+    }
+
+    private async Task OnConfirmAsync()
+    {
+        if (State.Pending.DeleteGroup is null)
+            return;
+
+        await State.Task.RunSafe(async () =>
+        {
+            await Db.Groups.DeleteGroupAsync(State.Pending.DeleteGroup.Id);
+
+            await State.User.RefreshAsync();
+            return "Group deleted.";
+        });
+    }
+}

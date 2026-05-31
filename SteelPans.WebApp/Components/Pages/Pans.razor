@@ -1,17 +1,18 @@
 @page "/pans"
-@inject SteelPanLoader PanLoader
+@inject SteelPanLoaderService PanLoader
 @inject MidiLoaderService MidiService
 @inject MidiPlaybackService Playback
 @inject NavigationManager Nav
+@inject InstanceStateService State
 @inject IJSRuntime JS
 @inject IOptions<Settings> SettingsAccessor
 
 <PageTitle>Practice</PageTitle>
 
 <div class="pans-page">
-    @if (!string.IsNullOrWhiteSpace(loadError_))
+    @if (!string.IsNullOrWhiteSpace(State.Task.Error))
     {
-        <div class="alert alert-danger">@loadError_</div>
+        <div class="alert alert-danger">@State.Task.Error</div>
     }
     else if (Playback.AvailablePans.Count > 0)
     {
@@ -28,7 +29,7 @@
 
 
         <section class="pans-page__content">
-            <PansDisplay Pans="@Playback.ActivePans" />
+            <PansLayout Pans="@Playback.ActivePans" />
         </section>
     }
 </div>

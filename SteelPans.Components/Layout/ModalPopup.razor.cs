@@ -1,10 +1,17 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using SteelPans.Components.Services;
 
 namespace SteelPans.Components.Layout;
 
-public partial class ModalPopup
+public partial class ModalPopup : OverlayComponentBase
 {
+    [Inject]
+    private ModalPopupService Modals { get; set; } = default!;
+
+    [Parameter]
+    public required string Id { get; set; }
+
     [Parameter]
     public string Title { get; set; } = string.Empty;
 
@@ -27,13 +34,31 @@ public partial class ModalPopup
     public RenderFragment? ChildContent { get; set; }
 
     [Parameter]
-    public RenderFragment? Actions { get; set; }
+    public RenderFragment? Buttons { get; set; }
 
     [Parameter]
-    public EventCallback OnEnter { get; set; }
+    public string? CloseButton { get; set; }
+
+    [Parameter]
+    public string? CloseButtonClass { get; set; }
+
+    [Parameter]
+    public string? ConfirmButton { get; set; }
+
+    [Parameter]
+    public string? ConfirmButtonClass { get; set; }
+
+    [Parameter]
+    public EventCallback OnOpen { get; set; }
+
+    [Parameter]
+    public EventCallback OnConfirm { get; set; }
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    [Parameter]
+    public Func<Task<bool>> CanOpen { get; set; } = async () => true;
 
     private bool isOpen_;
     private bool focusOnRender_;
@@ -70,6 +95,11 @@ public partial class ModalPopup
 
     protected override void OnInitialized()
     {
+        if (Buttons is null && CloseButton is null && ConfirmButton is null && !ShowCloseButton && CloseOnBackdropClick)
+        {
+            throw new InvalidOperationException("This modal will be unable to close");
+        }
+
         keyCallbacks_.Add(
             Keyboard.Register(
                 e => isOpen_ && e.Key == "Escape" && !e.IsEditableTarget,
@@ -78,8 +108,11 @@ public partial class ModalPopup
         keyCallbacks_.Add(
                 Keyboard.Register(
                     e => isOpen_ && e.Key == "Enter" && !e.IsEditableTarget,
-                    async _ => await OnEnter.InvokeAsync()));
+                    async _ => await ConfirmAsync()));
 
+        Modals.Register(Id, this);
+
+        base.OnInitialized();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -97,8 +130,15 @@ public partial class ModalPopup
         focusOnRender_ = true;
         ResetDrag();
 
+        await OnOpen.InvokeAsync();
         await NotifyOpenedAsync(closeOthers);
         await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task ConfirmAsync()
+    {
+        await OnConfirm.InvokeAsync();
+        await OnCloseAsync();
     }
 
     protected override async Task OnCloseAsync()
@@ -162,6 +202,8 @@ public partial class ModalPopup
 
     public override void Dispose()
     {
+        Modals.Unregister(Id, this);
+
         foreach (var registration in keyCallbacks_)
             registration.Dispose();
 

@@ -1,7 +1,9 @@
 ﻿@inject MidiPlaybackService Playback
 @inject MidiLoaderService MidiService
 @inject NavigationManager Nav
+@inject ModalPopupService Modals
 @inject DbService Db
+@inject InstanceStateService State
 @inject IOptions<Settings> SettingsAccessor
 @inject IJSRuntime JS
 
@@ -20,7 +22,7 @@
                                     OnClick="NavigateToProfile" />
                     <ToolbarElement Text="Logout"
                                     IconClass="bi-box-arrow-right"
-                                    OnClick="() => logoutModal_!.OpenAsync()" />
+                                    OnClick="OpenLogoutAsync" />
                 </Authorized>
                 <NotAuthorized>
                     <ToolbarElement Text="Login"
@@ -48,12 +50,12 @@
 
             <AuthorizeView>
                 <Authorized>
-                    @if (groups_ is not null && groups_.Any(x => x.Value.Count > 0))
+                    @if (Groups is not null && Groups.Any(x => x.Value.Count > 0))
                     {
                         <ToolbarElement Text="Ensemble"
                                         IconClass="bi-collection">
                             <SubMenu>
-                                @foreach (var (group, files) in groups_.Where(x => x.Value.Count > 0))
+                                @foreach (var (group, files) in Groups.Where(x => x.Value.Count > 0))
                                 {
                                     <ToolbarElement Text="@group.Name"
                                                     IconClass="bi-people">
@@ -136,7 +138,7 @@
             <SubMenu>
                 <ToolbarElement Text="Add Pan"
                                 IconClass="bi-plus-lg"
-                                OnClick="() => addPanModal_!.Open()" />
+                                OnClick="() => OpenAddPanAsync(closeOthers: true)" />
 
                 <ToolbarElement Text="Load"
                                 IconClass="bi-folder2-open"
@@ -150,13 +152,13 @@
 
                 <ToolbarElement Text="Save"
                                 IconClass="bi-floppy"
-                                Disabled="@(string.IsNullOrWhiteSpace(lastFileName_) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                OnClick="() => SaveConfigurationFileAsync(lastFileName_!)" />
+                                Disabled="@(string.IsNullOrWhiteSpace(State.User.CurrentLayout) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
+                                OnClick="() => SaveConfigurationFileAsync()" />
 
                 <ToolbarElement Text="Save As..."
                                 IconClass="bi-floppy2"
                                 Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                OnClick="() => saveModal_!.Open()" />
+                                OnClick="OpenSaveLayoutAsync" />
             </SubMenu>
         </ToolbarElement>
     }
@@ -206,148 +208,46 @@
     }
 </Toolbar>
 
-<AddPanModal @ref="addPanModal_"/>
-             
-<Logout @ref="logoutModal_" />
-
-
-<FileSaveModal @ref="saveModal_"
-               LastFileName="@lastFileName_"
-               OnSave="SaveConfigurationFileAsync" />
-
-               
-<ModalPopup @ref="warningModal_"
-            Title="Loading Layout For Different MIDI"
-            ShowCloseButton="false"
-            OnEnter="ConfirmLoadConfigurationAsync">
-    <Actions>
-        <button type="button"
-                class="btn btn-outline-secondary"
-                @onclick="CancelLoadConfigurationAsync">
-            Cancel
-        </button>
-
-        <button type="button"
-                class="btn btn-danger"
-                @onclick="ConfirmLoadConfigurationAsync">
-            Confirm
-        </button>
-    </Actions>
-</ModalPopup>
-
-
-
-<ModalPopup @ref="addMergedTrackModal_"
-            Title="Merge MIDI tracks"
-            OnClose="CloseMergeMidiModal"
-            OnEnter="ConfirmMergeMidiAsync">
-    <ChildContent>
-        <input class="pans-page__track_name form-control"
-               placeholder="Enter merged track name..."
-               @bind="mergeMidiFileName_"
-               @bind:event="oninput" />
-    </ChildContent>
-
-    <Actions>
-        <button type="button"
-                class="btn btn-outline-secondary"
-                @onclick="CloseMergeMidiModal">
-            Cancel
-        </button>
-
-        <button type="button"
-                class="btn btn-primary"
-                disabled="@string.IsNullOrWhiteSpace(mergeMidiFileName_)"
-                @onclick="ConfirmMergeMidiAsync">
-            Merge
-        </button>
-    </Actions>
-</ModalPopup>
-
-@{
-    var removeTitle = panPendingRemoval_ is not null
-        ? $"Remove {panPendingRemoval_.Pan.Type.ToSpacedPascal()}?"
-        : "Remove Pan?";
-
-    <ModalPopup @ref="removePanModal_"
-                Title="@removeTitle"
-                ShowCloseButton="false"
-                OnEnter="ConfirmRemovePanAsync">
-        <Actions>
-            <button type="button"
-                    class="btn btn-outline-secondary"
-                    @onclick="CloseRemovePanModal">
-                Cancel
-            </button>
-
-            <button type="button"
-                    class="btn btn-danger"
-                    disabled="@(panPendingRemoval_ is null)"
-                    @onclick="ConfirmRemovePanAsync">
-                Remove
-            </button>
-        </Actions>
-    </ModalPopup>
-}
-
-
-@code {
+    @code {
     private Toolbar? toolbar_;
-
-    private string midiFileName_ = string.Empty;
-    private string? error_;
-
-    private IReadOnlyDictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>>? groups_;
-
-    private const long MaxMidiFileSize = 64L * 1024L * 1024L;
 
     private Settings Settings => SettingsAccessor.Value;
 
-    private AddPanModal? addPanModal_;
-    private Logout? logoutModal_;
-
-    private string? lastFileName_;
-    private FileSaveModal? saveModal_;
-
-    private ModalPopup? warningModal_;
-    private Configuration? pendingLoadConfiguration_;
-
-    private ModalPopup? removePanModal_;
-    private MidiAssignedPan? panPendingRemoval_;
-
-    private ModalPopup? addMergedTrackModal_;
-    private string mergeMidiFileName_ = string.Empty;
-    private IReadOnlyList<BrowserDialogFile> pendingMergeMidiFiles_ = [];
+    private IReadOnlyDictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>> Groups => State.User.Groups
+        .ToDictionary(
+            x => x,
+            x => State.User.GroupFiles[x.Id]
+        );
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            groups_ = await Db.Groups.GetAllGroupFilesAsync();
-        }
-        catch (Exception)
-        {
-            Console.WriteLine("No user");
-        }
+        await State.User.RefreshAsync();
     }
 
-    public async Task OpenRemovePanModalAsync(MidiAssignedPan pan)
+
+    private async Task OpenLogoutAsync()
     {
-        if (removePanModal_ is null)
-            return;
-
-        panPendingRemoval_ = pan;
-        await removePanModal_.OpenAsync();
+        await Modals.OpenAsync("Logout");
     }
-
-
-
-    private sealed class BrowserDialogFile
+    private async Task OpenAddPanAsync(bool closeOthers)
     {
-        public string Name { get; set; } = string.Empty;
-        public long Size { get; set; }
-        public IBrowserFile? File { get; set; }
+        await Modals.OpenAsync("AddPan", closeOthers);
     }
+    private async Task OpenSaveLayoutAsync()
+    {
+        await Modals.OpenAsync("SaveLayout");
+    }
+    private async Task OpenConfigConflictAsync(Configuration config)
+    {
+        State.Pending.Configuration = config;
+        await Modals.OpenAsync("ConfigConflict");
+    }
+    private async Task OpenRemovePanAsync(MidiTrackInfo track)
+    {
+        State.Pending.PanRemoval = Playback.ActivePans.First(a => a.Assignment.Track?.Index == track.Index);
+        await Modals.OpenAsync("RemovePan");
+    }
+
 
 
 
@@ -366,12 +266,11 @@
 
 
 
+
     private async Task OnLoadConfigurationFileAsync(InputFileChangeEventArgs e)
     {
-        try
+        await State.Task.RunUnsafe(async () =>
         {
-            error_ = string.Empty;
-
             var file = e.File;
 
             await using var stream = file.OpenReadStream(
@@ -380,77 +279,33 @@
             var result = await JsonSerializer.DeserializeAsync<Configuration>(
                 stream,
                 new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
+                    {
+                        PropertyNameCaseInsensitive = true
+                    });
 
             if (result is null)
                 return;
 
             if (result.Version != Settings.LayoutFileVersion)
+                throw new InvalidOperationException("Incompatible layout file version.");
+
+            if (!string.Equals(result.MidiFile, Playback.MidiFileName, StringComparison.OrdinalIgnoreCase))
             {
-                error_ = "Incompatible layout file version.";
+                await OpenConfigConflictAsync(result);
                 return;
             }
 
-            if (!string.Equals(result.MidiFile, midiFileName_, StringComparison.OrdinalIgnoreCase))
-            {
-                pendingLoadConfiguration_ = result;
-                await warningModal_!.OpenAsync();
-                return;
-            }
-
-            await LoadPanLayoutAsync(result.Layout);
-        }
-        catch (Exception)
-        {
-            error_ = "An error_ occurred loading this file.";
-        }
-    }
-
-    private async Task CancelLoadConfigurationAsync()
-    {
-        pendingLoadConfiguration_ = null;
-        await warningModal_!.RequestCloseAsync();
-    }
-
-    private async Task ConfirmLoadConfigurationAsync()
-    {
-        if (pendingLoadConfiguration_ is null)
-            return;
-
-        await warningModal_!.RequestCloseAsync();
-        await LoadPanLayoutAsync(pendingLoadConfiguration_.Layout);
-        pendingLoadConfiguration_ = null;
-    }
-
-    private async Task LoadPanLayoutAsync(List<ConfigurationPan> layout)
-    {
-        await Playback.OnClearAssignmentsAsync();
-
-        foreach (var pan in layout)
-        {
-            var track = Playback.Tracks.Where(t => t.Index == pan.Track).FirstOrDefault();
-            if (track is not null)
-            {
-                var assignment = new MidiTrackAssignment
-                {
-                    AssignedPanType = pan.Pan,
-                    Track = track,
-                };
-
-                await Playback.OnAddAssignmentAsync(assignment);
-            }
-        }
+            await Playback.LoadPanLayoutAsync(result.Layout);
+        });
     }
 
 
-    private async Task SaveConfigurationFileAsync(string fileName)
+    private async Task SaveConfigurationFileAsync()
     {
         var configuration = new Configuration
         {
             Version = Settings.Version,
-            MidiFile = midiFileName_,
+            MidiFile = Playback.MidiFileName,
             Layout = Playback.Assignments.Select(a => new ConfigurationPan
             {
                 Pan = a.AssignedPanType,
@@ -458,7 +313,7 @@
             }).ToList()
         };
 
-        try
+        await State.Task.RunUnsafe(async () =>
         {
             var json = JsonSerializer.Serialize(configuration, new JsonSerializerOptions
             {
@@ -468,79 +323,38 @@
             await JS.InvokeVoidAsync(
                 "fileHandling.submitDownloadForm",
                 "/api/download",
-                fileName,
+                State.User.CurrentLayout,
                 json,
                 "application/json;charset=utf-8");
-
-            lastFileName_ = fileName;
-        }
-        catch (Exception)
-        {
-            error_ = "An error_ occurred saving this file.";
-        }
+        });
     }
 
 
-
-    private async Task CloseRemovePanModal()
-    {
-        if (removePanModal_ is null)
-            return;
-
-        panPendingRemoval_ = null;
-        await removePanModal_.RequestCloseAsync();
-    }
-
-    private async Task ConfirmRemovePanAsync()
-    {
-        if (panPendingRemoval_ is null)
-            return;
-
-        var index = panPendingRemoval_.Assignment.Track?.Index ?? -1;
-
-        await CloseRemovePanModal();
-        await Playback.OnRemoveAssignmentAsync(index);
-    }
 
     private async Task OnTrackButtonPressedAsync(MidiTrackInfo track)
     {
         if (IsTrackAssigned(track))
         {
-            if (removePanModal_ is null)
-            {
-                await Playback.OnRemoveAssignmentAsync(track.Index);
-                return;
-            }
-
-            panPendingRemoval_ = Playback.ActivePans.First(a => a.Assignment.Track?.Index == track.Index);
-            await removePanModal_.OpenAsync(closeOthers: false);
+            await OpenRemovePanAsync(track);
             return;
 
         }
 
-        if (addPanModal_ is not null)
-            await addPanModal_.Open(track.Index);
+        await OpenAddPanAsync(closeOthers: false);
     }
 
-
-    private async Task OnMidiFileSelected(Func<Task<MidiFile>> getMidiFile)
-    {
-        await Playback.OnLoadMidiAsync(getMidiFile);
-    }
 
     private async Task OnMidiFilesChangedAsync(InputFileChangeEventArgs e)
     {
-        try
+        await State.Task.RunUnsafe(async () =>
         {
-            error_ = string.Empty;
-
             var files = e.GetMultipleFiles()
-                .Select(file => new BrowserDialogFile
-                {
-                    Name = file.Name,
-                    Size = file.Size,
-                    File = file
-                })
+                .Select(file => new DialogFile
+                    {
+                        Name = file.Name,
+                        Size = file.Size,
+                        File = file
+                    })
                 .ToList();
 
             if (files.Count == 0)
@@ -553,118 +367,47 @@
             }
 
             await OnMultipleMidiSelectedAsync(files);
-        }
-        catch (Exception)
-        {
-            error_ = "An error_ occurred loading this MIDI file.";
-        }
+        });
     }
 
 
-    private Task CloseMergeMidiModal()
+    private async Task OnMultipleMidiSelectedAsync(IReadOnlyList<DialogFile> files)
     {
-        mergeMidiFileName_ = string.Empty;
-        pendingMergeMidiFiles_ = [];
-        return Task.CompletedTask;
+        State.Pending.MergeMidiFiles = files;
+        await Modals.OpenAsync("MergeMidiFiles");
     }
 
-    private async Task ConfirmMergeMidiAsync()
-    {
-        if (pendingMergeMidiFiles_.Count == 0 || addMergedTrackModal_ is null)
-            return;
-
-        midiFileName_ = $"{mergeMidiFileName_.Trim()}.mid";
-
-        var loadTracks = async () =>
-        {
-            var files = new List<(string Name, Stream Stream)>();
-
-            try
-            {
-                foreach (var file in pendingMergeMidiFiles_)
-                {
-                    if (file.File is null)
-                        continue;
-
-                    var stream = file.File.OpenReadStream(MaxMidiFileSize);
-                    files.Add((file.Name, stream));
-                }
-
-                return await MidiService.MergeMidiTracksAsync(midiFileName_, files);
-            }
-            finally
-            {
-                foreach (var (_, stream) in files)
-                {
-                    await stream.DisposeAsync();
-                }
-            }
-        };
-
-        await OnMidiFileSelected(loadTracks);
-        await addMergedTrackModal_.RequestCloseAsync();
-
-        pendingMergeMidiFiles_ = [];
-        mergeMidiFileName_ = string.Empty;
-    }
-
-    private async Task OnMultipleMidiSelectedAsync(IReadOnlyList<BrowserDialogFile> files)
-    {
-        if (addMergedTrackModal_ is null)
-            return;
-
-        pendingMergeMidiFiles_ = files;
-        await addMergedTrackModal_.OpenAsync();
-    }
-
-    private async Task OnSingleMidiSelectedAsync(BrowserDialogFile file)
+    private async Task OnSingleMidiSelectedAsync(DialogFile file)
     {
         if (file.File is null)
             return;
 
-        midiFileName_ = file.Name;
-        await OnMidiFileSelected(async () =>
+        await Playback.OnLoadMidiAsync(async () =>
         {
-            await using var stream = file.File.OpenReadStream(MaxMidiFileSize);
-            return await MidiService.OpenMidiFileAsync(stream);
+            await using var stream = file.File.OpenReadStream(State.MaxMidiFileSize);
+            return (file.Name, await MidiService.OpenMidiFileAsync(stream));
         });
     }
 
     private async Task LoadLeaderMidiFileAsync(GroupFileDto file)
     {
-        error_ = string.Empty;
-
-        try
+        await State.Task.RunUnsafe(async () =>
         {
             var details = await Db.MidiFiles.GetMidiFileDetailsAsync(file.Id);
             var download = await Db.MidiFiles.OpenMidiFileAsync(file.Id);
 
             if (details is null || download is null)
+                throw new FileNotFoundException("MIDI file was not found.");
+
+            await Playback.OnLoadMidiAsync(async () =>
             {
-                error_ = "MIDI file was not found.";
-                return;
-            }
-
-            await using var stream = download.Stream;
-
-            midiFileName_ = download.FileName;
-
-            await OnMidiFileSelected(async () =>
-            {
-                return await MidiService.OpenMidiFileAsync(stream);
+                await using var stream = download.Stream;
+                return (download.FileName, await MidiService.OpenMidiFileAsync(stream));
             });
-            
+
             await toolbar_!.RequestCloseAsync();
             await LoadLeaderAssignmentsAsync(details.Assignments);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            error_ = "You do not have access to this MIDI file.";
-        }
-        catch (Exception)
-        {
-            error_ = "An error_ occurred loading this group MIDI file.";
-        }
+        });
     }
 
     private async Task LoadLeaderAssignmentsAsync(

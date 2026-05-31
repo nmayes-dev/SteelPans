@@ -1,0 +1,26 @@
+﻿@inject InstanceStateService State
+@inject MidiPlaybackService Playback
+               
+<ModalPopup Id="ConfigConflict"
+            Title="Loading Layout For Different MIDI"
+            ShowCloseButton="false"
+            CloseButton="Cancel"
+            OnClose="CancelLoadConfigurationAsync"
+            ConfirmButton="Confirm"
+            ConfirmButtonClass="btn-danger"
+            OnConfirm="ConfirmLoadConfigurationAsync" />
+
+@code {
+    private async Task CancelLoadConfigurationAsync()
+    {
+        State.Pending.Configuration = null;
+    }
+
+    private async Task ConfirmLoadConfigurationAsync()
+    {
+        if (State.Pending.Configuration is null)
+            return;
+
+        await Playback.LoadPanLayoutAsync(State.Pending.Configuration.Layout);
+    }
+}
