@@ -131,15 +131,15 @@
             }
         </SubMenu>
     </ToolbarElement>
-
-    @if (Playback.IsMidiLoaded)
-    {
-        <ToolbarElement Text="Layout">
-            <SubMenu>
-                <ToolbarElement Text="Add Pan"
-                                IconClass="bi-plus-lg"
-                                OnClick="() => OpenAddPanAsync(closeOthers: true)" />
-
+    
+    <ToolbarElement Text="Layout">
+        <SubMenu>
+            <ToolbarElement Text="Add Pan"
+                            IconClass="bi-plus-lg"
+                            OnClick="() => OpenAddPanAsync(closeOthers: true)" />
+                            
+            @if (Playback.IsMidiLoaded)
+            {
                 <ToolbarElement Text="Load"
                                 IconClass="bi-folder2-open"
                                 Disabled="!Playback.IsMidiLoaded"
@@ -159,9 +159,9 @@
                                 IconClass="bi-floppy2"
                                 Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
                                 OnClick="OpenSaveLayoutAsync" />
-            </SubMenu>
-        </ToolbarElement>
-    }
+            }
+        </SubMenu>
+    </ToolbarElement>
 
     @if (Playback.ActivePans.Any())
     {

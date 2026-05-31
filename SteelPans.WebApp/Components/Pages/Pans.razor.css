@@ -1,7 +1,7 @@
 .pans-page {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
-    height: 100dvh;
+    height: 100%;
     min-height: 0;
     overflow: hidden;
     box-sizing: border-box;
@@ -33,15 +33,24 @@
     min-width: 0;
     overflow: clip;
     border-radius: 1.35rem;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 250ms ease, transform 350ms ease, max-height 350ms ease;
-}
-
-.pans-page__midi-controls--visible {
     max-height: 12rem;
     opacity: 1;
     pointer-events: auto;
+    transition: opacity 250ms ease, transform 350ms ease, max-height 350ms ease;
+}
+
+.pans-page__midi-controls--empty {
+    display: grid;
+    place-items: center;
+}
+
+.pans-page__midi-message {
+    width: 100%;
+    padding: clamp(0.9rem, 1.2vw, 1.35rem);
+    text-align: center;
+    color: rgba(15, 23, 42, 0.58);
+    font-size: clamp(0.9rem, 0.85rem + 0.25vw, 1.05rem);
+    font-weight: 600;
 }
 
 .pans-page__content {
