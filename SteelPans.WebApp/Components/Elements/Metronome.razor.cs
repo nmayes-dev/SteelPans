@@ -86,7 +86,7 @@ public partial class Metronome
 
     protected override void OnInitialized()
     {
-        Playback.StateChanged += OnPlaybackStateChangedAsync;
+        Playback.ClickTrackSettingsChanged += OnPlaybackStateChangedAsync;
         Playback.PlaybackStarted += OnPlaybackStartedAsync;
         Playback.PlaybackPaused += OnPlaybackPausedAsync;
         Playback.PlaybackStopped += OnPlaybackStoppedAsync;
@@ -104,7 +104,7 @@ public partial class Metronome
         await base.OnAfterRenderAsync(firstRender);
     }
 
-    private async Task OnPlaybackStateChangedAsync()
+    private async Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)
     {
         if (!Enabled && IsPlaying)
             await StopAsync();
@@ -669,7 +669,7 @@ public partial class Metronome
 
     public async ValueTask DisposeAsync()
     {
-        Playback.StateChanged -= OnPlaybackStateChangedAsync;
+        Playback.ClickTrackSettingsChanged -= OnPlaybackStateChangedAsync;
         Playback.PlaybackStarted -= OnPlaybackStartedAsync;
         Playback.PlaybackPaused -= OnPlaybackPausedAsync;
         Playback.PlaybackStopped -= OnPlaybackStoppedAsync;

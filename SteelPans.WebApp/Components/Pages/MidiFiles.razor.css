@@ -197,7 +197,7 @@
     bottom: 0px;
     width: calc(100cqw - 2 * var(--preview-inset));
     margin-left: var(--preview-inset);
-    background: rgb(235, 235, 235);
+    background: linear-gradient(180deg, #e2e8f0 0%, #cbd5f5 100%);
     transform: translateY(calc(-1 * var(--preview-bottom-offset)));
     transition: transform 500ms ease-out;
     max-height: 75cqh;

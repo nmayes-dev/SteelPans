@@ -55,10 +55,11 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Playback.StateChanged += OnStateChanged;
+        Playback.AssignmentsChanged += OnStateChanged;
+        Playback.PanMixChanged += OnStateChanged;
     }
 
-    private async Task OnStateChanged()
+    private async Task OnStateChanged<TArgs>(TArgs _)
     {
         await InvokeAsync(StateHasChanged);
     }
@@ -119,7 +120,8 @@
 
     public ValueTask DisposeAsync()
     {
-        Playback.StateChanged -= OnStateChanged;
+        Playback.AssignmentsChanged -= OnStateChanged;
+        Playback.PanMixChanged -= OnStateChanged;
         return ValueTask.CompletedTask;
     }
 }

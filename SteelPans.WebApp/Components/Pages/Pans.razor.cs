@@ -15,7 +15,10 @@ public partial class Pans : IAsyncDisposable
 
     protected override async Task OnInitializedAsync()
     {
-        Playback.StateChanged += OnPlaybackStateChangedAsync;
+        Playback.MidiFileLoaded += OnPlaybackStateChangedAsync;
+        Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
+        Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
+        Playback.PlaybackStatusChanged += OnPlaybackStateChangedAsync;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -60,7 +63,7 @@ public partial class Pans : IAsyncDisposable
         }
     }
 
-    private async Task OnPlaybackStateChangedAsync()
+    private async Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)
     {
         await InvokeAsync(StateHasChanged);
     }
@@ -68,7 +71,10 @@ public partial class Pans : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        Playback.StateChanged -= OnPlaybackStateChangedAsync;
+        Playback.MidiFileLoaded -= OnPlaybackStateChangedAsync;
+        Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
+        Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
+        Playback.PlaybackStatusChanged -= OnPlaybackStateChangedAsync;
         return ValueTask.CompletedTask;
     }
 }

@@ -18,6 +18,34 @@ public sealed record MidiPlaybackPausedEventArgs(TimeSpan Position);
 
 public sealed record MidiPlaybackStoppedEventArgs(bool ResetPosition, TimeSpan Position);
 
+public sealed record MidiFileLoadedEventArgs(
+    string FileName,
+    IReadOnlyList<MidiTrackInfo> Tracks,
+    int InitialBpm,
+    int InitialBeatsPerBar,
+    int InitialBeatUnit);
+
+public sealed record MidiFileUnloadedEventArgs();
+
+public sealed record PlaybackAssignmentsChangedEventArgs(
+    IReadOnlyList<MidiTrackAssignment> Assignments,
+    IReadOnlyList<MidiAssignedPan> ActivePans,
+    TimeSpan Duration);
+
+public sealed record PanMixChangedEventArgs(IReadOnlyList<MidiAssignedPan> ActivePans);
+
+public sealed record ClickTrackSettingsChangedEventArgs(
+    int TempoBpm,
+    int BeatsPerBar,
+    int BeatUnit,
+    bool Enabled);
+
+public sealed record PlaybackStatusChangedEventArgs(
+    bool IsPlaying,
+    TimeSpan Position,
+    TimeSpan Duration,
+    double? MidiStartAt);
+
 public sealed record PlaybackPositionChangedEventArgs(
     TimeSpan Position,
     TimeSpan Duration,
@@ -54,7 +82,12 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         AvailablePans = panLoader.Pans;
     }
 
-    public event Func<Task>? StateChanged;
+    public event Func<MidiFileLoadedEventArgs, Task>? MidiFileLoaded;
+    public event Func<MidiFileUnloadedEventArgs, Task>? MidiFileUnloaded;
+    public event Func<PlaybackAssignmentsChangedEventArgs, Task>? AssignmentsChanged;
+    public event Func<PanMixChangedEventArgs, Task>? PanMixChanged;
+    public event Func<ClickTrackSettingsChangedEventArgs, Task>? ClickTrackSettingsChanged;
+    public event Func<PlaybackStatusChangedEventArgs, Task>? PlaybackStatusChanged;
     public event Func<MidiPlaybackStartedEventArgs, Task>? PlaybackStarted;
     public event Func<MidiPlaybackPausedEventArgs, Task>? PlaybackPaused;
     public event Func<MidiPlaybackStoppedEventArgs, Task>? PlaybackStopped;
@@ -106,7 +139,11 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         Position = TimeSpan.Zero;
         Duration = TimeSpan.Zero;
 
-        await NotifyStateChangedAsync();
+        await NotifyMidiFileUnloadedAsync();
+        await NotifyAssignmentsChangedAsync();
+        await NotifyClickTrackSettingsChangedAsync();
+        await NotifyPlaybackStatusChangedAsync();
+        await NotifyPositionChangedAsync();
     }
 
     public async Task OnLoadMidiAsync(Func<Task<(string, MidiFile)>> getMidiFile)
@@ -155,7 +192,10 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             BeatUnit = midiPlaybackInfo_.InitialBeatUnit;
         }
 
-        await NotifyStateChangedAsync();
+        await NotifyMidiFileLoadedAsync();
+        await NotifyClickTrackSettingsChangedAsync();
+        await NotifyPlaybackStatusChangedAsync();
+        await NotifyPositionChangedAsync();
     }
 
     public async Task LoadPanLayoutAsync(IReadOnlyList<ConfigurationPan> layout)
@@ -196,7 +236,9 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         Position = TimeSpan.Zero;
         Duration = TimeSpan.Zero;
 
-        await NotifyStateChangedAsync();
+        await NotifyAssignmentsChangedAsync();
+        await NotifyPlaybackStatusChangedAsync();
+        await NotifyPositionChangedAsync();
     }
 
     public async Task OnAddAssignmentAsync(MidiTrackAssignment assignment)
@@ -212,7 +254,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         ActivePans.Add(assignedPan);
         RecalculateDuration();
 
-        await NotifyStateChangedAsync();
+        await NotifyAssignmentsChangedAsync();
+        await NotifyPlaybackStatusChangedAsync();
     }
 
     public async Task OnRemoveAssignmentAsync(int index)
@@ -232,7 +275,9 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         Position = TimeSpan.Zero;
         playbackSessionStartOffset_ = TimeSpan.Zero;
 
-        await NotifyStateChangedAsync();
+        await NotifyAssignmentsChangedAsync();
+        await NotifyPlaybackStatusChangedAsync();
+        await NotifyPositionChangedAsync();
     }
 
     public void UnregisterSteelPanView(Guid instanceId)
@@ -303,7 +348,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                 GetEffectivePanVolume(activePan));
         }
 
-        await NotifyStateChangedAsync();
+        await NotifyPanMixChangedAsync();
     }
 
     public async Task SetPanVolumesAsync(IEnumerable<MidiAssignedPan> pans, double volume)
@@ -321,7 +366,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             }
         }
 
-        await NotifyStateChangedAsync();
+        await NotifyPanMixChangedAsync();
     }
 
     public async Task SetPanMutedAsync(MidiAssignedPan activePan, bool muted)
@@ -339,7 +384,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                 GetEffectivePanVolume(activePan));
         }
 
-        await NotifyStateChangedAsync();
+        await NotifyPanMixChangedAsync();
     }
 
     public async Task SetPanSoloingAsync(MidiAssignedPan activePan, bool solo)
@@ -381,7 +426,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             }
         }
 
-        await NotifyStateChangedAsync();
+        await NotifyPanMixChangedAsync();
     }
 
     public SteelPanView? GetInteractiveSteelPanView()
@@ -440,7 +485,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             IsPlaying = false;
             Position = Duration;
             playbackSessionStartOffset_ = Duration;
-            await NotifyStateChangedAsync();
+            await NotifyPlaybackStatusChangedAsync();
             return;
         }
 
@@ -472,7 +517,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             if (playableGroups.Count == 0)
             {
                 IsPlaying = false;
-                await NotifyStateChangedAsync();
+                await NotifyPlaybackStatusChangedAsync();
                 return;
             }
 
@@ -503,7 +548,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             if (midiStartAt_ is null)
             {
                 IsPlaying = false;
-                await NotifyStateChangedAsync();
+                await NotifyPlaybackStatusChangedAsync();
                 return;
             }
 
@@ -517,7 +562,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                 playableGroups.SelectMany(x => x.Events).OrderBy(x => x.Start).ToList()));
 
             StartPlaybackProgressLoop(playbackProgressCts_.Token);
-            await NotifyStateChangedAsync();
+            await NotifyPlaybackStatusChangedAsync();
         }
         catch (OperationCanceledException)
         {
@@ -530,7 +575,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         await StopAsync(resetPosition: false);
         Position = playbackSessionStartOffset_;
         await NotifyPlaybackPausedAsync(new MidiPlaybackPausedEventArgs(Position));
-        await NotifyStateChangedAsync();
+        await NotifyPlaybackStatusChangedAsync();
     }
 
     public async Task RestartFromAsync(TimeSpan startOffset)
@@ -570,7 +615,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         }
 
         await NotifyPlaybackStoppedAsync(new MidiPlaybackStoppedEventArgs(resetPosition, Position));
-        await NotifyStateChangedAsync();
+        await NotifyPlaybackStatusChangedAsync();
     }
 
     public async Task SetTempoBpmAsync(int bpm)
@@ -596,19 +641,20 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             await NotifyTempoChangedAsync(new PlaybackTempoChangedEventArgs(bpm));
         }
 
-        await NotifyStateChangedAsync();
+        await NotifyClickTrackSettingsChangedAsync();
+        await NotifyPlaybackStatusChangedAsync();
     }
 
     public async Task SetBeatsPerBarAsync(int beatsPerBar)
     {
         BeatsPerBar = beatsPerBar;
-        await NotifyStateChangedAsync();
+        await NotifyClickTrackSettingsChangedAsync();
     }
 
     public async Task SetBeatUnitAsync(int beatUnit)
     {
         BeatUnit = beatUnit;
-        await NotifyStateChangedAsync();
+        await NotifyClickTrackSettingsChangedAsync();
     }
 
     public async Task SetClickTrackEnabledAsync(bool enabled)
@@ -634,7 +680,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                 remainingEvents));
         }
 
-        await NotifyStateChangedAsync();
+        await NotifyClickTrackSettingsChangedAsync();
+        await NotifyPlaybackStatusChangedAsync();
     }
 
     public async Task SeekToStartAsync()
@@ -645,7 +692,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (IsPlaying)
             await RestartFromAsync(TimeSpan.Zero);
         else
-            await NotifyStateChangedAsync();
+            await NotifyPlaybackStatusChangedAsync();
 
         await NotifyPositionChangedAsync();
     }
@@ -658,7 +705,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         Position = Duration;
         playbackSessionStartOffset_ = Duration;
 
-        await NotifyStateChangedAsync();
+        await NotifyPlaybackStatusChangedAsync();
         await NotifyPositionChangedAsync();
     }
 
@@ -672,7 +719,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (IsPlaying)
             await RestartFromAsync(clamped);
         else
-            await NotifyStateChangedAsync();
+            await NotifyPlaybackStatusChangedAsync();
 
         await NotifyPositionChangedAsync();
     }
@@ -925,7 +972,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                         midiStartAt_ = null;
 
                         await NotifyPlaybackStoppedAsync(new MidiPlaybackStoppedEventArgs(false, Position));
-                        await NotifyStateChangedAsync();
+                        await NotifyPlaybackStatusChangedAsync();
                         await NotifyPositionChangedAsync();
 
                         break;
@@ -1010,14 +1057,92 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             await handler(args);
     }
 
-    private async Task NotifyStateChangedAsync()
+    private async Task NotifyMidiFileLoadedAsync()
     {
-        var handlers = StateChanged;
+        var handlers = MidiFileLoaded;
         if (handlers is null)
             return;
 
-        foreach (Func<Task> handler in handlers.GetInvocationList())
-            await handler();
+        var args = new MidiFileLoadedEventArgs(
+            MidiFileName,
+            Tracks.ToList(),
+            InitialMidiBpm,
+            BeatsPerBar,
+            BeatUnit);
+
+        foreach (Func<MidiFileLoadedEventArgs, Task> handler in handlers.GetInvocationList())
+            await handler(args);
+    }
+
+    private async Task NotifyMidiFileUnloadedAsync()
+    {
+        var handlers = MidiFileUnloaded;
+        if (handlers is null)
+            return;
+
+        var args = new MidiFileUnloadedEventArgs();
+
+        foreach (Func<MidiFileUnloadedEventArgs, Task> handler in handlers.GetInvocationList())
+            await handler(args);
+    }
+
+    private async Task NotifyAssignmentsChangedAsync()
+    {
+        var handlers = AssignmentsChanged;
+        if (handlers is null)
+            return;
+
+        var args = new PlaybackAssignmentsChangedEventArgs(
+            Assignments.ToList(),
+            ActivePans.ToList(),
+            Duration);
+
+        foreach (Func<PlaybackAssignmentsChangedEventArgs, Task> handler in handlers.GetInvocationList())
+            await handler(args);
+    }
+
+    private async Task NotifyPanMixChangedAsync()
+    {
+        var handlers = PanMixChanged;
+        if (handlers is null)
+            return;
+
+        var args = new PanMixChangedEventArgs(ActivePans.ToList());
+
+        foreach (Func<PanMixChangedEventArgs, Task> handler in handlers.GetInvocationList())
+            await handler(args);
+    }
+
+    private async Task NotifyClickTrackSettingsChangedAsync()
+    {
+        var handlers = ClickTrackSettingsChanged;
+        if (handlers is null)
+            return;
+
+        var args = new ClickTrackSettingsChangedEventArgs(
+            TempoBpm,
+            BeatsPerBar,
+            BeatUnit,
+            ClickTrackEnabled);
+
+        foreach (Func<ClickTrackSettingsChangedEventArgs, Task> handler in handlers.GetInvocationList())
+            await handler(args);
+    }
+
+    private async Task NotifyPlaybackStatusChangedAsync()
+    {
+        var handlers = PlaybackStatusChanged;
+        if (handlers is null)
+            return;
+
+        var args = new PlaybackStatusChangedEventArgs(
+            IsPlaying,
+            Position,
+            Duration,
+            MidiStartAt);
+
+        foreach (Func<PlaybackStatusChangedEventArgs, Task> handler in handlers.GetInvocationList())
+            await handler(args);
     }
 
     private double GetEffectivePanVolume(MidiAssignedPan activePan)
