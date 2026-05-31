@@ -15,6 +15,7 @@ public sealed class EnsembleDbContext
     public DbSet<EnsembleGroup> Groups => Set<EnsembleGroup>();
     public DbSet<EnsembleGroupMember> GroupMembers => Set<EnsembleGroupMember>();
     public DbSet<EnsembleMidiFile> MidiFiles => Set<EnsembleMidiFile>();
+    public DbSet<EnsembleGroupMidiFile> GroupMidiFiles => Set<EnsembleGroupMidiFile>();
     public DbSet<EnsembleMidiTrack> MidiTracks => Set<EnsembleMidiTrack>();
     public DbSet<EnsembleMidiTrackAssignment> MidiTrackAssignments => Set<EnsembleMidiTrackAssignment>();
 
@@ -66,15 +67,24 @@ public sealed class EnsembleDbContext
                 .HasMaxLength(32);
         });
 
+        builder.Entity<EnsembleGroupMidiFile>(entity =>
+        {
+            entity.HasKey(x => new { x.GroupId, x.MidiFileId });
+
+            entity.HasOne(x => x.Group)
+                .WithMany(x => x.SharedMidiFiles)
+                .HasForeignKey(x => x.GroupId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.MidiFile)
+                .WithMany(x => x.SharedGroups)
+                .HasForeignKey(x => x.MidiFileId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         builder.Entity<EnsembleMidiFile>(entity =>
         {
             entity.HasKey(x => x.Id);
-
-            entity.HasOne(x => x.Group)
-                .WithMany(x => x.MidiFiles)
-                .HasForeignKey(x => x.GroupId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasOne<ApplicationUser>()
                 .WithMany()

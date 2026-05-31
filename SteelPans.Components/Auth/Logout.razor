@@ -1,4 +1,5 @@
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
 <ModalPopup @ref="modal_"
             Title="Logout"
@@ -14,7 +15,7 @@
               method="post"
               action="/account/logout">
             <AntiforgeryToken />
-            <input type="hidden" name="returnUrl" value="/" />
+            <input type="hidden" name="returnUrl" value="@CurrentPath" />
 
             <button class="account-button account-button--danger"
                     type="submit">
@@ -27,6 +28,18 @@
 @code {
     private ModalPopup? modal_;
     private ElementReference form_;
+
+    private string CurrentPath
+    {
+        get
+        {
+            var path = Nav.ToBaseRelativePath(Nav.Uri);
+
+            return string.IsNullOrWhiteSpace(path)
+                ? "/"
+                : "/" + path;
+        }
+    }
 
     public async Task OpenAsync()
     {

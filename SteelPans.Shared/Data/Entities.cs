@@ -14,7 +14,7 @@ public sealed class EnsembleGroup
     public DateTimeOffset CreatedAt { get; set; }
 
     public List<EnsembleGroupMember> Members { get; set; } = [];
-    public List<EnsembleMidiFile> MidiFiles { get; set; } = [];
+    public List<EnsembleGroupMidiFile> SharedMidiFiles { get; set; } = [];
 
     public static string GenerateInviteCode()
     {
@@ -36,10 +36,19 @@ public sealed class EnsembleGroupMember
     public ApplicationUser User { get; set; } = null!;
 }
 
+public sealed class EnsembleGroupMidiFile
+{
+    public Guid GroupId { get; set; }
+    public Guid MidiFileId { get; set; }
+    public DateTimeOffset SharedAt { get; set; }
+
+    public EnsembleGroup Group { get; set; } = null!;
+    public EnsembleMidiFile MidiFile { get; set; } = null!;
+}
+
 public sealed class EnsembleMidiFile
 {
     public Guid Id { get; set; }
-    public Guid? GroupId { get; set; }
     public Guid UploadedByUserId { get; set; }
 
     public string Title { get; set; } = "";
@@ -51,7 +60,7 @@ public sealed class EnsembleMidiFile
     public DateTimeOffset UploadedAt { get; set; }
     public DateTimeOffset? ArchivedAt { get; set; }
 
-    public EnsembleGroup? Group { get; set; }
+    public List<EnsembleGroupMidiFile> SharedGroups { get; set; } = [];
     public List<EnsembleMidiTrack> Tracks { get; set; } = [];
     public List<EnsembleMidiTrackAssignment> Assignments { get; set; } = [];
 }

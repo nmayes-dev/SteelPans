@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace SteelPans.Shared.Services;
 
@@ -138,18 +139,51 @@ public sealed class DbService
                 throw new UnauthorizedAccessException();
             }
 
-            return await db.MidiFiles
+            return await db.GroupMidiFiles
                 .AsNoTracking()
-                .Where(x => x.GroupId == groupId && x.ArchivedAt == null)
-                .OrderByDescending(x => x.UploadedAt)
+                .Where(x => x.GroupId == groupId && x.MidiFile.ArchivedAt == null)
+                .OrderByDescending(x => x.MidiFile.UploadedAt)
                 .Select(x => new GroupFileDto(
-                    x.Id,
-                    x.GroupId,
-                    x.Title,
-                    x.OriginalFileName,
-                    x.SizeBytes,
-                    x.UploadedAt))
+                    x.MidiFile.Id,
+                    x.MidiFile.SharedGroups
+                        .Select(shared => shared.GroupId)
+                        .ToList(),
+                    x.MidiFile.Title,
+                    x.MidiFile.OriginalFileName,
+                    x.MidiFile.SizeBytes,
+                    x.MidiFile.UploadedAt))
                 .ToListAsync(cancellationToken);
+        }
+
+        public async Task<Dictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>>> GetAllGroupFilesAsync(CancellationToken cancellationToken = default)
+        {
+            var files = new Dictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>>();
+
+            var groups = await GetMyGroupsAsync();
+            foreach (var group in groups)
+            {
+                if (!await IsMemberAsync(group.Id, cancellationToken))
+                {
+                    throw new UnauthorizedAccessException();
+                }
+
+                files[group] = await db.GroupMidiFiles
+                    .AsNoTracking()
+                    .Where(x => x.GroupId == group.Id && x.MidiFile.ArchivedAt == null)
+                    .OrderByDescending(x => x.MidiFile.UploadedAt)
+                    .Select(x => new GroupFileDto(
+                        x.MidiFile.Id,
+                        x.MidiFile.SharedGroups
+                            .Select(shared => shared.GroupId)
+                            .ToList(),
+                        x.MidiFile.Title,
+                        x.MidiFile.OriginalFileName,
+                        x.MidiFile.SizeBytes,
+                        x.MidiFile.UploadedAt))
+                    .ToListAsync(cancellationToken);
+            }
+
+            return files;
         }
 
         public async Task DeleteGroupAsync(
@@ -281,7 +315,6 @@ public sealed class DbService
             var midiFile = new EnsembleMidiFile
             {
                 Id = fileId,
-                GroupId = groupId,
                 UploadedByUserId = currentUser.UserId,
                 Title = Path.GetFileNameWithoutExtension(originalFileName),
                 OriginalFileName = Path.GetFileName(originalFileName),
@@ -313,6 +346,16 @@ public sealed class DbService
                 });
             }
 
+            if (groupId is not null)
+            {
+                midiFile.SharedGroups.Add(new EnsembleGroupMidiFile
+                {
+                    GroupId = groupId.Value,
+                    MidiFileId = fileId,
+                    SharedAt = DateTimeOffset.UtcNow
+                });
+            }
+
             db.MidiFiles.Add(midiFile);
 
             await db.SaveChangesAsync(cancellationToken);
@@ -329,7 +372,9 @@ public sealed class DbService
 
             return new GroupFileDto(
                 midiFile.Id,
-                midiFile.GroupId,
+                midiFile.SharedGroups
+                    .Select(x => x.GroupId)
+                    .ToList(),
                 midiFile.Title,
                 midiFile.OriginalFileName,
                 midiFile.SizeBytes,
@@ -462,12 +507,35 @@ public sealed class DbService
                 .OrderByDescending(x => x.UploadedAt)
                 .Select(x => new GroupFileDto(
                     x.Id,
-                    x.GroupId,
+                    x.SharedGroups
+                        .Select(shared => shared.GroupId)
+                        .ToList(),
                     x.Title,
                     x.OriginalFileName,
                     x.SizeBytes,
                     x.UploadedAt))
                 .ToListAsync(cancellationToken);
+        }
+
+        public async Task UnshareMidiFileWithGroupAsync(
+            Guid fileId,
+            Guid groupId,
+            CancellationToken cancellationToken = default)
+        {
+            var share = await db.GroupMidiFiles
+                .FirstOrDefaultAsync(
+                    x => x.MidiFileId == fileId &&
+                         x.GroupId == groupId,
+                    cancellationToken);
+
+            if (share is null)
+            {
+                return;
+            }
+
+            db.GroupMidiFiles.Remove(share);
+
+            await db.SaveChangesAsync(cancellationToken);
         }
 
         public async Task ShareMidiFileWithGroupAsync(
@@ -492,27 +560,55 @@ public sealed class DbService
                 throw new InvalidOperationException("MIDI file not found.");
             }
 
-            file.GroupId = groupId;
+            var alreadyShared = await db.GroupMidiFiles.AnyAsync(
+                x => x.GroupId == groupId && x.MidiFileId == fileId,
+                cancellationToken);
 
-            await db.SaveChangesAsync(cancellationToken);
+            if (!alreadyShared)
+            {
+                db.GroupMidiFiles.Add(new EnsembleGroupMidiFile
+                {
+                    GroupId = groupId,
+                    MidiFileId = fileId,
+                    SharedAt = DateTimeOffset.UtcNow
+                });
+
+                await db.SaveChangesAsync(cancellationToken);
+            }
         }
 
         private async Task<bool> CanAccessFileAsync(
             EnsembleMidiFile file,
             CancellationToken cancellationToken)
         {
-            return file.UploadedByUserId == currentUser.UserId ||
-                   file.GroupId is not null &&
-                   await groups.IsMemberAsync(file.GroupId.Value, cancellationToken);
+            if (file.UploadedByUserId == currentUser.UserId)
+            {
+                return true;
+            }
+
+            return await db.GroupMidiFiles.AnyAsync(
+                x => x.MidiFileId == file.Id &&
+                     x.MidiFile.ArchivedAt == null &&
+                     x.Group.Members.Any(member => member.UserId == currentUser.UserId),
+                cancellationToken);
         }
 
         private async Task<bool> CanEditFileAsync(
             EnsembleMidiFile file,
             CancellationToken cancellationToken)
         {
-            return file.UploadedByUserId == currentUser.UserId ||
-                   file.GroupId is not null &&
-                   await groups.IsLeaderAsync(file.GroupId.Value, cancellationToken);
+            if (file.UploadedByUserId == currentUser.UserId)
+            {
+                return true;
+            }
+
+            return await db.GroupMidiFiles.AnyAsync(
+                x => x.MidiFileId == file.Id &&
+                     x.MidiFile.ArchivedAt == null &&
+                     x.Group.Members.Any(member =>
+                         member.UserId == currentUser.UserId &&
+                         member.Role == GroupRole.Leader),
+                cancellationToken);
         }
     }
 

@@ -13,7 +13,7 @@ public sealed record CreateGroupRequest(
 
 public sealed record GroupFileDto(
     Guid Id,
-    Guid? GroupId,
+    IReadOnlyList<Guid> SharedGroupIds,
     string Title,
     string OriginalFileName,
     long SizeBytes,

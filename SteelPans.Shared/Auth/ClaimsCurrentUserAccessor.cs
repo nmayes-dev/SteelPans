@@ -18,7 +18,7 @@ public sealed class ClaimsCurrentUserAccessor(IHttpContextAccessor httpContextAc
 
             if (!Guid.TryParse(value, out var userId))
             {
-                throw new UnauthorizedAccessException("No authenticated user.");
+                return Guid.Empty;
             }
 
             return userId;

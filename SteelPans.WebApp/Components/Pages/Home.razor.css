@@ -1,0 +1,58 @@
+.leader-hero {
+    display: grid;
+    gap: 0.35rem;
+}
+
+    .leader-hero h1 {
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.02;
+        color: #0f172a;
+        text-transform: uppercase;
+        color: #2563eb;
+        margin: 0;
+        font-size: clamp(2rem, 5vw, 4rem);
+    }
+
+.leader-hero p {
+    margin: 0;
+}
+
+.leader-action-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 1rem;
+    padding: 1.1rem;
+    background: #fff;
+    color: inherit;
+    text-decoration: none;
+    box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.06);
+}
+
+.leader-action-card:hover {
+    color: inherit;
+    border-color: rgba(0, 107, 183, 0.35);
+}
+
+.leader-action-card-detail {
+    display: flex;
+    gap: 1rem;
+    align-items: baseline;
+}
+
+.leader-action-card small {
+    color: #586579;
+}
+
+.leader-action-card__icon {
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.8rem;
+    background: rgba(0, 107, 183, 0.1);
+    color: #006bb7;
+    font-size: 1.35rem;
+}

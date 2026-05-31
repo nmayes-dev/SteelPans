@@ -1,0 +1,34 @@
+@page "/pans"
+@inject SteelPanLoader PanLoader
+@inject MidiLoaderService MidiService
+@inject MidiPlaybackService Playback
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject IOptions<Settings> SettingsAccessor
+
+<PageTitle>Practice</PageTitle>
+
+<div class="pans-page">
+    @if (!string.IsNullOrWhiteSpace(loadError_))
+    {
+        <div class="alert alert-danger">@loadError_</div>
+    }
+    else if (Playback.AvailablePans.Count > 0)
+    {
+        var hasMidiControls = Playback.ActivePans.Any(x => x.Events.Count > 0);
+        
+        <section class="sp-section pans-page__controls">
+            <div class="pans-page__toolbar">
+                <ControlToolbar />
+            </div>
+            <div class="pans-page__midi-controls @(Playback.IsMidiLoaded ? "pans-page__midi-controls--visible" : "")">
+                <MidiPlaybackControl Enabled="@hasMidiControls" />
+            </div>
+        </section>
+
+
+        <section class="pans-page__content">
+            <PansDisplay Pans="@Playback.ActivePans" />
+        </section>
+    }
+</div>
