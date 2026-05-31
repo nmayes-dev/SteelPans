@@ -1,8 +1,9 @@
 @implements IAsyncDisposable
-@inject IJSRuntime JS
 @inject MidiPlaybackService Playback
 @inject ModalPopupService Modals
 @inject InstanceStateService State
+@inject IJSRuntime JS
+@inject IHostEnvironment Environment
 
 <div class="pans-display">
     <div class="pans-display__items"
@@ -56,6 +57,7 @@
     [Parameter]
     public EventCallback<IReadOnlyList<Guid>> OnPansReordered { get; set; }
 
+    private bool startingUp_;
     private ElementReference assignedPansElement_;
     private DotNetObjectReference<PansLayout>? dotNetReference_;
     private bool panLayoutObserved_;
@@ -77,9 +79,19 @@
 
     private async Task InitialiseLayoutAsync()
     {
+        if (!Playback.ActivePans.Any())
+            return;
+
+        startingUp_ = true;
         dotNetReference_?.Dispose();
         dotNetReference_ = DotNetObjectReference.Create(this);
-        await JS.InvokeVoidAsync("panLayout.observe", assignedPansElement_, dotNetReference_);
+
+        await JS.InvokeVoidAsync(
+            "panLayout.observe",
+            assignedPansElement_,
+            dotNetReference_,
+            Environment.IsDevelopment());
+
         panLayoutObserved_ = true;
     }
 
@@ -98,9 +110,16 @@
         await OnPansReordered.InvokeAsync(orderedIds);
     }
 
+
+    [JSInvokable]
+    public async Task NotifyStartupComplete()
+    {
+        startingUp_ = false;
+    }
+
     private async Task OnPlaybackStateChangedAsync()
     {
-        if (Playback.ActivePans.Any())
+        if (startingUp_)
             return;
 
         await InitialiseLayoutAsync();
