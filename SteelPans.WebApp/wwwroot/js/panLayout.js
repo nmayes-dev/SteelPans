@@ -1,14 +1,14 @@
 ﻿const SELECTORS = {
     item: ".pans-display__item",
-    svg: ".sp-svg",
+    svg: ".sp-app-svg",
     copy: ".pans-display__item-copy",
     leftGroup: ".pans-display__item-copy-group--left",
     rightGroup: ".pans-display__item-copy-group--right",
     label: ".pans-display__item-copy-label",
     value: ".pans-display__item-track, .pans-display__item-type",
-    panShape: ".sp-svg-circle, .sp-note, path, circle, ellipse, rect, polygon, polyline",
-    panCircle: ".sp-svg-circle",
-    noDrag: "[data-pan-layout-no-drag], [data-pan-note], .sp-note, button, a, input, select, textarea, label"
+    panShape: ".sp-app-svg-circle, .sp-app-svg-note, path, circle, ellipse, rect, polygon, polyline",
+    panCircle: ".sp-app-svg-circle",
+    noDrag: "[data-pan-layout-no-drag], [data-pan-note], .sp-app-svg-note, button, a, input, select, textarea, label"
 };
 
 const DEFAULTS = {

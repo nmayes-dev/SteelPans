@@ -391,6 +391,9 @@
 
     private async Task LoadLeaderMidiFileAsync(GroupFileDto file)
     {
+        await toolbar_!.RequestCloseAsync();
+        await Task.Delay(50); // Wait for toolbar to close
+
         await State.Task.RunUnsafe(async () =>
         {
             var details = await Db.MidiFiles.GetMidiFileDetailsAsync(file.Id);
@@ -405,7 +408,6 @@
                 return (download.FileName, await MidiService.OpenMidiFileAsync(stream));
             });
 
-            await toolbar_!.RequestCloseAsync();
             await LoadLeaderAssignmentsAsync(details.Assignments);
         });
     }

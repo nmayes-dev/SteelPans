@@ -64,18 +64,6 @@
     white-space: nowrap;
 }
 
-.steel-pan__chord-builder .btn-group {
-    display: flex;
-    flex-wrap: wrap;
-    gap: clamp(0.25rem, 1.5cqw, 0.6rem);
-    width: 100%;
-    min-width: 0;
-}
-
-    .steel-pan__chord-builder .btn-group > .btn {
-        flex: 1 1 clamp(4rem, 24cqw, 8rem);
-    }
-
 @container (max-width: 18rem) {
     .steel-pan__chord-builder {
         grid-template-columns: 1fr;
@@ -103,13 +91,6 @@
         font-size: clamp(0.75rem, 3.5cqw, 0.85rem);
     }
 
-    .steel-pan__chord-builder .btn-group {
-        flex-direction: column;
-    }
-
-        .steel-pan__chord-builder .btn-group > .btn {
-            flex-basis: auto;
-        }
 }
 
 @container (max-width: 28rem) {

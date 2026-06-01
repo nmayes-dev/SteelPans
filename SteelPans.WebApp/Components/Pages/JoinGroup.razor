@@ -5,9 +5,9 @@
 
 <PageTitle>Join Group</PageTitle>
 
-<section class="leader-page leader-page--join">
-    <div class="leader-card leader-card--centered">
-        <p class="leader-page__eyebrow">Group invite</p>
+<section class="sp-app-page sp-app-page--join">
+    <div class="sp-app-card sp-app-card--centered">
+        <p class="sp-app-page__eyebrow">Group invite</p>
         <h1>Join Group</h1>
 
         @if (isBusy_)
@@ -16,13 +16,13 @@
         }
         else if (!string.IsNullOrWhiteSpace(error_))
         {
-            <p class="leader-alert leader-alert--error">@error_</p>
-            <a class="leader-button" href="/groups">Go to groups</a>
+            <p class="sp-app-alert sp-app-alert--error">@error_</p>
+            <a class="sp-app-button" href="/groups">Go to groups</a>
         }
         else if (joinedGroup_ is not null)
         {
             <p>You have joined <strong>@joinedGroup_.Name</strong>.</p>
-            <a class="leader-button leader-button--primary" href="/">Go to leader home</a>
+            <a class="sp-app-button sp-app-button--primary" href="/">Go to leader home</a>
         }
     </div>
 </section>

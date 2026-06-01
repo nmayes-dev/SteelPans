@@ -9,12 +9,12 @@
             ConfirmButtonClass="btn-danger"
             OnConfirm="OnConfirmAsync">
     <ChildContent>
-        <div class="leader-form">
-            <p class="leader-delete-text">
+        <div class="sp-app-form">
+            <p class="delete-modal__text">
                 Delete <strong>@State.Pending.DeleteMidi?.OriginalFileName</strong>?
             </p>
 
-            <p class="leader-alert leader-alert--error">
+            <p class="sp-app-alert sp-app-alert--error">
                 This cannot be undone. Members will no longer be able to use this file.
             </p>
         </div>

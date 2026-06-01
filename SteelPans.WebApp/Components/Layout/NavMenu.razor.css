@@ -105,17 +105,17 @@
         color: white;
     }
 
-    .nav-item ::deep .nav-link:hover:not(:has(.pans-toolbar:hover)) {
+    .nav-item ::deep .nav-link:hover:not(:has(.toolbar:hover)) {
         background-color: rgba(255,255,255,0.1);
         color: white;
     }
 
 .nav-scrollable {
     position: absolute;
-    top: var(--layout-nav-top-height, clamp(2.45rem, 7.5vw, 3.5rem));
+    top: calc(var(--layout-nav-top-height) + 2 * var(--layout-nav-top-padding-y));
     right: 0;
     left: 0;
-    z-index: 1;
+    z-index: 1000;
     display: none;
     max-height: calc(100dvh - var(--layout-nav-top-height, clamp(2.45rem, 7.5vw, 3.5rem)));
     overflow-y: auto;

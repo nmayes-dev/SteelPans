@@ -5,7 +5,7 @@
     --toolbar__border-radius: min(1rem, 2vw);
     /* Button */
     --toolbar__button-size: var(--toolbar__button-override-size, var(--ui-icon-button-size));
-    --t0olbar__button-radus: calc(var(--toolbar__button-size) * 0.5);
+    --toolbar__button-radius: calc(var(--toolbar__button-size) * 0.5);
     --toolbar__button-icon-size: calc(var(--toolbar__button-size) * 0.5);
     /* Menu*/
     --toolbar__menu-min-width: clamp(5.5rem, 8vw, 9rem);
@@ -79,7 +79,7 @@
     min-height: var(--toolbar__button-size);
     max-height: var(--toolbar__button-size);
     background: var(--toolbar__background-color);
-    border-radius: var(--t0olbar__button-radus);
+    border-radius: var(--toolbar__button-radius);
     transition: min-width var(--med-short-transition) ease, min-height var(--med-short-transition) ease-out, border-radius var(--med-transition) ease;
 }
 

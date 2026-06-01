@@ -20,12 +20,12 @@ public sealed class SteelPanSvgService
 
     private static readonly HashSet<string> AllowedSvgClasses = new(StringComparer.Ordinal)
     {
-        "sp-svg",
-        "sp-svg-circle",
-        "sp-label",
-        "sp-label--on",
-        "sp-note",
-        "sp-note--on"
+        "sp-app-svg",
+        "sp-app-svg-circle",
+        "sp-app-svg-label",
+        "sp-app-svg-label--on",
+        "sp-app-svg-note",
+        "sp-app-svg-note--on"
     };
 
     private static readonly Dictionary<string, string[]> EnharmonicSpellings = new(StringComparer.Ordinal)
@@ -179,7 +179,7 @@ public sealed class SteelPanSvgService
             try
             {
                 var doc = XDocument.Parse(pair.Value, LoadOptions.PreserveWhitespace);
-                RewriteRootSvg(doc, "sp-svg");
+                RewriteRootSvg(doc, "sp-app-svg");
 
                 cache[pair.Key] = doc;
             }
@@ -326,7 +326,7 @@ public sealed class SteelPanSvgService
                      .Where(e => string.Equals(e.Name.LocalName, "circle", StringComparison.OrdinalIgnoreCase))
                      .Where(e => !IsInsideNoteOrLabelGroup(e)))
         {
-            SetOnlyClasses(circle, "sp-svg-circle");
+            SetOnlyClasses(circle, "sp-app-svg-circle");
         }
     }
 
@@ -506,7 +506,7 @@ public sealed class SteelPanSvgService
 
     private static void RewriteNoteElement(XElement element)
     {
-        SetOnlyClasses(element, "sp-note");
+        SetOnlyClasses(element, "sp-app-svg-note");
 
         element.SetAttributeValue("data-pan-component", "__COMPONENT_ID__");
         element.SetAttributeValue("data-pan-note", "__NOTE_KEY__");
@@ -559,7 +559,7 @@ public sealed class SteelPanSvgService
 
     private static void RewriteLabelMarkup(XElement element)
     {
-        SetOnlyClasses(element, "sp-label");
+        SetOnlyClasses(element, "sp-app-svg-label");
 
         foreach (var node in element.DescendantsAndSelf()
                      .Where(e => IsShapeElement(e) || IsTextElement(e)))
@@ -638,7 +638,7 @@ public sealed class SteelPanSvgService
 
     private static string BuildLabelElementId(string componentId, string noteKey)
     {
-        return $"sp-label-{SanitizeIdPart(componentId)}-{SanitizeIdPart(noteKey)}";
+        return $"sp-app-svg-label-{SanitizeIdPart(componentId)}-{SanitizeIdPart(noteKey)}";
     }
 
     private static string SanitizeIdPart(string value)

@@ -355,11 +355,11 @@ window.steelPan = {
         const targets = this._getPanTargetsForNoteKey(pan, noteKey);
 
         for (const noteEl of targets.noteElements) {
-            noteEl.classList.toggle("sp-note--on", !!isPlaying);
+            noteEl.classList.toggle("sp-app-svg-note--on", !!isPlaying);
         }
 
         for (const labelEl of targets.labelElements) {
-            labelEl.classList.toggle("sp-label--on", !!isPlaying);
+            labelEl.classList.toggle("sp-app-svg-label--on", !!isPlaying);
         }
     },
 

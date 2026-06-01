@@ -7,22 +7,22 @@
 
 <PageTitle>MIDI Files</PageTitle>
 
-<section class="leader-page midi-files">
-    <div class="leader-page__header">
-        <p class="leader-page__eyebrow">Ensemble Tools</p>
+<section class="sp-app-page midi-files">
+    <div class="sp-app-page__header">
+        <p class="sp-app-page__eyebrow">Ensemble Tools</p>
         <h1>MIDI Files</h1>
         <p>Preview a MIDI file locally, upload it privately, then optionally share it with a group.</p>
     </div>
 
-    <p class="leader-alert leader-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "leader-alert--hidden" : "")">@State.Task.Error</p>
-    <p class="leader-alert leader-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "leader-alert--hidden" : "")">@State.Task.Message</p>
+    <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
+    <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--hidden" : "")">@State.Task.Message</p>
 
-    <div class="leader-grid leader-grid--two midi-files-forms">
-        <div class="leader-card leader-form">
+    <div class="sp-app-grid sp-app-grid--two midi-files-forms">
+        <div class="sp-app-card sp-app-form">
             <h2>Preview and Upload</h2>
 
-            <div class="leader-form__row">
-                <div class="leader-field">
+            <div class="sp-app-form__row">
+                <div class="sp-app-field">
                     <label for="group-select">Upload Access</label>
                     <select id="group-select"
                             @bind="selectedGroupId_">
@@ -35,7 +35,7 @@
                     <small>Leave this empty to upload the file privately.</small>
                 </div>
 
-                <div class="leader-field">
+                <div class="sp-app-field">
                     <label for="midi-file">MIDI file</label>
                     <div class="midi-file-picker">
                         <label for="midi-file" class="midi-file-button">
@@ -56,14 +56,14 @@
 
             @if (localPreview_ is not null)
             {
-                <div class="leader-preview">
+                <div class="midi-files__preview">
                     <h3>Preview</h3>
                     <p><strong>@localFileName_</strong> - Tracks</p>
                     @RenderTracks(localPreview_)
                 </div>
             }
 
-            <button class="leader-button leader-button--primary"
+            <button class="sp-app-button sp-app-button--primary"
                     type="button"
                     @onclick="UploadAsync"
                     disabled="@(selectedFile_ is null || State.Task.Busy)">
@@ -71,10 +71,10 @@
             </button>
         </div>
 
-        <div class="leader-card">
+        <div class="sp-app-card">
             <h2>Group Files</h2>
 
-            <div class="leader-field">
+            <div class="sp-app-field">
                 <label for="group-file-select">Group</label>
                 <select id="group-file-select" @bind="selectedGroupId_">
                     <option value="">Choose a group...</option>
@@ -99,22 +99,22 @@
             }
             else
             {
-                <div class="leader-list">
+                <div class="sp-app-list">
                     @foreach (var file in SelectedFiles)
                     {
-                        <article class="leader-list-item">
+                        <article class="sp-app-list-item">
                             <div>
                                 <strong>@file.Title</strong>
                                 <small>@file.OriginalFileName · @FormatSize(file.SizeBytes)</small>
                             </div>
                             
-                            <div class="leader-list-item__actions">
-                                <button class="leader-button"
+                            <div class="sp-app-list-item__actions">
+                                <button class="sp-app-button"
                                         type="button"
                                         @onclick="() => UnshareFileAsync(file.Id)">
                                     Unshare
                                 </button>
-                                <button class="leader-button"
+                                <button class="sp-app-button"
                                         type="button"
                                         @onclick="() => LoadFileDetailsAsync(file.Id)">
                                     Preview
@@ -127,7 +127,7 @@
         </div>
     </div>
 
-    <div class="leader-card leader-card--wide midi-file-list">
+    <div class="sp-app-card sp-app-card--wide midi-file-list">
         <h2>My MIDI files</h2>
 
         @if (State.User.Files is null)
@@ -140,10 +140,10 @@
         }
         else
         {
-            <div class="leader-list">
+            <div class="sp-app-list">
                 @foreach (var file in State.User.Files)
                 {
-                    <article class="leader-list-item">
+                    <article class="sp-app-list-item">
                         <div>
                             <strong>@file.Title</strong>
                             <small>
@@ -151,13 +151,13 @@
                             </small>
                         </div>
 
-                        <div class="leader-list-item__actions">
-                            <button class="leader-button"
+                        <div class="sp-app-list-item__actions">
+                            <button class="sp-app-button"
                                     type="button"
                                     @onclick="() => LoadFileDetailsAsync(file.Id)">
                                 Preview
                             </button>
-                            <button class="leader-button leader-alert--error"
+                            <button class="sp-app-button sp-app-button--danger"
                                     type="button"
                                     @onclick="() => OpenDeleteFileModal(file)">
                                 Delete
@@ -169,7 +169,7 @@
                                     .ToList();
                             }
 
-                            <select class="leader-button leader-groups @(string.IsNullOrEmpty(targetShareGroup_) ? "leader-groups-placeholder" : "")"
+                            <select class="sp-app-button sp-app-select @(string.IsNullOrEmpty(targetShareGroup_) ? "sp-app-select--placeholder" : "")"
                                     value="@targetShareGroup_"
                                     @onchange="e => SetShareGroupId(e.Value?.ToString())"
                                     disabled="@(State.Task.Busy || groups.Count == 0)">
@@ -181,7 +181,7 @@
                                 }
                             </select>
 
-                            <button class="leader-button leader-button--primary"
+                            <button class="sp-app-button sp-app-button--primary"
                                     type="button"
                                     disabled="@(!string.IsNullOrEmpty(targetShareGroup_) || State.Task.Busy)"
                                     @onclick="() => ShareFileAsync(file.Id)">
@@ -194,7 +194,7 @@
         }
     </div>
 
-    <div class="leader-card leader-card--wide midi-files-upload-preview @(isPreviewOpen_ ? "" : "midi-files-upload-preview-closed")">
+    <div class="sp-app-card sp-app-card--wide midi-files-upload-preview @(isPreviewOpen_ ? "" : "midi-files-upload-preview-closed")">
         <div class="midi-files-upload-preview-header">
             <h2>Track Assignments</h2>
             <button class="midi-files-upload-preview-close"
@@ -204,8 +204,8 @@
         </div>
         <p><strong>@State.Preview.File?.Title</strong> <span>@State.Preview.File?.OriginalFileName</span></p>
 
-        <div class="leader-table-wrap">
-            <table class="leader-table">
+        <div class="sp-app-table-wrap">
+            <table class="sp-app-table">
                 <thead>
                     <tr>
                         <th>Track</th>
@@ -241,7 +241,7 @@
             </table>
         </div>
 
-        <button class="leader-button leader-button--primary"
+        <button class="sp-app-button sp-app-button--primary"
                 type="button"
                 @onclick="SaveAssignmentsAsync"
                 disabled="@State.Task.Busy">
@@ -449,10 +449,10 @@
         closeCts_ = new();
     }
 
-    private RenderFragment RenderTracks(IReadOnlyList<MidiTrackInfo> tracks) => @<div class="leader-track-list">
+    private RenderFragment RenderTracks(IReadOnlyList<MidiTrackInfo> tracks) => @<div class="midi-track-list">
         @foreach (var track in tracks.Where(x => x.NoteCount > 0))
         {
-            <div class="leader-track-list__item">
+            <div class="midi-track-list__item">
                 <strong>@(track.Name ?? $"Track {track.Index + 1}")</strong>
                 <span>@track.NoteCount notes</span>
             </div>
