@@ -1,0 +1,41 @@
+.join-group {
+    display: grid;
+    min-height: 0;
+    overflow: auto;
+    padding: clamp(0.75rem, 3vw, 1.5rem);
+    padding-bottom: max(clamp(0.75rem, 3vw, 1.5rem), env(safe-area-inset-bottom));
+}
+
+    .join-group .sp-app-card--centered {
+        width: min(100%, 32rem);
+        max-width: 100%;
+        min-width: 0;
+        margin: auto;
+    }
+
+    .join-group h1,
+    .join-group p,
+    .join-group a {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+@media (max-width: 520px) {
+    .join-group {
+        align-content: start;
+    }
+
+        .join-group .sp-app-card--centered {
+            margin-block: 0;
+        }
+}
+
+@media (max-width: 720px) and (orientation: landscape) {
+    .join-group {
+        padding-block: 0.5rem;
+    }
+
+        .join-group .sp-app-card--centered {
+            margin-block: 0;
+        }
+}

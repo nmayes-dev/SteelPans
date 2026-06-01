@@ -17,8 +17,8 @@
     <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
     <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--hidden" : "")">@State.Task.Message</p>
 
-    <div class="sp-app-grid sp-app-grid--two midi-files-forms">
-        <div class="sp-app-card sp-app-form">
+    <div class="sp-app-grid sp-app-grid--two midi-files__forms">
+        <div class="sp-app-card sp-app-form midi-files__upload-card">
             <h2>Preview and Upload</h2>
 
             <div class="sp-app-form__row">
@@ -71,7 +71,7 @@
             </button>
         </div>
 
-        <div class="sp-app-card">
+        <div class="sp-app-card midi-files__group-card">
             <h2>Group Files</h2>
 
             <div class="sp-app-field">
@@ -102,8 +102,8 @@
                 <div class="sp-app-list">
                     @foreach (var file in SelectedFiles)
                     {
-                        <article class="sp-app-list-item">
-                            <div>
+                        <article class="sp-app-list-item midi-files__list-item">
+                            <div class="midi-files__item-copy">
                                 <strong>@file.Title</strong>
                                 <small>@file.OriginalFileName · @FormatSize(file.SizeBytes)</small>
                             </div>
@@ -143,8 +143,8 @@
             <div class="sp-app-list">
                 @foreach (var file in State.User.Files)
                 {
-                    <article class="sp-app-list-item">
-                        <div>
+                    <article class="sp-app-list-item midi-files__list-item">
+                        <div class="midi-files__item-copy">
                             <strong>@file.Title</strong>
                             <small>
                                 @file.OriginalFileName · @FormatSize(file.SizeBytes) · @GetFileAccessLabel(file)
@@ -183,7 +183,7 @@
 
                             <button class="sp-app-button sp-app-button--primary"
                                     type="button"
-                                    disabled="@(!string.IsNullOrEmpty(targetShareGroup_) || State.Task.Busy)"
+                                    disabled="@(string.IsNullOrEmpty(targetShareGroup_) || State.Task.Busy)"
                                     @onclick="() => ShareFileAsync(file.Id)">
                                 Share
                             </button>
@@ -194,7 +194,7 @@
         }
     </div>
 
-    <div class="sp-app-card sp-app-card--wide midi-files-upload-preview @(isPreviewOpen_ ? "" : "midi-files-upload-preview-closed")">
+    <div class="sp-app-card sp-app-card--wide midi-files-upload-preview @(isPreviewOpen_ ? "" : "midi-files-upload-preview--closed")">
         <div class="midi-files-upload-preview-header">
             <h2>Track Assignments</h2>
             <button class="midi-files-upload-preview-close"
@@ -202,43 +202,45 @@
                 <span class="bi bi-x-lg"></span>
             </button>
         </div>
-        <p><strong>@State.Preview.File?.Title</strong> <span>@State.Preview.File?.OriginalFileName</span></p>
+        <p class="midi-files-upload-preview__meta"><strong>@State.Preview.File?.Title</strong> <span>@State.Preview.File?.OriginalFileName</span></p>
 
-        <div class="sp-app-table-wrap">
-            <table class="sp-app-table">
-                <thead>
-                    <tr>
-                        <th>Track</th>
-                        <th>Name</th>
-                        <th>Pan</th>
-                        <th>Label</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var track in State.Preview.File?.Tracks ?? [])
-                    {
-                        var assignment = State.Preview.Assigments.GetValueOrDefault(track.TrackIndex);
-
+        <div class="midi-files-preview-files">
+            <div class="sp-app-table-wrap">
+                <table class="sp-app-table">
+                    <thead>
                         <tr>
-                            <td>@(track.TrackIndex)</td>
-                            <td>@(track.TrackName ?? "Unnamed")</td>
-                            <td>
-                                <select value="@(assignment?.PanType ?? PanType.LeadTenor)"
-                                        @onchange="e => SetPanType(track.TrackIndex, e.Value?.ToString())">
-                                    @foreach (var panType in panTypes_)
-                                    {
-                                        <option value="@panType">@panType.ToSpacedPascal()</option>
-                                    }
-                                </select>
-                            </td>
-                            <td>
-                                <input value="@(assignment?.Label ?? track.TrackName ?? $"Track {track.TrackIndex}")"
-                                       @onchange="e => SetLabel(track.TrackIndex, e.Value?.ToString())" />
-                            </td>
+                            <th>Track</th>
+                            <th>Name</th>
+                            <th>Pan</th>
+                            <th>Label</th>
                         </tr>
-                    }
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @foreach (var track in State.Preview.File?.Tracks ?? [])
+                        {
+                            var assignment = State.Preview.Assigments.GetValueOrDefault(track.TrackIndex);
+
+                            <tr>
+                                <td>@(track.TrackIndex)</td>
+                                <td>@(track.TrackName ?? "Unnamed")</td>
+                                <td>
+                                    <select value="@(assignment?.PanType ?? PanType.LeadTenor)"
+                                            @onchange="e => SetPanType(track.TrackIndex, e.Value?.ToString())">
+                                        @foreach (var panType in panTypes_)
+                                        {
+                                            <option value="@panType">@panType.ToSpacedPascal()</option>
+                                        }
+                                    </select>
+                                </td>
+                                <td>
+                                    <input value="@(assignment?.Label ?? track.TrackName ?? $"Track {track.TrackIndex}")"
+                                           @onchange="e => SetLabel(track.TrackIndex, e.Value?.ToString())" />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <button class="sp-app-button sp-app-button--primary"
@@ -290,10 +292,6 @@
             var midiFile = await MidiInspection.ReadAsync(buffer);
             localPreview_ = MidiInspection.GetTrackInfos(midiFile);
         });
-        
-        selectedFile_ = null;
-        selectedFileBytes_ = null;
-        localPreview_ = null;
     }
 
     private async Task UploadAsync()
@@ -364,7 +362,7 @@
             if (!Guid.TryParse(targetShareGroup_, out var group))
                 throw new InvalidOperationException("Target group id was not valid");
 
-            await Db.MidiFiles.ShareMidiFileWithGroupAsync(fileId, group);            
+            await Db.MidiFiles.ShareMidiFileWithGroupAsync(fileId, group);
             await State.User.RefreshAsync();
 
             return "MIDI file shared with group.";

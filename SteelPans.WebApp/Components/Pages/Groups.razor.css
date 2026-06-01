@@ -1,5 +1,60 @@
+.groups-page {
+    display: grid;
+    gap: clamp(0.65rem, 2vw, 1rem);
+    min-height: 0;
+    overflow: auto;
+}
+
+.groups-page__grid,
+.groups-page__create-card,
+.groups-page__list-card,
+.groups-page__group-item {
+    min-width: 0;
+    min-height: 0;
+}
+
+.groups-page__create-card,
+.groups-page__list-card {
+    align-content: start;
+}
+
+.groups-page__list-card {
+    display: grid;
+    gap: clamp(0.65rem, 1.5vw, 1rem);
+}
+
+    .groups-page__list-card .sp-app-list {
+        display: grid;
+        gap: 0.5rem;
+        min-width: 0;
+        min-height: 0;
+        max-height: min(34rem, 58vh);
+        overflow: auto;
+        overscroll-behavior: contain;
+        padding-right: 0.25rem;
+    }
+
+.groups-page__group-item {
+    align-items: stretch;
+}
+
+.groups-page__group-copy {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+    .groups-page__group-copy strong,
+    .groups-page__group-copy small,
+    .group-member strong,
+    .group-member small {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
 .sp-app-list-item__members {
     flex-basis: 100%;
+    min-width: 0;
     border-top: 1px solid rgba(0, 0, 0, 0.08);
     padding-top: 0.75rem;
 }
@@ -12,7 +67,47 @@
 .group-member {
     display: grid;
     gap: 0.15rem;
+    min-width: 0;
     border-radius: 0.65rem;
     background: rgba(0, 0, 0, 0.035);
     padding: 0.65rem;
+}
+
+@media (max-width: 720px) {
+    .groups-page {
+        overflow: auto;
+        padding-inline: clamp(0.45rem, 2vw, 0.75rem);
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    }
+
+    .groups-page__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .groups-page__list-card .sp-app-list {
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+    }
+
+    .groups-page__group-item {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+        .groups-page__group-item .sp-app-list-item__actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+            width: 100%;
+        }
+}
+
+@media (max-width: 720px) and (orientation: landscape) {
+    .groups-page {
+        gap: 0.5rem;
+    }
+
+        .groups-page .sp-app-page__header p:last-child {
+            display: none;
+        }
 }

@@ -8,7 +8,7 @@
 
 <PageTitle>Groups</PageTitle>
 
-<section class="sp-app-page">
+<section class="sp-app-page groups-page">
     <div class="sp-app-page__header">
         <p class="sp-app-page__eyebrow">Ensemble Tools</p>
         <h1>Groups</h1>
@@ -22,8 +22,8 @@
     
     <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--hidden" : "")">@State.Task.Message</p>
 
-    <div class="sp-app-grid sp-app-grid--two">
-        <form class="sp-app-card sp-app-form" @onsubmit="CreateGroupAsync">
+    <div class="sp-app-grid sp-app-grid--two groups-page__grid">
+        <form class="sp-app-card sp-app-form groups-page__create-card" @onsubmit="CreateGroupAsync">
             <h2>Create Group</h2>
 
             <div class="sp-app-field">
@@ -40,7 +40,7 @@
             </button>
         </form>
 
-        <div class="sp-app-card">
+        <div class="sp-app-card groups-page__list-card">
             <h2>Your Groups</h2>
 
             @if (State.User.Groups is null)
@@ -56,8 +56,8 @@
                 <div class="sp-app-list">
                     @foreach (var group in State.User.Groups)
                     {
-                        <article class="sp-app-list-item">
-                            <div>
+                        <article class="sp-app-list-item groups-page__group-item">
+                            <div class="groups-page__group-copy">
                                 <strong>@group.Name</strong>
                                 <small>@group.Role · @BuildJoinLink(group.InviteCode)</small>
                             </div>
