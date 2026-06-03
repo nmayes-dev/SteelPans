@@ -1,4 +1,4 @@
-@page "/join/{InviteCode}"
+@page "/groups/join/{Token}"
 @attribute [Authorize]
 @inject DbService Db
 @inject NavigationManager Nav
@@ -12,7 +12,7 @@
 
         @if (isBusy_)
         {
-            <p>Joining group...</p>
+            <p>Checking invite link...</p>
         }
         else if (!string.IsNullOrWhiteSpace(error_))
         {
@@ -22,14 +22,14 @@
         else if (joinedGroup_ is not null)
         {
             <p>You have joined <strong>@joinedGroup_.Name</strong>.</p>
-            <a class="sp-app-button sp-app-button--primary" href="/">Go to leader home</a>
+            <a class="sp-app-button sp-app-button--primary" href="/groups">Go to groups</a>
         }
     </div>
 </section>
 
 @code {
     [Parameter]
-    public string InviteCode { get; set; } = "";
+    public string Token { get; set; } = "";
 
     private GroupSummaryDto? joinedGroup_;
     private string? error_;
@@ -39,7 +39,11 @@
     {
         try
         {
-            joinedGroup_ = await Db.Groups.JoinGroupAsync(InviteCode);
+            joinedGroup_ = await Db.Groups.JoinGroupAsync(Token);
+            if (joinedGroup_ is null)
+            {
+                error_ = "This invite link is invalid, has expired, or has already been used.";
+            }
         }
         catch (Exception ex)
         {

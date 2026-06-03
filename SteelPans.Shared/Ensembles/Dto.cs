@@ -1,4 +1,4 @@
-﻿using SteelPans.Shared.Music;
+using SteelPans.Shared.Music;
 
 namespace SteelPans.Shared.Ensembles;
 
@@ -7,6 +7,10 @@ public sealed record GroupSummaryDto(
     string Name,
     string InviteCode,
     GroupRole Role);
+
+public sealed record GroupInviteDto(
+    string Token,
+    DateTimeOffset ExpiresAt);
 
 public sealed record CreateGroupRequest(
     string Name);
@@ -23,6 +27,12 @@ public sealed record GroupMemberSummaryDto(
     Guid UserId,
     string UserName,
     string Email,
+    GroupRole Role,
+    DateTimeOffset JoinedAt,
+    DateTimeOffset? AdminSince);
+
+public sealed record UpdateGroupMemberRoleRequest(
+    Guid UserId,
     GroupRole Role);
 
 

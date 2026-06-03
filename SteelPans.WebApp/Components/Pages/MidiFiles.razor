@@ -27,7 +27,7 @@
                     <select id="group-select"
                             @bind="selectedGroupId_">
                         <option value="">No group yet</option>
-                        @foreach (var group in State.User.Groups)
+                        @foreach (var group in EditableGroups)
                         {
                             <option value="@group.Id">@group.Name</option>
                         }
@@ -78,7 +78,7 @@
                 <label for="group-file-select">Group</label>
                 <select id="group-file-select" @bind="selectedGroupId_">
                     <option value="">Choose a group...</option>
-                    @foreach (var group in State.User.Groups)
+                    @foreach (var group in State.User.Groups ?? [])
                     {
                         <option value="@group.Id">@group.Name</option>
                     }
@@ -155,7 +155,7 @@
                             <button class="sp-app-button"
                                     type="button"
                                     @onclick="() => LoadFileDetailsAsync(file.Id)">
-                                Preview
+                                Edit
                             </button>
                             <button class="sp-app-button sp-app-button--danger"
                                     type="button"
@@ -164,9 +164,9 @@
                             </button>
 
                             @{
-                                var groups = State.User.Groups
+                                var groups = State.User.Groups?
                                     .Where(g => !file.SharedGroupIds.Contains(g.Id))
-                                    .ToList();
+                                    .ToList() ?? [];
                             }
 
                             <select class="sp-app-button sp-app-select @(string.IsNullOrEmpty(targetShareGroup_) ? "sp-app-select--placeholder" : "")"
@@ -175,7 +175,7 @@
                                     disabled="@(State.Task.Busy || groups.Count == 0)">
                                 <option disabled hidden value="">Share with...</option>
 
-                                @foreach (var group in groups)
+                                @foreach (var group in groups.Where(CanManageGroupFiles))
                                 {
                                     <option value="@group.Id">@group.Name</option>
                                 }
@@ -247,7 +247,7 @@
                 type="button"
                 @onclick="SaveAssignmentsAsync"
                 disabled="@State.Task.Busy">
-            Save Assignments
+            Save
         </button>
     </div>
 </section>
@@ -256,6 +256,7 @@
     private readonly PanType[] panTypes_ = Enum.GetValues<PanType>();
 
     private Guid? selectedGroupId_;
+    private IEnumerable<GroupSummaryDto> EditableGroups => State.User.Groups?.Where(CanManageGroupFiles) ?? [];
     private IReadOnlyList<GroupFileDto>? SelectedFiles => State.User.GroupFiles.GetValueOrDefault(selectedGroupId_ ?? Guid.Empty);
 
     private IBrowserFile? selectedFile_;
@@ -369,6 +370,9 @@
         });
     }
 
+    private static bool CanManageGroupFiles(GroupSummaryDto group)
+        => group.Role is GroupRole.Leader or GroupRole.Admin;
+
     private void SetShareGroupId(string? value)
     {
         if (!Guid.TryParse(value, out var groupId))
@@ -384,7 +388,7 @@
             return "Private";
         }
 
-        var groupNames = State.User.Groups
+        var groupNames = (State.User.Groups ?? [])
             .Where(x => file.SharedGroupIds.Contains(x.Id))
             .Select(x => x.Name)
             .ToList();

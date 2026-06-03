@@ -1,4 +1,4 @@
-﻿using SteelPans.Shared;
+using SteelPans.Shared;
 using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Music;
 using System.Security.Cryptography;
@@ -15,6 +15,7 @@ public sealed class EnsembleGroup
 
     public List<EnsembleGroupMember> Members { get; set; } = [];
     public List<EnsembleGroupMidiFile> SharedMidiFiles { get; set; } = [];
+    public List<EnsembleGroupInvite> Invites { get; set; } = [];
 
     public static string GenerateInviteCode()
     {
@@ -31,9 +32,24 @@ public sealed class EnsembleGroupMember
     public Guid UserId { get; set; }
     public GroupRole Role { get; set; }
     public DateTimeOffset JoinedAt { get; set; }
+    public DateTimeOffset? AdminSince { get; set; }
 
     public EnsembleGroup Group { get; set; } = null!;
     public ApplicationUser User { get; set; } = null!;
+}
+
+
+public sealed class EnsembleGroupInvite
+{
+    public Guid Id { get; set; }
+    public Guid GroupId { get; set; }
+    public string Token { get; set; } = "";
+    public Guid CreatedByUserId { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? UsedAt { get; set; }
+
+    public EnsembleGroup Group { get; set; } = null!;
 }
 
 public sealed class EnsembleGroupMidiFile

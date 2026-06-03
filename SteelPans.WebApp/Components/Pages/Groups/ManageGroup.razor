@@ -1,0 +1,385 @@
+@page "/groups/{GroupId:guid}"
+@attribute [Authorize]
+@inject DbService Db
+@inject InstanceStateService State
+@inject ModalPopupService Modals
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Manage Group</PageTitle>
+
+<section class="sp-app-page groups-page manage-group-page">
+    <div class="sp-app-page__header manage-group-page__header">
+        <div class="manage-group-page__header-copy">
+            <p class="sp-app-page__eyebrow">Group Tools</p>
+            <h1>@(group_?.Name ?? "Manage Group")</h1>
+            <p>@(group_ is null ? "Loading group..." : $"Your role: {group_.Role}")</p>
+
+            <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
+            <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--hidden" : "")">@State.Task.Message</p>
+        </div>
+
+        @if (group_ is not null)
+        {
+            <div class="manage-group-page__header-tools">
+                @if (CanManageFiles && inviteLink_ is not null)
+                {
+                    <div class="manage-group-page__invite">
+                        <div class="manage-group-page__invite-details">
+                            <code>@inviteLink_</code>
+                            <small>Expires @inviteExpiresAt_?.ToLocalTime().ToString("g")</small>
+                        </div>
+                        <button class="sp-app-button" type="button" @onclick="CopyInviteAsync">Copy</button>
+                    </div>
+                }
+
+                <div class="manage-group-page__header-actions">
+                    <a class="sp-app-button" href="/groups">Back</a>
+
+                    @if (CanManageFiles)
+                    {
+                        <button class="sp-app-button sp-app-button--primary"
+                                type="button"
+                                disabled="@State.Task.Busy"
+                                @onclick="CreateInviteAsync">
+                            Create Invite
+                        </button>
+                    }
+
+                    <button class="sp-app-button sp-app-button--danger"
+                            type="button"
+                            disabled="@State.Task.Busy"
+                            @onclick="OpenLeaveGroupModalAsync">
+                        Leave
+                    </button>
+
+                    @if (IsLeader)
+                    {
+                        <button class="sp-app-button sp-app-button--danger"
+                                type="button"
+                                disabled="@State.Task.Busy"
+                                @onclick="OpenDeleteGroupModalAsync">
+                            Delete
+                        </button>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (group_ is null)
+    {
+        <div class="sp-app-card"><p>Loading group...</p></div>
+    }
+    else
+    {
+        <div class="sp-app-grid sp-app-grid--two manage-group-page__grid">
+            <section class="sp-app-card manage-group-page__card">
+                <div class="manage-group-page__section-header">
+                    <h2>Member Management</h2>
+                    <small>@members_.Count member@(members_.Count == 1 ? "" : "s")</small>
+                </div>
+
+                <div class="sp-app-list manage-group-page__members">
+                    @foreach (var member in members_)
+                    {
+                        <article class="sp-app-list-item manage-group-page__member">
+                            <div class="manage-group-page__copy">
+                                <strong>@DisplayName(member)</strong>
+                                <small>@member.Role · joined @member.JoinedAt.ToLocalTime().ToString("d")</small>
+                            </div>
+
+                            <div class="sp-app-list-item__actions">
+                                @if (CanChangeRole(member))
+                                {
+                                    <button class="sp-app-button" type="button" disabled="@State.Task.Busy" @onclick="() => SetRoleAsync(member, GroupRole.Admin)">Make Admin</button>
+                                }
+
+                                @if (CanDemote(member))
+                                {
+                                    <button class="sp-app-button" type="button" disabled="@State.Task.Busy" @onclick="() => SetRoleAsync(member, GroupRole.Member)">Remove Admin</button>
+                                }
+
+                                @if (CanTransferLeadership(member))
+                                {
+                                    <button class="sp-app-button" type="button" disabled="@State.Task.Busy" @onclick="() => TransferLeadershipAsync(member)">Transfer Leadership</button>
+                                }
+
+                                @if (CanRemove(member))
+                                {
+                                    <button class="sp-app-button sp-app-button--danger" type="button" disabled="@State.Task.Busy" @onclick="() => RemoveMemberAsync(member)">Remove</button>
+                                }
+                            </div>
+                        </article>
+                    }
+                </div>
+            </section>
+
+            <section class="sp-app-card manage-group-page__card">
+                <div class="manage-group-page__section-header">
+                    <div>
+                        <h2>MIDI Files</h2>
+                        <small>@files_.Count file@(files_.Count == 1 ? "" : "s")</small>
+                    </div>
+                    <a class="sp-app-button" href="/midi-files">Manage MIDI Files</a>
+                </div>
+
+                @if (files_.Count == 0)
+                {
+                    <p>No MIDI files have been shared with this group.</p>
+                }
+                else
+                {
+                    <div class="sp-app-list manage-group-page__files">
+                        @foreach (var file in files_)
+                        {
+                            <article class="sp-app-list-item manage-group-page__file">
+                                <div class="manage-group-page__copy">
+                                    <strong>@file.Title</strong>
+                                    <small>@file.OriginalFileName · @FormatSize(file.SizeBytes)</small>
+                                </div>
+                                <div class="sp-app-list-item__actions">
+                                    <button class="sp-app-button" type="button" @onclick="() => LoadFileDetailsAsync(file.Id)">@(CanManageFiles ? "Edit" : "View")</button>
+                                    @if (CanManageFiles)
+                                    {
+                                        <button class="sp-app-button sp-app-button--danger" type="button" disabled="@State.Task.Busy" @onclick="() => UnshareFileAsync(file.Id)">Remove</button>
+                                    }
+                                </div>
+                            </article>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+
+        <section class="sp-app-card sp-app-card--wide manage-group-page-preview @(isPreviewOpen_ ? "" : "manage-group-page-preview--closed")">
+            <div class="manage-group-page-preview__header">
+                <h2>Track Assignments</h2>
+                <button class="manage-group-page-preview__close"
+                        type="button"
+                        @onclick="ClosePreview">
+                    <span class="bi bi-x-lg"></span>
+                </button>
+            </div>
+
+            <p class="manage-group-page-preview__meta">
+                <strong>@State.Preview.File?.Title</strong>
+                <span>@State.Preview.File?.OriginalFileName</span>
+            </p>
+
+            <div class="manage-group-page-preview__content">
+                <div class="sp-app-table-wrap">
+                    <table class="sp-app-table">
+                        <thead>
+                            <tr><th>Track</th><th>Name</th><th>Pan</th><th>Label</th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var track in State.Preview.File?.Tracks ?? [])
+                            {
+                                var assignment = State.Preview.Assigments.GetValueOrDefault(track.TrackIndex);
+
+                                <tr>
+                                    <td>@track.TrackIndex</td>
+                                    <td>@(track.TrackName ?? "Unnamed")</td>
+                                    <td>
+                                        <select value="@(assignment?.PanType ?? PanType.None)"
+                                                @onchange="e => SetPanType(track.TrackIndex, e.Value?.ToString())"
+                                                disabled="@(!CanManageFiles)">
+                                            @foreach (var panType in panTypes_)
+                                            {
+                                                <option value="@panType">@panType.ToSpacedPascal()</option>
+                                            }
+                                        </select>
+                                    </td>
+                                    <td>
+                                        <input value="@(assignment?.Label ?? track.TrackName ?? $"Track {track.TrackIndex}")"
+                                               @onchange="e => SetLabel(track.TrackIndex, e.Value?.ToString())"
+                                               disabled="@(!CanManageFiles)" />
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            @if (CanManageFiles)
+            {
+                <button class="sp-app-button sp-app-button--primary"
+                        type="button"
+                        disabled="@State.Task.Busy"
+                        @onclick="SaveAssignmentsAsync">
+                    Save
+                </button>
+            }
+        </section>
+    }
+</section>
+
+@code {
+    [Parameter] public Guid GroupId { get; set; }
+
+    private readonly PanType[] panTypes_ = Enum.GetValues<PanType>();
+    private GroupSummaryDto? group_;
+    private List<GroupMemberSummaryDto> members_ = [];
+    private IReadOnlyList<GroupFileDto> files_ = [];
+    private string? inviteLink_;
+    private DateTimeOffset? inviteExpiresAt_;
+    private bool isPreviewOpen_;
+
+    private bool IsLeader => group_?.Role == GroupRole.Leader;
+    private bool IsAdmin => group_?.Role == GroupRole.Admin;
+    private bool CanManageFiles => IsLeader || IsAdmin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await State.Task.RunUnsafe(async () =>
+        {
+            group_ = await Db.Groups.GetGroupAsync(GroupId);
+            if (group_ is null)
+            {
+                Nav.NavigateTo("/groups");
+                return;
+            }
+
+            members_ = await Db.Groups.GetGroupMembersAsync(GroupId);
+            files_ = await Db.Groups.GetGroupFilesAsync(GroupId);
+        });
+    }
+
+    private async Task CreateInviteAsync()
+    {
+        await State.Task.RunSafe(async () =>
+        {
+            var invite = await Db.Groups.CreateInviteAsync(GroupId);
+            inviteLink_ = Nav.ToAbsoluteUri($"/groups/join/{Uri.EscapeDataString(invite.Token)}").ToString();
+            inviteExpiresAt_ = invite.ExpiresAt;
+            return "Invite link created.";
+        });
+    }
+
+    private async Task CopyInviteAsync()
+    {
+        if (inviteLink_ is null) 
+            return;
+
+        await State.Task.RunUnsafe(async () =>
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", inviteLink_);
+            return "Invite link copied to clipboard";
+        });
+    }
+
+    private async Task LoadFileDetailsAsync(Guid fileId)
+    {
+        await State.Preview.LoadAsync(fileId);
+        isPreviewOpen_ = true;
+    }
+
+    private async Task UnshareFileAsync(Guid fileId)
+    {
+        await State.Task.RunSafe(async () =>
+        {
+            await Db.MidiFiles.UnshareMidiFileWithGroupAsync(fileId, GroupId);
+            await LoadAsync();
+            return "MIDI file removed from group.";
+        });
+    }
+
+    private async Task SaveAssignmentsAsync()
+    {
+        if (State.Preview.File is null) return;
+        await State.Task.RunSafe(async () =>
+        {
+            await Db.MidiFiles.SaveMidiAssignmentsAsync(State.Preview.File.Id, new SaveMidiAssignmentsRequest(State.Preview.Assigments.Values.OrderBy(x => x.TrackIndex).ToList()));
+            await LoadFileDetailsAsync(State.Preview.File.Id);
+            return "Assignments saved.";
+        });
+    }
+
+    private async Task SetRoleAsync(GroupMemberSummaryDto member, GroupRole role)
+    {
+        await State.Task.RunSafe(async () =>
+        {
+            await Db.Groups.SetMemberRoleAsync(GroupId, new UpdateGroupMemberRoleRequest(member.UserId, role));
+            await LoadAsync();
+            return "Member role updated.";
+        });
+    }
+
+    private async Task TransferLeadershipAsync(GroupMemberSummaryDto member)
+    {
+        await State.Task.RunSafe(async () =>
+        {
+            await Db.Groups.TransferLeadershipAsync(GroupId, member.UserId);
+            await LoadAsync();
+            return "Leadership transferred.";
+        });
+    }
+
+    private async Task RemoveMemberAsync(GroupMemberSummaryDto member)
+    {
+        await State.Task.RunSafe(async () =>
+        {
+            await Db.Groups.RemoveMemberAsync(GroupId, member.UserId);
+            await LoadAsync();
+            return "Member removed.";
+        });
+    }
+
+    private async Task OpenLeaveGroupModalAsync()
+    {
+        if (group_ is null)
+            return;
+
+        State.Pending.LeaveGroup = group_;
+        await Modals.OpenAsync("LeaveGroup");
+    }
+
+    private async Task OpenDeleteGroupModalAsync()
+    {
+        if (group_ is null)
+            return;
+
+        State.Pending.DeleteGroup = group_;
+        await Modals.OpenAsync("DeleteGroup");
+    }
+
+    private bool CanChangeRole(GroupMemberSummaryDto member) => IsLeader && member.Role == GroupRole.Member;
+    private bool CanDemote(GroupMemberSummaryDto member) => IsLeader && member.Role == GroupRole.Admin;
+    private bool CanTransferLeadership(GroupMemberSummaryDto member) => IsLeader && member.Role == GroupRole.Admin;
+    private bool CanRemove(GroupMemberSummaryDto member) =>
+        group_ is not null &&
+        member.UserId != Db.User &&
+        (IsLeader && member.Role != GroupRole.Leader || IsAdmin && member.Role == GroupRole.Member);
+
+    private static string DisplayName(GroupMemberSummaryDto member) =>
+        string.IsNullOrWhiteSpace(member.UserName) ? member.Email : member.UserName;
+
+    private void ClosePreview() => isPreviewOpen_ = false;
+
+    private void SetPanType(int trackIndex, string? value)
+    {
+        if (!Enum.TryParse<PanType>(value, out var panType)) return;
+        var current = State.Preview.Assigments[trackIndex];
+        State.Preview.Assigments[trackIndex] = current with { PanType = panType };
+    }
+
+    private void SetLabel(int trackIndex, string? value)
+    {
+        var current = State.Preview.Assigments[trackIndex];
+        State.Preview.Assigments[trackIndex] = current with { Label = string.IsNullOrWhiteSpace(value) ? $"Track {trackIndex + 1}" : value.Trim() };
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.#} KB";
+        return $"{bytes / 1024d / 1024d:0.#} MB";
+    }
+}

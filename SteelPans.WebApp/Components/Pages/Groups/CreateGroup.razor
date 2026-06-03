@@ -1,0 +1,50 @@
+@page "/groups/create"
+@attribute [Authorize]
+@inject DbService Db
+@inject NavigationManager Nav
+@inject InstanceStateService State
+
+<PageTitle>Create Group</PageTitle>
+
+<section class="sp-app-page groups-page create-group-page">
+    <div class="sp-app-page__header">
+        <p class="sp-app-page__eyebrow">Ensemble Tools</p>
+        <h1>Create Group</h1>
+        <p>Create a new ensemble group, then generate expiring invite links from its management page.</p>
+
+        <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
+    </div>
+
+    <form class="sp-app-card sp-app-form create-group-page__card" @onsubmit="CreateGroupAsync">
+        <div class="sp-app-field">
+            <label for="group-name">Name</label>
+            <input id="group-name" @bind="newGroupName_" @bind:event="oninput" placeholder="Enter group name..." required />
+        </div>
+
+        <div class="create-group-page__actions">
+            <button class="sp-app-button sp-app-button--primary" type="submit" disabled="@State.Task.Busy">Create group</button>
+            <a class="sp-app-button" href="/groups">Cancel</a>
+        </div>
+    </form>
+</section>
+
+@code {
+    private string newGroupName_ = string.Empty;
+
+    private async Task CreateGroupAsync()
+    {
+        GroupSummaryDto? created = null;
+
+        await State.Task.RunSafe(async () =>
+        {
+            created = await Db.Groups.CreateGroupAsync(new CreateGroupRequest(newGroupName_.Trim()));
+            await State.User.RefreshAsync();
+            return "Group created.";
+        });
+
+        if (created is not null)
+        {
+            Nav.NavigateTo($"/groups/{created.Id}");
+        }
+    }
+}

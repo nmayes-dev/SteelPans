@@ -203,11 +203,11 @@
 
     private Settings Settings => SettingsAccessor.Value;
 
-    private IReadOnlyDictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>> Groups => State.User.Groups
+    private IReadOnlyDictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>> Groups => State.User.Groups?
         .ToDictionary(
             x => x,
             x => State.User.GroupFiles[x.Id]
-        );
+        ) ?? new Dictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>>();
 
     protected override async Task OnInitializedAsync()
     {

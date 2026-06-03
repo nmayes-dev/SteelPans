@@ -2,18 +2,18 @@
 @inject DbService Db
 @inject NavigationManager Nav
 
-<ModalPopup Id="DeleteGroup"
+<ModalPopup Id="LeaveGroup"
             Title="@title_"
             OnOpen="OnOpen"
             CloseButton="Cancel"
             OnClose="OnClose"
-            ConfirmButton="Delete"
+            ConfirmButton="Leave"
             ConfirmButtonClass="btn-danger"
             OnConfirm="OnConfirmAsync">
     <ChildContent>
         <div class="sp-app-form">
             <p class="sp-app-alert sp-app-alert--error">
-                This cannot be undone. Members and invite links for this group will no longer be usable.
+                If you leave this group you will have to be invited again. If you are the last member this group will be deleted
             </p>
         </div>
     </ChildContent>
@@ -24,28 +24,26 @@
 
     private void OnOpen()
     {
-        title_ = $"Delete {(State.Pending.DeleteGroup?.Name ?? "This Group")}?";
+        title_ = $"Leave {(State.Pending.LeaveGroup?.Name ?? "This Group")}?";
     }
 
     private void OnClose()
     {
-        State.Pending.DeleteGroup = null;
+        State.Pending.LeaveGroup = null;
     }
 
     private async Task OnConfirmAsync()
     {
-        if (State.Pending.DeleteGroup is null)
+        if (State.Pending.LeaveGroup is null)
             return;
 
         await State.Task.RunSafe(async () =>
         {
-            await Db.Groups.DeleteGroupAsync(State.Pending.DeleteGroup.Id);
+            await Db.Groups.LeaveGroupAsync(State.Pending.LeaveGroup.Id);
 
             await State.User.RefreshAsync();
             Nav.NavigateTo("/groups");
-            return "Group deleted.";
+            return "Left group.";
         });
-
-            
     }
 }

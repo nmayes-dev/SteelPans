@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +16,7 @@ public sealed class EnsembleDbContext
     public DbSet<EnsembleGroupMember> GroupMembers => Set<EnsembleGroupMember>();
     public DbSet<EnsembleMidiFile> MidiFiles => Set<EnsembleMidiFile>();
     public DbSet<EnsembleGroupMidiFile> GroupMidiFiles => Set<EnsembleGroupMidiFile>();
+    public DbSet<EnsembleGroupInvite> GroupInvites => Set<EnsembleGroupInvite>();
     public DbSet<EnsembleMidiTrack> MidiTracks => Set<EnsembleMidiTrack>();
     public DbSet<EnsembleMidiTrackAssignment> MidiTrackAssignments => Set<EnsembleMidiTrackAssignment>();
 
@@ -65,6 +66,22 @@ public sealed class EnsembleDbContext
             entity.Property(x => x.Role)
                 .HasConversion<string>()
                 .HasMaxLength(32);
+        });
+
+        builder.Entity<EnsembleGroupInvite>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.HasIndex(x => x.Token)
+                .IsUnique();
+
+            entity.Property(x => x.Token)
+                .HasMaxLength(100);
+
+            entity.HasOne(x => x.Group)
+                .WithMany(x => x.Invites)
+                .HasForeignKey(x => x.GroupId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<EnsembleGroupMidiFile>(entity =>

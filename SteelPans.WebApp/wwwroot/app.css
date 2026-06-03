@@ -164,7 +164,6 @@ h4 {
 .sp-app-page__header {
     display: grid;
     gap: 0.25rem;
-    max-width: 58rem;
 }
 
 .sp-app-page__eyebrow {

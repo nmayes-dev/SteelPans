@@ -4,26 +4,30 @@ using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Music;
 using SteelPans.Shared.Services;
 using SteelPans.Shared.Data;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Routing;
 
 namespace SteelPans.WebApp.Services
 {
 
-    public class InstanceStateService(DbService db)
+    public class InstanceStateService(DbService db, NavigationManager nav)
     {
         public readonly long MaxMidiFileSize = 64L * 1024L * 1024L;
 
 
-        public TaskState Task { get; set; } = new ();
+        public TaskState Task { get; set; } = new(nav);
         public UserState User { get; set; } = new(db);
         public PreviewState Preview { get; set; } = new(db);
         public PendingState Pending { get; set; } = new();
 
 
-        public sealed class TaskState
+        public sealed class TaskState : IDisposable
         {
             public bool Busy { get; private set; } = false;
             public string Message { get; private set; } = string.Empty;
             public string Error { get; private set; } = string.Empty;
+
+            private IDisposable navEvent_;
 
             public Task RunSafe(Func<Task<string>> job)
             {
@@ -42,11 +46,33 @@ namespace SteelPans.WebApp.Services
                 return Run(false, job);
             }
 
-            private async Task Run(bool block, Func<Task<string>> job)
+            public TaskState(NavigationManager nav)
+            {
+                navEvent_ = nav.RegisterLocationChangingHandler(OnLocationChanged);
+            }
+
+            public void Dispose()
+            {
+                navEvent_.Dispose();
+            }
+
+            private async ValueTask OnLocationChanged(LocationChangingContext context)
+            {
+                if (Busy)
+                    return;
+
+                InitializeState(false);
+            }
+            private void InitializeState(bool block)
             {
                 Busy = block;
                 Message = string.Empty;
                 Error = string.Empty;
+            }
+
+            private async Task Run(bool block, Func<Task<string>> job)
+            {
+                InitializeState(block);
 
                 try
                 {
@@ -63,9 +89,7 @@ namespace SteelPans.WebApp.Services
             }
             private async Task Run(bool block, Func<Task> job)
             {
-                Busy = block;
-                Message = string.Empty;
-                Error = string.Empty;
+                InitializeState(block);
 
                 try
                 {
@@ -85,7 +109,7 @@ namespace SteelPans.WebApp.Services
         public sealed class UserState(DbService db)
         {
             public string CurrentLayout { get; set; } = string.Empty;
-            public IReadOnlyList<GroupSummaryDto> Groups { get; set; } = [];
+            public IReadOnlyList<GroupSummaryDto>? Groups { get; set; }
             public Dictionary<Guid, IReadOnlyList<GroupFileDto>> GroupFiles { get; set; } = [];
             public IReadOnlyList<GroupFileDto> Files { get; set; } = [];
 
@@ -129,6 +153,8 @@ namespace SteelPans.WebApp.Services
             public Configuration? Configuration { get; set; }
 
             public MidiAssignedPan? PanRemoval { get; set; }
+
+            public GroupSummaryDto? LeaveGroup { get; set; }
 
             public GroupSummaryDto? DeleteGroup { get; set; }
 

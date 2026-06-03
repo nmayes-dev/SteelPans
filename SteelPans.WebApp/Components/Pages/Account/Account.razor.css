@@ -12,7 +12,7 @@
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr) auto;
     min-height: 0;
-    height: 100%;
+    height: auto;
     max-height: 100%;
     width: min(100%, 64rem);
     overflow: hidden;
@@ -269,14 +269,6 @@
     .account-card--wide {
         overflow-y: auto;
     }
-    
-    .account-profile-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .account-profile-grid {
-        grid-template-rows: auto;
-    }
 
     .account-profile__delete-button,
     .account-danger-zone .account-button {
@@ -285,6 +277,14 @@
 }
 
 @media (max-width: 520px) {
+
+    .account-card--wide {
+    }
+
+    .account-profile-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(2, min-content);
+    }
 
     .account-group-card__meta {
         justify-content: start;
