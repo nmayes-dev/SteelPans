@@ -1,4 +1,3 @@
-using SteelPans.Components.Auth;
 using SteelPans.Components.Services;
 using SteelPans.Shared.Auth;
 using SteelPans.Shared.Config;
@@ -62,8 +61,7 @@ public class Program
         app.MapStaticAssets();
 
         app.MapRazorComponents<App>()
-            .AddInteractiveServerRenderMode()
-            .AddAdditionalAssemblies(typeof(Register).Assembly);
+            .AddInteractiveServerRenderMode();
 
         app.MapPost("/api/download", async (HttpRequest request) =>
         {

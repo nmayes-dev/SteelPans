@@ -1,4 +1,5 @@
 ﻿@inherits LayoutComponentBase
+@inject KeyboardManagerService KeyboardManager
 
 <div class="page">
     <div class="sidebar">
@@ -21,3 +22,13 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await KeyboardManager.InitializeAsync();
+    }
+}

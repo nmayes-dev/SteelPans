@@ -15,14 +15,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="wwwroot\css\account.css" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Auth\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\SteelPans.Shared\SteelPans.Shared.csproj" />
   </ItemGroup>
 

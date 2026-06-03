@@ -24,7 +24,7 @@ public partial class Toolbar : OverlayComponentBase
     internal bool IsPanelOpen => ActiveElement is not null;
     internal bool IsAnyOpen => IsMenuOpen || IsPanelOpen;
 
-    internal IReadOnlyList<ToolbarElement> Elements => rootElements_;
+    internal IReadOnlyList<ToolbarElement> Elements => rootElements_.OrderBy(x => x.Order).ToArray();
 
     internal ToolbarElement? ActiveElement { get; private set; }
     internal ToolbarElement? ModalElement { get; private set; }

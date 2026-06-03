@@ -102,8 +102,7 @@
                                             @foreach (var member in members)
                                             {
                                                 <div class="group-member">
-                                                    <strong>@member.UserName@(member.Role == GroupRole.Leader ? " - Leader" : "")</strong>
-                                                    <small>@member.Email</small>
+                                                    <strong>@member.UserName - @member.Role</strong>
                                                 </div>
                                             }
                                         </div>

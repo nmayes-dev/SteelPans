@@ -50,7 +50,7 @@
 
         <p class="account-card__footer">
             New to Steel Pans?
-            <a href="/account/register">Create an account</a>
+            <a href="@RegisterUrl">Create an account</a>
         </p>
         <a class="account-link" href="/account/forgot-password">
             Forgot password?
@@ -64,4 +64,9 @@
 
     [SupplyParameterFromQuery]
     public string? Error { get; set; }
+
+    private string RegisterUrl =>
+        string.IsNullOrWhiteSpace(ReturnUrl)
+            ? "/account/register"
+            : $"/account/register?returnUrl={Uri.EscapeDataString(ReturnUrl)}";
 }

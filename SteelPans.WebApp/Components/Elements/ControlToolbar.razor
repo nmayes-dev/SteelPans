@@ -13,46 +13,15 @@
          MenuLabel="Pan Tools"
          Side="Toolbar.ToolbarSide.Left">
 
-    <ToolbarElement Text="Account">
+    <ToolbarElement Order="1"
+                    Text="Import">
         <SubMenu>
-            <AuthorizeView>
-                <Authorized>
-                    <ToolbarElement Text="Profile"
-                                    IconClass="bi-person"
-                                    OnClick="NavigateToProfile" />
-                    <ToolbarElement Text="Logout"
-                                    IconClass="bi-box-arrow-right"
-                                    OnClick="OpenLogoutAsync" />
-                </Authorized>
-                <NotAuthorized>
-                    <ToolbarElement Text="Login"
-                                    IconClass="bi-box-arrow-in-right"
-                                    OnClick="NavigateToLogin" />
-                    <ToolbarElement Text="Register"
-                                    IconClass="bi-person-plus"
-                                    OnClick="NavigateToRegister" />
-                </NotAuthorized>
-            </AuthorizeView>
-        </SubMenu>
-    </ToolbarElement>
-
-    <ToolbarElement Text="Import">
-        <SubMenu>
-            <ToolbarElement Text="MIDI File"
-                            IconClass="bi-file-earmark-music"
-                            LabelFor="midi-file-input" />
-
-            <InputFile id="midi-file-input"
-                       class="pans__file-input"
-                       OnChange="OnMidiFilesChangedAsync"
-                       multiple
-                       accept=".mid,.midi,audio/midi,audio/x-midi" />
-
             <AuthorizeView>
                 <Authorized>
                     @if (Groups is not null && Groups.Any(x => x.Value.Count > 0))
                     {
-                        <ToolbarElement Text="Ensemble"
+                        <ToolbarElement Order="1"
+                                        Text="From Group"
                                         IconClass="bi-collection">
                             <SubMenu>
                                 @foreach (var (group, files) in Groups.Where(x => x.Value.Count > 0))
@@ -94,9 +63,21 @@
                 </Authorized>
             </AuthorizeView>
 
+            <ToolbarElement Order="2"
+                            Text="MIDI File"
+                            IconClass="bi-file-earmark-music"
+                            LabelFor="midi-file-input" />
+
+            <InputFile id="midi-file-input"
+                       class="pans__file-input"
+                       OnChange="OnMidiFilesChangedAsync"
+                       multiple
+                       accept=".mid,.midi,audio/midi,audio/x-midi" />
+
             @if (Playback.IsMidiLoaded)
             {
-                <ToolbarElement Text="Tracks"
+                <ToolbarElement Order="3"
+                                Text="Tracks"
                                 IconClass="bi-music-note-list"
                                 Disabled="@(!Playback.Tracks.Any())"
                                 CanExpand="true">
@@ -132,15 +113,18 @@
         </SubMenu>
     </ToolbarElement>
     
-    <ToolbarElement Text="Layout">
+    <ToolbarElement Order="2"
+                    Text="Layout">
         <SubMenu>
-            <ToolbarElement Text="Add Pan"
+            <ToolbarElement Order="1"
+                            Text="Add Pan"
                             IconClass="bi-plus-lg"
                             OnClick="() => OpenAddPanAsync(closeOthers: true)" />
                             
             @if (Playback.IsMidiLoaded)
             {
-                <ToolbarElement Text="Load"
+                <ToolbarElement Order="2"
+                                Text="Load"
                                 IconClass="bi-folder2-open"
                                 Disabled="!Playback.IsMidiLoaded"
                                 LabelFor="layout-file-input" />
@@ -150,12 +134,14 @@
                            OnChange="OnLoadConfigurationFileAsync"
                            accept=".pans" />
 
-                <ToolbarElement Text="Save"
+                <ToolbarElement Order="3"
+                                Text="Save"
                                 IconClass="bi-floppy"
                                 Disabled="@(string.IsNullOrWhiteSpace(State.User.CurrentLayout) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
                                 OnClick="() => SaveConfigurationFileAsync()" />
 
-                <ToolbarElement Text="Save As..."
+                <ToolbarElement Order="4"
+                                Text="Save As..."
                                 IconClass="bi-floppy2"
                                 Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
                                 OnClick="OpenSaveLayoutAsync" />
@@ -165,9 +151,11 @@
 
     @if (Playback.ActivePans.Any())
     {
-        <ToolbarElement Text="Music">
+        <ToolbarElement Order="3"
+                        Text="Music">
             <SubMenu>
-                <ToolbarElement Text="Mixer"
+                <ToolbarElement Order="1"
+                                Text="Mixer"
                                 IconClass="bi-sliders2-vertical"
                                 Disabled="@(!Playback.ActivePans.Any())"
                                 CanExpand="true"
@@ -176,7 +164,8 @@
                         <VolumeMixer />
                     </ChildContent>
                 </ToolbarElement>
-                <ToolbarElement Text="Metronome"
+                <ToolbarElement Order="2"
+                                Text="Metronome"
                                 IconClass="bi-music-note-beamed">
                     <HeaderActions>
                         <label class="metronome-shell__status-switch">
@@ -197,7 +186,8 @@
                     </ChildContent>
                 </ToolbarElement>
 
-                <ToolbarElement Text="Chords"
+                <ToolbarElement Order="3"
+                                Text="Chords"
                                 IconClass="bi-music-note-list">
                     <ChildContent>
                         <ChordBuilder />
@@ -208,7 +198,7 @@
     }
 </Toolbar>
 
-    @code {
+@code {
     private Toolbar? toolbar_;
 
     private Settings Settings => SettingsAccessor.Value;
@@ -279,9 +269,9 @@
             var result = await JsonSerializer.DeserializeAsync<Configuration>(
                 stream,
                 new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true
-                    });
+                {
+                    PropertyNameCaseInsensitive = true
+                });
 
             if (result is null)
                 return;
@@ -350,11 +340,11 @@
         {
             var files = e.GetMultipleFiles()
                 .Select(file => new DialogFile
-                    {
-                        Name = file.Name,
-                        Size = file.Size,
-                        File = file
-                    })
+                {
+                    Name = file.Name,
+                    Size = file.Size,
+                    File = file
+                })
                 .ToList();
 
             if (files.Count == 0)

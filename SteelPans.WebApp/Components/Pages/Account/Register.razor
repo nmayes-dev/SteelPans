@@ -1,6 +1,8 @@
 @page "/account/register"
 @using Microsoft.AspNetCore.Components
 
+<PageTitle>Create Account</PageTitle>
+
 <section class="account-page account-page--register">
     <div class="account-card">
         <div class="account-card__header">
@@ -31,6 +33,20 @@
             <div class="account-field">
                 <label for="password">Password</label>
                 <input id="password" name="password" type="password" autocomplete="new-password" required />
+            </div>
+
+            <div class="account-field account-field--checkbox">
+                <label class="account-checkbox">
+                    <input id="privacy-policy"
+                           name="acceptPrivacyPolicy"
+                           type="checkbox"
+                           required />
+
+                    <span>
+                        I agree to the
+                        <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
+                    </span>
+                </label>
             </div>
 
             <button class="account-button account-button--primary" type="submit">Create Account</button>

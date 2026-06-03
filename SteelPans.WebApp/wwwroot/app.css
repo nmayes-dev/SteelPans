@@ -1,3 +1,5 @@
+@import url('css/account.css');
+
 html,
 body {
     --ui-icon-button-size: clamp(1.8rem, 2.25vw, 2.25rem);
@@ -25,6 +27,10 @@ body {
 
 @media (max-width: 640.98px) {
     .page:has(.navbar-toggler:checked) .toolbar {
+        visibility: hidden;
+    }
+
+    .page:has(.navbar-toggler:checked) .toolbar * {
         visibility: hidden;
     }
 }
@@ -429,3 +435,36 @@ h4 {
         fill: #e5e5e5;
     }
 }
+
+
+/* Firefox */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: white;
+}
+
+    /* Chromium/WebKit */
+    *::-webkit-scrollbar {
+        width: 0.8rem;
+        height: 0.8rem;
+    }
+
+    *::-webkit-scrollbar-track {
+        background: #0f172a;
+        border-radius: 999rem;
+    }
+
+    *::-webkit-scrollbar-thumb {
+        background: white;
+        border-radius: 999rem;
+        border: 0.15rem solid #0f172a;
+        transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+        *::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient( 180deg, #94a3b8, #64748b );
+        }
+
+    *::-webkit-scrollbar-corner {
+        background: transparent;
+    }

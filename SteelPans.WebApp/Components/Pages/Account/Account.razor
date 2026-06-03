@@ -1,11 +1,11 @@
-﻿@page "/account/profile"
+﻿@page "/account"
 
 @attribute [Authorize]
 @inject NavigationManager Nav
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthStateProvider
 
-<PageTitle>Profile</PageTitle>
+<PageTitle>Account</PageTitle>
 
 <AuthorizeView>
     <Authorized Context="auth">
@@ -13,7 +13,7 @@
             <div class="account-card account-card--compact">
                 <div class="account-card__header">
                     <p class="account-card__eyebrow">Steel Pans</p>
-                    <h1 class="account-card__title">Profile</h1>
+                    <h1 class="account-card__title">Account</h1>
                     <p class="account-card__subtitle">
                         Manage the account signed in on this device.
                     </p>
@@ -26,22 +26,6 @@
                             @Username
                         </span>
                     </div>
-
-                    @if (!string.IsNullOrWhiteSpace(user_?.UserName))
-                    {
-                        <div class="account-profile__row">
-                            <span class="account-profile__label">Username</span>
-                            <span class="account-profile__value">@user_.UserName</span>
-                        </div>
-                    }
-                </div>
-
-                <div class="account-form__actions">
-                    <button type="button"
-                            class="account-button account-button--secondary"
-                            @onclick="NavigateHome">
-                        Back to pans
-                    </button>
                 </div>
             </div>
         </section>
@@ -61,7 +45,7 @@
                 <button type="button"
                         class="account-button"
                         @onclick="NavigateToLogin">
-                    Log in
+                    Login
                 </button>
             </div>
         </section>
