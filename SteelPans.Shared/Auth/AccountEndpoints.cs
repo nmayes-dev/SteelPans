@@ -1,9 +1,12 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using SteelPans.Shared.Data;
+using SteelPans.Shared.Ensembles;
+using SteelPans.Shared.Services;
 
 namespace SteelPans.Shared.Auth;
 
@@ -16,6 +19,9 @@ public static class AccountEndpoints
         group.MapPost("/register", RegisterAsync);
         group.MapPost("/login", LoginAsync);
         group.MapPost("/logout", LogoutAsync)
+            .RequireAuthorization();
+
+        group.MapPost("/delete", DeleteAsync)
             .RequireAuthorization();
 
         group.MapGet("/me", MeAsync)
@@ -112,6 +118,104 @@ public static class AccountEndpoints
         await signInManager.SignOutAsync();
 
         return Results.Redirect(SafeReturnUrl(returnUrl));
+    }
+
+
+    private static async Task<IResult> DeleteAsync(
+        HttpContext context,
+        UserManager<ApplicationUser> userManager,
+        SignInManager<ApplicationUser> signInManager,
+        EnsembleDbContext db,
+        IEnsembleFileStore fileStore,
+        CancellationToken cancellationToken)
+    {
+        var user = await userManager.GetUserAsync(context.User);
+
+        if (user is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var userId = user.Id;
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+        var uploadedFiles = await db.MidiFiles
+            .Where(x => x.UploadedByUserId == userId)
+            .ToListAsync(cancellationToken);
+
+        var storageKeys = uploadedFiles
+            .Select(x => x.StorageKey)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        var memberGroups = await db.Groups
+            .Include(x => x.Members)
+            .Where(x => x.Members.Any(member => member.UserId == userId))
+            .ToListAsync(cancellationToken);
+
+        var groupsToDelete = memberGroups
+            .Where(x => x.Members.Count == 1)
+            .ToList();
+
+        var groupIdsToDelete = groupsToDelete
+            .Select(x => x.Id)
+            .ToHashSet();
+
+        var createdGroupsToKeep = await db.Groups
+            .Include(x => x.Members)
+            .Where(x => x.CreatedByUserId == userId && !groupIdsToDelete.Contains(x.Id))
+            .ToListAsync(cancellationToken);
+
+        foreach (var group in createdGroupsToKeep)
+        {
+            var replacement = group.Members
+                .Where(x => x.UserId != userId)
+                .OrderBy(x => x.Role == GroupRole.Leader ? 0 : 1)
+                .ThenBy(x => x.JoinedAt)
+                .FirstOrDefault();
+
+            if (replacement is not null)
+            {
+                group.CreatedByUserId = replacement.UserId;
+            }
+            else
+            {
+                groupsToDelete.Add(group);
+                groupIdsToDelete.Add(group.Id);
+            }
+        }
+
+        db.Groups.RemoveRange(groupsToDelete.DistinctBy(x => x.Id));
+
+        var remainingMemberships = await db.GroupMembers
+            .Where(x => x.UserId == userId && !groupIdsToDelete.Contains(x.GroupId))
+            .ToListAsync(cancellationToken);
+
+        db.GroupMembers.RemoveRange(remainingMemberships);
+        db.MidiFiles.RemoveRange(uploadedFiles);
+
+        await db.SaveChangesAsync(cancellationToken);
+
+        var deleteResult = await userManager.DeleteAsync(user);
+
+        if (!deleteResult.Succeeded)
+        {
+            var error = string.Join("; ", deleteResult.Errors.Select(x => x.Description));
+            await transaction.RollbackAsync(cancellationToken);
+            return Results.Problem(error);
+        }
+
+        await signInManager.SignOutAsync();
+        await transaction.CommitAsync(cancellationToken);
+
+        foreach (var storageKey in storageKeys)
+        {
+            await fileStore.DeleteAsync(storageKey, cancellationToken);
+        }
+
+        return Results.Redirect("/");
     }
 
     private static IResult MeAsync(HttpContext context)

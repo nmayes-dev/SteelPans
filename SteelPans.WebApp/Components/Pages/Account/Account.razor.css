@@ -1,25 +1,292 @@
-﻿.account-profile {
+.account-page--profile {
+    align-items: start;
+    place-items: start center;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+}
+
+.account-card--wide {
     display: grid;
-    gap: 0.85rem;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    width: min(100%, 64rem);
+    overflow: hidden;
+    row-gap: 0;
+}
+
+    .account-card--wide .account-button {
+        margin: auto 0;
+        font-size: clamp(0.75rem, 1vw, 1rem);
+    }
+
+.account-card__header--split {
+    margin-bottom: clamp(0.4rem, 1.4vw, 1.15rem);
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 1rem;
+}
+
+.account-profile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+    grid-template-rows: minmax(0, 1fr);
+    gap: clamp(0.9rem, 2vw, 1.25rem);
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.account-profile-user,
+.account-profile-groups,
+.account-danger-zone {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    max-height: 100%;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 1.1rem;
+    background: rgba(255, 255, 255, 0.62);
+}
+
+.account-profile-user,
+.account-profile-groups {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: clamp(0.5rem, 1.7vw, 1.15rem);
+    height: 100%;
+    gap: 0.2rem;
+}
+
+.account-profile-user {
+    align-self: start;
+}
+
+.account-profile-groups {
+    align-self: stretch;
+}
+
+.account-profile-panel__header {
+    display: grid;
+    flex: 0 0 auto;
+}
+
+    .account-profile-panel__header h2,
+    .account-danger-zone h2 {
+        margin: 0;
+        color: #0f172a;
+        font-size: clamp(0.75rem, 1.2vw, 1rem);
+        font-weight: 850;
+        letter-spacing: -0.02em;
+    }
+
+    .account-profile-panel__header p,
+    .account-danger-zone p {
+        margin: 0;
+        color: #64748b;
+        font-size: clamp(0.65rem, 1vw, 0.9rem);
+        font-weight: 650;
+        line-height: 1.4;
+    }
+
+.account-profile {
+    display: grid;
+    gap: 0.25rem;
+    overflow-y: auto;
+    min-height: 0;
 }
 
 .account-profile__row {
     display: grid;
-    gap: 0.25rem;
-    padding: 0.85rem 0;
-    border-bottom: 1px solid var(--account-border-color, rgba(255, 255, 255, 0.12));
+    gap: 0.2rem;
+    padding: 0.4rem 0;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
 }
 
+    .account-profile__row:last-child {
+        border-bottom: 0;
+    }
+
 .account-profile__label {
-    font-size: 0.8rem;
-    opacity: 0.7;
+    color: #64748b;
+    font-size: clamp(0.5rem, 0.68vw, 0.75rem);
+    font-weight: 825;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 }
 
 .account-profile__value {
-    font-weight: 600;
+    color: #0f172a;
+    font-weight: 750;
+    font-size: clamp(0.7rem, 0.86vw, 1rem);
     overflow-wrap: anywhere;
 }
 
+.account-profile__delete-button {
+    white-space: nowrap;
+}
+
+.account-group-list-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 0.15rem;
+}
+
+.account-group-list {
+    display: grid;
+    gap: 0.4rem;
+    min-height: 0;
+}
+
+.account-group-card {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.8rem;
+    min-width: 0;
+    padding: 0.7rem;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 0.9rem;
+    background: rgba(248, 250, 252, 0.82);
+}
+
+.account-group-card__main {
+    display: grid;
+    gap: 0.18rem;
+    min-width: 0;
+}
+
+    .account-group-card__main h3 {
+        margin: 0;
+        color: #0f172a;
+        font-size: clamp(0.7rem, 0.9vw, 0.95rem);
+        font-weight: 850;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .account-group-card__main p {
+        margin: 0;
+        color: #2563eb;
+        font-size: clamp(0.5rem, 0.6vw, 0.78rem);
+        font-weight: 850;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+
+.account-group-card__meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.45rem;
+}
+
+    .account-group-card__meta span {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(0.1rem, 0.3vw, 0.35rem) clamp(0.2rem, 0.4vw, 0.55rem);
+        border-radius: 999rem;
+        background: rgba(37, 99, 235, 0.08);
+        color: #1e3a8a;
+        font-size: clamp(0.5rem, 0.6vw, 0.78rem);
+        font-weight: 800;
+        line-height: 1;
+        white-space: nowrap;
+    }
+
+.account-empty {
+    margin: 0;
+    padding: 0.85rem;
+    border: 1px dashed rgba(148, 163, 184, 0.5);
+    border-radius: 0.9rem;
+    color: #64748b;
+    font-size: 0.92rem;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+.account-danger-zone {
+    grid-template-columns: minmax(0, 1fr) auto;
+    border-color: rgba(220, 38, 38, 0.2);
+    background: rgba(254, 242, 242, 0.72);
+    row-gap: 0;
+    transform: scaleY(1);
+    transform-origin: top;
+    margin-top: clamp(0.6rem, 1.4vw, 1.15rem);
+}
+
+.account-danger-zone-hidden {
+    margin-top: 0;
+    height: 0;
+    transform: scaleY(0);
+}
+
+.account-danger-details,
+.account-danger-actions {
+    --padding: clamp(0.5rem, 0.6vw, 0.8rem);
+    padding: var(--padding);
+    display: grid;
+    gap: 0.4rem;
+}
+
+.account-danger-details {
+}
+
+.account-danger-actions {
+    display: grid;
+    grid-template-rows: auto 1fr;
+}
+
+.account-danger-actions .bi {
+    justify-self: end;
+    --size: calc(var(--ui-icon-button-size) * 0.7);
+    --half: calc(var(--size) * 0.5);
+    min-width: var(--size);
+    max-width: var(--size);
+    min-height: var(--size);
+    max-height: var(--size);
+    border-radius: var(--half);
+    font-size: var(--half);
+}
+
+    .account-danger-actions .account-button {
+        min-height: 0;
+    }
+
+
 .account-form__actions {
     margin-top: 1.25rem;
+}
+
+@media (max-width: 760px) {
+    .account-card--wide {
+        overflow-y: auto;
+    }
+    
+    .account-profile-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .account-profile-grid {
+        grid-template-rows: auto;
+    }
+
+    .account-profile__delete-button,
+    .account-danger-zone .account-button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 520px) {
+
+    .account-group-card__meta {
+        justify-content: start;
+    }
 }

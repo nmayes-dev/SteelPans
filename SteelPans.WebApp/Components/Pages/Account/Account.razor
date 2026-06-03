@@ -1,32 +1,122 @@
-﻿@page "/account"
+@page "/account"
 
 @attribute [Authorize]
 @inject NavigationManager Nav
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthStateProvider
+@inject DbService Db
+@inject InstanceStateService State
+@inject ModalPopupService Modals
 
 <PageTitle>Account</PageTitle>
 
 <AuthorizeView>
     <Authorized Context="auth">
         <section class="account-page account-page--profile">
-            <div class="account-card account-card--compact">
-                <div class="account-card__header">
-                    <p class="account-card__eyebrow">Steel Pans</p>
-                    <h1 class="account-card__title">Account</h1>
-                    <p class="account-card__subtitle">
-                        Manage the account signed in on this device.
-                    </p>
+            <div class="account-card account-card--wide">
+                <div class="account-card__header account-card__header--split">
+                    <div>
+                        <p class="account-card__eyebrow">Steel Pans</p>
+                        <h1 class="account-card__title">Account</h1>
+                        <p class="account-card__subtitle">
+                            Manage the account signed in on this device.
+                        </p>
+                    </div>
+
+                    <button type="button"
+                            class="account-button account-button--danger account-profile__delete-button"
+                            @onclick="() => displayDelete_ = true">
+                        Delete Account
+                    </button>
                 </div>
 
-                <div class="account-profile">
-                    <div class="account-profile__row">
-                        <span class="account-profile__label">Signed in as</span>
-                        <span class="account-profile__value">
-                            @Username
-                        </span>
-                    </div>
+                @if (!string.IsNullOrWhiteSpace(State.Task.Error))
+                {
+                    <p class="account-error">@State.Task.Error</p>
+                }
+
+                <div class="account-profile-grid">
+                    <section class="account-profile-panel account-profile-user">
+                        <div class="account-profile-panel__header">
+                            <h2>Profile</h2>
+                            <p>Your sign-in details.</p>
+                        </div>
+
+                        <div class="account-profile">
+                            <div class="account-profile__row">
+                                <span class="account-profile__label">Username</span>
+                                <span class="account-profile__value">@Username</span>
+                            </div>
+
+                            <div class="account-profile__row">
+                                <span class="account-profile__label">Email</span>
+                                <span class="account-profile__value">@Email</span>
+                            </div>
+
+                            <div class="account-profile__row">
+                                <span class="account-profile__label">Created</span>
+                                <span class="account-profile__value">@CreatedAt</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section class="account-profile-panel account-profile-groups">
+                        <div class="account-profile-panel__header">
+                            <h2>Groups</h2>
+                        </div>
+
+                        @if (loading_)
+                        {
+                            <p class="account-empty">Loading groups…</p>
+                        }
+                        else if (groups_.Count == 0)
+                        {
+                            <p class="account-empty">You are not currently a member of any groups.</p>
+                        }
+                        else
+                        {
+                            <div class="account-group-list-wrap">
+                                <div class="account-group-list">
+                                    @foreach (var group in groups_)
+                                    {
+                                        <article class="account-group-card">
+                                            <div class="account-group-card__main">
+                                                <h3>@group.Name</h3>
+                                                <p>@group.Role</p>
+                                            </div>
+
+                                            <div class="account-group-card__meta">
+                                                <span>@GetMemberCountText(group)</span>
+                                                <span>@GetSharedFileCountText(group)</span>
+                                            </div>
+                                        </article>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </section>
                 </div>
+                
+                <section class="account-danger-zone @(displayDelete_ ? "" : "account-danger-zone-hidden")">
+                    <div class="account-danger-details">
+                        <h2>Delete Account</h2>
+                        <p>
+                            This removes your account, removes you from all groups, deletes groups where you are the only member,
+                            and deletes MIDI files uploaded by this account.
+                        </p>
+                    </div>
+
+                    <div class="account-danger-actions">
+                        <button type="button"
+                                class="bi bi-x"
+                                @onclick="() => displayDelete_ = !displayDelete_" />
+                        <button type="button"
+                                class="account-button account-button--danger"
+                                @onclick="OpenDeleteAccountAsync">
+                            Delete Account
+                        </button>
+                    </div>
+                </section>
             </div>
         </section>
     </Authorized>
@@ -43,7 +133,7 @@
                 </div>
 
                 <button type="button"
-                        class="account-button"
+                        class="account-button account-button--primary"
                         @onclick="NavigateToLogin">
                     Login
                 </button>
@@ -53,21 +143,69 @@
 </AuthorizeView>
 
 @code {
-
+    private readonly Dictionary<Guid, int> memberCounts_ = [];
+    private readonly Dictionary<Guid, int> sharedFileCounts_ = [];
+    private IReadOnlyList<GroupSummaryDto> groups_ = [];
     private ApplicationUser? user_;
+    private bool loading_ = true;
+    private bool displayDelete_;
 
     private string Username => user_?.UserName ?? "Unknown user";
+
+    private string Email => user_?.Email ?? "No email address";
+
+    private string CreatedAt => user_ is null
+        ? "Unknown"
+        : user_.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm");
 
     protected override async Task OnInitializedAsync()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         user_ = await UserManager.GetUserAsync(authState.User);
+
+        if (user_ is null)
+        {
+            loading_ = false;
+            return;
+        }
+
+        await State.Task.RunSafe(async () =>
+        {
+            await State.User.RefreshAsync();
+            groups_ = State.User.Groups;
+
+            memberCounts_.Clear();
+            sharedFileCounts_.Clear();
+
+            foreach (var group in groups_)
+            {
+                memberCounts_[group.Id] = (await Db.Groups.GetGroupMembersAsync(group.Id)).Count;
+                sharedFileCounts_[group.Id] = State.User.GroupFiles.TryGetValue(group.Id, out var files)
+                    ? files.Count
+                    : 0;
+            }
+        });
+
+        loading_ = false;
     }
 
-    private void NavigateHome()
+    private string GetMemberCountText(GroupSummaryDto group)
     {
-        Nav.NavigateTo("/");
+        var count = memberCounts_.GetValueOrDefault(group.Id);
+        return $"{count} member{(count == 1 ? string.Empty : "s")}";
     }
+
+    private string GetSharedFileCountText(GroupSummaryDto group)
+    {
+        var count = sharedFileCounts_.GetValueOrDefault(group.Id);
+        return $"{count} file{(count == 1 ? string.Empty : "s")}";
+    }
+
+    private Task OpenDeleteAccountAsync()
+    {
+        return Modals.OpenAsync("DeleteAccount");
+    }
+
     private void NavigateToLogin()
     {
         Nav.NavigateTo("/account/login");
