@@ -2,7 +2,7 @@
 
 public enum GroupRole
 {
-    Leader,
-    Admin,
-    Member
+    Leader = 0,
+    Admin = 10,
+    Member = 100
 }

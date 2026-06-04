@@ -310,6 +310,8 @@
             await LoadAsync();
             return "Member role updated.";
         });
+
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task TransferLeadershipAsync(GroupMemberSummaryDto member)

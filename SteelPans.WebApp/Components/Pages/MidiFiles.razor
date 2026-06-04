@@ -4,6 +4,7 @@
 @inject MidiInspectionService MidiInspection
 @inject InstanceStateService State
 @inject ModalPopupService Modals
+@implements IDisposable
 
 <PageTitle>MIDI Files</PageTitle>
 
@@ -273,6 +274,17 @@
     protected override async Task OnInitializedAsync()
     {
         await State.User.RefreshAsync();
+        State.User.OnRefresh += OnUserStateRefreshAsync;
+    }
+
+    public void Dispose()
+    {
+        State.User.OnRefresh -= OnUserStateRefreshAsync;
+    }
+
+    private Task OnUserStateRefreshAsync()
+    {
+        return InvokeAsync(StateHasChanged);
     }
 
     private async Task PreviewFileAsync(InputFileChangeEventArgs args)

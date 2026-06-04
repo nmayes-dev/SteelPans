@@ -223,7 +223,8 @@ public sealed class DbService
                 .AsNoTracking()
                 .Where(x => x.GroupId == groupId)
                 .Include(x => x.User)
-                .OrderBy(x => x.Role)
+                .OrderBy(GroupRoleExtensions.RoleSortOrder)
+                .ThenBy(x => x.JoinedAt)
                 .ThenBy(x => x.User.UserName)
                 .Select(x => new GroupMemberSummaryDto(
                     x.UserId,
@@ -235,7 +236,10 @@ public sealed class DbService
                 .ToListAsync(cancellationToken);
         }
 
-        public async Task SetMemberRoleAsync(Guid groupId, UpdateGroupMemberRoleRequest request, CancellationToken cancellationToken = default)
+        public async Task SetMemberRoleAsync(
+            Guid groupId,
+            UpdateGroupMemberRoleRequest request,
+            CancellationToken cancellationToken = default)
         {
             var currentMember = await GetCurrentMemberAsync(groupId, cancellationToken);
             if (currentMember?.Role != GroupRole.Leader)
@@ -248,12 +252,13 @@ public sealed class DbService
                 throw new InvalidOperationException("Use transfer leadership instead.");
             }
 
-            var member = await db.GroupMembers.FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == request.UserId, cancellationToken)
+            var member = await db.GroupMembers
+                .FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == request.UserId, cancellationToken)
                 ?? throw new InvalidOperationException("Member was not found.");
 
-            if ((member.Role == GroupRole.Leader || member.Role == GroupRole.Admin))
+            if (member.Role == GroupRole.Leader)
             {
-                throw new InvalidOperationException("The current leader role cannot be edited here.");
+                throw new InvalidOperationException("The leader role cannot be edited here.");
             }
 
             member.Role = request.Role;
@@ -296,10 +301,12 @@ public sealed class DbService
                 throw new UnauthorizedAccessException();
             }
 
-            var member = await db.GroupMembers.FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == userId, cancellationToken)
+            var member = await db.GroupMembers
+                .FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == userId, cancellationToken)
                 ?? throw new InvalidOperationException("Member was not found.");
 
             var removingSelf = member.UserId == currentUser.UserId;
+
             var canRemove = removingSelf ||
                 currentMember.Role == GroupRole.Leader ||
                 (currentMember.Role == GroupRole.Admin && member.Role == GroupRole.Member);
@@ -309,13 +316,18 @@ public sealed class DbService
                 throw new UnauthorizedAccessException();
             }
 
-            if (!removingSelf && (member.Role == GroupRole.Leader || member.Role == GroupRole.Admin))
+            if (!removingSelf && member.Role == GroupRole.Leader)
             {
                 throw new InvalidOperationException("The leader cannot be removed by another member.");
             }
 
             db.GroupMembers.Remove(member);
-            await PromoteReplacementLeaderOrDeleteAsync(groupId, member.Role == GroupRole.Leader, cancellationToken);
+
+            await PromoteReplacementLeaderOrDeleteAsync(
+                groupId,
+                member.Role == GroupRole.Leader,
+                cancellationToken);
+
             await db.SaveChangesAsync(cancellationToken);
         }
 

@@ -1,11 +1,12 @@
-﻿using Microsoft.AspNetCore.Components.Forms;
+﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.AspNetCore.Components.Routing;
 using SteelPans.Shared.Config;
+using SteelPans.Shared.Data;
 using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Music;
 using SteelPans.Shared.Services;
-using SteelPans.Shared.Data;
-using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Routing;
+using System.Threading.Channels;
 
 namespace SteelPans.WebApp.Services
 {
@@ -108,6 +109,8 @@ namespace SteelPans.WebApp.Services
 
         public sealed class UserState(DbService db)
         {
+            public event Func<Task>? OnRefresh;
+
             public string CurrentLayout { get; set; } = string.Empty;
             public IReadOnlyList<GroupSummaryDto>? Groups { get; set; }
             public Dictionary<Guid, IReadOnlyList<GroupFileDto>> GroupFiles { get; set; } = [];
@@ -118,8 +121,21 @@ namespace SteelPans.WebApp.Services
                 Groups = await db.Groups.GetMyGroupsAsync();
                 Files = await db.MidiFiles.GetMyMidiFilesAsync();
 
+                GroupFiles.Clear();
+
                 foreach (var group in Groups)
                     GroupFiles[group.Id] = await db.Groups.GetGroupFilesAsync(group.Id);
+
+                RaiseOnRefresh();
+            }
+
+            private void RaiseOnRefresh()
+            {
+                if (OnRefresh is null)
+                    return;
+
+                foreach (var handler in OnRefresh.GetInvocationList().Cast<Func<Task>>())
+                    _ = System.Threading.Tasks.Task.Run(handler);
             }
         }
 
