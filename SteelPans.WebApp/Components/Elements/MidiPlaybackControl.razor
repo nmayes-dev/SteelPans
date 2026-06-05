@@ -91,7 +91,7 @@
 
         keyCallbacks_.Add(Keyboard.Register(
             e => Enabled && !Overlays.AnyOpen && e.Code.Equals("Space", StringComparison.OrdinalIgnoreCase),
-            async _ => await HandlePlayPauseAsync()
+            _ => HandlePlayPauseAsync()
         ));
     }
 

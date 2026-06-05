@@ -5,22 +5,21 @@
             Title="@Title"
             ShowCloseButton="false"
             CloseButton="Cancel"
-            OnClose="CloseRemovePanModal"
+            OnClose="OnClose"
             ConfirmButton="Remove"
             ConfirmButtonClass="btn-danger"
-            OnConfirm="ConfirmRemovePanAsync" />
-
+            OnConfirm="OnConfirmAsync" />
 @code {
     private string Title => State.Pending.PanRemoval is not null
         ? $"Remove {State.Pending.PanRemoval.Pan.Type.ToSpacedPascal()}?"
         : "Remove Pan?";
 
-    private async Task CloseRemovePanModal()
+    private void OnClose()
     {
         State.Pending.PanRemoval = null;
     }
 
-    private async Task ConfirmRemovePanAsync()
+    private async Task OnConfirmAsync()
     {
         if (State.Pending.PanRemoval is null)
             return;

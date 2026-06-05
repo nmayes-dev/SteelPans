@@ -103,12 +103,12 @@ public partial class ModalPopup : OverlayComponentBase
         keyCallbacks_.Add(
             Keyboard.Register(
                 e => isOpen_ && e.Key == "Escape" && !e.IsEditableTarget,
-                async _ => await OnCloseAsync()));
+                _ => RequestCloseAsync()));
 
         keyCallbacks_.Add(
                 Keyboard.Register(
                     e => isOpen_ && e.Key == "Enter" && !e.IsEditableTarget,
-                    async _ => await ConfirmAsync()));
+                    _ => ConfirmAsync()));
 
         Modals.Register(Id, this);
 
@@ -132,13 +132,12 @@ public partial class ModalPopup : OverlayComponentBase
 
         await OnOpen.InvokeAsync();
         await NotifyOpenedAsync(closeOthers);
-        await InvokeAsync(StateHasChanged);
     }
 
     public async Task ConfirmAsync()
     {
         await OnConfirm.InvokeAsync();
-        await OnCloseAsync();
+        await RequestCloseAsync();
     }
 
     protected override async Task OnCloseAsync()

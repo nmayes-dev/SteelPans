@@ -5,9 +5,9 @@
 <ModalPopup Id="MergeMidiFiles"
             Title="Merge MIDI tracks"
             CloseButton="Cancel"
-            OnClose="CloseMergeMidiModal"
+            OnClose="OnClose"
             ConfirmButton="Merge"
-            OnConfirm="ConfirmMergeMidiAsync">
+            OnConfirm="OnConfirmAsync">
     <ChildContent>
         <input class="pans-page__track_name form-control"
                placeholder="Enter merged track name..."
@@ -20,15 +20,14 @@
     private string mergeMidiFileName_ = string.Empty;
 
 
-    private Task CloseMergeMidiModal()
+    private void OnClose()
     {
         mergeMidiFileName_ = string.Empty;
         State.Pending.MergeMidiFiles = [];
-        return Task.CompletedTask;
     }
 
     
-    private async Task ConfirmMergeMidiAsync()
+    private async Task OnConfirmAsync()
     {
         if (State.Pending.MergeMidiFiles.Count == 0)
             return;

@@ -5,18 +5,18 @@
             Title="Loading Layout For Different MIDI"
             ShowCloseButton="false"
             CloseButton="Cancel"
-            OnClose="CancelLoadConfigurationAsync"
+            OnClose="OnCancel"
             ConfirmButton="Confirm"
             ConfirmButtonClass="btn-danger"
-            OnConfirm="ConfirmLoadConfigurationAsync" />
+            OnConfirm="OnConfirmAsync" />
 
 @code {
-    private async Task CancelLoadConfigurationAsync()
+    private void OnCancel()
     {
         State.Pending.Configuration = null;
     }
 
-    private async Task ConfirmLoadConfigurationAsync()
+    private async Task OnConfirmAsync()
     {
         if (State.Pending.Configuration is null)
             return;
