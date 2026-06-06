@@ -5,12 +5,12 @@ using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Music;
 using SteelPans.WebApp.Components.Elements;
 
-namespace SteelPans.WebApp.Components.Pages;
+namespace SteelPans.WebApp.Components.Pages.Practice;
 
 public partial class Pans : IAsyncDisposable
 {
 
-    [SupplyParameterFromQuery]
+    [SupplyParameterFromQuery(Name = "file")]
     public Guid? FileId { get; set; }
 
     private Settings Settings => SettingsAccessor.Value;

@@ -292,7 +292,7 @@
 
     private void OpenInPans(Guid fileId)
     {
-        Nav.NavigateTo($"/pans?fileId={fileId}");
+        Nav.NavigateTo($"/practice/play?file={fileId}");
     }
 
     private async Task OpenTransferLeadershipModalAsync(GroupMemberSummaryDto member)

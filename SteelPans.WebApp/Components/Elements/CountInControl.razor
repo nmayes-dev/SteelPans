@@ -1,12 +1,12 @@
 @inject MidiPlaybackService Playback
 @implements IDisposable
 
-<div class="count-in-control" aria-label="Metronome count in">
+<div class="count-in-control" aria-label="Metronome Count In">
     <div class="count-in-control__control">
         <button class="count-in-control__button"
                 type="button"
-                title="Decrease count in"
-                aria-label="Decrease count in"
+                title="Decrease Count In"
+                aria-label="Decrease Count In"
                 disabled="@(!CanDecrement)"
                 @onclick="DecrementAsync">
             <span class="bi bi-chevron-left" aria-hidden="true"></span>
@@ -21,8 +21,8 @@
 
         <button class="count-in-control__button"
                 type="button"
-                title="Increase count in"
-                aria-label="Increase count in"
+                title="Increase Count In"
+                aria-label="Increase Count In"
                 disabled="@(!CanIncrement)"
                 @onclick="IncrementAsync">
             <span class="bi bi-chevron-right" aria-hidden="true"></span>
