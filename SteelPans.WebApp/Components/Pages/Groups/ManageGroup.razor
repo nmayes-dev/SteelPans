@@ -142,6 +142,12 @@
                                         <button class="sp-app-button sp-app-button--danger" type="button" disabled="@State.Task.Busy" @onclick="() => UnshareFileAsync(file.Id)">Unshare</button>
                                     }
                                     <button class="sp-app-button" type="button" @onclick="() => filePreview_!.TogglePreviewAsync(file.Id)">@(CanManageFiles ? "Edit" : "View")</button>
+                                    <button class="sp-app-button"
+                                            type="button"
+                                            disabled="@State.Task.Busy"
+                                            @onclick="() => OpenInPans(file.Id)">
+                                        Practice
+                                    </button>
                                 </div>
                             </article>
                         }
@@ -282,6 +288,11 @@
             await LoadAsync();
             return "Member role updated.";
         });
+    }
+
+    private void OpenInPans(Guid fileId)
+    {
+        Nav.NavigateTo($"/pans?fileId={fileId}");
     }
 
     private async Task OpenTransferLeadershipModalAsync(GroupMemberSummaryDto member)

@@ -2,6 +2,7 @@
 @inject SteelPanLoaderService PanLoader
 @inject MidiLoaderService MidiService
 @inject MidiPlaybackService Playback
+@inject DbService Db
 @inject NavigationManager Nav
 @inject InstanceStateService State
 @inject IJSRuntime JS
@@ -10,11 +11,8 @@
 <PageTitle>Practice</PageTitle>
 
 <div class="pans-page">
-    @if (!string.IsNullOrWhiteSpace(State.Task.Error))
-    {
-        <div class="alert alert-danger">@State.Task.Error</div>
-    }
-    else if (Playback.AvailablePans.Count > 0)
+    <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
+    @if (Playback.AvailablePans.Count > 0)
     {
         var hasMidiControls = Playback.ActivePans.Any(x => x.Events.Count > 0);
         

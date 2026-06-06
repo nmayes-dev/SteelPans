@@ -47,7 +47,7 @@
                                                             <button type="button"
                                                                     class="pans-page__track-button"
                                                                     aria-label="Load File"
-                                                                    @onclick="() => LoadLeaderMidiFileAsync(file)">
+                                                                    @onclick="() => LoadGroupMidiFileAsync(file)">
                                                                 <span class="bi bi-download" aria-hidden="true"></span>
                                                             </button>
                                                         </div>
@@ -198,7 +198,7 @@
     }
 </Toolbar>
 
-@code {
+    @code {
     private Toolbar? toolbar_;
 
     private Settings Settings => SettingsAccessor.Value;
@@ -375,50 +375,12 @@
         });
     }
 
-    private async Task LoadLeaderMidiFileAsync(GroupFileDto file)
+    private async Task LoadGroupMidiFileAsync(GroupFileDto file)
     {
         await toolbar_!.RequestCloseAsync();
         await Task.Delay(50); // Wait for toolbar to close
 
-        await State.Task.RunUnsafe(async () =>
-        {
-            var details = await Db.MidiFiles.GetMidiFileDetailsAsync(file.Id);
-            var download = await Db.MidiFiles.OpenMidiFileAsync(file.Id);
-
-            if (details is null || download is null)
-                throw new FileNotFoundException("MIDI file was not found.");
-
-            await Playback.OnLoadMidiAsync(async () =>
-            {
-                await using var stream = download.Stream;
-                return (download.FileName, await MidiService.OpenMidiFileAsync(stream));
-            });
-
-            await LoadLeaderAssignmentsAsync(details.Assignments);
-        });
-    }
-
-    private async Task LoadLeaderAssignmentsAsync(
-        IReadOnlyList<MidiTrackAssignmentDto> assignments)
-    {
-        await Playback.OnClearAssignmentsAsync();
-
-        foreach (var savedAssignment in assignments.Where(x => x.PanType != PanType.None))
-        {
-            var track = Playback.Tracks.FirstOrDefault(
-                x => x.Index == savedAssignment.TrackIndex);
-
-            if (track is null)
-                continue;
-
-            var assignment = new MidiTrackAssignment
-            {
-                AssignedPanType = savedAssignment.PanType,
-                Track = track
-            };
-
-            await Playback.OnAddAssignmentAsync(assignment);
-        }
+        await Playback.LoadGroupMidiFile(file.Id);
     }
 
     

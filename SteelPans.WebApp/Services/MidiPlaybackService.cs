@@ -5,7 +5,9 @@ using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure;
 using Microsoft.JSInterop;
 using SteelPans.Shared.Config;
+using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Music;
+using SteelPans.Shared.Services;
 using SteelPans.WebApp.Components.Elements;
 using SteelPans.WebApp.Components.Pages;
 
@@ -58,6 +60,8 @@ public sealed record PlaybackTempoChangedEventArgs(int Bpm);
 public sealed class MidiPlaybackService : IAsyncDisposable
 {
     private readonly MidiLoaderService midiLoader_;
+    private readonly DbService db_;
+    private readonly InstanceStateService state_;
     private readonly IJSRuntime js_;
 
     private IDisposable navCallback_;
@@ -78,9 +82,11 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     private TimeSpan playbackScoreAnchorOffset_ = TimeSpan.Zero;
     private int playbackTempoAnchorBpm_ = 120;
 
-    public MidiPlaybackService(MidiLoaderService midiLoader, SteelPanLoaderService panLoader, NavigationManager nav, IJSRuntime js)
+    public MidiPlaybackService(MidiLoaderService midiLoader, DbService db, InstanceStateService state, SteelPanLoaderService panLoader, NavigationManager nav, IJSRuntime js)
     {
         midiLoader_ = midiLoader;
+        db_ = db;
+        state_ = state;
         js_ = js;
 
         AvailablePans = panLoader.Pans;
@@ -221,6 +227,48 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
                 await OnAddAssignmentAsync(assignment);
             }
+        }
+    }
+
+    public async Task LoadGroupMidiFile(Guid fileId)
+    {
+        await state_.Task.RunUnsafe(async () =>
+        {
+            var details = await db_.MidiFiles.GetMidiFileDetailsAsync(fileId);
+            var download = await db_.MidiFiles.OpenMidiFileAsync(fileId);
+
+            if (details is null || download is null)
+                throw new FileNotFoundException("MIDI file was not found.");
+
+            await OnLoadMidiAsync(async () =>
+            {
+                await using var stream = download.Stream;
+                return (download.FileName, await midiLoader_.OpenMidiFileAsync(stream));
+            });
+
+            await LoadGroupMidiAssignments(details.Assignments);
+        });
+    }
+
+    private async Task LoadGroupMidiAssignments(IReadOnlyList<MidiTrackAssignmentDto> assignments)
+    {
+        await OnClearAssignmentsAsync();
+
+        foreach (var savedAssignment in assignments.Where(x => x.PanType != PanType.None))
+        {
+            var track = Tracks.FirstOrDefault(
+                x => x.Index == savedAssignment.TrackIndex);
+
+            if (track is null)
+                continue;
+
+            var assignment = new MidiTrackAssignment
+            {
+                AssignedPanType = savedAssignment.PanType,
+                Track = track
+            };
+
+            await OnAddAssignmentAsync(assignment);
         }
     }
 

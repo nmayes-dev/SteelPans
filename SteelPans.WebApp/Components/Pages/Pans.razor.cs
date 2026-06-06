@@ -1,4 +1,5 @@
 using Melanchall.DryWetMidi.Core;
+using Microsoft.AspNetCore.Components;
 using SteelPans.Shared.Config;
 using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Music;
@@ -8,9 +9,11 @@ namespace SteelPans.WebApp.Components.Pages;
 
 public partial class Pans : IAsyncDisposable
 {
-    private Settings Settings => SettingsAccessor.Value;
 
-    private IReadOnlyDictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>> groupFiles_ = new Dictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>>();
+    [SupplyParameterFromQuery]
+    public Guid? FileId { get; set; }
+
+    private Settings Settings => SettingsAccessor.Value;
 
 
     protected override async Task OnInitializedAsync()
@@ -23,10 +26,20 @@ public partial class Pans : IAsyncDisposable
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && Settings.UseStartupConfig)
+        if (!firstRender)
+            return;
+
+
+        if (Settings.UseStartupConfig)
         {
             await LoadStartupFileAsync(Settings.StartupConfig.MidiFilePath);
             await LoadPanLayoutAsync(Settings.StartupConfig.Layout);
+        }
+
+        if (FileId is not null)
+        {
+            await Playback.LoadGroupMidiFile(FileId.Value);
+            await InvokeAsync(StateHasChanged);
         }
     }
 

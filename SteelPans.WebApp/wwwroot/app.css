@@ -372,6 +372,7 @@ h4 {
 .sp-app-alert {
     border-radius: 0.75rem;
     padding: 0.65rem 0.7rem;
+    margin-bottom: 0.4rem;
 }
 
 .sp-app-alert--hidden {

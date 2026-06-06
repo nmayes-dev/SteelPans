@@ -128,15 +128,13 @@ public sealed class DbService
 
         public async Task<GroupInviteDto> CreateInviteAsync(Guid groupId, CancellationToken cancellationToken = default)
         {
-            if (!await IsLeaderOrAdminAsync(groupId, cancellationToken))
-            {
-                throw new UnauthorizedAccessException();
-            }
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            if (!await IsLeaderOrAdminAsync(db, groupId, cancellationToken))
+                throw new UnauthorizedAccessException("You don't have permission to invite people to this group.");
 
             var now = DateTimeOffset.UtcNow;
             var token = EnsembleGroup.GenerateInviteCode();
 
-            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             while (await db.GroupInvites.AnyAsync(x => x.Token == token, cancellationToken))
             {
                 token = EnsembleGroup.GenerateInviteCode();
@@ -197,12 +195,10 @@ public sealed class DbService
 
         public async Task<IReadOnlyList<GroupFileDto>> GetGroupFilesAsync(Guid groupId, CancellationToken cancellationToken = default)
         {
-            if (!await IsMemberAsync(groupId, cancellationToken))
-            {
-                throw new UnauthorizedAccessException();
-            }
-
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            if (!await IsMemberAsync(db, groupId, cancellationToken))
+                throw new UnauthorizedAccessException("You are not a member of this group.");
+
             return await db.GroupMidiFiles
                 .AsNoTracking()
                 .Where(x => x.GroupId == groupId && x.MidiFile.ArchivedAt == null)
@@ -254,12 +250,10 @@ public sealed class DbService
 
         public async Task<List<GroupMemberSummaryDto>> GetGroupMembersAsync(Guid groupId, CancellationToken cancellationToken = default)
         {
-            if (!await IsMemberAsync(groupId, cancellationToken))
-            {
-                throw new UnauthorizedAccessException();
-            }
-
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            if (!await IsMemberAsync(db, groupId, cancellationToken))
+                throw new UnauthorizedAccessException("You are not a member of this group.");
+
             return await db.GroupMembers
                 .AsNoTracking()
                 .Where(x => x.GroupId == groupId)
@@ -377,21 +371,18 @@ public sealed class DbService
         public Task LeaveGroupAsync(Guid groupId, CancellationToken cancellationToken = default)
             => RemoveMemberAsync(groupId, currentUser.UserId, cancellationToken);
 
-        public async Task<bool> IsMemberAsync(Guid groupId, CancellationToken cancellationToken = default)
+        public async Task<bool> IsMemberAsync(EnsembleDbContext db, Guid groupId, CancellationToken cancellationToken = default)
         {
-            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMembers.AnyAsync(x => x.GroupId == groupId && x.UserId == currentUser.UserId, cancellationToken);
         }
 
-        public async Task<bool> IsLeaderAsync(Guid groupId, CancellationToken cancellationToken = default)
+        public async Task<bool> IsLeaderAsync(EnsembleDbContext db, Guid groupId, CancellationToken cancellationToken = default)
         {
-            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMembers.AnyAsync(x => x.GroupId == groupId && x.UserId == currentUser.UserId && x.Role == GroupRole.Leader, cancellationToken);
         }
 
-        public async Task<bool> IsLeaderOrAdminAsync(Guid groupId, CancellationToken cancellationToken = default)
+        public async Task<bool> IsLeaderOrAdminAsync(EnsembleDbContext db, Guid groupId, CancellationToken cancellationToken = default)
         {
-            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMembers.AnyAsync(x => x.GroupId == groupId && x.UserId == currentUser.UserId && (x.Role == GroupRole.Leader || x.Role == GroupRole.Admin), cancellationToken);
         }
 
@@ -444,19 +435,12 @@ public sealed class DbService
         IRealtimeUpdateDispatcher updates)
     {
         public async Task<GroupFileDto> UploadMidiFileAsync(
-            Guid? groupId,
             string originalFileName,
             string? contentType,
             long sizeBytes,
             Stream content,
             CancellationToken cancellationToken = default)
         {
-            if (groupId is not null &&
-                !await groups.IsLeaderOrAdminAsync(groupId.Value, cancellationToken))
-            {
-                throw new UnauthorizedAccessException();
-            }
-
             if (sizeBytes <= 0)
             {
                 throw new InvalidOperationException("File is empty.");
@@ -524,16 +508,6 @@ public sealed class DbService
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             db.MidiFiles.Add(midiFile);
 
-            if (groupId is not null)
-            {
-                midiFile.SharedGroups.Add(new EnsembleGroupMidiFile
-                {
-                    GroupId = groupId.Value,
-                    MidiFileId = fileId,
-                    SharedAt = DateTimeOffset.UtcNow
-                });
-            }
-
             await db.SaveChangesAsync(cancellationToken);
 
             await SaveMidiAssignmentsAsync(
@@ -548,10 +522,6 @@ public sealed class DbService
                 cancellationToken);
 
             await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
-            if (groupId is not null)
-            {
-                await updates.NotifyGroupChangedAsync(groupId.Value, cancellationToken);
-            }
 
             return new GroupFileDto(
                 midiFile.Id,
@@ -582,10 +552,8 @@ public sealed class DbService
                 return null;
             }
 
-            if (!await CanAccessFileAsync(file, cancellationToken))
-            {
-                throw new UnauthorizedAccessException();
-            }
+            if (!await CanAccessFileAsync(db, file, cancellationToken))
+                throw new UnauthorizedAccessException("You don't have access to this file.");
 
             return new MidiFileDetailsDto(
                 file.Id,
@@ -622,10 +590,8 @@ public sealed class DbService
                 return null;
             }
 
-            if (!await CanAccessFileAsync(file, cancellationToken))
-            {
-                throw new UnauthorizedAccessException();
-            }
+            if (!await CanAccessFileAsync(db, file, cancellationToken))
+                throw new UnauthorizedAccessException("You don't have access to this file.");
 
             var stream = await fileStore.OpenReadAsync(
                 file.StorageKey,
@@ -653,10 +619,8 @@ public sealed class DbService
                 throw new InvalidOperationException("MIDI file not found.");
             }
 
-            if (!await CanEditFileAsync(file, cancellationToken))
-            {
-                throw new UnauthorizedAccessException();
-            }
+            if (!await CanEditFileAsync(db, file, cancellationToken))
+                throw new UnauthorizedAccessException("You don't have permissions to edit this file.");
 
             db.MidiTrackAssignments.RemoveRange(file.Assignments);
 
@@ -722,12 +686,10 @@ public sealed class DbService
             Guid groupId,
             CancellationToken cancellationToken = default)
         {
-            if (!await groups.IsLeaderOrAdminAsync(groupId, cancellationToken))
-            {
-                throw new UnauthorizedAccessException();
-            }
-
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            if (!await groups.IsLeaderOrAdminAsync(db, groupId, cancellationToken))
+                throw new UnauthorizedAccessException("You don't have permission to unshare files in this group.");
+
             var share = await db.GroupMidiFiles
                 .FirstOrDefaultAsync(
                     x => x.MidiFileId == fileId &&
@@ -751,12 +713,10 @@ public sealed class DbService
             Guid groupId,
             CancellationToken cancellationToken = default)
         {
-            if (!await groups.IsLeaderOrAdminAsync(groupId, cancellationToken))
-            {
-                throw new UnauthorizedAccessException();
-            }
-
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            if (!await groups.IsLeaderOrAdminAsync(db, groupId, cancellationToken))
+                throw new UnauthorizedAccessException("You don't have permission to share files in this group.");
+
             var file = await db.MidiFiles
                 .FirstOrDefaultAsync(x =>
                     x.Id == fileId &&
@@ -789,6 +749,7 @@ public sealed class DbService
         }
 
         private async Task<bool> CanAccessFileAsync(
+            EnsembleDbContext db,
             EnsembleMidiFile file,
             CancellationToken cancellationToken)
         {
@@ -797,7 +758,6 @@ public sealed class DbService
                 return true;
             }
 
-            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMidiFiles.AnyAsync(
                 x => x.MidiFileId == file.Id &&
                      x.MidiFile.ArchivedAt == null &&
@@ -806,6 +766,7 @@ public sealed class DbService
         }
 
         private async Task<bool> CanEditFileAsync(
+            EnsembleDbContext db,
             EnsembleMidiFile file,
             CancellationToken cancellationToken)
         {
@@ -814,7 +775,6 @@ public sealed class DbService
                 return true;
             }
 
-            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMidiFiles.AnyAsync(
                 x => x.MidiFileId == file.Id &&
                      x.MidiFile.ArchivedAt == null &&

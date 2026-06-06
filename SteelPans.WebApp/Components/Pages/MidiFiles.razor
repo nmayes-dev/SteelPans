@@ -268,7 +268,6 @@
             await using var stream = new MemoryStream(selectedFileBytes_);
 
             var uploaded = await Db.MidiFiles.UploadMidiFileAsync(
-                selectedGroupId_,
                 selectedFile_.Name,
                 selectedFile_.ContentType,
                 stream.Length,

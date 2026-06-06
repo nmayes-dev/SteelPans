@@ -35,14 +35,14 @@ public class Program
 
         builder.Services.AddSingleton<SteelPanLoaderService>();
         builder.Services.AddSingleton<SteelPanSvgService>();
+        builder.Services.AddScoped<IRealtimeUpdateDispatcher, SignalRRealtimeUpdateDispatcher>();
+        builder.Services.AddScoped<AppUpdatesService>();
+        builder.Services.AddScoped<InstanceStateService>();
         builder.Services.AddScoped<MidiLoaderService>();
         builder.Services.AddScoped<MidiPlaybackService>();
         builder.Services.AddScoped<OverlayManagerService>();
         builder.Services.AddScoped<ModalPopupService>();
         builder.Services.AddScoped<KeyboardManagerService>();
-        builder.Services.AddScoped<IRealtimeUpdateDispatcher, SignalRRealtimeUpdateDispatcher>();
-        builder.Services.AddScoped<AppUpdatesService>();
-        builder.Services.AddScoped<InstanceStateService>();
 
         builder.Services.Configure<Settings>(builder.Configuration.GetSection("Settings"));
 
