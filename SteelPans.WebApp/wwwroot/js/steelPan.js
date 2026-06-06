@@ -518,7 +518,7 @@ window.steelPan = {
 
         const actualStartAt = hasProvidedStartAt
             ? numericStartAt
-            : ctx.currentTime + 0.75;
+            : ctx.currentTime + 0.8;
 
         console.log("Provided startAt", numericStartAt);
         console.log("Current time", ctx.currentTime);
@@ -737,11 +737,24 @@ window.steelPan = {
             const oscillator = ctx.createOscillator();
             const gain = ctx.createGain();
 
+            const isAccent = action.isAccent === true;
+            const isSubdivision = action.isSubdivision === true;
+
             oscillator.type = "square";
-            oscillator.frequency.value = action.isAccent ? 1400 : 1000;
+            oscillator.frequency.value = isAccent
+                ? 1400
+                : isSubdivision
+                    ? 850
+                    : 1000;
+
+            const peakGain = isAccent
+                ? 0.25
+                : isSubdivision
+                    ? 0.07
+                    : 0.15;
 
             gain.gain.setValueAtTime(0.0001, when);
-            gain.gain.exponentialRampToValueAtTime(action.isAccent ? 0.25 : 0.15, when + 0.002);
+            gain.gain.exponentialRampToValueAtTime(peakGain, when + 0.002);
             gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.06);
 
             oscillator.connect(gain);
@@ -772,35 +785,45 @@ window.steelPan = {
         return actualStartAt;
     },
 
-    playMetronomeCountIn: async function (beatCount, bpm, beatUnit, startAt) {
-        const count = Math.max(0, Math.floor(Number(beatCount) || 0));
+    playMetronomeCountIn: async function (countInCount, countInNoteDivision, bpm, beatsPerBar, beatUnit, startAt) {
+        const count = Math.max(0, Math.floor(Number(countInCount) || 0));
         if (count <= 0)
             return null;
 
         const numericBpm = Number(bpm);
+        const numericCountInNoteDivision = Number(countInNoteDivision);
+        const numericBeatsPerBar = Number(beatsPerBar);
         const numericBeatUnit = Number(beatUnit);
 
-        const effectiveBpm = Number.isFinite(numericBpm) && numericBpm > 0
-            ? numericBpm
-            : 120;
+        const effectiveBpm = Number.isFinite(numericBpm) && numericBpm > 0 ? numericBpm : 120;
+        const effectiveCountInNoteDivision = Number.isFinite(numericCountInNoteDivision) && numericCountInNoteDivision > 0 ? numericCountInNoteDivision : 4;
+        const effectiveBeatsPerBar = Number.isFinite(numericBeatsPerBar) && numericBeatsPerBar > 0 ? numericBeatsPerBar : 4;
+        const effectiveBeatUnit = Number.isFinite(numericBeatUnit) && numericBeatUnit > 0 ? numericBeatUnit : 4;
 
-        const effectiveBeatUnit = Number.isFinite(numericBeatUnit) && numericBeatUnit > 0
-            ? numericBeatUnit
-            : 4;
-
+        const secondsPerCountInNote = (60.0 / effectiveBpm) * (4.0 / effectiveCountInNoteDivision);
         const secondsPerBeat = (60.0 / effectiveBpm) * (4.0 / effectiveBeatUnit);
-        if (secondsPerBeat <= 0)
+        const secondsPerBar = effectiveBeatsPerBar * secondsPerBeat;
+
+        if (secondsPerCountInNote <= 0 || secondsPerBeat <= 0 || secondsPerBar <= 0)
             return null;
 
-        const beatsPerBar = Math.max(1, Math.floor(effectiveBeatUnit));
+        const accentEpsilon = 0.000001;
+        const beatEpsilon = 0.000001;
 
         const actions = [];
         for (let i = 0; i < count; i++) {
-            const beatNumberInBar = ((i - count) % beatsPerBar + beatsPerBar) % beatsPerBar;
+            const secondsFromPlaybackStart = (i - count) * secondsPerCountInNote;
+
+            const barPhase = ((secondsFromPlaybackStart % secondsPerBar) + secondsPerBar) % secondsPerBar;
+            const beatPhase = ((secondsFromPlaybackStart % secondsPerBeat) + secondsPerBeat) % secondsPerBeat;
+
+            const isAccent = barPhase <= accentEpsilon || Math.abs(barPhase - secondsPerBar) <= accentEpsilon;
+            const isBeat = beatPhase <= beatEpsilon || Math.abs(beatPhase - secondsPerBeat) <= beatEpsilon;
 
             actions.push({
-                timeSeconds: i * secondsPerBeat,
-                isAccent: beatNumberInBar === 0
+                timeSeconds: i * secondsPerCountInNote,
+                isAccent: isAccent,
+                isSubdivision: !isBeat
             });
         }
 

@@ -3,36 +3,58 @@
 
 <div class="count-in-control" aria-label="Metronome Count In">
     <div class="count-in-control__control">
-        <button class="count-in-control__button"
-                type="button"
-                title="Decrease Count In"
-                aria-label="Decrease Count In"
-                disabled="@(!CanDecrement)"
-                @onclick="DecrementAsync">
-            <span class="bi bi-chevron-left" aria-hidden="true"></span>
-        </button>
+        <div class="count-in-control__number-input">
+            <NumericInput Class="count-in-control__input count-in-control__number-input-control"
+                          Value="@Playback.CountInBeats"
+                          ValueChanged="SetCountInBeatsAsync"
+                          Min="0"
+                          Max="32"
+                          Disabled="@Playback.IsPlaying" />
 
-        <NumericInput Class="count-in-control__input"
-                      Value="@Playback.CountInBeats"
-                      ValueChanged="SetCountInBeatsAsync"
-                      Min="0"
-                      Max="32"
-                      Disabled="@Playback.IsPlaying" />
+            <div class="count-in-control__number-buttons">
+                <button class="count-in-control__number-button count-in-control__number-button--up"
+                        type="button"
+                        title="Increase Count In"
+                        aria-label="Increase Count In"
+                        disabled="@(!CanIncrement)"
+                        tabindex="-1"
+                        @onclick="IncrementAsync"></button>
 
-        <button class="count-in-control__button"
-                type="button"
-                title="Increase Count In"
-                aria-label="Increase Count In"
-                disabled="@(!CanIncrement)"
-                @onclick="IncrementAsync">
-            <span class="bi bi-chevron-right" aria-hidden="true"></span>
-        </button>
+                <button class="count-in-control__number-button count-in-control__number-button--down"
+                        type="button"
+                        title="Decrease Count In"
+                        aria-label="Decrease Count In"
+                        disabled="@(!CanDecrement)"
+                        tabindex="-1"
+                        @onclick="DecrementAsync"></button>
+            </div>
+        </div>
+
+        <select class="count-in-control__select"
+                aria-label="Note Division"
+                title="Note Division"
+                value="@Playback.CountInNoteDivision"
+                disabled="@Playback.IsPlaying"
+                @onchange="SetCountInNoteDivisionAsync">
+            @foreach (var option in NoteDivisionOptions)
+            {
+                <option value="@option.Value">@option.Label</option>
+            }
+        </select>
     </div>
-    <span class="count-in-control__label">Count In</span>
 
+    <span class="count-in-control__label">Count In</span>
 </div>
 
 @code {
+    private static readonly IReadOnlyList<(int Value, string Label)> NoteDivisionOptions =
+    [
+        (2, "𝅗𝅥"),
+        (4, "𝅘𝅥"),
+        (8, "𝅘𝅥𝅮"),
+        (16, "𝅘𝅥𝅯"),
+    ];
+
     private bool CanDecrement => !Playback.IsPlaying && Playback.CountInBeats > 0;
     private bool CanIncrement => !Playback.IsPlaying && Playback.CountInBeats < 32;
 
@@ -58,6 +80,21 @@
     {
         if (!Playback.IsPlaying)
             await Playback.SetCountInBeatsAsync(beats);
+    }
+
+    private async Task SetCountInNoteDivisionAsync(ChangeEventArgs args)
+    {
+        if (Playback.IsPlaying)
+            return;
+
+        if (!int.TryParse(args.Value?.ToString(), out var noteDivision))
+            return;
+
+        var scale = (double)noteDivision / Playback.CountInNoteDivision;
+        var newBeats = (int)Math.Ceiling(Playback.CountInBeats * scale);
+
+        await Playback.SetCountInNoteDivisionAsync(noteDivision);
+        await Playback.SetCountInBeatsAsync(newBeats);
     }
 
     private async Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)

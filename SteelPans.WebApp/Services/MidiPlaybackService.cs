@@ -57,7 +57,7 @@ public sealed record PlaybackPositionChangedEventArgs(
 
 public sealed record PlaybackTempoChangedEventArgs(int Bpm);
 
-public sealed record PlaybackCountInChangedEventArgs(int Beats);
+public sealed record PlaybackCountInChangedEventArgs(int Count, int NoteDivision);
 
 public sealed class MidiPlaybackService : IAsyncDisposable
 {
@@ -127,6 +127,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     public int BeatUnit { get; private set; } = 4;
     public bool ClickTrackEnabled { get; private set; }
     public int CountInBeats { get; private set; }
+    public int CountInNoteDivision { get; private set; } = 4;
 
     public int InitialMidiBpm => midiPlaybackInfo_?.InitialBpm ?? TempoBpm;
     public int EffectiveMidiBpm => midiBpmOverride_ ?? midiPlaybackInfo_?.InitialBpm ?? TempoBpm;
@@ -375,7 +376,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         var currentAudioTime = await js_.InvokeAsync<double>("steelPan.getAudioTime");
 
-        const double scheduleLeadSeconds = 0.75;
+        const double scheduleLeadSeconds = 0.8;
 
         var startAtAudioTime = currentAudioTime + scheduleLeadSeconds;
         var startAtPosition = GetCurrentPositionAtAudioTime(startAtAudioTime);
@@ -580,21 +581,28 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                 return;
             }
 
-            const double scheduleLeadSeconds = 0.75;
+            const double scheduleLeadSeconds = 0.8;
 
             var currentAudioTime = await js_.InvokeAsync<double>("steelPan.getAudioTime", playbackToken);
             playbackToken.ThrowIfCancellationRequested();
 
-            var countInDurationSeconds = GetCountInDurationSeconds();
+            var shouldCountIn = playbackSessionStartOffset_ <= TimeSpan.Zero;
+
+            var countInDurationSeconds = shouldCountIn
+                ? GetCountInDurationSeconds()
+                : 0.0;
+
             var sharedStartAt = currentAudioTime + scheduleLeadSeconds + countInDurationSeconds;
 
-            if (CountInBeats > 0 && countInDurationSeconds > 0.0)
+            if (shouldCountIn && CountInBeats > 0 && countInDurationSeconds > 0.0)
             {
                 await js_.InvokeVoidAsync(
                     "steelPan.playMetronomeCountIn",
                     playbackToken,
                     CountInBeats,
+                    CountInNoteDivision,
                     TempoBpm,
+                    BeatsPerBar,
                     BeatUnit,
                     currentAudioTime + scheduleLeadSeconds);
             }
@@ -774,7 +782,23 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             return;
 
         CountInBeats = beats;
-        await NotifyCountInChangedAsync(new PlaybackCountInChangedEventArgs(CountInBeats));
+        await NotifyCountInChangedAsync(new PlaybackCountInChangedEventArgs(CountInBeats, CountInNoteDivision));
+        await NotifyPlaybackStatusChangedAsync();
+    }
+
+    public async Task SetCountInNoteDivisionAsync(int noteDivision)
+    {
+        noteDivision = noteDivision switch
+        {
+            2 or 4 or 8 or 16 => noteDivision,
+            _ => 4,
+        };
+
+        if (CountInNoteDivision == noteDivision)
+            return;
+
+        CountInNoteDivision = noteDivision;
+        await NotifyCountInChangedAsync(new PlaybackCountInChangedEventArgs(CountInBeats, CountInNoteDivision));
         await NotifyPlaybackStatusChangedAsync();
     }
 
@@ -1028,11 +1052,11 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     private double GetCountInDurationSeconds()
     {
-        if (CountInBeats <= 0 || TempoBpm <= 0 || BeatUnit <= 0)
+        if (CountInBeats <= 0 || TempoBpm <= 0 || CountInNoteDivision <= 0)
             return 0.0;
 
-        var secondsPerBeat = (60.0 / TempoBpm) * (4.0 / BeatUnit);
-        return Math.Max(0.0, CountInBeats * secondsPerBeat);
+        var secondsPerNote = (60.0 / TempoBpm) * (4.0 / CountInNoteDivision);
+        return Math.Max(0.0, CountInBeats * secondsPerNote);
     }
 
     private TimeSpan GetCurrentPositionAtAudioTime(double audioTime, TimeSpan? baseOffset = null)

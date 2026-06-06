@@ -4,11 +4,17 @@
     align-items: center;
     padding: clamp(0.45rem, 0.6vw, 0.65rem);
     padding-bottom: 0;
-    border-radius: 999px;
+    border-radius: 1rem;
     background: rgba(255, 255, 255, 0.78);
     border: 1px solid rgba(148, 163, 184, 0.24);
     box-shadow: 0 0.5rem 1.3rem rgba(15, 23, 42, 0.08);
     white-space: nowrap;
+}
+
+.count-in-control__control {
+    display: inline-flex;
+    align-items: center;
+    gap: clamp(0.3rem, 0.4vw, 0.5rem);
 }
 
 .count-in-control__label {
@@ -17,44 +23,115 @@
     font-weight: 700;
 }
 
-.count-in-control__button {
-    display: inline-grid;
-    place-items: center;
-    width: clamp(1.8rem, 1.5rem + 0.55vw, 2.2rem);
-    height: clamp(1.8rem, 1.5rem + 0.55vw, 2.2rem);
-    border: 0;
-    border-radius: 999px;
-    color: #0f172a;
-    background: rgba(226, 232, 240, 0.85);
-    cursor: pointer;
-    transition: transform 140ms ease, background-color 140ms ease, opacity 140ms ease;
+.count-in-control__number-input {
+    position: relative;
+    display: inline-flex;
+    align-items: stretch;
+    min-width: 0;
 }
 
-    .count-in-control__button:hover:not(:disabled) {
-        background: rgba(203, 213, 225, 0.95);
-        transform: translateY(-1px);
+::deep .count-in-control__number-input-control {
+    -moz-appearance: textfield;
+}
+
+    ::deep .count-in-control__number-input-control::-webkit-outer-spin-button,
+    ::deep .count-in-control__number-input-control::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
     }
 
-    .count-in-control__button:focus-visible {
-        outline: 0.16rem solid rgba(37, 99, 235, 0.28);
-        outline-offset: 0.12rem;
-    }
+.count-in-control__number-buttons {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    bottom: 1px;
+    width: clamp(1.45rem, 1.2rem + 0.45vw, 1.8rem);
+    display: grid;
+    grid-template-rows: 1fr 1fr;
+    pointer-events: none;
+    border-left: 1px solid rgba(148, 163, 184, 0.18);
+    border-radius: 0 0.8rem 0.8rem 0;
+    overflow: hidden;
+}
 
-    .count-in-control__button:disabled {
-        opacity: 0.45;
-        cursor: not-allowed;
-    }
+.count-in-control__number-button {
+    pointer-events: auto;
+    position: relative;
+    display: grid;
+    place-items: center;
+    margin: 0;
+    padding: 0;
+    min-height: 0;
+    width: 100%;
+    border: 0;
+    border-radius: 0;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    color: #0f172a;
+    appearance: none;
+    -webkit-appearance: none;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background-color 160ms ease, color 160ms ease, filter 160ms ease, opacity 160ms ease;
+}
+
+.count-in-control__number-button::before {
+    content: "";
+    display: block;
+    width: clamp(0.34rem, 0.28rem + 0.1vw, 0.45rem);
+    height: clamp(0.34rem, 0.28rem + 0.1vw, 0.45rem);
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+}
+
+.count-in-control__number-button--up::before {
+    transform: translateY(1px) rotate(-135deg);
+}
+
+.count-in-control__number-button--up::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 1px;
+    background: rgba(148, 163, 184, 0.14);
+    pointer-events: none;
+}
+
+.count-in-control__number-button--down::before {
+    transform: translateY(-0.5px) rotate(45deg);
+}
+
+.count-in-control__number-button:hover:not(:disabled) {
+    color: #f8fafc;
+    background: linear-gradient(180deg, rgba(37, 99, 235, 0.96) 0%, rgba(29, 78, 216, 0.96) 100%);
+}
+
+.count-in-control__number-button:active:not(:disabled) {
+    filter: brightness(0.96);
+}
+
+.count-in-control__number-button:focus-visible {
+    outline: none;
+}
+
+.count-in-control__number-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
 
 ::deep .count-in-control__input {
-    width: clamp(2.2rem, 1.9rem + 0.8vw, 3rem);
+    width: clamp(3.6rem, 3rem + 1vw, 4.4rem);
     height: clamp(1.8rem, 1.5rem + 0.55vw, 2.2rem);
+    padding-left: 0.65rem;
+    padding-right: clamp(1.65rem, 1.4rem + 0.45vw, 2rem);
     border: 1px solid rgba(148, 163, 184, 0.4);
     border-radius: 0.8rem;
     background: rgba(255, 255, 255, 0.95);
     color: #0f172a;
     font-size: clamp(0.8rem, 0.74rem + 0.25vw, 1rem);
     font-weight: 800;
-    text-align: center;
+    text-align: left;
 }
 
     ::deep .count-in-control__input:focus-visible {
@@ -63,5 +140,25 @@
     }
 
     ::deep .count-in-control__input:disabled {
+        opacity: 0.65;
+    }
+
+.count-in-control__select {
+    height: clamp(1.8rem, 1.5rem + 0.55vw, 2.2rem);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 0.8rem;
+    background: rgba(255, 255, 255, 0.95);
+    color: #0f172a;
+    font-family: "Bravura", "Petaluma", "Noto Music", "Segoe UI Symbol", serif;
+    font-size: 1.25rem;
+    padding: 0 0.65rem;
+}
+
+    .count-in-control__select:focus-visible {
+        outline: 0.16rem solid rgba(37, 99, 235, 0.22);
+        outline-offset: 0.1rem;
+    }
+
+    .count-in-control__select:disabled {
         opacity: 0.65;
     }
