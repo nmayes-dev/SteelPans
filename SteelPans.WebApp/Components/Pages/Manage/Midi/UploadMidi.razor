@@ -1,0 +1,123 @@
+@page "/manage/midi/upload"
+@attribute [Authorize]
+@inject DbService Db
+@inject MidiInspectionService MidiInspection
+@inject InstanceStateService State
+@inject NavigationManager Nav
+
+<PageTitle>Upload MIDI File</PageTitle>
+
+<section class="sp-app-page midi-files midi-upload-page">
+    <div class="sp-app-page__header midi-upload-page__header">
+        <p class="sp-app-page__eyebrow">Steel Pans</p>
+        <h1>Upload MIDI File</h1>
+        <p>Preview a MIDI file locally before uploading it to your account.</p>
+
+        <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
+        <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--hidden" : "")">@State.Task.Message</p>
+    </div>
+
+    <div class="midi-upload-page__actions">
+        <a class="sp-app-button" href="/manage/midi">Back</a>
+    </div>
+
+    <div class="sp-app-card sp-app-form midi-upload-page__card">
+        <div class="sp-app-form__row midi-upload-page__controls">
+            <div class="sp-app-field">
+                <label for="midi-file">MIDI File</label>
+                <div class="midi-file-picker">
+                    <label for="midi-file" class="midi-file-button">Browse</label>
+
+                    <label for="midi-file"
+                           class="midi-file-name @(string.IsNullOrWhiteSpace(selectedFile_?.Name) ? "midi-file-name--placeholder" : null)">
+                        <span class="midi-file-name-text">@(selectedFile_?.Name ?? "No file selected")</span>
+                    </label>
+                    <InputFile id="midi-file"
+                               class="midi-file-input"
+                               OnChange="PreviewFileAsync"
+                               accept=".mid,.midi" />
+                </div>
+            </div>
+
+            <div class="midi-upload-page__actions">
+                <button class="sp-app-button sp-app-button--primary"
+                        type="button"
+                        @onclick="UploadAsync"
+                        disabled="@(selectedFile_ is null || State.Task.Busy)">
+                    Upload
+                </button>
+            </div>
+        </div>
+
+        @if (localPreview_ is not null)
+        {
+            <div class="midi-files__preview">
+                <h3>Tracks</h3>
+                @RenderTracks(localPreview_)
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    private IBrowserFile? selectedFile_;
+    private byte[]? selectedFileBytes_;
+    private string? localFileName_;
+    private IReadOnlyList<MidiTrackInfo>? localPreview_;
+
+    private async Task PreviewFileAsync(InputFileChangeEventArgs args)
+    {
+        selectedFile_ = args.File;
+        localFileName_ = selectedFile_.Name;
+
+        await State.Task.RunUnsafe(async () =>
+        {
+            await using var input = selectedFile_.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
+            using var buffer = new MemoryStream();
+            await input.CopyToAsync(buffer);
+
+            selectedFileBytes_ = buffer.ToArray();
+
+            buffer.Position = 0;
+            var midiFile = await MidiInspection.ReadAsync(buffer);
+            localPreview_ = MidiInspection.GetTrackInfos(midiFile);
+        });
+    }
+
+    private async Task UploadAsync()
+    {
+        if (selectedFile_ is null || selectedFileBytes_ is null)
+            return;
+
+        Guid? uploadedId = null;
+
+        await State.Task.RunSafe(async () =>
+        {
+            await using var stream = new MemoryStream(selectedFileBytes_);
+
+            var uploaded = await Db.MidiFiles.UploadMidiFileAsync(
+                selectedFile_.Name,
+                selectedFile_.ContentType,
+                stream.Length,
+                stream);
+
+            uploadedId = uploaded.Id;
+            await State.User.RefreshAsync();
+
+            return "MIDI file uploaded.";
+        });
+
+        if (uploadedId is not null)
+            Nav.NavigateTo($"/manage/midi/{uploadedId}");
+    }
+
+    private RenderFragment RenderTracks(IReadOnlyList<MidiTrackInfo> tracks) => @<div class="midi-track-list">
+        @foreach (var track in tracks.Where(x => x.NoteCount > 0))
+        {
+            <div class="midi-track-list__item">
+                <strong>@(track.Name ?? $"Track {track.Index + 1}")</strong>
+                <span>@track.NoteCount notes</span>
+            </div>
+        }
+    </div>;
+}

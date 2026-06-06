@@ -25,12 +25,16 @@
 </div>
 
 @code {
+    protected override async Task OnInitializedAsync()
+    {
+        await State.User.RefreshAsync();
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
             return;
 
         await KeyboardManager.InitializeAsync();
-        await State.User.RefreshAsync();
     }
 }

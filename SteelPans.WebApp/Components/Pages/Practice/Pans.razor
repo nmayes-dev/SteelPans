@@ -40,9 +40,12 @@
                 }
             </div>
 
-            <div class="pans-page__count-in">
-                <CountInControl />
-            </div>
+            @if (Playback.IsMidiLoaded)
+            {
+                <div class="pans-page__count-in">
+                    <CountInControl />
+                </div>
+            }
         </section>
 
 

@@ -15,10 +15,9 @@
     }
 
 .pans-page__controls {
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
-    gap: clamp(0.35rem, 0.6vw, 0.75rem);
 }
 
 
@@ -164,18 +163,6 @@
 
 
 @media (max-width: 700px) {
-    .pans-page__controls {
-        flex-wrap: wrap;
-    }
-
-    .pans-page__midi-controls {
-        order: 3;
-        flex-basis: 100%;
-    }
-
-    .pans-page__count-in {
-        margin-left: auto;
-    }
 
     .pans-page__content {
         overflow: visible;

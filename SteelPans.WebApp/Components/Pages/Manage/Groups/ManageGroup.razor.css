@@ -1,0 +1,231 @@
+.groups-page {
+    display: grid;
+    grid-template-rows: min-content min-content minmax(0, 1fr);
+    gap: clamp(0.65rem, 1.5vw, 1rem);
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    container-type: inline-size;
+}
+
+.groups-home__header,
+.manage-group-page__header,
+.create-group-page .sp-app-page__header {
+    min-width: 0;
+}
+
+.manage-group-page__header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+.manage-group-page__header-copy,
+.manage-group-page__header-tools {
+    min-width: 0;
+}
+
+.manage-group-page__header-tools {
+    display: grid;
+    justify-items: end;
+    gap: 0.5rem;
+}
+
+.groups-home__actions,
+.manage-group-page__top-actions,
+.create-group-page__actions,
+.manage-group-page__header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    min-width: 0;
+}
+
+.manage-group-page__header-actions {
+    justify-content: end;
+}
+
+.groups-home__card,
+.manage-group-page__card,
+.create-group-page__card,
+.manage-group-page__assignments,
+.manage-group-page__grid {
+    min-width: 0;
+    min-height: 0;
+}
+
+.groups-home__card,
+.manage-group-page__card,
+.create-group-page__card {
+    display: grid;
+    gap: clamp(0.65rem, 1.5vw, 1rem);
+    align-content: start;
+}
+
+.groups-home__card-header,
+.manage-group-page__section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.groups-home__card-header > *,
+.manage-group-page__section-header > * {
+    min-width: 0;
+}
+
+.groups-home__card-header h2,
+.manage-group-page__section-header h2 {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.groups-home__list,
+.manage-group-page__members,
+.manage-group-page__files {
+    display: grid;
+    gap: 0.5rem;
+    min-width: 0;
+    min-height: 0;
+    max-height: min(34rem, 52vh);
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-right: 0.25rem;
+}
+
+.groups-home__group,
+.manage-group-page__member,
+.manage-group-page__file {
+    min-width: 0;
+    align-items: stretch;
+}
+
+.groups-home__copy,
+.manage-group-page__copy {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.groups-home__copy strong,
+.groups-home__copy small,
+.manage-group-page__copy strong,
+.manage-group-page__copy small,
+.manage-group-page__invite code,
+.manage-group-page__header-copy h1,
+.manage-group-page__header-copy p {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.manage-group-page__grid {
+    align-items: start;
+}
+
+.manage-group-page__invite {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: min(100%, 44rem);
+    border-radius: 0.75rem;
+    background: rgba(0, 0, 0, 0.035);
+    padding: 0.75rem;
+}
+
+.manage-group-page__invite-details {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.manage-group-page__assignments {
+    display: grid;
+    gap: 0.75rem;
+}
+
+@media (max-width: 720px) {
+    .groups-page {
+        height: 100%;
+        min-height: 100%;
+        grid-template-rows: none;
+        grid-auto-rows: min-content;
+        padding: clamp(0.5rem, 2.5vw, 0.75rem);
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        overflow-y: auto;
+    }
+
+    .manage-group-page__header {
+        grid-template-columns: 1fr;
+    }
+
+    .manage-group-page__header-tools {
+        justify-items: stretch;
+    }
+
+    .groups-home__actions,
+    .create-group-page__actions,
+    .manage-group-page__header-actions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
+        width: 100%;
+    }
+
+    .groups-home__actions .sp-app-button,
+    .create-group-page__actions .sp-app-button,
+    .manage-group-page__header-actions .sp-app-button {
+        width: 100%;
+    }
+
+    .manage-group-page__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .groups-home__card-header,
+    .manage-group-page__section-header {
+        display: grid;
+        gap: 0.4rem;
+    }
+
+    .groups-home__list,
+    .manage-group-page__members,
+    .manage-group-page__files {
+        max-height: none;
+        overflow: visible;
+        padding-right: 0;
+    }
+
+    .groups-home__group,
+    .manage-group-page__member,
+    .manage-group-page__file {
+        display: grid;
+        gap: 0.75rem;
+    }
+
+    .groups-home__group .sp-app-list-item__actions,
+    .manage-group-page__member .sp-app-list-item__actions,
+    .manage-group-page__file .sp-app-list-item__actions {
+        flex-wrap: nowrap;
+        width: 100%;
+    }
+
+    .groups-home__group .sp-app-list-item__actions .sp-app-button,
+    .manage-group-page__member .sp-app-list-item__actions .sp-app-button,
+    .manage-group-page__file .sp-app-list-item__actions .sp-app-button,
+    .manage-group-page__member .sp-app-list-item__actions .sp-app-select {
+        width: 100%;
+    }
+
+    .manage-group-page__invite {
+        grid-template-columns: 1fr;
+    }
+
+    .manage-group-page__invite .sp-app-button {
+        width: 100%;
+    }
+}

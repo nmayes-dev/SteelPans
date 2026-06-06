@@ -1,0 +1,29 @@
+.join-group {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    min-height: 100%;
+    overflow: auto;
+    padding: clamp(0.75rem, 3vw, 1rem);
+}
+
+.join-group .sp-app-card {
+    width: min(100%, 30rem);
+    min-width: 0;
+}
+
+.join-group p,
+.join-group a {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+    .join-group {
+        align-items: start;
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+    }
+
+    .join-group .sp-app-button {
+        width: 100%;
+    }
+}

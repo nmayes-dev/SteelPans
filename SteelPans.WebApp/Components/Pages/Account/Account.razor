@@ -23,11 +23,14 @@
                         </p>
                     </div>
 
-                    <button type="button"
-                            class="account-button account-button--danger account-profile__delete-button"
-                            @onclick="() => displayDelete_ = true">
-                        Delete Account
-                    </button>
+                    <div class="account-page--actions">
+                        <a class="account-button account-button--primary" href="/">Home</a>
+                        <button type="button"
+                                class="account-button account-button--danger account-profile__delete-button"
+                                @onclick="() => displayDelete_ = true">
+                            Delete Account
+                        </button>
+                    </div>
                 </div>
 
                 @if (!string.IsNullOrWhiteSpace(State.Task.Error))

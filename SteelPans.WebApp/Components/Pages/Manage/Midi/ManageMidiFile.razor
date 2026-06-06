@@ -1,0 +1,238 @@
+@page "/manage/midi/{FileId:guid}"
+@attribute [Authorize]
+@inject DbService Db
+@inject InstanceStateService State
+@inject ModalPopupService Modals
+@inject NavigationManager Nav
+@implements IDisposable
+
+<PageTitle>@title_</PageTitle>
+
+<section class="sp-app-page midi-files midi-file-page">
+    <div class="sp-app-page__header midi-file-page__header">
+        <p class="sp-app-page__eyebrow">Steel Pans</p>
+        <h1>@title_</h1>
+        <p>@(File is null ? "Loading file..." : $"{File.OriginalFileName} · {FormatSize(File.SizeBytes)} · {GetFileAccessLabel(File)}")</p>
+
+        <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
+        <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--hidden" : "")">@State.Task.Message</p>
+    </div>
+
+    <div class="midi-file-page__actions">
+        <a class="sp-app-button" href="/manage/midi">Back</a>
+        @if (File is not null)
+        {
+            <a class="sp-app-button" href="/practice/play?file=@File.Id">Open in Pans</a>
+            <button class="sp-app-button sp-app-button--danger"
+                    type="button"
+                    @onclick="() => OpenDeleteFileModal(File)">
+                Delete
+            </button>
+        }
+    </div>
+
+    @if (File is null)
+    {
+        <div class="sp-app-card midi-file-page__card">
+            <p>File was not found.</p>
+        </div>
+    }
+    else
+    {
+        <div class="sp-app-grid sp-app-grid--two midi-file-page__grid">
+            <div class="sp-app-card midi-file-page__card">
+                <div class="midi-files__section-header">
+                    <h2>Sharing</h2>
+                </div>
+
+                @if (State.User.Groups is null)
+                {
+                    <p>Loading groups...</p>
+                }
+                else
+                {
+                    var groups = State.User.Groups
+                        .Where(DtoExtensions.CanManage)
+                        .Where(g => !File.SharedGroupIds.Contains(g.Id))
+                        .ToList();
+
+                    <div class="sp-app-field">
+                        <label for="share-group-select">Share with group</label>
+                        <select id="share-group-select"
+                                class="sp-app-select @(targetShareGroup_ is null ? "sp-app-select--placeholder" : "")"
+                                @bind="targetShareGroup_"
+                                disabled="@(groups.Count == 0)">
+                            <option value="">Choose a group...</option>
+                            @foreach (var group in groups)
+                            {
+                                <option value="@group.Id">@group.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <button class="sp-app-button sp-app-button--primary"
+                            type="button"
+                            disabled="@(targetShareGroup_ is null || State.Task.Busy)"
+                            @onclick="ShareFileAsync">
+                        Share
+                    </button>
+
+                    @if (File.SharedGroupIds.Count == 0)
+                    {
+                        <p>This file is currently private.</p>
+                    }
+                    else
+                    {
+                        <div class="sp-app-list midi-file-page__shares">
+                            @foreach (var groupId in File.SharedGroupIds)
+                            {
+                                var group = State.User.Groups.FirstOrDefault(x => x.Id == groupId);
+                                <article class="sp-app-list-item midi-file-page__share">
+                                    <div class="midi-file-page__copy">
+                                        <strong>@(group?.Name ?? groupId.ToString())</strong>
+                                        <small>Shared group</small>
+                                    </div>
+
+                                    @if (group?.CanManage() == true)
+                                    {
+                                        <div class="sp-app-list-item__actions">
+                                            <button class="sp-app-button sp-app-button--danger"
+                                                    type="button"
+                                                    @onclick="() => UnshareFileAsync(groupId)">
+                                                Unshare
+                                            </button>
+                                        </div>
+                                    }
+                                </article>
+                            }
+                        </div>
+                    }
+                }
+            </div>
+
+            <div class="sp-app-card midi-file-page__card">
+                <div class="midi-files__section-header">
+                    <h2>Details</h2>
+                </div>
+                <dl class="midi-file-page__details">
+                    <div>
+                        <dt>Title</dt>
+                        <dd>@File.Title</dd>
+                    </div>
+                    <div>
+                        <dt>File Name</dt>
+                        <dd>@File.OriginalFileName</dd>
+                    </div>
+                    <div>
+                        <dt>Size</dt>
+                        <dd>@FormatSize(File.SizeBytes)</dd>
+                    </div>
+                    <div>
+                        <dt>Uploaded</dt>
+                        <dd>@File.UploadedAt.ToLocalTime().ToString("g")</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        <MidiFilePreview @ref="filePreview_"
+                         AllowEdit="true"
+                         OnSave="OnAssignmentsSavedAsync" />
+    }
+</section>
+
+@code {
+    [Parameter]
+    public Guid FileId { get; set; }
+
+    private GroupFileDto? File => State.User.Files?.FirstOrDefault(x => x.Id == FileId);
+    private string title_ => File?.Title ?? "MIDI File";
+    private Guid? targetShareGroup_;
+    private MidiFilePreview? filePreview_;
+    private bool openedPreview_;
+
+    protected override void OnInitialized()
+    {
+        State.User.OnRefresh += OnRefreshAsync;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!openedPreview_ && filePreview_ is not null && File is not null)
+        {
+            openedPreview_ = true;
+            await filePreview_.OpenPreviewAsync(FileId);
+        }
+    }
+
+    private Task OnRefreshAsync()
+    {
+        return InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        State.User.OnRefresh -= OnRefreshAsync;
+    }
+
+    private async Task OnAssignmentsSavedAsync()
+    {
+        await State.User.RefreshAsync();
+    }
+
+    private async Task OpenDeleteFileModal(GroupFileDto file)
+    {
+        await Modals.OpenAsync("DeleteMidi", file, new ModalOptions { OnSuccess = () => { Nav.NavigateTo("/manage/midi"); return Task.CompletedTask; } });
+    }
+
+    private async Task ShareFileAsync()
+    {
+        if (targetShareGroup_ is null)
+            return;
+
+        await State.Task.RunSafe(async () =>
+        {
+            await Db.MidiFiles.ShareMidiFileWithGroupAsync(FileId, targetShareGroup_.Value);
+            await State.User.RefreshAsync();
+
+            targetShareGroup_ = null;
+            return "MIDI file shared with group.";
+        });
+    }
+
+    private async Task UnshareFileAsync(Guid groupId)
+    {
+        await State.Task.RunSafe(async () =>
+        {
+            await Db.MidiFiles.UnshareMidiFileWithGroupAsync(FileId, groupId);
+            await State.User.RefreshAsync();
+
+            return "MIDI file unshared from group.";
+        });
+    }
+
+    private string GetFileAccessLabel(GroupFileDto file)
+    {
+        if (file.SharedGroupIds.Count == 0)
+            return "Private";
+
+        var groupNames = (State.User.Groups ?? [])
+            .Where(x => file.SharedGroupIds.Contains(x.Id))
+            .Select(x => x.Name)
+            .ToList();
+
+        return groupNames.Count switch
+        {
+            0 => $"Shared with {file.SharedGroupIds.Count} group(s)",
+            1 => $"Shared with {groupNames[0]}",
+            _ => $"Shared with {string.Join(", ", groupNames)}"
+        };
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.#} KB";
+        return $"{bytes / 1024d / 1024d:0.#} MB";
+    }
+}

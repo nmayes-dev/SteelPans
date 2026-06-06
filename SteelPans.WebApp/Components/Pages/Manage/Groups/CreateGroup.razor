@@ -1,4 +1,4 @@
-@page "/groups/create"
+@page "/manage/groups/create"
 @attribute [Authorize]
 @inject DbService Db
 @inject NavigationManager Nav
@@ -8,7 +8,7 @@
 
 <section class="sp-app-page groups-page create-group-page">
     <div class="sp-app-page__header">
-        <p class="sp-app-page__eyebrow">Ensemble Tools</p>
+        <p class="sp-app-page__eyebrow">Steel Pans</p>
         <h1>Create Group</h1>
         <p>Create a new ensemble group, then generate expiring invite links from its management page.</p>
 
@@ -23,7 +23,7 @@
 
         <div class="create-group-page__actions">
             <button class="sp-app-button sp-app-button--primary" type="submit" disabled="@State.Task.Busy">Create group</button>
-            <a class="sp-app-button" href="/groups">Cancel</a>
+            <a class="sp-app-button" href="/manage/groups">Cancel</a>
         </div>
     </form>
 </section>
@@ -43,7 +43,7 @@
 
         if (success && created is not null)
         {
-            Nav.NavigateTo($"/groups/{created.Id}");
+            Nav.NavigateTo($"/manage/groups/{created.Id}");
         }
     }
 }

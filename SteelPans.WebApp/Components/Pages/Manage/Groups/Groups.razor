@@ -1,4 +1,4 @@
-@page "/groups"
+@page "/manage/groups"
 @attribute [Authorize]
 @inject InstanceStateService State
 @implements IDisposable
@@ -7,7 +7,7 @@
 
 <section class="sp-app-page groups-page groups-home">
     <div class="sp-app-page__header groups-home__header">
-        <p class="sp-app-page__eyebrow">Ensemble Tools</p>
+        <p class="sp-app-page__eyebrow">Steel Pans</p>
         <h1>Groups</h1>
         <p>Manage ensemble groups, invite members, and control shared MIDI access.</p>
 
@@ -16,8 +16,9 @@
     </div>
 
     <div class="groups-home__actions">
-        <a class="sp-app-button sp-app-button--primary" href="/groups/create">Create Group</a>
-        <a class="sp-app-button" href="/midi-files">My MIDI files</a>
+        <a class="sp-app-button" href="/manage">Back</a>
+        <a class="sp-app-button sp-app-button--primary" href="/manage/groups/create">Create Group</a>
+        <a class="sp-app-button" href="/manage/midi">My MIDI Files</a>
     </div>
 
     <div class="sp-app-card groups-home__card">
@@ -46,7 +47,7 @@
                         </div>
 
                         <div class="sp-app-list-item__actions">
-                            <a class="sp-app-button sp-app-button--primary" href="/groups/@group.Id">@(group.CanManage() ? "Manage" : "View")</a>
+                            <a class="sp-app-button sp-app-button--primary" href="/manage/groups/@group.Id">@(group.CanManage() ? "Manage" : "View")</a>
                         </div>
                     </article>
                 }

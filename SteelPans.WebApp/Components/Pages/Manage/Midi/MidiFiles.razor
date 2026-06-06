@@ -1,0 +1,100 @@
+@page "/manage/midi"
+@attribute [Authorize]
+@inject InstanceStateService State
+@implements IDisposable
+
+<PageTitle>MIDI Files</PageTitle>
+
+<section class="sp-app-page midi-files midi-files-home">
+    <div class="sp-app-page__header midi-files-home__header">
+        <p class="sp-app-page__eyebrow">Steel Pans</p>
+        <h1>MIDI Files</h1>
+        <p>Manage uploaded MIDI files, track assignments, and group sharing.</p>
+
+        <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
+        <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--hidden" : "")">@State.Task.Message</p>
+    </div>
+
+    <div class="midi-files-home__actions">
+        <a class="sp-app-button" href="/manage">Back</a>
+        <a class="sp-app-button sp-app-button--primary" href="/manage/midi/upload">Upload MIDI File</a>
+        <a class="sp-app-button" href="/manage/groups">Manage Groups</a>
+    </div>
+
+    <div class="sp-app-card midi-files-home__card">
+        <div class="midi-files-home__card-header">
+            <h2>Your MIDI Files</h2>
+            <small>@(State.User.Files?.Count ?? 0) file@((State.User.Files?.Count ?? 0) == 1 ? "" : "s")</small>
+        </div>
+
+        @if (State.User.Files is null)
+        {
+            <p>Loading files...</p>
+        }
+        else if (State.User.Files.Count == 0)
+        {
+            <p>You have not uploaded any MIDI files yet. Upload a file to start editing assignments and sharing with groups.</p>
+        }
+        else
+        {
+            <div class="sp-app-list midi-files-home__list">
+                @foreach (var file in State.User.Files)
+                {
+                    <article class="sp-app-list-item midi-files-home__file">
+                        <div class="midi-files-home__copy">
+                            <strong>@file.Title</strong>
+                            <small>@file.OriginalFileName · @FormatSize(file.SizeBytes) · @GetFileAccessLabel(file)</small>
+                        </div>
+
+                        <div class="sp-app-list-item__actions">
+                            <a class="sp-app-button sp-app-button--primary" href="/manage/midi/@file.Id">View / Edit</a>
+                            <a class="sp-app-button" href="/practice/play?file=@file.Id">Open in Pans</a>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    protected override void OnInitialized()
+    {
+        State.User.OnRefresh += OnRefreshAsync;
+    }
+
+    private Task OnRefreshAsync()
+    {
+        return InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        State.User.OnRefresh -= OnRefreshAsync;
+    }
+
+    private string GetFileAccessLabel(GroupFileDto file)
+    {
+        if (file.SharedGroupIds.Count == 0)
+            return "Private";
+
+        var groupNames = (State.User.Groups ?? [])
+            .Where(x => file.SharedGroupIds.Contains(x.Id))
+            .Select(x => x.Name)
+            .ToList();
+
+        return groupNames.Count switch
+        {
+            0 => $"Shared with {file.SharedGroupIds.Count} group(s)",
+            1 => $"Shared with {groupNames[0]}",
+            _ => $"Shared with {string.Join(", ", groupNames)}"
+        };
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.#} KB";
+        return $"{bytes / 1024d / 1024d:0.#} MB";
+    }
+}

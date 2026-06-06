@@ -16,7 +16,8 @@ public sealed class DbService
 {
     public readonly GroupService Groups;
     public readonly MidiFileService MidiFiles;
-    public Guid User { get; init; }
+
+    private ICurrentUserAccessor currentUser_;
 
     public DbService(IDbContextFactory<EnsembleDbContext> dbFactory,
         ICurrentUserAccessor currentUser,
@@ -24,10 +25,12 @@ public sealed class DbService
         MidiInspectionService midiInspection,
         IRealtimeUpdateDispatcher updates)
     {
-        User = currentUser.UserId;
+        currentUser_ = currentUser;
         Groups = new(dbFactory, currentUser, updates);
         MidiFiles = new(dbFactory, currentUser, Groups, fileStore, midiInspection, updates);
     }
+
+    public async Task<Guid> GetUserIdAsync() => await currentUser_.GetUserIdAsync();
 
     public sealed class GroupService(IDbContextFactory<EnsembleDbContext> dbFactory, ICurrentUserAccessor currentUser, IRealtimeUpdateDispatcher updates)
     {
@@ -35,9 +38,10 @@ public sealed class DbService
             CancellationToken cancellationToken = default)
         {
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            var userId = await currentUser.GetUserIdAsync();
             return await db.GroupMembers
                 .AsNoTracking()
-                .Where(x => x.UserId == currentUser.UserId)
+                .Where(x => x.UserId == userId)
                 .OrderBy(x => x.Group.Name)
                 .Select(x => new GroupSummaryDto(
                     x.Group.Id,
@@ -52,9 +56,10 @@ public sealed class DbService
             CancellationToken cancellationToken = default)
         {
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            var userId = await currentUser.GetUserIdAsync();
             return await db.GroupMembers
                 .AsNoTracking()
-                .Where(x => x.GroupId == groupId && x.UserId == currentUser.UserId)
+                .Where(x => x.GroupId == groupId && x.UserId == userId)
                 .Select(x => new GroupSummaryDto(
                     x.Group.Id,
                     x.Group.Name,
@@ -107,21 +112,21 @@ public sealed class DbService
                 Id = Guid.NewGuid(),
                 Name = name,
                 InviteCode = inviteCode,
-                CreatedByUserId = currentUser.UserId,
+                CreatedByUserId = await currentUser.GetUserIdAsync(),
                 CreatedAt = now
             };
 
             group.Members.Add(new EnsembleGroupMember
             {
                 GroupId = group.Id,
-                UserId = currentUser.UserId,
+                UserId = await currentUser.GetUserIdAsync(),
                 Role = GroupRole.Leader,
                 JoinedAt = now
             });
 
             db.Groups.Add(group);
             await db.SaveChangesAsync(cancellationToken);
-            await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
+            await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
 
             return new GroupSummaryDto(group.Id, group.Name, group.InviteCode, GroupRole.Leader);
         }
@@ -145,7 +150,7 @@ public sealed class DbService
                 Id = Guid.NewGuid(),
                 GroupId = groupId,
                 Token = token,
-                CreatedByUserId = currentUser.UserId,
+                CreatedByUserId = await currentUser.GetUserIdAsync(),
                 CreatedAt = now,
                 ExpiresAt = now.AddMinutes(30)
             };
@@ -172,7 +177,8 @@ public sealed class DbService
                 return null;
             }
 
-            var existingMember = invite.Group.Members.FirstOrDefault(x => x.UserId == currentUser.UserId);
+            var userId = await currentUser.GetUserIdAsync();
+            var existingMember = invite.Group.Members.FirstOrDefault(x => x.UserId == userId);
             var role = existingMember?.Role ?? GroupRole.Member;
 
             if (existingMember is null)
@@ -180,14 +186,14 @@ public sealed class DbService
                 invite.Group.Members.Add(new EnsembleGroupMember
                 {
                     GroupId = invite.GroupId,
-                    UserId = currentUser.UserId,
+                    UserId = await currentUser.GetUserIdAsync(),
                     Role = role,
                     JoinedAt = now
                 });
             }
 
             await db.SaveChangesAsync(cancellationToken);
-            await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
+            await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
             await updates.NotifyGroupChangedAsync(invite.Group.Id, cancellationToken);
 
             return new GroupSummaryDto(invite.Group.Id, invite.Group.Name, invite.Group.InviteCode, role);
@@ -231,7 +237,8 @@ public sealed class DbService
             var group = await db.Groups.Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == groupId, cancellationToken);
             if (group is null) return;
 
-            var currentMember = group.Members.FirstOrDefault(x => x.UserId == currentUser.UserId);
+            var userId = await currentUser.GetUserIdAsync();
+            var currentMember = group.Members.FirstOrDefault(x => x.UserId == userId);
             if (currentMember?.Role != GroupRole.Leader)
             {
                 throw new UnauthorizedAccessException();
@@ -242,9 +249,9 @@ public sealed class DbService
             db.Groups.Remove(group);
             await db.SaveChangesAsync(cancellationToken);
 
-            foreach (var userId in memberUserIds)
+            foreach (var id in memberUserIds)
             {
-                await updates.NotifyUserStateChangedAsync(userId, cancellationToken);
+                await updates.NotifyUserStateChangedAsync(id, cancellationToken);
             }
         }
 
@@ -340,7 +347,7 @@ public sealed class DbService
                 .FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == userId, cancellationToken)
                 ?? throw new InvalidOperationException("Member was not found.");
 
-            var removingSelf = member.UserId == currentUser.UserId;
+            var removingSelf = member.UserId == await currentUser.GetUserIdAsync();
 
             var canRemove = removingSelf ||
                 currentMember.Role == GroupRole.Leader ||
@@ -368,27 +375,31 @@ public sealed class DbService
             await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
         }
 
-        public Task LeaveGroupAsync(Guid groupId, CancellationToken cancellationToken = default)
-            => RemoveMemberAsync(groupId, currentUser.UserId, cancellationToken);
+        public async Task LeaveGroupAsync(Guid groupId, CancellationToken cancellationToken = default)
+            => await RemoveMemberAsync(groupId, await currentUser.GetUserIdAsync(), cancellationToken);
 
         public async Task<bool> IsMemberAsync(EnsembleDbContext db, Guid groupId, CancellationToken cancellationToken = default)
         {
-            return await db.GroupMembers.AnyAsync(x => x.GroupId == groupId && x.UserId == currentUser.UserId, cancellationToken);
+            var userId = await currentUser.GetUserIdAsync();
+            return await db.GroupMembers.AnyAsync(x => x.GroupId == groupId && x.UserId == userId, cancellationToken);
         }
 
         public async Task<bool> IsLeaderAsync(EnsembleDbContext db, Guid groupId, CancellationToken cancellationToken = default)
         {
-            return await db.GroupMembers.AnyAsync(x => x.GroupId == groupId && x.UserId == currentUser.UserId && x.Role == GroupRole.Leader, cancellationToken);
+            var userId = await currentUser.GetUserIdAsync();
+            return await db.GroupMembers.AnyAsync(x => x.GroupId == groupId && x.UserId == userId && x.Role == GroupRole.Leader, cancellationToken);
         }
 
         public async Task<bool> IsLeaderOrAdminAsync(EnsembleDbContext db, Guid groupId, CancellationToken cancellationToken = default)
         {
-            return await db.GroupMembers.AnyAsync(x => x.GroupId == groupId && x.UserId == currentUser.UserId && (x.Role == GroupRole.Leader || x.Role == GroupRole.Admin), cancellationToken);
+            var userId = await currentUser.GetUserIdAsync();
+            return await db.GroupMembers.AnyAsync(x => x.GroupId == groupId && x.UserId == userId && (x.Role == GroupRole.Leader || x.Role == GroupRole.Admin), cancellationToken);
         }
 
         private async Task<EnsembleGroupMember?> GetCurrentMemberAsync(EnsembleDbContext db, Guid groupId, CancellationToken cancellationToken)
         {
-            return await db.GroupMembers.FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == currentUser.UserId, cancellationToken);
+            var userId = await currentUser.GetUserIdAsync();
+            return await db.GroupMembers.FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == userId, cancellationToken);
         }
 
         private async Task PromoteReplacementLeaderOrDeleteAsync(Guid groupId, bool leaderWasRemoved, CancellationToken cancellationToken)
@@ -465,7 +476,7 @@ public sealed class DbService
 
             buffer.Position = 0;
             var storageKey = await fileStore.SaveAsync(
-                currentUser.UserId,
+                await currentUser.GetUserIdAsync(),
                 fileId,
                 originalFileName,
                 buffer,
@@ -474,7 +485,7 @@ public sealed class DbService
             var midiFile = new EnsembleMidiFile
             {
                 Id = fileId,
-                UploadedByUserId = currentUser.UserId,
+                UploadedByUserId = await currentUser.GetUserIdAsync(),
                 Title = Path.GetFileNameWithoutExtension(originalFileName),
                 OriginalFileName = Path.GetFileName(originalFileName),
                 ContentType = string.IsNullOrWhiteSpace(contentType)
@@ -521,7 +532,7 @@ public sealed class DbService
                     .ToList()),
                 cancellationToken);
 
-            await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
+            await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
 
             return new GroupFileDto(
                 midiFile.Id,
@@ -652,9 +663,10 @@ public sealed class DbService
         public async Task DeleteMidiFileAsync(Guid fileId, CancellationToken cancellationToken = default)
         {
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            var userId = await currentUser.GetUserIdAsync();
             var file = await db.MidiFiles
                 .Include(x => x.SharedGroups)
-                .FirstOrDefaultAsync(x => x.Id == fileId && x.UploadedByUserId == currentUser.UserId, cancellationToken);
+                .FirstOrDefaultAsync(x => x.Id == fileId && x.UploadedByUserId == userId, cancellationToken);
 
             if (file is null)
             {
@@ -665,16 +677,17 @@ public sealed class DbService
 
             db.MidiFiles.Remove(file);
             await db.SaveChangesAsync(cancellationToken);
-            await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
+            await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
             await updates.NotifyGroupsChangedAsync(sharedGroupIds, cancellationToken);
         }
         public async Task<IReadOnlyList<GroupFileDto>> GetMyMidiFilesAsync(
             CancellationToken cancellationToken = default)
         {
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            var userId = await currentUser.GetUserIdAsync();
             return await db.MidiFiles
                 .AsNoTracking()
-                .Where(x => x.UploadedByUserId == currentUser.UserId &&
+                .Where(x => x.UploadedByUserId == userId &&
                             x.ArchivedAt == null)
                 .OrderByDescending(x => x.UploadedAt)
                 .Select(x => new GroupFileDto(
@@ -713,7 +726,7 @@ public sealed class DbService
             db.GroupMidiFiles.Remove(share);
 
             await db.SaveChangesAsync(cancellationToken);
-            await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
+            await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
             await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
         }
 
@@ -726,10 +739,11 @@ public sealed class DbService
             if (!await groups.IsLeaderOrAdminAsync(db, groupId, cancellationToken))
                 throw new UnauthorizedAccessException("You don't have permission to share files in this group.");
 
+            var userId = await currentUser.GetUserIdAsync();
             var file = await db.MidiFiles
                 .FirstOrDefaultAsync(x =>
                     x.Id == fileId &&
-                    x.UploadedByUserId == currentUser.UserId &&
+                    x.UploadedByUserId == userId &&
                     x.ArchivedAt == null,
                     cancellationToken);
 
@@ -752,7 +766,7 @@ public sealed class DbService
                 });
 
                 await db.SaveChangesAsync(cancellationToken);
-                await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
+                await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
                 await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
             }
         }
@@ -762,15 +776,16 @@ public sealed class DbService
             EnsembleMidiFile file,
             CancellationToken cancellationToken)
         {
-            if (file.UploadedByUserId == currentUser.UserId)
+            if (file.UploadedByUserId == await currentUser.GetUserIdAsync())
             {
                 return true;
             }
 
+            var userId = await currentUser.GetUserIdAsync();
             return await db.GroupMidiFiles.AnyAsync(
                 x => x.MidiFileId == file.Id &&
                      x.MidiFile.ArchivedAt == null &&
-                     x.Group.Members.Any(member => member.UserId == currentUser.UserId),
+                     x.Group.Members.Any(member => member.UserId == userId),
                 cancellationToken);
         }
 
@@ -779,16 +794,17 @@ public sealed class DbService
             EnsembleMidiFile file,
             CancellationToken cancellationToken)
         {
-            if (file.UploadedByUserId == currentUser.UserId)
+            if (file.UploadedByUserId == await currentUser.GetUserIdAsync())
             {
                 return true;
             }
 
+            var userId = await currentUser.GetUserIdAsync();
             return await db.GroupMidiFiles.AnyAsync(
                 x => x.MidiFileId == file.Id &&
                      x.MidiFile.ArchivedAt == null &&
                      x.Group.Members.Any(member =>
-                         member.UserId == currentUser.UserId &&
+                         member.UserId == userId &&
                          (member.Role == GroupRole.Leader || member.Role == GroupRole.Admin)),
                 cancellationToken);
         }

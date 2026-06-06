@@ -1,4 +1,4 @@
-@page "/groups/join/{Token}"
+@page "/manage/groups/join/{Token}"
 @attribute [Authorize]
 @inject DbService Db
 @inject NavigationManager Nav
@@ -17,7 +17,7 @@
         else if (!string.IsNullOrWhiteSpace(State.Task.Error))
         {
             <p class="sp-app-alert sp-app-alert--error">@State.Task.Error</p>
-            <a class="sp-app-button" href="/groups">Go to groups</a>
+            <a class="sp-app-button" href="/manage/groups">Go to groups</a>
         }
         else
         {
@@ -48,7 +48,7 @@
         await InvokeAsync(StateHasChanged);
 
         if (joinSuccess)
-            _ = Task.Delay(DelayMilliseconds).ContinueWith(_ => Nav.NavigateTo($"/groups/{joinedGroup_!.Id}"));
+            _ = Task.Delay(DelayMilliseconds).ContinueWith(_ => Nav.NavigateTo($"/manage/groups/{joinedGroup_!.Id}"));
     }
 
     private async Task<string> GetGroupAsync()

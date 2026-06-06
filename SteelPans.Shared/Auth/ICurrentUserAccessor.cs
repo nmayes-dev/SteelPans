@@ -2,6 +2,6 @@
 
 public interface ICurrentUserAccessor
 {
-    Guid UserId { get; }
-    string Email { get; }
+    ValueTask<Guid> GetUserIdAsync();
+    ValueTask<string> GetEmailAsync();
 }

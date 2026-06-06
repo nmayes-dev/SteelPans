@@ -61,8 +61,8 @@ public static class WebApplicationBuilderExtensions
 
         builder.Services.AddCascadingAuthenticationState();
 
-        builder.Services.AddHttpContextAccessor();
-        builder.Services.AddScoped<ICurrentUserAccessor, ClaimsCurrentUserAccessor>();
+        builder.Services.AddHttpContextAccessor(); 
+        builder.Services.AddScoped<ICurrentUserAccessor, BlazorCurrentUserAccessor>();
 
         builder.Services.AddScoped<EnsembleApiTokenService>();
         builder.Services.AddScoped<MidiInspectionService>();

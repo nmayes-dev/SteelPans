@@ -1,4 +1,4 @@
-@page "/groups/{GroupId:guid}"
+@page "/manage/groups/{GroupId:guid}"
 @attribute [Authorize]
 @implements IDisposable
 @inject DbService Db
@@ -35,7 +35,7 @@
                 }
 
                 <div class="manage-group-page__header-actions">
-                    <a class="sp-app-button" href="/groups">Back</a>
+                    <a class="sp-app-button" href="/manage/groups">Back</a>
 
                     @if (CanManageFiles)
                     {
@@ -119,7 +119,7 @@
                         <h2>MIDI Files</h2>
                         <small>@files_.Count file@(files_.Count == 1 ? "" : "s")</small>
                     </div>
-                    <a class="sp-app-button" href="/midi-files">Manage MIDI Files</a>
+                    <a class="sp-app-button" href="/manage/midi">Manage MIDI Files</a>
                 </div>
 
                 @if (files_.Count == 0)
@@ -213,7 +213,7 @@
         if (!success)
         {
             // If we failed to load the group, navigate back to the groups page (maybe they were removed from the group?)
-            Nav.NavigateTo("/groups");
+            Nav.NavigateTo("/manage/groups");
         }
     }
 
@@ -222,7 +222,7 @@
         await State.Task.RunSafe(async () =>
         {
             var invite = await Db.Groups.CreateInviteAsync(GroupId);
-            inviteLink_ = Nav.ToAbsoluteUri($"/groups/join/{Uri.EscapeDataString(invite.Token)}").ToString();
+            inviteLink_ = Nav.ToAbsoluteUri($"/manage/groups/join/{Uri.EscapeDataString(invite.Token)}").ToString();
             inviteExpiresAt_ = invite.ExpiresAt;
             return "Invite link created.";
         });
@@ -327,10 +327,14 @@
         await Modals.OpenAsync("DeleteGroup", group_);
     }
 
-    private bool CanRemove(GroupMemberSummaryDto member) =>
-        group_ is not null &&
-        member.UserId != Db.User &&
-        (IsLeader && member.Role != GroupRole.Leader || IsAdmin && member.Role == GroupRole.Member);
+    private bool CanRemove(GroupMemberSummaryDto member)
+    {
+        if (group_ is null)
+            return false;
+
+        return member.UserId != State.User.Id &&
+               (IsLeader && member.Role != GroupRole.Leader || IsAdmin && member.Role == GroupRole.Member);
+    }
 
     private static string DisplayName(GroupMemberSummaryDto member) =>
         string.IsNullOrWhiteSpace(member.UserName) ? member.Email : member.UserName;
