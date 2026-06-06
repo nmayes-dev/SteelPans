@@ -117,7 +117,7 @@
                                 </button>
                                 <button class="sp-app-button"
                                         type="button"
-                                        @onclick="() => LoadFileDetailsAsync(file.Id)">
+                                        @onclick="() => filePreview_!.OpenPreviewAsync(file.Id)">
                                     Preview
                                 </button>
                             </div>
@@ -155,7 +155,7 @@
                         <div class="sp-app-list-item__actions">
                             <button class="sp-app-button"
                                     type="button"
-                                    @onclick="() => LoadFileDetailsAsync(file.Id)">
+                                    @onclick="() => filePreview_!.OpenPreviewAsync(file.Id)">
                                 Edit
                             </button>
                             <button class="sp-app-button sp-app-button--danger"
@@ -195,67 +195,10 @@
         }
     </div>
 
-    <div class="sp-app-card sp-app-card--wide midi-files-upload-preview @(isPreviewOpen_ ? "" : "midi-files-upload-preview--closed")">
-        <div class="midi-files-upload-preview-header">
-            <h2>Track Assignments</h2>
-            <button class="midi-files-upload-preview-close"
-                    @onclick="ClosePreviewAsync">
-                <span class="bi bi-x-lg"></span>
-            </button>
-        </div>
-        <p class="midi-files-upload-preview__meta"><strong>@State.Preview.File?.Title</strong> <span>@State.Preview.File?.OriginalFileName</span></p>
-
-        <div class="midi-files-preview-files">
-            <div class="sp-app-table-wrap">
-                <table class="sp-app-table">
-                    <thead>
-                        <tr>
-                            <th>Track</th>
-                            <th>Name</th>
-                            <th>Pan</th>
-                            <th>Label</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var track in State.Preview.File?.Tracks ?? [])
-                        {
-                            var assignment = State.Preview.Assigments.GetValueOrDefault(track.TrackIndex);
-
-                            <tr>
-                                <td>@(track.TrackIndex)</td>
-                                <td>@(track.TrackName ?? "Unnamed")</td>
-                                <td>
-                                    <select value="@(assignment?.PanType ?? PanType.LeadTenor)"
-                                            @onchange="e => SetPanType(track.TrackIndex, e.Value?.ToString())">
-                                        @foreach (var panType in panTypes_)
-                                        {
-                                            <option value="@panType">@panType.ToSpacedPascal()</option>
-                                        }
-                                    </select>
-                                </td>
-                                <td>
-                                    <input value="@(assignment?.Label ?? track.TrackName ?? $"Track {track.TrackIndex}")"
-                                           @onchange="e => SetLabel(track.TrackIndex, e.Value?.ToString())" />
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <button class="sp-app-button sp-app-button--primary"
-                type="button"
-                @onclick="SaveAssignmentsAsync"
-                disabled="@State.Task.Busy">
-            Save
-        </button>
-    </div>
+    <MidiFilePreview @ref="filePreview_" />
 </section>
 
 @code {
-    private readonly PanType[] panTypes_ = Enum.GetValues<PanType>();
-
     private Guid? selectedGroupId_;
     private IEnumerable<GroupSummaryDto> EditableGroups => State.User.Groups?.Where(CanManageGroupFiles) ?? [];
     private IReadOnlyList<GroupFileDto>? SelectedFiles => State.User.GroupFiles.GetValueOrDefault(selectedGroupId_ ?? Guid.Empty);
@@ -266,10 +209,7 @@
     private IReadOnlyList<MidiTrackInfo>? localPreview_;
 
     private string targetShareGroup_ = string.Empty;
-
-    private bool isPreviewOpen_;
-
-    private CancellationTokenSource? closeCts_;
+    private MidiFilePreview? filePreview_;
 
     protected override async Task OnInitializedAsync()
     {
@@ -289,7 +229,8 @@
 
     private async Task PreviewFileAsync(InputFileChangeEventArgs args)
     {
-        isPreviewOpen_ = false;
+        await filePreview_!.ClosePreviewAsync();
+
         selectedFile_ = args.File;
         localFileName_ = selectedFile_.Name;
 
@@ -324,25 +265,17 @@
                 stream);
 
             await State.User.RefreshAsync();
-            await LoadFileDetailsAsync(uploaded.Id);
 
             selectedFile_ = null;
             selectedFileBytes_ = null;
             localPreview_ = null;
-            isPreviewOpen_ = false;
+
+            await filePreview_!.ClosePreviewAsync();
 
             return selectedGroupId_ is null
                 ? "MIDI file uploaded privately."
                 : "MIDI file uploaded and shared with group.";
         });
-    }
-
-    private async Task LoadFileDetailsAsync(Guid fileId)
-    {
-        await State.Preview.LoadAsync(fileId);
-
-        closeCts_?.Cancel();
-        isPreviewOpen_ = true;
     }
 
     private async Task OpenDeleteFileModal(GroupFileDto file)
@@ -433,34 +366,6 @@
                 ? $"Track {trackIndex + 1}"
                 : value.Trim()
         };
-    }
-
-    private async Task SaveAssignmentsAsync()
-    {
-        if (State.Preview.File is null)
-            return;
-
-        await State.Task.RunSafe(async () =>
-        {
-            await Db.MidiFiles.SaveMidiAssignmentsAsync(
-                State.Preview.File.Id,
-                new SaveMidiAssignmentsRequest(
-                    State.Preview.Assigments.Values
-                        .OrderBy(x => x.TrackIndex)
-                        .ToList()));
-
-            await LoadFileDetailsAsync(State.Preview.File.Id);
-
-            return "Assignments saved.";
-        });
-    }
-
-    private async Task ClosePreviewAsync()
-    {
-        isPreviewOpen_ = false;
-
-        closeCts_?.Cancel();
-        closeCts_ = new();
     }
 
     private RenderFragment RenderTracks(IReadOnlyList<MidiTrackInfo> tracks) => @<div class="midi-track-list">
