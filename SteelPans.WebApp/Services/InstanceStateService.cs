@@ -8,236 +8,235 @@ using SteelPans.Shared.Music;
 using SteelPans.Shared.Services;
 using System.Threading.Channels;
 
-namespace SteelPans.WebApp.Services
+namespace SteelPans.WebApp.Services;
+
+
+public class InstanceStateService : IDisposable, IAsyncDisposable
 {
+    public readonly long MaxMidiFileSize = 64L * 1024L * 1024L;
 
-    public class InstanceStateService : IDisposable, IAsyncDisposable
+
+    public TaskState Task { get; set; }
+    public UserState User { get; set; }
+
+    public InstanceStateService(DbService db, NavigationManager nav, AppUpdatesService updates)
     {
-        public readonly long MaxMidiFileSize = 64L * 1024L * 1024L;
+        Task = new(nav);
+        User = new(db, nav, Task, updates);
+    }
+
+    public void Dispose()
+    {
+        Task.Dispose();
+        User.Dispose();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Task.Dispose();
+        await User.DisposeAsync();
+    }
 
 
-        public TaskState Task { get; set; }
-        public UserState User { get; set; }
+    public sealed class TaskState : IDisposable
+    {
+        public bool Busy { get; private set; } = false;
+        public string Message { get; private set; } = string.Empty;
+        public string Error { get; private set; } = string.Empty;
 
-        public InstanceStateService(DbService db, NavigationManager nav, AppUpdatesService updates)
+        private IDisposable navEvent_;
+
+        public Task<bool> RunSafe(Func<Task<string>> job)
         {
-            Task = new(nav);
-            User = new(db, nav, Task, updates);
+            return Run(true, job);
+        }
+        public Task<bool> RunSafe(Func<Task> job)
+        {
+            return Run(true, job);
+        }
+        public Task<bool> RunUnsafe(Func<Task<string>> job)
+        {
+            return Run(false, job);
+        }
+        public Task<bool> RunUnsafe(Func<Task> job)
+        {
+            return Run(false, job);
+        }
+
+        public TaskState(NavigationManager nav)
+        {
+            navEvent_ = nav.RegisterLocationChangingHandler(OnLocationChanged);
         }
 
         public void Dispose()
         {
-            Task.Dispose();
-            User.Dispose();
+            navEvent_.Dispose();
+        }
+
+        private async ValueTask OnLocationChanged(LocationChangingContext context)
+        {
+            if (Busy)
+                return;
+
+            InitializeState(false);
+        }
+        private void InitializeState(bool block)
+        {
+            Busy = block;
+            Message = string.Empty;
+            Error = string.Empty;
+        }
+
+        private async Task<bool> Run(bool block, Func<Task<string>> job)
+        {
+            InitializeState(block);
+            bool success = false;
+
+            try
+            {
+                Message = await job();
+                success = true;
+            }
+            catch (Exception ex)
+            {
+                Error = ex.Message;
+                success = false;
+            }
+            finally
+            {
+                Busy = false;
+            }
+
+            return success;
+        }
+        private async Task<bool> Run(bool block, Func<Task> job)
+        {
+            InitializeState(block);
+            bool success = false;
+
+            try
+            {
+                await job();
+                success = true;
+            }
+            catch (Exception ex)
+            {
+                Error = ex.Message;
+                success = false;
+            }
+            finally
+            {
+                Busy = false;
+            }
+
+            return success;
+        }
+    }
+
+    public sealed class UserState : IDisposable, IAsyncDisposable
+    {
+        public event Func<Task>? OnRefresh;
+
+        public Guid Id { get; private set; } = Guid.Empty;
+        public string CurrentLayout { get; set; } = string.Empty;
+        public IReadOnlyList<GroupSummaryDto>? Groups { get; private set; }
+        public Dictionary<Guid, IReadOnlyList<GroupFileDto>> GroupFiles { get; private set; } = [];
+        public IReadOnlyList<GroupFileDto> Files { get; private set; } = [];
+
+        private readonly DbService db_;
+        private readonly NavigationManager nav_;
+        private readonly TaskState task_;
+        private readonly AppUpdatesService updates_;
+
+        private readonly SemaphoreSlim refreshLock_ = new(1, 1);
+
+        public UserState(DbService db, NavigationManager nav, TaskState task, AppUpdatesService updates)
+        {
+            db_ = db;
+            nav_ = nav;
+            task_ = task;
+            updates_ = updates;
+
+            nav_.LocationChanged += OnNavigationAsync;
+            updates_.UserStateChanged += OnRealtimeUserStateChangedAsync;
+            updates_.GroupChanged += OnRealtimeGroupChangedAsync;
+        }
+
+        public void Dispose()
+        {
+            nav_.LocationChanged -= OnNavigationAsync;
+            updates_.UserStateChanged -= OnRealtimeUserStateChangedAsync;
+            updates_.GroupChanged -= OnRealtimeGroupChangedAsync;
+            refreshLock_.Dispose();
         }
 
         public async ValueTask DisposeAsync()
         {
-            Task.Dispose();
-            await User.DisposeAsync();
+            Dispose();
+            await updates_.DisposeAsync();
         }
 
-
-        public sealed class TaskState : IDisposable
+        public async ValueTask RefreshAsync()
         {
-            public bool Busy { get; private set; } = false;
-            public string Message { get; private set; } = string.Empty;
-            public string Error { get; private set; } = string.Empty;
+            await refreshLock_.WaitAsync();
 
-            private IDisposable navEvent_;
+            await task_.RunSafe(RunRefreshAsync);
 
-            public Task<bool> RunSafe(Func<Task<string>> job)
-            {
-                return Run(true, job);
-            }
-            public Task<bool> RunSafe(Func<Task> job)
-            {
-                return Run(true, job);
-            }
-            public Task<bool> RunUnsafe(Func<Task<string>> job)
-            {
-                return Run(false, job);
-            }
-            public Task<bool> RunUnsafe(Func<Task> job)
-            {
-                return Run(false, job);
-            }
-
-            public TaskState(NavigationManager nav)
-            {
-                navEvent_ = nav.RegisterLocationChangingHandler(OnLocationChanged);
-            }
-
-            public void Dispose()
-            {
-                navEvent_.Dispose();
-            }
-
-            private async ValueTask OnLocationChanged(LocationChangingContext context)
-            {
-                if (Busy)
-                    return;
-
-                InitializeState(false);
-            }
-            private void InitializeState(bool block)
-            {
-                Busy = block;
-                Message = string.Empty;
-                Error = string.Empty;
-            }
-
-            private async Task<bool> Run(bool block, Func<Task<string>> job)
-            {
-                InitializeState(block);
-                bool success = false;
-
-                try
-                {
-                    Message = await job();
-                    success = true;
-                }
-                catch (Exception ex)
-                {
-                    Error = ex.Message;
-                    success = false;
-                }
-                finally
-                {
-                    Busy = false;
-                }
-
-                return success;
-            }
-            private async Task<bool> Run(bool block, Func<Task> job)
-            {
-                InitializeState(block);
-                bool success = false;
-
-                try
-                {
-                    await job();
-                    success = true;
-                }
-                catch (Exception ex)
-                {
-                    Error = ex.Message;
-                    success = false;
-                }
-                finally
-                {
-                    Busy = false;
-                }
-
-                return success;
-            }
+            refreshLock_.Release();
         }
 
-        public sealed class UserState : IDisposable, IAsyncDisposable
+        private async Task RunRefreshAsync()
         {
-            public event Func<Task>? OnRefresh;
+            Id = db_.User;
+            Groups = await db_.Groups.GetMyGroupsAsync();
+            Files = await db_.MidiFiles.GetMyMidiFilesAsync();
 
-            public Guid Id { get; private set; } = Guid.Empty;
-            public string CurrentLayout { get; set; } = string.Empty;
-            public IReadOnlyList<GroupSummaryDto>? Groups { get; private set; }
-            public Dictionary<Guid, IReadOnlyList<GroupFileDto>> GroupFiles { get; private set; } = [];
-            public IReadOnlyList<GroupFileDto> Files { get; private set; } = [];
+            var groupFiles = new Dictionary<Guid, IReadOnlyList<GroupFileDto>>();
 
-            private readonly DbService db_;
-            private readonly NavigationManager nav_;
-            private readonly TaskState task_;
-            private readonly AppUpdatesService updates_;
+            foreach (var group in Groups)
+                groupFiles[group.Id] = await db_.Groups.GetGroupFilesAsync(group.Id);
 
-            private readonly SemaphoreSlim refreshLock_ = new(1, 1);
+            GroupFiles = groupFiles;
 
-            public UserState(DbService db, NavigationManager nav, TaskState task, AppUpdatesService updates)
+            try
             {
-                db_ = db;
-                nav_ = nav;
-                task_ = task;
-                updates_ = updates;
-
-                nav_.LocationChanged += OnNavigationAsync;
-                updates_.UserStateChanged += OnRealtimeUserStateChangedAsync;
-                updates_.GroupChanged += OnRealtimeGroupChangedAsync;
+                await updates_.StartAsync(Id, Groups.Select(x => x.Id));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"SignalR update client failed to start: {ex.Message}");
             }
 
-            public void Dispose()
+            await RaiseOnRefreshAsync();
+        }
+
+        private async void OnNavigationAsync(object? sender, LocationChangedEventArgs e)
+        {
+            await RefreshAsync();
+        }
+
+        private async Task OnRealtimeUserStateChangedAsync()
+        {
+            await RefreshAsync();
+        }
+
+        private async Task OnRealtimeGroupChangedAsync(Guid groupId)
+        {
+            if (Groups?.Any(x => x.Id == groupId) != true)
             {
-                nav_.LocationChanged -= OnNavigationAsync;
-                updates_.UserStateChanged -= OnRealtimeUserStateChangedAsync;
-                updates_.GroupChanged -= OnRealtimeGroupChangedAsync;
-                refreshLock_.Dispose();
+                return;
             }
 
-            public async ValueTask DisposeAsync()
-            {
-                Dispose();
-                await updates_.DisposeAsync();
-            }
+            await RefreshAsync();
+        }
 
-            public async ValueTask RefreshAsync()
-            {
-                await refreshLock_.WaitAsync();
+        private async Task RaiseOnRefreshAsync()
+        {
+            if (OnRefresh is null)
+                return;
 
-                await task_.RunSafe(RunRefreshAsync);
-
-                refreshLock_.Release();
-            }
-
-            private async Task RunRefreshAsync()
-            {
-                Id = db_.User;
-                Groups = await db_.Groups.GetMyGroupsAsync();
-                Files = await db_.MidiFiles.GetMyMidiFilesAsync();
-
-                var groupFiles = new Dictionary<Guid, IReadOnlyList<GroupFileDto>>();
-
-                foreach (var group in Groups)
-                    groupFiles[group.Id] = await db_.Groups.GetGroupFilesAsync(group.Id);
-
-                GroupFiles = groupFiles;
-
-                try
-                {
-                    await updates_.StartAsync(Id, Groups.Select(x => x.Id));
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"SignalR update client failed to start: {ex.Message}");
-                }
-
-                await RaiseOnRefreshAsync();
-            }
-
-            private async void OnNavigationAsync(object? sender, LocationChangedEventArgs e)
-            {
-                await RefreshAsync();
-            }
-
-            private async Task OnRealtimeUserStateChangedAsync()
-            {
-                await RefreshAsync();
-            }
-
-            private async Task OnRealtimeGroupChangedAsync(Guid groupId)
-            {
-                if (Groups?.Any(x => x.Id == groupId) != true)
-                {
-                    return;
-                }
-
-                await RefreshAsync();
-            }
-
-            private async Task RaiseOnRefreshAsync()
-            {
-                if (OnRefresh is null)
-                    return;
-
-                foreach (var handler in OnRefresh.GetInvocationList().Cast<Func<Task>>())
-                    await handler();
-            }
+            foreach (var handler in OnRefresh.GetInvocationList().Cast<Func<Task>>())
+                await handler();
         }
     }
 }

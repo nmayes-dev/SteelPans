@@ -7,6 +7,7 @@ public sealed class AppUpdatesService(NavigationManager nav) : IAsyncDisposable
 {
     public event Func<Task>? UserStateChanged;
     public event Func<Guid, Task>? GroupChanged;
+    public event Func<Guid, Task>? MidiAssignmentsChanged;
 
     private readonly HashSet<Guid> joinedGroups_ = [];
     private HubConnection? connection_;
@@ -42,6 +43,14 @@ public sealed class AppUpdatesService(NavigationManager nav) : IAsyncDisposable
                 if (GroupChanged is not null)
                 {
                     await GroupChanged.Invoke(groupId);
+                }
+            });
+
+            connection_.On<Guid>(AppUpdateMessages.MidiAssignmentsChanged, async fileId =>
+            {
+                if (MidiAssignmentsChanged is not null)
+                {
+                    await MidiAssignmentsChanged.Invoke(fileId);
                 }
             });
 

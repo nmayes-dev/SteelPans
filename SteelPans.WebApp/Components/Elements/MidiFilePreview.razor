@@ -1,5 +1,7 @@
 ﻿@inject InstanceStateService State
 @inject DbService Db
+@inject AppUpdatesService Updates
+@implements IAsyncDisposable
 
 <div class="sp-app-card sp-app-card--wide midi-file-preview @(isPreviewOpen_ ? "" : "midi-file-preview--closed")">
     <div class="midi-file-preview-header">
@@ -64,6 +66,11 @@
 </div>
 
 @code {
+    protected override void OnInitialized()
+    {
+        Updates.MidiAssignmentsChanged += OnRealtimeMidiAssignmentsChangedAsync;
+    }
+
     private readonly PanType[] panTypes_ = Enum.GetValues<PanType>();
 
     [Parameter]
@@ -172,4 +179,20 @@
         closeCts_?.Cancel();
         isPreviewOpen_ = true;
     }
+
+    private async Task OnRealtimeMidiAssignmentsChangedAsync(Guid fileId)
+    {
+        if (!isPreviewOpen_ || file_?.Id != fileId)
+            return;
+
+        await LoadFileDetailsAsync(fileId);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        Updates.MidiAssignmentsChanged -= OnRealtimeMidiAssignmentsChangedAsync;
+        return ValueTask.CompletedTask;
+    }
+
 }

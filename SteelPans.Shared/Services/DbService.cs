@@ -636,9 +636,18 @@ public sealed class DbService
                 });
             }
 
+            var sharedGroupIds = file.SharedGroups
+                .Select(x => x.GroupId)
+                .ToList();
+
             await db.SaveChangesAsync(cancellationToken);
             await updates.NotifyUserStateChangedAsync(file.UploadedByUserId, cancellationToken);
-            await updates.NotifyGroupsChangedAsync(file.SharedGroups.Select(x => x.GroupId), cancellationToken);
+            await updates.NotifyGroupsChangedAsync(sharedGroupIds, cancellationToken);
+            await updates.NotifyMidiAssignmentsChangedAsync(
+                file.Id,
+                file.UploadedByUserId,
+                sharedGroupIds,
+                cancellationToken);
         }
         public async Task DeleteMidiFileAsync(Guid fileId, CancellationToken cancellationToken = default)
         {
