@@ -35,14 +35,13 @@
     {
         GroupSummaryDto? created = null;
 
-        await State.Task.RunSafe(async () =>
+        var success = await State.Task.RunSafe(async () =>
         {
             created = await Db.Groups.CreateGroupAsync(new CreateGroupRequest(newGroupName_.Trim()));
-            await State.User.RefreshAsync();
             return "Group created.";
         });
 
-        if (created is not null)
+        if (success && created is not null)
         {
             Nav.NavigateTo($"/groups/{created.Id}");
         }

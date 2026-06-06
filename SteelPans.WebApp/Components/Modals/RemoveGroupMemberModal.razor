@@ -33,16 +33,18 @@
         title_ = $"Remove {DisplayName(payload.Member)}?";
     }
 
-    private async Task OnConfirmAsync(Payload? payload)
+    private async Task<bool> OnConfirmAsync(Payload? payload)
     {
-        if (payload is null)
-            return;
+        var data = payload ?? throw new InvalidOperationException(
+            "LeaveGroup modal requires a group payload.");
 
         await State.Task.RunSafe(async () =>
         {
-            await Db.Groups.RemoveMemberAsync(payload.Group.Id, payload.Member.UserId);
+            await Db.Groups.RemoveMemberAsync(data.Group.Id, data.Member.UserId);
             return "Member removed.";
         });
+
+        return true;
     }
 
     private static string DisplayName(GroupMemberSummaryDto member) =>

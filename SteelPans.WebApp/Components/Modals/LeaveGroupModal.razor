@@ -30,18 +30,22 @@
         title_ = $"Leave {group.Name}?";
     }
 
-    private async Task OnConfirmAsync(GroupSummaryDto? payload)
+    private async Task<bool> OnConfirmAsync(GroupSummaryDto? payload)
     {
         var group = payload ?? throw new InvalidOperationException(
             "LeaveGroup modal requires a group payload.");
 
-        await State.Task.RunSafe(async () =>
+        bool success = await State.Task.RunSafe(async () =>
         {
             await Db.Groups.LeaveGroupAsync(group.Id);
-
-            await State.User.RefreshAsync();
-            Nav.NavigateTo("/groups");
             return "Left group.";
         });
+
+        if (success)
+        {
+            Nav.NavigateTo("/groups");
+        }
+
+        return true;
     }
 }

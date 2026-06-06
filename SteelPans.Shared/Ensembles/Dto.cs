@@ -17,6 +17,7 @@ public sealed record CreateGroupRequest(
 
 public sealed record GroupFileDto(
     Guid Id,
+    Guid OwnerId,
     IReadOnlyList<Guid> SharedGroupIds,
     string Title,
     string OriginalFileName,
@@ -43,6 +44,7 @@ public sealed record MidiTrackDto(
 
 public sealed record MidiFileDetailsDto(
     Guid Id,
+    Guid OwnerId,
     string Title,
     string OriginalFileName,
     IReadOnlyList<MidiTrackDto> Tracks,

@@ -2,27 +2,26 @@
 @attribute [Authorize]
 @inject DbService Db
 @inject NavigationManager Nav
+@inject InstanceStateService State
 
 <PageTitle>Join Group</PageTitle>
 
 <section class="sp-app-page sp-app-page--join join-group">
     <div class="sp-app-card sp-app-card--centered">
-        <p class="sp-app-page__eyebrow">Group invite</p>
-        <h1>Join Group</h1>
+        <p class="sp-app-page__eyebrow">Group Invite</p>
 
-        @if (isBusy_)
+        @if (State.Task.Busy)
         {
             <p>Checking invite link...</p>
         }
-        else if (!string.IsNullOrWhiteSpace(error_))
+        else if (!string.IsNullOrWhiteSpace(State.Task.Error))
         {
-            <p class="sp-app-alert sp-app-alert--error">@error_</p>
+            <p class="sp-app-alert sp-app-alert--error">@State.Task.Error</p>
             <a class="sp-app-button" href="/groups">Go to groups</a>
         }
-        else if (joinedGroup_ is not null)
+        else
         {
-            <p>You have joined <strong>@joinedGroup_.Name</strong>.</p>
-            <a class="sp-app-button sp-app-button--primary" href="/groups">Go to groups</a>
+            <p>@State.Task.Message</p>
         }
     </div>
 </section>
@@ -31,27 +30,42 @@
     [Parameter]
     public string Token { get; set; } = "";
 
+    private const int DelayMilliseconds = 2000;
+
     private GroupSummaryDto? joinedGroup_;
-    private string? error_;
-    private bool isBusy_ = true;
 
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            joinedGroup_ = await Db.Groups.JoinGroupAsync(Token);
-            if (joinedGroup_ is null)
-            {
-                error_ = "This invite link is invalid, has expired, or has already been used.";
-            }
-        }
-        catch (Exception ex)
-        {
-            error_ = ex.Message;
-        }
-        finally
-        {
-            isBusy_ = false;
-        }
+        var findSuccess = await State.Task.RunSafe(GetGroupAsync);
+        await InvokeAsync(StateHasChanged);
+
+        if (!findSuccess)
+            return;
+
+        await Task.Delay(DelayMilliseconds);
+
+        var joinSuccess = await State.Task.RunSafe(JoinGroupAsync);
+        await InvokeAsync(StateHasChanged);
+
+        if (joinSuccess)
+            _ = Task.Delay(DelayMilliseconds).ContinueWith(_ => Nav.NavigateTo($"/groups/{joinedGroup_!.Id}"));
+    }
+
+    private async Task<string> GetGroupAsync()
+    {
+        var group = await Db.Groups.GetGroupAsync(Token);
+        if (group is null)
+            throw new ApplicationException("Failed to find group, invalid or expire link.");
+
+        return $"Joining {group.Name}...";
+    }
+
+    private async Task<string> JoinGroupAsync()
+    {
+        joinedGroup_ = await Db.Groups.JoinGroupAsync(Token);
+        if (joinedGroup_ is null)
+            throw new ApplicationException("Failed to join group, please contact system admin.");
+
+        return $"Successfully joined {joinedGroup_.Name}, redirecting...";
     }
 }

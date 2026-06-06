@@ -34,16 +34,18 @@
         title_ = $"Transfer Group to {DisplayName(target.Member)}?";
     }
 
-    private async Task OnConfirmAsync(Payload? payload)
+    private async Task<bool> OnConfirmAsync(Payload? payload)
     {
         if (payload is null)
-            return;
+            return true;
 
         await State.Task.RunSafe(async () =>
         {
             await Db.Groups.TransferLeadershipAsync(payload.Group.Id, payload.Member.UserId);
+            await State.User.RefreshAsync();
             return "Leadership transferred.";
         });
+        return true;
     }
 
     private static string DisplayName(GroupMemberSummaryDto member) =>

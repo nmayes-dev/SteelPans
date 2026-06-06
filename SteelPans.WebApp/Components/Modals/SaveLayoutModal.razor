@@ -53,20 +53,21 @@
         error_ = null;
     }
 
-    private async Task OnConfirmAsync()
+    private async Task<bool> OnConfirmAsync(object? _)
     {
         var fileName = fileName_.Trim();
 
         if (string.IsNullOrWhiteSpace(fileName))
         {
             error_ = "Enter a file name.";
-            return;
+            return false;
         }
 
         if (!fileName.EndsWith(RequiredExtension, StringComparison.OrdinalIgnoreCase))
             fileName += RequiredExtension;
 
         await SaveConfigurationFileAsync(fileName);
+        return true;
     }
 
     private async Task SaveConfigurationFileAsync(string fileName)

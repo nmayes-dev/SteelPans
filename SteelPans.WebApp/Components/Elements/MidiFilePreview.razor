@@ -9,7 +9,7 @@
             <span class="bi bi-x-lg"></span>
         </button>
     </div>
-    <p class="midi-file-preview__meta"><strong>@file_?.Title</strong> <span>@file_?.OriginalFileName</span></p>
+    <p class="midi-file-preview__meta"><strong>@file_?.OriginalFileName</strong></p>
 
     <div class="midi-files-preview-files">
         <div class="sp-app-table-wrap">
@@ -32,6 +32,7 @@
                             <td>@(track.TrackName ?? "Unnamed")</td>
                             <td>
                                 <select value="@(assignment?.PanType ?? PanType.LeadTenor)"
+                                        disabled="@disabled_"
                                         @onchange="e => SetPanType(track.TrackIndex, e.Value?.ToString())">
                                     @foreach (var panType in panTypes_)
                                     {
@@ -41,6 +42,7 @@
                             </td>
                             <td>
                                 <input value="@(assignment?.Label ?? track.TrackName ?? $"Track {track.TrackIndex}")"
+                                       disabled="@disabled_"
                                        @onchange="e => SetLabel(track.TrackIndex, e.Value?.ToString())" />
                             </td>
                         </tr>
@@ -50,12 +52,15 @@
         </div>
     </div>
 
-    <button class="sp-app-button sp-app-button--primary"
-            type="button"
-            @onclick="SaveAssignmentsAsync"
-            disabled="@State.Task.Busy">
-        Save
-    </button>
+    @if (!disabled_)
+    {
+        <button class="sp-app-button sp-app-button--primary"
+                type="button"
+                @onclick="SaveAssignmentsAsync"
+                disabled="@State.Task.Busy">
+            Save
+        </button>
+    }
 </div>
 
 @code {
@@ -64,7 +69,11 @@
     [Parameter]
     public EventCallback OnSave { get; set; }
 
-    public Guid CurrentFile => file_?.Id ?? Guid.Empty;
+    [Parameter]
+    public bool AllowEdit { get; set; }
+
+
+    private bool disabled_ => file_?.OwnerId != State.User.Id && !AllowEdit;
 
     private bool isPreviewOpen_;
     private CancellationTokenSource? closeCts_;
@@ -72,10 +81,26 @@
     private MidiFileDetailsDto? file_;
     private Dictionary<int, MidiTrackAssignmentDto> assignments_ = [];
 
+    public async Task TogglePreviewAsync(Guid fileId)
+    {
+        if (isPreviewOpen_ && file_?.Id == fileId)
+            await ClosePreviewIfAsync(fileId);
+        else
+            await OpenPreviewAsync(fileId);
+    }
+
     public async Task OpenPreviewAsync(Guid fileId)
     {
         await LoadFileDetailsAsync(fileId);
         await InvokeAsync(StateHasChanged);
+    }
+
+    public async Task ClosePreviewIfAsync(Guid fileId)
+    {
+        if (fileId != file_?.Id)
+            return;
+
+        await ClosePreviewAsync();
     }
 
     public async Task ClosePreviewAsync()

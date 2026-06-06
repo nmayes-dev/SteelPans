@@ -1,7 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Melanchall.DryWetMidi.Core;
+using Microsoft.EntityFrameworkCore;
 using SteelPans.Shared.Auth;
 using SteelPans.Shared.Data;
 using SteelPans.Shared.Ensembles;
+using SteelPans.Shared.Extensions;
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
@@ -16,21 +18,22 @@ public sealed class DbService
     public readonly MidiFileService MidiFiles;
     public Guid User { get; init; }
 
-    public DbService(EnsembleDbContext db,
+    public DbService(IDbContextFactory<EnsembleDbContext> dbFactory,
         ICurrentUserAccessor currentUser,
         IEnsembleFileStore fileStore,
         MidiInspectionService midiInspection)
     {
         User = currentUser.UserId;
-        Groups = new(db, currentUser);
-        MidiFiles = new(db, currentUser, Groups, fileStore, midiInspection);
+        Groups = new(dbFactory, currentUser);
+        MidiFiles = new(dbFactory, currentUser, Groups, fileStore, midiInspection);
     }
 
-    public sealed class GroupService(EnsembleDbContext db, ICurrentUserAccessor currentUser)
+    public sealed class GroupService(IDbContextFactory<EnsembleDbContext> dbFactory, ICurrentUserAccessor currentUser)
     {
         public async Task<IReadOnlyList<GroupSummaryDto>> GetMyGroupsAsync(
             CancellationToken cancellationToken = default)
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMembers
                 .AsNoTracking()
                 .Where(x => x.UserId == currentUser.UserId)
@@ -47,6 +50,7 @@ public sealed class DbService
             Guid groupId,
             CancellationToken cancellationToken = default)
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMembers
                 .AsNoTracking()
                 .Where(x => x.GroupId == groupId && x.UserId == currentUser.UserId)
@@ -55,6 +59,25 @@ public sealed class DbService
                     x.Group.Name,
                     x.Group.InviteCode,
                     x.Role))
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        public async Task<GroupSummaryDto?> GetGroupAsync(
+            string token,
+            CancellationToken cancellationToken = default)
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            return await db.GroupInvites
+                .Where(x => x.Token == token)
+                .Where(x => x.ExpiresAt > now)
+                .Where(x => x.Group != null)
+                .Select(x => new GroupSummaryDto(
+                    x.Group.Id,
+                    x.Group.Name,
+                    x.Group.InviteCode,
+                    GroupRole.Member))
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
@@ -72,6 +95,7 @@ public sealed class DbService
             var now = DateTimeOffset.UtcNow;
             var inviteCode = EnsembleGroup.GenerateInviteCode();
 
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             while (await db.Groups.AnyAsync(x => x.InviteCode == inviteCode, cancellationToken))
             {
                 inviteCode = EnsembleGroup.GenerateInviteCode();
@@ -110,6 +134,7 @@ public sealed class DbService
             var now = DateTimeOffset.UtcNow;
             var token = EnsembleGroup.GenerateInviteCode();
 
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             while (await db.GroupInvites.AnyAsync(x => x.Token == token, cancellationToken))
             {
                 token = EnsembleGroup.GenerateInviteCode();
@@ -136,6 +161,7 @@ public sealed class DbService
             token = NormalizeCode(token);
             var now = DateTimeOffset.UtcNow;
 
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var invite = await db.GroupInvites
                 .Include(x => x.Group)
                 .ThenInclude(x => x.Members)
@@ -172,12 +198,14 @@ public sealed class DbService
                 throw new UnauthorizedAccessException();
             }
 
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMidiFiles
                 .AsNoTracking()
                 .Where(x => x.GroupId == groupId && x.MidiFile.ArchivedAt == null)
                 .OrderByDescending(x => x.MidiFile.UploadedAt)
                 .Select(x => new GroupFileDto(
                     x.MidiFile.Id,
+                    x.MidiFile.UploadedByUserId,
                     x.MidiFile.SharedGroups.Select(shared => shared.GroupId).ToList(),
                     x.MidiFile.Title,
                     x.MidiFile.OriginalFileName,
@@ -199,6 +227,7 @@ public sealed class DbService
 
         public async Task DeleteGroupAsync(Guid groupId, CancellationToken cancellationToken = default)
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var group = await db.Groups.Include(x => x.Members).FirstOrDefaultAsync(x => x.Id == groupId, cancellationToken);
             if (group is null) return;
 
@@ -219,11 +248,12 @@ public sealed class DbService
                 throw new UnauthorizedAccessException();
             }
 
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMembers
                 .AsNoTracking()
                 .Where(x => x.GroupId == groupId)
                 .Include(x => x.User)
-                .OrderBy(GroupRoleExtensions.RoleSortOrder)
+                .OrderBy(EntityExtensions.RoleSortOrder)
                 .ThenBy(x => x.JoinedAt)
                 .ThenBy(x => x.User.UserName)
                 .Select(x => new GroupMemberSummaryDto(
@@ -241,7 +271,8 @@ public sealed class DbService
             UpdateGroupMemberRoleRequest request,
             CancellationToken cancellationToken = default)
         {
-            var currentMember = await GetCurrentMemberAsync(groupId, cancellationToken);
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            var currentMember = await GetCurrentMemberAsync(db, groupId, cancellationToken);
             if (currentMember?.Role != GroupRole.Leader)
             {
                 throw new UnauthorizedAccessException();
@@ -271,7 +302,8 @@ public sealed class DbService
 
         public async Task TransferLeadershipAsync(Guid groupId, Guid newLeaderUserId, CancellationToken cancellationToken = default)
         {
-            var currentMember = await GetCurrentMemberAsync(groupId, cancellationToken);
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            var currentMember = await GetCurrentMemberAsync(db, groupId, cancellationToken);
             if (currentMember?.Role != GroupRole.Leader)
             {
                 throw new UnauthorizedAccessException();
@@ -279,11 +311,6 @@ public sealed class DbService
 
             var newLeader = await db.GroupMembers.FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == newLeaderUserId, cancellationToken)
                 ?? throw new InvalidOperationException("Member was not found.");
-
-            if (newLeader.Role != GroupRole.Admin)
-            {
-                throw new InvalidOperationException("Leadership can only be transferred to an admin.");
-            }
 
             currentMember.Role = GroupRole.Admin;
             currentMember.AdminSince ??= DateTimeOffset.UtcNow;
@@ -295,7 +322,8 @@ public sealed class DbService
 
         public async Task RemoveMemberAsync(Guid groupId, Guid userId, CancellationToken cancellationToken = default)
         {
-            var currentMember = await GetCurrentMemberAsync(groupId, cancellationToken);
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            var currentMember = await GetCurrentMemberAsync(db, groupId, cancellationToken);
             if (currentMember is null)
             {
                 throw new UnauthorizedAccessException();
@@ -336,26 +364,30 @@ public sealed class DbService
 
         public async Task<bool> IsMemberAsync(Guid groupId, CancellationToken cancellationToken = default)
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMembers.AnyAsync(x => x.GroupId == groupId && x.UserId == currentUser.UserId, cancellationToken);
         }
 
         public async Task<bool> IsLeaderAsync(Guid groupId, CancellationToken cancellationToken = default)
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMembers.AnyAsync(x => x.GroupId == groupId && x.UserId == currentUser.UserId && x.Role == GroupRole.Leader, cancellationToken);
         }
 
         public async Task<bool> IsLeaderOrAdminAsync(Guid groupId, CancellationToken cancellationToken = default)
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMembers.AnyAsync(x => x.GroupId == groupId && x.UserId == currentUser.UserId && (x.Role == GroupRole.Leader || x.Role == GroupRole.Admin), cancellationToken);
         }
 
-        private async Task<EnsembleGroupMember?> GetCurrentMemberAsync(Guid groupId, CancellationToken cancellationToken)
+        private async Task<EnsembleGroupMember?> GetCurrentMemberAsync(EnsembleDbContext db, Guid groupId, CancellationToken cancellationToken)
         {
             return await db.GroupMembers.FirstOrDefaultAsync(x => x.GroupId == groupId && x.UserId == currentUser.UserId, cancellationToken);
         }
 
         private async Task PromoteReplacementLeaderOrDeleteAsync(Guid groupId, bool leaderWasRemoved, CancellationToken cancellationToken)
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var remaining = await db.GroupMembers.Where(x => x.GroupId == groupId).ToListAsync(cancellationToken);
             if (remaining.Count == 0)
             {
@@ -389,7 +421,7 @@ public sealed class DbService
         string ContentType,
         string FileName);
     public sealed class MidiFileService(
-        EnsembleDbContext db,
+        IDbContextFactory<EnsembleDbContext> dbFactory,
         ICurrentUserAccessor currentUser,
         GroupService groups,
         IEnsembleFileStore fileStore,
@@ -453,13 +485,13 @@ public sealed class DbService
                 UploadedAt = DateTimeOffset.UtcNow
             };
 
-            foreach (var track in tracks)
+            foreach (var (index, track) in tracks.Enumerate())
             {
                 midiFile.Tracks.Add(new EnsembleMidiTrack
                 {
                     Id = Guid.NewGuid(),
                     MidiFileId = fileId,
-                    TrackIndex = track.Index,
+                    TrackIndex = index + 1,
                     TrackName = track.Name
                 });
 
@@ -467,12 +499,13 @@ public sealed class DbService
                 {
                     Id = Guid.NewGuid(),
                     MidiFileId = fileId,
-                    TrackIndex = track.Index,
+                    TrackIndex = index + 1,
                     PanType = Music.PanType.None,
-                    Label = track.Name ?? $"Track {track.Index + 1}",
+                    Label = track.Name ?? $"Track {index + 1}",
                 });
             }
 
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             db.MidiFiles.Add(midiFile);
 
             await db.SaveChangesAsync(cancellationToken);
@@ -489,6 +522,7 @@ public sealed class DbService
 
             return new GroupFileDto(
                 midiFile.Id,
+                midiFile.UploadedByUserId,
                 midiFile.SharedGroups
                     .Select(x => x.GroupId)
                     .ToList(),
@@ -502,6 +536,7 @@ public sealed class DbService
             Guid fileId,
             CancellationToken cancellationToken = default)
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var file = await db.MidiFiles
                 .AsNoTracking()
                 .Include(x => x.Tracks)
@@ -520,6 +555,7 @@ public sealed class DbService
 
             return new MidiFileDetailsDto(
                 file.Id,
+                file.UploadedByUserId,
                 file.Title,
                 file.OriginalFileName,
                 file.Tracks
@@ -542,6 +578,7 @@ public sealed class DbService
             Guid fileId,
             CancellationToken cancellationToken = default)
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var file = await db.MidiFiles
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == fileId, cancellationToken);
@@ -571,6 +608,7 @@ public sealed class DbService
             SaveMidiAssignmentsRequest request,
             CancellationToken cancellationToken = default)
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var file = await db.MidiFiles
                 .Include(x => x.Assignments)
                 .FirstOrDefaultAsync(x => x.Id == fileId, cancellationToken);
@@ -601,10 +639,11 @@ public sealed class DbService
 
             await db.SaveChangesAsync(cancellationToken);
         }
-        public async Task DeleteMidiFileAsync(Guid fileId)
+        public async Task DeleteMidiFileAsync(Guid fileId, CancellationToken cancellationToken = default)
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var file = await db.MidiFiles
-                .FirstOrDefaultAsync(x => x.Id == fileId && x.UploadedByUserId == currentUser.UserId);
+                .FirstOrDefaultAsync(x => x.Id == fileId && x.UploadedByUserId == currentUser.UserId, cancellationToken);
 
             if (file is null)
             {
@@ -617,6 +656,7 @@ public sealed class DbService
         public async Task<IReadOnlyList<GroupFileDto>> GetMyMidiFilesAsync(
             CancellationToken cancellationToken = default)
         {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.MidiFiles
                 .AsNoTracking()
                 .Where(x => x.UploadedByUserId == currentUser.UserId &&
@@ -624,6 +664,7 @@ public sealed class DbService
                 .OrderByDescending(x => x.UploadedAt)
                 .Select(x => new GroupFileDto(
                     x.Id,
+                    x.UploadedByUserId,
                     x.SharedGroups
                         .Select(shared => shared.GroupId)
                         .ToList(),
@@ -644,6 +685,7 @@ public sealed class DbService
                 throw new UnauthorizedAccessException();
             }
 
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var share = await db.GroupMidiFiles
                 .FirstOrDefaultAsync(
                     x => x.MidiFileId == fileId &&
@@ -670,6 +712,7 @@ public sealed class DbService
                 throw new UnauthorizedAccessException();
             }
 
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var file = await db.MidiFiles
                 .FirstOrDefaultAsync(x =>
                     x.Id == fileId &&
@@ -708,6 +751,7 @@ public sealed class DbService
                 return true;
             }
 
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMidiFiles.AnyAsync(
                 x => x.MidiFileId == file.Id &&
                      x.MidiFile.ArchivedAt == null &&
@@ -724,6 +768,7 @@ public sealed class DbService
                 return true;
             }
 
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             return await db.GroupMidiFiles.AnyAsync(
                 x => x.MidiFileId == file.Id &&
                      x.MidiFile.ArchivedAt == null &&

@@ -15,7 +15,7 @@ public static class WebApplicationBuilderExtensions
 {
     public static void AddWebAppServices(this IHostApplicationBuilder builder, string cookieName)
     {
-        builder.Services.AddDbContext<EnsembleDbContext>(options =>
+        builder.Services.AddDbContextFactory<EnsembleDbContext>(options =>
         {
             options.UseNpgsql(
                 builder.Configuration.GetConnectionString("EnsembleDb"));

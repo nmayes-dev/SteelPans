@@ -2,7 +2,7 @@
 using SteelPans.Shared.Ensembles;
 using System.Linq.Expressions;
 
-public static class GroupRoleExtensions
+public static class EntityExtensions
 {
     public static Expression<Func<EnsembleGroupMember, int>> RoleSortOrder =>
         member => member.Role == GroupRole.Leader ? 0 :

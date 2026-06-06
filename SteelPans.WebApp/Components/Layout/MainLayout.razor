@@ -1,5 +1,6 @@
 ﻿@inherits LayoutComponentBase
 @inject KeyboardManagerService KeyboardManager
+@inject InstanceStateService State
 
 <div class="page">
     <div class="sidebar">
@@ -30,5 +31,6 @@
             return;
 
         await KeyboardManager.InitializeAsync();
+        await State.User.RefreshAsync();
     }
 }

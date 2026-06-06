@@ -29,7 +29,7 @@
         title_ = $"Delete {midiFile.OriginalFileName}?";
     }
 
-    private async Task OnConfirmAsync(GroupFileDto? payload)
+    private async Task<bool> OnConfirmAsync(GroupFileDto? payload)
     {
         var midiFile = payload ?? throw new InvalidOperationException(
             "DeleteMidi modal requires a payload.");
@@ -43,5 +43,7 @@
 
             return "MIDI file deleted.";
         });
+
+        return true;
     }
 }

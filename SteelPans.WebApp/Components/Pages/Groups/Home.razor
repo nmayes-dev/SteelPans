@@ -1,6 +1,7 @@
 @page "/groups"
 @attribute [Authorize]
 @inject InstanceStateService State
+@implements IDisposable
 
 <PageTitle>Groups</PageTitle>
 
@@ -45,7 +46,7 @@
                         </div>
 
                         <div class="sp-app-list-item__actions">
-                            <a class="sp-app-button sp-app-button--primary" href="/groups/@group.Id">Manage</a>
+                            <a class="sp-app-button sp-app-button--primary" href="/groups/@group.Id">@(group.CanManage() ? "Manage" : "View")</a>
                         </div>
                     </article>
                 }
@@ -55,8 +56,18 @@
 </section>
 
 @code {
-    protected override async Task OnInitializedAsync()
+    private Task OnRefreshAsync()
     {
-        await State.User.RefreshAsync();
+        return InvokeAsync(StateHasChanged);
+    }
+
+    protected override void OnInitialized()
+    {
+        State.User.OnRefresh += OnRefreshAsync;
+    }
+
+    public void Dispose()
+    {
+        State.User.OnRefresh -= OnRefreshAsync;
     }
 }

@@ -40,7 +40,7 @@
         }
     }
 
-    public async Task SubmitAsync()
+    public async Task<bool> SubmitAsync(object? _)
     {
         try
         {
@@ -50,5 +50,6 @@
         {
             // Expected if the form submission causes navigation.
         }
+        return true;
     }
 }

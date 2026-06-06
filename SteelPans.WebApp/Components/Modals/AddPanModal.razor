@@ -153,10 +153,10 @@
         addModalType_ = AddModalType.None;
     }
 
-    private async Task OnAddAsync(int? _)
+    private async Task<bool> OnAddAsync(int? _)
     {
         if (!Enum.TryParse<PanType>(selectedPanTypeString_, out var panType))
-            return;
+            return false;
 
         switch (addModalType_)
         {
@@ -168,6 +168,8 @@
                 await ConfirmAddTrackAsync(panType);
                 break;
         }
+
+        return true;
     }
 
     private async Task ConfirmAddPanAsync(PanType panType)

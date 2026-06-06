@@ -21,7 +21,7 @@
         title_ = $"Remove {assignedPan.Pan.Type.ToSpacedPascal()}?";
     }
 
-    private async Task OnConfirmAsync(MidiAssignedPan? payload)
+    private async Task<bool> OnConfirmAsync(MidiAssignedPan? payload)
     {
         var assignedPan = payload ?? throw new InvalidOperationException(
             "RemovePan modal requires a payload.");
@@ -29,5 +29,6 @@
         var index = assignedPan.Assignment.Track?.Index ?? -1;
 
         await Playback.OnRemoveAssignmentAsync(index);
+        return true;
     }
 }

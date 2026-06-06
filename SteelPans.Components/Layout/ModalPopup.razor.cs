@@ -52,7 +52,7 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
     public EventCallback<TPayload?> OnOpen { get; set; }
 
     [Parameter]
-    public EventCallback<TPayload?> OnConfirm { get; set; }
+    public Func<TPayload?, Task<bool>>? OnConfirm { get; set; }
 
     [Parameter]
     public EventCallback<TPayload?> OnClose { get; set; }
@@ -154,7 +154,8 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
 
     public virtual async Task ConfirmAsync()
     {
-        await OnConfirm.InvokeAsync(payload_);
+        if (OnConfirm is not null && !await OnConfirm.Invoke(payload_))
+            return;
 
         if (onSuccess_ is not null)
             await onSuccess_();

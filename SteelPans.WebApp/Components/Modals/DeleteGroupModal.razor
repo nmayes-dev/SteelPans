@@ -12,15 +12,32 @@
             OnConfirm="OnConfirmAsync">
     <ChildContent>
         <div class="sp-app-form">
-            <p class="sp-app-alert sp-app-alert--error">
-                This cannot be undone. Members and invite links for this group will no longer be usable.
-            </p>
+            @switch (stage_)
+            {
+                case ConfirmationStage.One:
+                    <p class="sp-app-alert sp-app-alert--error">
+                        This cannot be undone. Members and invite links for this group will no longer be usable.
+                    </p>
+                    break;
+                case ConfirmationStage.Two:
+                    <p class="sp-app-alert sp-app-alert--error">
+                        Are you absolutely sure that you want to continue? This action is irreversible.
+                    </p>
+                    break;
+            }
         </div>
     </ChildContent>
 </ModalPopup>
 
 @code {
+    private enum ConfirmationStage
+    {
+        One,
+        Two
+    }
+
     private string title_ = string.Empty;
+    private ConfirmationStage stage_;
 
     private void OnOpen(GroupSummaryDto? payload)
     {
@@ -28,23 +45,35 @@
             "DeleteGroup modal requires a group payload.");
 
         title_ = $"Delete {group.Name}?";
+        stage_ = ConfirmationStage.One;
     }
 
-    private async Task OnConfirmAsync(GroupSummaryDto? payload)
+    private async Task DeleteAccountAsync(GroupSummaryDto group)
     {
-        var group = payload ?? throw new InvalidOperationException(
-            "DeleteGroup modal requires a group payload.");
-
-        if (group is null)
-            return;
-
         await State.Task.RunSafe(async () =>
         {
             await Db.Groups.DeleteGroupAsync(group.Id);
 
-            await State.User.RefreshAsync();
             Nav.NavigateTo("/groups");
             return "Group deleted.";
         });
+    }
+
+    private async Task<bool> OnConfirmAsync(GroupSummaryDto? payload)
+    {
+        var group = payload ?? throw new InvalidOperationException(
+            "DeleteGroup modal requires a group payload.");
+
+        switch (stage_)
+        {
+            case ConfirmationStage.One:
+                stage_ = ConfirmationStage.Two;
+                return false;
+            case ConfirmationStage.Two:
+                await DeleteAccountAsync(group);
+                return true;
+        }
+
+        return true;
     }
 }

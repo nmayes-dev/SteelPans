@@ -209,12 +209,6 @@
             x => State.User.GroupFiles[x.Id]
         ) ?? new Dictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>>();
 
-    protected override async Task OnInitializedAsync()
-    {
-        await State.User.RefreshAsync();
-    }
-
-
     private async Task OpenLogoutAsync()
     {
         await Modals.OpenAsync("Logout");

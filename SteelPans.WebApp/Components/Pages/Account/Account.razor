@@ -171,7 +171,6 @@
 
         await State.Task.RunSafe(async () =>
         {
-            await State.User.RefreshAsync();
             groups_ = State.User.Groups ?? [];
 
             memberCounts_.Clear();

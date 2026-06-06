@@ -1,31 +1,69 @@
 @inject IJSRuntime JS
 
 <ModalPopup TPayload="object"
-                     Title="Delete account"
-                     Subtitle="This action cannot be undone."
-                     CloseButton="Cancel"
-                     ConfirmButton="Delete Account"
-                     ConfirmButtonClass="btn-danger"
-                     OnConfirm="SubmitAsync">
+            Id="DeleteAccount"
+            Title="Delete Account"
+            OnOpen="OnOpen"
+            CloseButton="Cancel"
+            ConfirmButton="Delete Account"
+            ConfirmButtonClass="btn-danger"
+            OnConfirm="OnConfirmAsync">
     <ChildContent>
         <div class="delete-account-modal">
-            <p class="sp-app-alert sp-app-alert--error delete-account-modal__warning">
-                This will permanently delete your account, remove you from every group, delete groups where you are the only member,
-                and delete MIDI files uploaded by this account.
-            </p>
+            @switch (stage_)
+            {
+                case ConfirmationStage.One:
+                    <p class="sp-app-alert sp-app-alert--error delete-account-modal__warning">
+                        This will permanently delete your account, remove you from every group, delete groups where you are the only member,
+                        and delete MIDI files uploaded by this account.
+                    </p>
 
-            <form class="delete-account-modal__form"
-                  @ref="form_"
-                  method="post"
-                  action="/account/delete">
-                <AntiforgeryToken />
-            </form>
+                    break;
+                case ConfirmationStage.Two:
+                    <p class="sp-app-alert sp-app-alert--error delete-account-modal__warning">
+                        Are you absolutely sure that you want to continue. This action is irreversible.
+                    </p>
+                    <form class="delete-account-modal__form"
+                          @ref="form_"
+                          method="post"
+                          action="/account/delete">
+                        <AntiforgeryToken />
+                    </form>
+                    break;
+            }
         </div>
     </ChildContent>
 </ModalPopup>
 
 @code {
+    private enum ConfirmationStage
+    {
+        One,
+        Two
+    }
+
     private ElementReference form_;
+    private ConfirmationStage stage_;
+
+    private void OnOpen()
+    {
+        stage_ = ConfirmationStage.One;
+    }
+
+    private async Task<bool> OnConfirmAsync(object? _)
+    {
+        switch (stage_)
+        {
+            case ConfirmationStage.One:
+                stage_ = ConfirmationStage.Two;
+                return false;
+            case ConfirmationStage.Two:
+                await SubmitAsync();
+                return true;
+        }
+
+        return true;
+    }
 
     private async Task SubmitAsync()
     {
