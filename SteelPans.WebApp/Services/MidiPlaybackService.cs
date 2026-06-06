@@ -1,5 +1,7 @@
 using Melanchall.DryWetMidi.Core;
 using Melanchall.DryWetMidi.Multimedia;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure;
 using Microsoft.JSInterop;
 using SteelPans.Shared.Config;
@@ -58,6 +60,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     private readonly MidiLoaderService midiLoader_;
     private readonly IJSRuntime js_;
 
+    private IDisposable navCallback_;
+
     private readonly Dictionary<int, List<MidiPanEvent>> midiTrackEventsByIndex_ = [];
     private readonly Dictionary<Guid, SteelPanView> steelPanViews_ = [];
     private readonly HashSet<string> playingComponentIds_ = [];
@@ -74,12 +78,14 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     private TimeSpan playbackScoreAnchorOffset_ = TimeSpan.Zero;
     private int playbackTempoAnchorBpm_ = 120;
 
-    public MidiPlaybackService(MidiLoaderService midiLoader, SteelPanLoaderService panLoader, IJSRuntime js)
+    public MidiPlaybackService(MidiLoaderService midiLoader, SteelPanLoaderService panLoader, NavigationManager nav, IJSRuntime js)
     {
         midiLoader_ = midiLoader;
         js_ = js;
 
         AvailablePans = panLoader.Pans;
+
+        navCallback_ = nav.RegisterLocationChangingHandler(OnNavigationAsync);
     }
 
     public event Func<MidiFileLoadedEventArgs, Task>? MidiFileLoaded;
@@ -586,6 +592,9 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     public async Task StopAsync(bool resetPosition = false)
     {
+        if (!IsPlaying)
+            return;
+
         midiPlaybackCts_?.Cancel();
         midiPlaybackCts_?.Dispose();
         midiPlaybackCts_ = null;
@@ -728,6 +737,11 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     {
         Position = ClampPlaybackTime(previewTime);
         await NotifyPositionChangedAsync();
+    }
+
+    private async ValueTask OnNavigationAsync(LocationChangingContext ctx)
+    {
+        await StopAsync(resetPosition: false);
     }
 
     private async Task<double?> StartMidiSequenceAsync(
@@ -1170,5 +1184,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         await StopAsync(resetPosition: true);
         midiPlaybackCts_?.Dispose();
         playbackProgressCts_?.Dispose();
+
+        navCallback_?.Dispose();
     }
 }
