@@ -9,7 +9,7 @@
             <span class="bi bi-x-lg"></span>
         </button>
     </div>
-    <p class="midi-file-preview__meta"><strong>@State.Preview.File?.Title</strong> <span>@State.Preview.File?.OriginalFileName</span></p>
+    <p class="midi-file-preview__meta"><strong>@file_?.Title</strong> <span>@file_?.OriginalFileName</span></p>
 
     <div class="midi-files-preview-files">
         <div class="sp-app-table-wrap">
@@ -23,9 +23,9 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var track in State.Preview.File?.Tracks ?? [])
+                    @foreach (var track in file_?.Tracks ?? [])
                     {
-                        var assignment = State.Preview.Assigments.GetValueOrDefault(track.TrackIndex);
+                        var assignment = assignments_.GetValueOrDefault(track.TrackIndex);
 
                         <tr>
                             <td>@(track.TrackIndex)</td>
@@ -61,16 +61,20 @@
 @code {
     private readonly PanType[] panTypes_ = Enum.GetValues<PanType>();
 
+    [Parameter]
+    public EventCallback OnSave { get; set; }
+
+    public Guid CurrentFile => file_?.Id ?? Guid.Empty;
+
     private bool isPreviewOpen_;
     private CancellationTokenSource? closeCts_;
 
+    private MidiFileDetailsDto? file_;
+    private Dictionary<int, MidiTrackAssignmentDto> assignments_ = [];
+
     public async Task OpenPreviewAsync(Guid fileId)
     {
-        await State.Preview.LoadAsync(fileId);
-
-        closeCts_?.Cancel();
-        isPreviewOpen_ = true;
-
+        await LoadFileDetailsAsync(fileId);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -89,14 +93,14 @@
         if (!Enum.TryParse<PanType>(value, out var panType))
             return;
 
-        var current = State.Preview.Assigments[trackIndex];
-        State.Preview.Assigments[trackIndex] = current with { PanType = panType };
+        var current = assignments_[trackIndex];
+        assignments_[trackIndex] = current with { PanType = panType };
     }
 
     private void SetLabel(int trackIndex, string? value)
     {
-        var current = State.Preview.Assigments[trackIndex];
-        State.Preview.Assigments[trackIndex] = current with
+        var current = assignments_[trackIndex];
+        assignments_[trackIndex] = current with
         {
             Label = string.IsNullOrWhiteSpace(value)
                 ? $"Track {trackIndex + 1}"
@@ -106,27 +110,39 @@
 
     private async Task SaveAssignmentsAsync()
     {
-        if (State.Preview.File is null)
+        if (file_ is null)
             return;
 
         await State.Task.RunSafe(async () =>
         {
             await Db.MidiFiles.SaveMidiAssignmentsAsync(
-                State.Preview.File.Id,
+                file_.Id,
                 new SaveMidiAssignmentsRequest(
-                    State.Preview.Assigments.Values
+                    assignments_.Values
                         .OrderBy(x => x.TrackIndex)
                         .ToList()));
 
             return "Assignments saved.";
         });
 
-        await InvokeAsync(StateHasChanged);
+        await OnSave.InvokeAsync();
     }
-
+        
     private async Task LoadFileDetailsAsync(Guid fileId)
     {
-        await State.Preview.LoadAsync(fileId);
+        var preview = await Db.MidiFiles.GetMidiFileDetailsAsync(fileId);
+
+        if (preview is null)
+            return;
+
+        file_ = preview;
+        assignments_ = preview.Tracks.ToDictionary(
+            x => x.TrackIndex,
+            x => preview.Assignments.FirstOrDefault(a => a.TrackIndex == x.TrackIndex)
+                ?? new MidiTrackAssignmentDto(
+                    x.TrackIndex,
+                    x.SuggestedPanType ?? PanType.None,
+                    x.TrackName ?? $"Track {x.TrackIndex + 1}"));
 
         closeCts_?.Cancel();
         isPreviewOpen_ = true;

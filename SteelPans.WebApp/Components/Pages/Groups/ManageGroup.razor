@@ -142,7 +142,7 @@
                                     <button class="sp-app-button" type="button" @onclick="() => filePreview_!.OpenPreviewAsync(file.Id)">@(CanManageFiles ? "Edit" : "View")</button>
                                     @if (CanManageFiles)
                                     {
-                                        <button class="sp-app-button sp-app-button--danger" type="button" disabled="@State.Task.Busy" @onclick="() => UnshareFileAsync(file.Id)">Remove</button>
+                                        <button class="sp-app-button sp-app-button--danger" type="button" disabled="@State.Task.Busy" @onclick="() => UnshareFileAsync(file.Id)">Unshare</button>
                                     }
                                 </div>
                             </article>
@@ -152,7 +152,8 @@
             </section>
         </div>
         
-        <MidiFilePreview @ref="filePreview_" />
+        <MidiFilePreview @ref="filePreview_"
+                         OnSave="StateHasChanged" />
     }
 </section>
 
@@ -230,6 +231,10 @@
         {
             await Db.MidiFiles.UnshareMidiFileWithGroupAsync(fileId, GroupId);
             await LoadAsync();
+
+            if (filePreview_!.CurrentFile == fileId)
+                await filePreview_!.ClosePreviewAsync();
+
             return "MIDI file removed from group.";
         });
     }
@@ -251,9 +256,7 @@
         if (group_ is null)
             return;
             
-        State.Pending.Group = group_;
-        State.Pending.Member = member;
-        await Modals.OpenAsync("TransferLeadership");
+        await Modals.OpenAsync("TransferLeadership", new TransferLeadershipModal.Payload(group_, member));
     }
 
     private async Task OpenRemoveMemberModalAsync(GroupMemberSummaryDto member)
@@ -261,9 +264,7 @@
         if (group_ is null)
             return;
 
-        State.Pending.Group = group_;
-        State.Pending.Member = member;
-        await Modals.OpenAsync("RemoveGroupMember");
+        await Modals.OpenAsync("RemoveGroupMember", new RemoveGroupMemberModal.Payload(group_, member));
     }
 
     private async Task OpenLeaveGroupModalAsync()
@@ -271,8 +272,7 @@
         if (group_ is null)
             return;
 
-        State.Pending.Group = group_;
-        await Modals.OpenAsync("LeaveGroup");
+        await Modals.OpenAsync("LeaveGroup", group_);
     }
 
     private async Task OpenDeleteGroupModalAsync()
@@ -280,8 +280,7 @@
         if (group_ is null)
             return;
 
-        State.Pending.Group = group_;
-        await Modals.OpenAsync("DeleteGroup");
+        await Modals.OpenAsync("DeleteGroup", group_);
     }
 
     private bool CanChangeRole(GroupMemberSummaryDto member) => IsLeader && member.Role == GroupRole.Member;
@@ -294,19 +293,6 @@
 
     private static string DisplayName(GroupMemberSummaryDto member) =>
         string.IsNullOrWhiteSpace(member.UserName) ? member.Email : member.UserName;
-
-    private void SetPanType(int trackIndex, string? value)
-    {
-        if (!Enum.TryParse<PanType>(value, out var panType)) return;
-        var current = State.Preview.Assigments[trackIndex];
-        State.Preview.Assigments[trackIndex] = current with { PanType = panType };
-    }
-
-    private void SetLabel(int trackIndex, string? value)
-    {
-        var current = State.Preview.Assigments[trackIndex];
-        State.Preview.Assigments[trackIndex] = current with { Label = string.IsNullOrWhiteSpace(value) ? $"Track {trackIndex + 1}" : value.Trim() };
-    }
 
     private static string FormatSize(long bytes)
     {

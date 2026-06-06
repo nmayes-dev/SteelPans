@@ -1,4 +1,5 @@
-﻿@inherits OverlayComponentBase
+﻿@typeparam TPayload
+@inherits OverlayComponentBase
 @inject KeyboardManagerService Keyboard
 @implements IDisposable
 
@@ -44,7 +45,9 @@
             @if (ChildContent is not null)
             {
                 <div class="modal-popup__body">
-                    @ChildContent
+                    <CascadingValue Name="ModalPayload" Value="payload_">
+                        @ChildContent
+                    </CascadingValue>
                 </div>
             }
 
@@ -57,9 +60,9 @@
     private RenderFragment RenderButtons => @<div class="modal-popup__actions">
         @if (Buttons is not null)
         {
-
+            @Buttons
         }
-        else 
+        else
         {
             @if (!string.IsNullOrEmpty(CloseButton))
             {

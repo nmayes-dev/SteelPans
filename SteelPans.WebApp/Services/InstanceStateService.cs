@@ -18,8 +18,6 @@ namespace SteelPans.WebApp.Services
 
         public TaskState Task { get; set; } = new(nav);
         public UserState User { get; set; } = new(db);
-        public PreviewState Preview { get; set; } = new(db);
-        public PendingState Pending { get; set; } = new();
 
 
         public sealed class TaskState : IDisposable
@@ -137,45 +135,6 @@ namespace SteelPans.WebApp.Services
                 foreach (var handler in OnRefresh.GetInvocationList().Cast<Func<Task>>())
                     _ = System.Threading.Tasks.Task.Run(handler);
             }
-        }
-
-        public class PreviewState(DbService db)
-        {
-            public MidiFileDetailsDto? File { get; set; }
-            public Dictionary<int, MidiTrackAssignmentDto> Assigments { get; set; } = [];
-
-            public async Task LoadAsync(Guid fileId)
-            {
-                var preview = await db.MidiFiles.GetMidiFileDetailsAsync(fileId);
-
-                if (preview is null)
-                    return;
-
-                File = preview;
-                Assigments = preview.Tracks.ToDictionary(
-                    x => x.TrackIndex,
-                    x => preview.Assignments.FirstOrDefault(a => a.TrackIndex == x.TrackIndex)
-                        ?? new MidiTrackAssignmentDto(
-                            x.TrackIndex,
-                            x.SuggestedPanType ?? PanType.None,
-                            x.TrackName ?? $"Track {x.TrackIndex + 1}"));
-            }
-        }
-
-        public class PendingState
-        {
-            public IReadOnlyList<DialogFile> MergeMidiFiles { get; set; } = [];
-
-            public Configuration? Configuration { get; set; }
-
-            public MidiAssignedPan? AssignedPan { get; set; }
-
-            public GroupSummaryDto? Group { get; set; }
-            public GroupMemberSummaryDto? Member { get; set; }
-
-            public GroupFileDto? MidiFile { get; set; }
-
-            public int? Track { get; set; }
         }
     }
 }

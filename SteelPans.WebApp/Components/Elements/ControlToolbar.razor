@@ -222,7 +222,7 @@
 
     private async Task OpenAddPanAsync(bool closeOthers)
     {
-        await Modals.OpenAsync("AddPan", closeOthers);
+        await Modals.OpenAsync("AddPan", new ModalOptions { CloseOthers = closeOthers });
     }
 
     private async Task OpenSaveLayoutAsync()
@@ -232,14 +232,13 @@
 
     private async Task OpenConfigConflictAsync(Configuration config)
     {
-        State.Pending.Configuration = config;
-        await Modals.OpenAsync("ConfigConflict");
+        await Modals.OpenAsync("ConfigConflict", config);
     }
 
     private async Task OpenRemovePanAsync(MidiTrackInfo track)
     {
-        State.Pending.AssignedPan = Playback.ActivePans.First(a => a.Assignment.Track?.Index == track.Index);
-        await Modals.OpenAsync("RemovePan");
+        var pan = Playback.ActivePans.First(a => a.Assignment.Track?.Index == track.Index);
+        await Modals.OpenAsync("RemovePan", pan);
     }
 
 
@@ -367,8 +366,7 @@
 
     private async Task OnMultipleMidiSelectedAsync(IReadOnlyList<DialogFile> files)
     {
-        State.Pending.MergeMidiFiles = files;
-        await Modals.OpenAsync("MergeMidiFiles");
+        await Modals.OpenAsync("MergeMidiFiles", files);
     }
 
     private async Task OnSingleMidiSelectedAsync(DialogFile file)

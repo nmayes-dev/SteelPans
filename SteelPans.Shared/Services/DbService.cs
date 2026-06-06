@@ -433,7 +433,7 @@ public sealed class DbService
 
             buffer.Position = 0;
             var storageKey = await fileStore.SaveAsync(
-                groupId ?? currentUser.UserId,
+                currentUser.UserId,
                 fileId,
                 originalFileName,
                 buffer,
@@ -470,16 +470,6 @@ public sealed class DbService
                     TrackIndex = track.Index,
                     PanType = Music.PanType.None,
                     Label = track.Name ?? $"Track {track.Index + 1}",
-                });
-            }
-
-            if (groupId is not null)
-            {
-                midiFile.SharedGroups.Add(new EnsembleGroupMidiFile
-                {
-                    GroupId = groupId.Value,
-                    MidiFileId = fileId,
-                    SharedAt = DateTimeOffset.UtcNow
                 });
             }
 

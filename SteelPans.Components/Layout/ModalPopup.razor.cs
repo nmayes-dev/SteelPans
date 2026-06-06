@@ -4,7 +4,7 @@ using SteelPans.Components.Services;
 
 namespace SteelPans.Components.Layout;
 
-public partial class ModalPopup : OverlayComponentBase
+public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
 {
     [Inject]
     private ModalPopupService Modals { get; set; } = default!;
@@ -49,20 +49,21 @@ public partial class ModalPopup : OverlayComponentBase
     public string? ConfirmButtonClass { get; set; }
 
     [Parameter]
-    public EventCallback OnOpen { get; set; }
+    public EventCallback<TPayload?> OnOpen { get; set; }
 
     [Parameter]
-    public EventCallback OnConfirm { get; set; }
+    public EventCallback<TPayload?> OnConfirm { get; set; }
 
     [Parameter]
-    public EventCallback OnClose { get; set; }
+    public EventCallback<TPayload?> OnClose { get; set; }
 
     [Parameter]
-    public Func<Task<bool>> CanOpen { get; set; } = async () => true;
+    public Func<Task<bool>> CanOpen { get; set; } = () => Task.FromResult(true);
 
-    private bool isOpen_;
-    private bool focusOnRender_;
-    private bool isDragging_;
+    public object? Payload => payload_;
+
+    private TPayload? payload_;
+    private Func<Task>? onSuccess_;
     private double dragStartClientX_;
     private double dragStartClientY_;
     private double dragStartOffsetX_;
@@ -70,6 +71,10 @@ public partial class ModalPopup : OverlayComponentBase
     private double offsetX_;
     private double offsetY_;
     private ElementReference? popupElement_;
+
+    protected bool isOpen_;
+    protected bool focusOnRender_;
+    protected bool isDragging_;
 
     private string PopupClass
     {
@@ -106,9 +111,9 @@ public partial class ModalPopup : OverlayComponentBase
                 _ => RequestCloseAsync()));
 
         keyCallbacks_.Add(
-                Keyboard.Register(
-                    e => isOpen_ && e.Key == "Enter" && !e.IsEditableTarget,
-                    _ => ConfirmAsync()));
+            Keyboard.Register(
+                e => isOpen_ && e.Key == "Enter" && !e.IsEditableTarget,
+                _ => ConfirmAsync()));
 
         Modals.Register(Id, this);
 
@@ -124,29 +129,62 @@ public partial class ModalPopup : OverlayComponentBase
         await popupElement_.Value.FocusAsync();
     }
 
-    public async Task OpenAsync(bool closeOthers = true)
+    public virtual Task OpenAsync()
     {
+        return OpenAsync(null, null);
+    }
+
+    public virtual async Task OpenAsync(object? payload = null, ModalOptions? options = null)
+    {
+        if (!await CanOpen())
+            return;
+
+        var opts = options ?? new ModalOptions();
+
+        payload_ = GetTypedPayload(payload);
+        onSuccess_ = opts.OnSuccess;
         isOpen_ = true;
         focusOnRender_ = true;
         ResetDrag();
 
-        await OnOpen.InvokeAsync();
-        await NotifyOpenedAsync(closeOthers);
+        await OnOpen.InvokeAsync(payload_);
+        await NotifyOpenedAsync(opts.CloseOthers);
+        await InvokeAsync(StateHasChanged);
     }
 
-    public async Task ConfirmAsync()
+    public virtual async Task ConfirmAsync()
     {
-        await OnConfirm.InvokeAsync();
+        await OnConfirm.InvokeAsync(payload_);
+
+        if (onSuccess_ is not null)
+            await onSuccess_();
+
         await RequestCloseAsync();
     }
 
     protected override async Task OnCloseAsync()
     {
+        var payload = payload_;
+
         isOpen_ = false;
         isDragging_ = false;
+        payload_ = default;
+        onSuccess_ = null;
 
-        await OnClose.InvokeAsync();
+        await OnClose.InvokeAsync(payload);
         await InvokeAsync(StateHasChanged);
+    }
+
+    private static TPayload? GetTypedPayload(object? payload)
+    {
+        if (payload is null)
+            return default;
+
+        if (payload is TPayload typedPayload)
+            return typedPayload;
+
+        throw new InvalidOperationException(
+            $"Modal payload type mismatch. Expected '{typeof(TPayload).Name}', but received '{payload.GetType().Name}'.");
     }
 
     private async Task OnBackdropClickedAsync()
@@ -188,7 +226,7 @@ public partial class ModalPopup : OverlayComponentBase
         return Task.CompletedTask;
     }
 
-    private void ResetDrag()
+    protected void ResetDrag()
     {
         isDragging_ = false;
         offsetX_ = 0;

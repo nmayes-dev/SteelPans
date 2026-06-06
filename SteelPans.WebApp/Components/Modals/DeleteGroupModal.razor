@@ -2,11 +2,11 @@
 @inject DbService Db
 @inject NavigationManager Nav
 
-<ModalPopup Id="DeleteGroup"
+<ModalPopup TPayload="GroupSummaryDto"
+            Id="DeleteGroup"
             Title="@title_"
             OnOpen="OnOpen"
             CloseButton="Cancel"
-            OnClose="OnClose"
             ConfirmButton="Delete"
             ConfirmButtonClass="btn-danger"
             OnConfirm="OnConfirmAsync">
@@ -22,30 +22,29 @@
 @code {
     private string title_ = string.Empty;
 
-    private void OnOpen()
+    private void OnOpen(GroupSummaryDto? payload)
     {
-        title_ = $"Delete {(State.Pending.Group?.Name ?? "This Group")}?";
+        var group = payload ?? throw new InvalidOperationException(
+            "DeleteGroup modal requires a group payload.");
+
+        title_ = $"Delete {group.Name}?";
     }
 
-    private void OnClose()
+    private async Task OnConfirmAsync(GroupSummaryDto? payload)
     {
-        State.Pending.Group = null;
-    }
+        var group = payload ?? throw new InvalidOperationException(
+            "DeleteGroup modal requires a group payload.");
 
-    private async Task OnConfirmAsync()
-    {
-        if (State.Pending.Group is null)
+        if (group is null)
             return;
 
         await State.Task.RunSafe(async () =>
         {
-            await Db.Groups.DeleteGroupAsync(State.Pending.Group.Id);
+            await Db.Groups.DeleteGroupAsync(group.Id);
 
             await State.User.RefreshAsync();
             Nav.NavigateTo("/groups");
             return "Group deleted.";
         });
-
-            
     }
 }

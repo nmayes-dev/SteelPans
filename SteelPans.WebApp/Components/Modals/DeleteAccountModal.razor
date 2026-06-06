@@ -1,12 +1,12 @@
 @inject IJSRuntime JS
 
-<ModalPopup Id="DeleteAccount"
-            Title="Delete account"
-            Subtitle="This action cannot be undone."
-            CloseButton="Cancel"
-            ConfirmButton="Delete Account"
-            ConfirmButtonClass="btn-danger"
-            OnConfirm="SubmitAsync">
+<ModalPopup TPayload="object"
+                     Title="Delete account"
+                     Subtitle="This action cannot be undone."
+                     CloseButton="Cancel"
+                     ConfirmButton="Delete Account"
+                     ConfirmButtonClass="btn-danger"
+                     OnConfirm="SubmitAsync">
     <ChildContent>
         <div class="delete-account-modal">
             <p class="sp-app-alert sp-app-alert--error delete-account-modal__warning">

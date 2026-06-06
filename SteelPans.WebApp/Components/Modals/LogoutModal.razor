@@ -1,7 +1,8 @@
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
-<ModalPopup Id="Logout"
+<ModalPopup TPayload="object"
+            Id="Logout"
             Title="Logout"
             OnConfirm="SubmitAsync">
     <ChildContent>
@@ -38,7 +39,6 @@
                 : "/" + path;
         }
     }
-
 
     public async Task SubmitAsync()
     {

@@ -1,15 +1,14 @@
 @using SteelPans.WebApp.Services
 @inject MidiPlaybackService Playback
-@inject InstanceStateService State
 
-<ModalPopup Id="AddPan"
+<ModalPopup TPayload="int?"
+            Id="AddPan"
             Title="Add Pan"
             OnOpen="OnOpen"
             CloseButton="Cancel"
             OnClose="OnClose"
             ConfirmButton="Add"
-            OnConfirm="OnAddAsync"
-            CanOpen="async () => CanOpen">
+            OnConfirm="OnAddAsync">
     <ChildContent>
         <div class="add__body">
             @if (addModalType_ == AddModalType.Track)
@@ -137,24 +136,24 @@
         GetInitialParameters(initialTrack: null);
     }
 
-    public void OnOpen()
+    public void OnOpen(int? initialTrack)
     {
         if (!(CanOpenTrackAddModal || CanOpenPanAddModal))
             return;
 
-        GetInitialParameters(State.Pending.Track);
+        GetInitialParameters(initialTrack);
         if (HasTracks)
             addModalType_ = AddModalType.Track;
         else
             addModalType_ = AddModalType.Pan;
     }
 
-    private void OnClose()
+    private void OnClose(int? _)
     {
         addModalType_ = AddModalType.None;
     }
 
-    private async Task OnAddAsync()
+    private async Task OnAddAsync(int? _)
     {
         if (!Enum.TryParse<PanType>(selectedPanTypeString_, out var panType))
             return;

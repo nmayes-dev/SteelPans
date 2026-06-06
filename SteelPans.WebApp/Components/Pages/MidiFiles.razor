@@ -20,24 +20,13 @@
 
     <div class="sp-app-grid sp-app-grid--two midi-files__forms">
         <div class="sp-app-card sp-app-form midi-files__upload-card">
-            <h2>Preview and Upload</h2>
+            <div class="midi-files__section-header">
+                <h2>Preview and Upload</h2>
+            </div>
 
             <div class="sp-app-form__row">
                 <div class="sp-app-field">
-                    <label for="group-select">Upload Access</label>
-                    <select id="group-select"
-                            @bind="selectedGroupId_">
-                        <option value="">No group yet</option>
-                        @foreach (var group in EditableGroups)
-                        {
-                            <option value="@group.Id">@group.Name</option>
-                        }
-                    </select>
-                    <small>Leave this empty to upload the file privately.</small>
-                </div>
-
-                <div class="sp-app-field">
-                    <label for="midi-file">MIDI file</label>
+                    <label for="midi-file">MIDI File</label>
                     <div class="midi-file-picker">
                         <label for="midi-file" class="midi-file-button">
                             Browse
@@ -73,7 +62,10 @@
         </div>
 
         <div class="sp-app-card midi-files__group-card">
-            <h2>Group Files</h2>
+            <div class="midi-files__section-header">
+                <h2>Group Files</h2>
+                <a class="sp-app-button" href="/midi-files">Manage Groups</a>
+            </div>
 
             <div class="sp-app-field">
                 <label for="group-file-select">Group</label>
@@ -166,6 +158,7 @@
 
                             @{
                                 var groups = State.User.Groups?
+                                    .Where(CanManageGroupFiles)
                                     .Where(g => !file.SharedGroupIds.Contains(g.Id))
                                     .ToList() ?? [];
                             }
@@ -173,10 +166,10 @@
                             <select class="sp-app-button sp-app-select @(string.IsNullOrEmpty(targetShareGroup_) ? "sp-app-select--placeholder" : "")"
                                     value="@targetShareGroup_"
                                     @onchange="e => SetShareGroupId(e.Value?.ToString())"
-                                    disabled="@(State.Task.Busy || groups.Count == 0)">
+                                    disabled="@(State.Task.Busy || groups.Count == 0)"> 
                                 <option disabled hidden value="">Share with...</option>
 
-                                @foreach (var group in groups.Where(CanManageGroupFiles))
+                                @foreach (var group in groups)
                                 {
                                     <option value="@group.Id">@group.Name</option>
                                 }
@@ -195,7 +188,8 @@
         }
     </div>
 
-    <MidiFilePreview @ref="filePreview_" />
+    <MidiFilePreview @ref="filePreview_"
+                     OnSave="StateHasChanged" />
 </section>
 
 @code {
@@ -272,16 +266,21 @@
 
             await filePreview_!.ClosePreviewAsync();
 
-            return selectedGroupId_ is null
-                ? "MIDI file uploaded privately."
-                : "MIDI file uploaded and shared with group.";
+            return "MIDI file uploaded.";
         });
+    }
+
+    private Task ClosePreviewIfDeleted(Guid fileId)
+    {
+        if (filePreview_ is null || filePreview_.CurrentFile != fileId)
+            return Task.CompletedTask;
+
+        return filePreview_.ClosePreviewAsync();
     }
 
     private async Task OpenDeleteFileModal(GroupFileDto file)
     {
-        State.Pending.MidiFile = file;
-        await Modals.OpenAsync("DeleteMidi");
+        await Modals.OpenAsync("DeleteMidi", file, new ModalOptions { OnSuccess = () => ClosePreviewIfDeleted(file.Id) });
     }
 
     private async Task UnshareFileAsync(Guid fileId)
@@ -310,6 +309,8 @@
 
             await Db.MidiFiles.ShareMidiFileWithGroupAsync(fileId, group);
             await State.User.RefreshAsync();
+
+            targetShareGroup_ = string.Empty;
 
             return "MIDI file shared with group.";
         });
@@ -343,28 +344,6 @@
             0 => $"Shared with {file.SharedGroupIds.Count} group(s)",
             1 => $"Shared with {groupNames[0]}",
             _ => $"Shared with {string.Join(", ", groupNames)}"
-        };
-    }
-
-    private void SetPanType(int trackIndex, string? value)
-    {
-        if (!Enum.TryParse<PanType>(value, out var panType))
-        {
-            return;
-        }
-
-        var current = State.Preview.Assigments[trackIndex];
-        State.Preview.Assigments[trackIndex] = current with { PanType = panType };
-    }
-
-    private void SetLabel(int trackIndex, string? value)
-    {
-        var current = State.Preview.Assigments[trackIndex];
-        State.Preview.Assigments[trackIndex] = current with
-        {
-            Label = string.IsNullOrWhiteSpace(value)
-                ? $"Track {trackIndex + 1}"
-                : value.Trim()
         };
     }
 

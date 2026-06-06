@@ -1,19 +1,16 @@
 ﻿@inject InstanceStateService State
 @inject DbService Db
 
-<ModalPopup Id="DeleteMidi"
-            Title="Delete file"
+<ModalPopup TPayload="GroupFileDto"
+            Id="DeleteMidi"
+            Title="@title_"
+            OnOpen="OnOpen"
             CloseButton="Cancel"
-            OnClose="OnCancel"
             ConfirmButton="Delete"
             ConfirmButtonClass="btn-danger"
             OnConfirm="OnConfirmAsync">
     <ChildContent>
         <div class="sp-app-form">
-            <p class="delete-modal__text">
-                Delete <strong>@State.Pending.MidiFile?.OriginalFileName</strong>?
-            </p>
-
             <p class="sp-app-alert sp-app-alert--error">
                 This cannot be undone. Members will no longer be able to use this file.
             </p>
@@ -22,32 +19,27 @@
 </ModalPopup>
 
 @code {
+    private string title_ = string.Empty;
 
-    private void OnCancel()
+    private void OnOpen(GroupFileDto? payload)
     {
-        State.Pending.MidiFile = null;
+        var midiFile = payload ?? throw new InvalidOperationException(
+            "DeleteMidi modal requires a payload.");
+
+        title_ = $"Delete {midiFile.OriginalFileName}?";
     }
 
-    private async Task OnConfirmAsync()
+    private async Task OnConfirmAsync(GroupFileDto? payload)
     {
-        if (State.Pending.MidiFile is null)
-        {
-            return;
-        }
+        var midiFile = payload ?? throw new InvalidOperationException(
+            "DeleteMidi modal requires a payload.");
 
         await State.Task.RunSafe(async () =>
         {
-            var deletedFileId = State.Pending.MidiFile.Id;
-
+            var deletedFileId = midiFile.Id;
             await Db.MidiFiles.DeleteMidiFileAsync(deletedFileId);
 
             await State.User.RefreshAsync();
-
-            if (State.Preview.File?.Id == deletedFileId)
-            {
-                State.Preview.File = null;
-                State.Preview.Assigments.Clear();
-            }
 
             return "MIDI file deleted.";
         });

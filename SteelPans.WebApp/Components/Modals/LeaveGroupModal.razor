@@ -2,11 +2,11 @@
 @inject DbService Db
 @inject NavigationManager Nav
 
-<ModalPopup Id="LeaveGroup"
+<ModalPopup TPayload="GroupSummaryDto"
+            Id="LeaveGroup"
             Title="@title_"
             OnOpen="OnOpen"
             CloseButton="Cancel"
-            OnClose="OnClose"
             ConfirmButton="Leave"
             ConfirmButtonClass="btn-danger"
             OnConfirm="OnConfirmAsync">
@@ -22,24 +22,22 @@
 @code {
     private string title_ = string.Empty;
 
-    private void OnOpen()
+    private void OnOpen(GroupSummaryDto? payload)
     {
-        title_ = $"Leave {(State.Pending.Group?.Name ?? "This Group")}?";
+        var group = payload ?? throw new InvalidOperationException(
+            "LeaveGroup modal requires a group payload.");
+
+        title_ = $"Leave {group.Name}?";
     }
 
-    private void OnClose()
+    private async Task OnConfirmAsync(GroupSummaryDto? payload)
     {
-        State.Pending.Group = null;
-    }
-
-    private async Task OnConfirmAsync()
-    {
-        if (State.Pending.Group is null)
-            return;
+        var group = payload ?? throw new InvalidOperationException(
+            "LeaveGroup modal requires a group payload.");
 
         await State.Task.RunSafe(async () =>
         {
-            await Db.Groups.LeaveGroupAsync(State.Pending.Group.Id);
+            await Db.Groups.LeaveGroupAsync(group.Id);
 
             await State.User.RefreshAsync();
             Nav.NavigateTo("/groups");

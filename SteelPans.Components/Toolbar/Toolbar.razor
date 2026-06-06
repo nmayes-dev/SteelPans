@@ -9,10 +9,10 @@
 <div class="@ToolbarClass">
     <div class="toolbar__surface">
         <button class="toolbar__header"
-             role="button"
-             aria-label="@MenuButtonLabel"
-             aria-expanded="@anyOpen_"
-             @onclick="ToggleMenuAsync">
+                role="button"
+                aria-label="@MenuButtonLabel"
+                aria-expanded="@anyOpen_"
+                @onclick="ToggleMenuAsync">
             <div class="toolbar__header-content">
                 <span class="toolbar__header-button-icon">
                     <span class="bi @(anyOpen_ ? OpenIconClass : ClosedIconClass)" aria-hidden="true"></span>
@@ -62,7 +62,8 @@
         </div>
     </div>
 
-    <ModalPopup Id="ToolbarContent"
+    <ModalPopup TPayload="object"
+                Id="ToolbarContent"
                 Title="@ModalElement?.Text"
                 Draggable="@(ModalElement?.CanMoveExpanded ?? false)"
                 OnClose="() => ModalElement = null">

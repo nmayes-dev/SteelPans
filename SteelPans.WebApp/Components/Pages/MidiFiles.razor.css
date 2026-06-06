@@ -22,11 +22,29 @@
 .midi-files__group-card {
     display: grid;
     align-content: start;
-    gap: clamp(0.65rem, 1.5vw, 1rem);
+    gap: clamp(0.35rem, 1vw, 0.8rem);
 }
 
     .midi-files__upload-card .sp-app-form__row {
         grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+    }
+
+
+
+.midi-files__section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 1rem;
+}
+
+    .midi-files__section-header .sp-app-button {
+        min-height: clamp(1.2rem, 1rem + 0.65cqw, 1.8rem);
+        padding: clamp(0.15rem, 0.15rem + 0.15cqw, 0.35rem) clamp(0.5rem, 0.3rem + 0.7cqw, 0.9rem);
+    }
+
+    .midi-files__section-header h2 {
+        margin: 0;
     }
 
 .midi-files .sp-app-list,

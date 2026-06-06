@@ -3,14 +3,14 @@
 @inject InstanceStateService State
 @inject IJSRuntime JS
 
-<ModalPopup @ref="modal_"
-            Id="SaveLayout"
-            Title="Save"
-            OnOpen="OnOpenAsync"
-            CloseButton="Cancel"
-            OnClose="OnCloseAsync"
-            ConfirmButton="Save"
-            OnConfirm="OnConfirmAsync">
+<ModalPopup TPayload="object" @ref="modal_"
+                     Id="SaveLayout"
+                     Title="Save"
+                     OnOpen="OnOpenAsync"
+                     CloseButton="Cancel"
+                     OnClose="OnCloseAsync"
+                     ConfirmButton="Save"
+                     OnConfirm="OnConfirmAsync">
     <ChildContent>
         <div class="file-save__body">
             <input class="form-control"
@@ -30,7 +30,7 @@
     private const string DefaultFileName = "layout.pans";
     private const string RequiredExtension = ".pans";
 
-    private ModalPopup? modal_;
+    private ModalPopup<object>? modal_;
     private string fileName_ = DefaultFileName;
     private string? error_;
         
@@ -68,8 +68,6 @@
 
         await SaveConfigurationFileAsync(fileName);
     }
-
-    
 
     private async Task SaveConfigurationFileAsync(string fileName)
     {

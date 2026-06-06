@@ -1,32 +1,33 @@
-﻿@inject InstanceStateService State
-@inject MidiPlaybackService Playback
+﻿@inject MidiPlaybackService Playback
 
-<ModalPopup Id="RemovePan"
-            Title="@Title"
+<ModalPopup TPayload="MidiAssignedPan"
+            Id="RemovePan"
+            Title="@title_"
+            OnOpen="OnOpen"
             ShowCloseButton="false"
             CloseButton="Cancel"
-            OnClose="OnClose"
             ConfirmButton="Remove"
             ConfirmButtonClass="btn-danger"
             OnConfirm="OnConfirmAsync" />
-@code {
-    private string Title => State.Pending.AssignedPan is not null
-        ? $"Remove {State.Pending.AssignedPan.Pan.Type.ToSpacedPascal()}?"
-        : "Remove Pan?";
 
-    private void OnClose()
+@code {
+    private string title_ = "Remove Pan?";
+
+    private void OnOpen(MidiAssignedPan? payload)
     {
-        State.Pending.AssignedPan = null;
+        var assignedPan = payload ?? throw new InvalidOperationException(
+            "RemovePan modal requires a payload.");
+
+        title_ = $"Remove {assignedPan.Pan.Type.ToSpacedPascal()}?";
     }
 
-    private async Task OnConfirmAsync()
+    private async Task OnConfirmAsync(MidiAssignedPan? payload)
     {
-        if (State.Pending.AssignedPan is null)
-            return;
+        var assignedPan = payload ?? throw new InvalidOperationException(
+            "RemovePan modal requires a payload.");
 
-        var index = State.Pending.AssignedPan.Assignment.Track?.Index ?? -1;
+        var index = assignedPan.Assignment.Track?.Index ?? -1;
 
         await Playback.OnRemoveAssignmentAsync(index);
     }
-
 }

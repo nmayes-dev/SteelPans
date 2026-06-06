@@ -3,7 +3,7 @@ namespace SteelPans.Shared.Services;
 public interface IEnsembleFileStore
 {
     Task<string> SaveAsync(
-        Guid groupId,
+        Guid ownerId,
         Guid fileId,
         string originalFileName,
         Stream content,

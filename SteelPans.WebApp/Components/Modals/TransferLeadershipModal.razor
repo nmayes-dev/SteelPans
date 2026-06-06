@@ -1,11 +1,11 @@
 ﻿@inject DbService Db
 @inject InstanceStateService State
 
-<ModalPopup Id="TransferLeadership"
+<ModalPopup TPayload="Payload"
+            Id="TransferLeadership"
             Title="@title_"
             OnOpen="OnOpen"
             CloseButton="Cancel"
-            OnClose="OnClose"
             ConfirmButton="Confirm"
             ConfirmButtonClass="btn-danger"
             OnConfirm="OnConfirmAsync">
@@ -20,33 +20,32 @@
 </ModalPopup>
 
 @code {
+    public sealed record Payload(
+        GroupSummaryDto Group,
+        GroupMemberSummaryDto Member);
+
     private string title_ = string.Empty;
 
-    private void OnOpen()
+    private void OnOpen(Payload? payload)
     {
-        title_ = $"Transfer group to {DisplayName(State.Pending.Member)}?";
+        var target = payload ?? throw new InvalidOperationException(
+            "TransferLeadership modal requires a payload.");
+
+        title_ = $"Transfer Group to {DisplayName(target.Member)}?";
     }
 
-    private async Task OnConfirmAsync()
+    private async Task OnConfirmAsync(Payload? payload)
     {
-        if (State.Pending.Group is null || State.Pending.Member is null)
+        if (payload is null)
             return;
 
         await State.Task.RunSafe(async () =>
         {
-            await Db.Groups.TransferLeadershipAsync(State.Pending.Group.Id, State.Pending.Member.UserId);
+            await Db.Groups.TransferLeadershipAsync(payload.Group.Id, payload.Member.UserId);
             return "Leadership transferred.";
         });
     }
 
-    private void OnClose()
-    {
-        State.Pending.Group = null;
-        State.Pending.Member = null;
-    }
-
-
-    private static string DisplayName(GroupMemberSummaryDto? member) => member is null
-        ? "this user"
-        : string.IsNullOrWhiteSpace(member.UserName) ? member.Email : member.UserName;
+    private static string DisplayName(GroupMemberSummaryDto member) =>
+        string.IsNullOrWhiteSpace(member.UserName) ? member.Email : member.UserName;
 }

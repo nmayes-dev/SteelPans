@@ -2,8 +2,10 @@
 @inject MidiPlaybackService Playback
 @inject InstanceStateService State
 
-<ModalPopup Id="MergeMidiFiles"
+<ModalPopup TPayload="IReadOnlyList<DialogFile>"
+            Id="MergeMidiFiles"
             Title="Merge MIDI tracks"
+            OnOpen="OnOpen"
             CloseButton="Cancel"
             OnClose="OnClose"
             ConfirmButton="Merge"
@@ -17,43 +19,49 @@
 </ModalPopup>
 
 @code {
+    private IReadOnlyList<DialogFile> files_ = [];
     private string mergeMidiFileName_ = string.Empty;
 
-
-    private void OnClose()
+    private void OnOpen(IReadOnlyList<DialogFile>? files)
     {
-        mergeMidiFileName_ = string.Empty;
-        State.Pending.MergeMidiFiles = [];
+        files_ = files ?? [];
     }
 
-    
-    private async Task OnConfirmAsync()
+    private void OnClose(IReadOnlyList<DialogFile>? _)
     {
-        if (State.Pending.MergeMidiFiles.Count == 0)
+        mergeMidiFileName_ = string.Empty;
+        files_ = [];
+    }
+
+    private async Task OnConfirmAsync(IReadOnlyList<DialogFile>? files)
+    {
+        files ??= files_;
+
+        if (files.Count == 0)
             return;
 
         var midiFileName = $"{mergeMidiFileName_.Trim()}.mid";
 
         var loadTracks = async () =>
         {
-            var files = new List<(string Name, Stream Stream)>();
+            var streamFiles = new List<(string Name, Stream Stream)>();
 
             try
             {
-                foreach (var file in State.Pending.MergeMidiFiles)
+                foreach (var file in files)
                 {
                     if (file.File is null)
                         continue;
 
                     var stream = file.File.OpenReadStream(State.MaxMidiFileSize);
-                    files.Add((file.Name, stream));
+                    streamFiles.Add((file.Name, stream));
                 }
 
-                return (midiFileName, await MidiService.MergeMidiTracksAsync(midiFileName, files));
+                return (midiFileName, await MidiService.MergeMidiTracksAsync(midiFileName, streamFiles));
             }
             finally
             {
-                foreach (var (_, stream) in files)
+                foreach (var (_, stream) in streamFiles)
                 {
                     await stream.DisposeAsync();
                 }
