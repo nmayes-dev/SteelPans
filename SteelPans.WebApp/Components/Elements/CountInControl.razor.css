@@ -1,0 +1,67 @@
+.count-in-control {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    padding: clamp(0.45rem, 0.6vw, 0.65rem);
+    padding-bottom: 0;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    box-shadow: 0 0.5rem 1.3rem rgba(15, 23, 42, 0.08);
+    white-space: nowrap;
+}
+
+.count-in-control__label {
+    color: rgba(15, 23, 42, 0.68);
+    font-size: clamp(0.7rem, 0.68rem + 0.18vw, 0.9rem);
+    font-weight: 700;
+}
+
+.count-in-control__button {
+    display: inline-grid;
+    place-items: center;
+    width: clamp(1.8rem, 1.5rem + 0.55vw, 2.2rem);
+    height: clamp(1.8rem, 1.5rem + 0.55vw, 2.2rem);
+    border: 0;
+    border-radius: 999px;
+    color: #0f172a;
+    background: rgba(226, 232, 240, 0.85);
+    cursor: pointer;
+    transition: transform 140ms ease, background-color 140ms ease, opacity 140ms ease;
+}
+
+    .count-in-control__button:hover:not(:disabled) {
+        background: rgba(203, 213, 225, 0.95);
+        transform: translateY(-1px);
+    }
+
+    .count-in-control__button:focus-visible {
+        outline: 0.16rem solid rgba(37, 99, 235, 0.28);
+        outline-offset: 0.12rem;
+    }
+
+    .count-in-control__button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+
+::deep .count-in-control__input {
+    width: clamp(2.2rem, 1.9rem + 0.8vw, 3rem);
+    height: clamp(1.8rem, 1.5rem + 0.55vw, 2.2rem);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+    border-radius: 0.8rem;
+    background: rgba(255, 255, 255, 0.95);
+    color: #0f172a;
+    font-size: clamp(0.8rem, 0.74rem + 0.25vw, 1rem);
+    font-weight: 800;
+    text-align: center;
+}
+
+    ::deep .count-in-control__input:focus-visible {
+        outline: 0.16rem solid rgba(37, 99, 235, 0.22);
+        outline-offset: 0.1rem;
+    }
+
+    ::deep .count-in-control__input:disabled {
+        opacity: 0.65;
+    }

@@ -11,6 +11,7 @@ window.steelPan = {
     _scheduledVisualTimersByComponent: {},
     _panElements: {},
     _metronomeNodes: [],
+    _metronomeGeneration: 0,
     _midiScheduleStateByComponent: {},
 
     register: function (id, dotNetRef) {
@@ -724,6 +725,7 @@ window.steelPan = {
             return null;
 
         const ctx = await this._resumeAudioContext();
+        const generation = ++this._metronomeGeneration;
         const actualStartAt = startAt ?? (ctx.currentTime + 0.05);
 
         for (const action of actions) {
@@ -745,19 +747,64 @@ window.steelPan = {
             oscillator.connect(gain);
             gain.connect(ctx.destination);
 
-            oscillator.start(when);
-            oscillator.stop(when + 0.07);
+            const entry = { oscillator, generation, started: false };
+            this._metronomeNodes.push(entry);
 
-            this._metronomeNodes.push(oscillator);
+            const startNode = () => {
+                if (entry.generation !== this._metronomeGeneration)
+                    return;
+
+                entry.started = true;
+                oscillator.start(when);
+                oscillator.stop(when + 0.07);
+            };
+
+            const delayMs = Math.max(0, (when - ctx.currentTime) * 1000);
+            entry.timerId = window.setTimeout(startNode, delayMs);
 
             oscillator.onended = () => {
-                const index = this._metronomeNodes.indexOf(oscillator);
+                const index = this._metronomeNodes.indexOf(entry);
                 if (index >= 0)
                     this._metronomeNodes.splice(index, 1);
             };
         }
 
         return actualStartAt;
+    },
+
+    playMetronomeCountIn: async function (beatCount, bpm, beatUnit, startAt) {
+        const count = Math.max(0, Math.floor(Number(beatCount) || 0));
+        if (count <= 0)
+            return null;
+
+        const numericBpm = Number(bpm);
+        const numericBeatUnit = Number(beatUnit);
+
+        const effectiveBpm = Number.isFinite(numericBpm) && numericBpm > 0
+            ? numericBpm
+            : 120;
+
+        const effectiveBeatUnit = Number.isFinite(numericBeatUnit) && numericBeatUnit > 0
+            ? numericBeatUnit
+            : 4;
+
+        const secondsPerBeat = (60.0 / effectiveBpm) * (4.0 / effectiveBeatUnit);
+        if (secondsPerBeat <= 0)
+            return null;
+
+        const beatsPerBar = Math.max(1, Math.floor(effectiveBeatUnit));
+
+        const actions = [];
+        for (let i = 0; i < count; i++) {
+            const beatNumberInBar = ((i - count) % beatsPerBar + beatsPerBar) % beatsPerBar;
+
+            actions.push({
+                timeSeconds: i * secondsPerBeat,
+                isAccent: beatNumberInBar === 0
+            });
+        }
+
+        return await this.playMetronomeSchedule(actions, startAt);
     },
 
     playMetronomeTick: async function (isAccent, when) {
@@ -855,9 +902,20 @@ window.steelPan = {
     },
 
     stopMetronome: function () {
-        for (const node of this._metronomeNodes) {
+        this._metronomeGeneration++;
+
+        for (const entry of this._metronomeNodes) {
+            const node = entry?.oscillator ?? entry;
+
+            if (entry?.timerId != null)
+                window.clearTimeout(entry.timerId);
+
             try {
                 node.stop();
+            } catch { }
+
+            try {
+                node.disconnect();
             } catch { }
         }
 

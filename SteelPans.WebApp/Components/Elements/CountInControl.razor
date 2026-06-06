@@ -1,0 +1,73 @@
+@inject MidiPlaybackService Playback
+@implements IDisposable
+
+<div class="count-in-control" aria-label="Metronome count in">
+    <div class="count-in-control__control">
+        <button class="count-in-control__button"
+                type="button"
+                title="Decrease count in"
+                aria-label="Decrease count in"
+                disabled="@(!CanDecrement)"
+                @onclick="DecrementAsync">
+            <span class="bi bi-chevron-left" aria-hidden="true"></span>
+        </button>
+
+        <NumericInput Class="count-in-control__input"
+                      Value="@Playback.CountInBeats"
+                      ValueChanged="SetCountInBeatsAsync"
+                      Min="0"
+                      Max="32"
+                      Disabled="@Playback.IsPlaying" />
+
+        <button class="count-in-control__button"
+                type="button"
+                title="Increase count in"
+                aria-label="Increase count in"
+                disabled="@(!CanIncrement)"
+                @onclick="IncrementAsync">
+            <span class="bi bi-chevron-right" aria-hidden="true"></span>
+        </button>
+    </div>
+    <span class="count-in-control__label">Count In</span>
+
+</div>
+
+@code {
+    private bool CanDecrement => !Playback.IsPlaying && Playback.CountInBeats > 0;
+    private bool CanIncrement => !Playback.IsPlaying && Playback.CountInBeats < 32;
+
+    protected override void OnInitialized()
+    {
+        Playback.CountInChanged += OnPlaybackStateChangedAsync;
+        Playback.PlaybackStatusChanged += OnPlaybackStateChangedAsync;
+    }
+
+    private async Task IncrementAsync()
+    {
+        if (CanIncrement)
+            await SetCountInBeatsAsync(Playback.CountInBeats + 1);
+    }
+
+    private async Task DecrementAsync()
+    {
+        if (CanDecrement)
+            await SetCountInBeatsAsync(Playback.CountInBeats - 1);
+    }
+
+    private async Task SetCountInBeatsAsync(int beats)
+    {
+        if (!Playback.IsPlaying)
+            await Playback.SetCountInBeatsAsync(beats);
+    }
+
+    private async Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)
+    {
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        Playback.CountInChanged -= OnPlaybackStateChangedAsync;
+        Playback.PlaybackStatusChanged -= OnPlaybackStateChangedAsync;
+    }
+}

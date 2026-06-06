@@ -122,7 +122,7 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!focusOnRender_ || popupElement_ is null)
+        if (!firstRender || !focusOnRender_ || popupElement_ is null)
             return;
 
         focusOnRender_ = false;
