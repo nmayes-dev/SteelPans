@@ -1,0 +1,52 @@
+﻿@inject DbService Db
+@inject InstanceStateService State
+
+<ModalPopup Id="TransferLeadership"
+            Title="@title_"
+            OnOpen="OnOpen"
+            CloseButton="Cancel"
+            OnClose="OnClose"
+            ConfirmButton="Confirm"
+            ConfirmButtonClass="btn-danger"
+            OnConfirm="OnConfirmAsync">
+    <ChildContent>
+        <div class="manage-group-modal">
+            <p>
+                You will become an admin and this member will become the group leader.
+                Only the new leader will be able to delete the group or transfer leadership again.
+            </p>
+        </div>
+    </ChildContent>
+</ModalPopup>
+
+@code {
+    private string title_ = string.Empty;
+
+    private void OnOpen()
+    {
+        title_ = $"Transfer group to {DisplayName(State.Pending.Member)}?";
+    }
+
+    private async Task OnConfirmAsync()
+    {
+        if (State.Pending.Group is null || State.Pending.Member is null)
+            return;
+
+        await State.Task.RunSafe(async () =>
+        {
+            await Db.Groups.TransferLeadershipAsync(State.Pending.Group.Id, State.Pending.Member.UserId);
+            return "Leadership transferred.";
+        });
+    }
+
+    private void OnClose()
+    {
+        State.Pending.Group = null;
+        State.Pending.Member = null;
+    }
+
+
+    private static string DisplayName(GroupMemberSummaryDto? member) => member is null
+        ? "this user"
+        : string.IsNullOrWhiteSpace(member.UserName) ? member.Email : member.UserName;
+}

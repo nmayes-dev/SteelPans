@@ -347,7 +347,7 @@
 
     private async Task OpenDeleteFileModal(GroupFileDto file)
     {
-        State.Pending.DeleteMidi = file;
+        State.Pending.MidiFile = file;
         await Modals.OpenAsync("DeleteMidi");
     }
 

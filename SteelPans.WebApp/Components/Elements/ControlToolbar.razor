@@ -219,22 +219,26 @@
     {
         await Modals.OpenAsync("Logout");
     }
+
     private async Task OpenAddPanAsync(bool closeOthers)
     {
         await Modals.OpenAsync("AddPan", closeOthers);
     }
+
     private async Task OpenSaveLayoutAsync()
     {
         await Modals.OpenAsync("SaveLayout");
     }
+
     private async Task OpenConfigConflictAsync(Configuration config)
     {
         State.Pending.Configuration = config;
         await Modals.OpenAsync("ConfigConflict");
     }
+
     private async Task OpenRemovePanAsync(MidiTrackInfo track)
     {
-        State.Pending.PanRemoval = Playback.ActivePans.First(a => a.Assignment.Track?.Index == track.Index);
+        State.Pending.AssignedPan = Playback.ActivePans.First(a => a.Assignment.Track?.Index == track.Index);
         await Modals.OpenAsync("RemovePan");
     }
 

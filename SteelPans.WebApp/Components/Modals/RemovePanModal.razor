@@ -10,21 +10,21 @@
             ConfirmButtonClass="btn-danger"
             OnConfirm="OnConfirmAsync" />
 @code {
-    private string Title => State.Pending.PanRemoval is not null
-        ? $"Remove {State.Pending.PanRemoval.Pan.Type.ToSpacedPascal()}?"
+    private string Title => State.Pending.AssignedPan is not null
+        ? $"Remove {State.Pending.AssignedPan.Pan.Type.ToSpacedPascal()}?"
         : "Remove Pan?";
 
     private void OnClose()
     {
-        State.Pending.PanRemoval = null;
+        State.Pending.AssignedPan = null;
     }
 
     private async Task OnConfirmAsync()
     {
-        if (State.Pending.PanRemoval is null)
+        if (State.Pending.AssignedPan is null)
             return;
 
-        var index = State.Pending.PanRemoval.Assignment.Track?.Index ?? -1;
+        var index = State.Pending.AssignedPan.Assignment.Track?.Index ?? -1;
 
         await Playback.OnRemoveAssignmentAsync(index);
     }

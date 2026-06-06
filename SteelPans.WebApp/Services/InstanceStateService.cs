@@ -168,13 +168,12 @@ namespace SteelPans.WebApp.Services
 
             public Configuration? Configuration { get; set; }
 
-            public MidiAssignedPan? PanRemoval { get; set; }
+            public MidiAssignedPan? AssignedPan { get; set; }
 
-            public GroupSummaryDto? LeaveGroup { get; set; }
+            public GroupSummaryDto? Group { get; set; }
+            public GroupMemberSummaryDto? Member { get; set; }
 
-            public GroupSummaryDto? DeleteGroup { get; set; }
-
-            public GroupFileDto? DeleteMidi { get; set; }
+            public GroupFileDto? MidiFile { get; set; }
 
             public int? Track { get; set; }
         }

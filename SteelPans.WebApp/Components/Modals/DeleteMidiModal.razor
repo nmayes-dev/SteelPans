@@ -11,7 +11,7 @@
     <ChildContent>
         <div class="sp-app-form">
             <p class="delete-modal__text">
-                Delete <strong>@State.Pending.DeleteMidi?.OriginalFileName</strong>?
+                Delete <strong>@State.Pending.MidiFile?.OriginalFileName</strong>?
             </p>
 
             <p class="sp-app-alert sp-app-alert--error">
@@ -23,20 +23,23 @@
 
 @code {
 
+    private void OnCancel()
+    {
+        State.Pending.MidiFile = null;
+    }
+
     private async Task OnConfirmAsync()
     {
-        if (State.Pending.DeleteMidi is null)
+        if (State.Pending.MidiFile is null)
         {
             return;
         }
 
         await State.Task.RunSafe(async () =>
         {
-            var deletedFileId = State.Pending.DeleteMidi.Id;
+            var deletedFileId = State.Pending.MidiFile.Id;
 
             await Db.MidiFiles.DeleteMidiFileAsync(deletedFileId);
-
-            State.Pending.DeleteMidi = null;
 
             await State.User.RefreshAsync();
 
@@ -48,10 +51,5 @@
 
             return "MIDI file deleted.";
         });
-    }
-
-    private void OnCancel()
-    {
-        State.Pending.DeleteMidi = null;
     }
 }

@@ -1,0 +1,50 @@
+﻿@inject DbService Db
+@inject InstanceStateService State
+
+<ModalPopup Id="RemoveGroupMember"
+            Title="@title_"
+            OnOpen="OnOpen"
+            CloseButton="Cancel"
+            OnClose="OnClose"
+            ConfirmButton="Confirm"
+            ConfirmButtonClass="btn-danger"
+            OnConfirm="OnConfirmAsync">
+    <ChildContent>
+        <div class="manage-group-modal">
+            <p>
+                This member will lose access to group MIDI files and will need a new invite to rejoin.
+            </p>
+        </div>
+    </ChildContent>
+</ModalPopup>
+
+@code {
+    private string title_ = string.Empty;
+
+    private void OnOpen()
+    {
+        title_ = $"Remove {DisplayName(State.Pending.Member)}?";
+    }
+
+    private async Task OnClose()
+    {
+        State.Pending.Group = null;
+        State.Pending.Member = null;
+    }
+
+    private async Task OnConfirmAsync()
+    {
+        if (State.Pending.Group is null || State.Pending.Member is null)
+            return;
+
+        await State.Task.RunSafe(async () =>
+        {
+            await Db.Groups.RemoveMemberAsync(State.Pending.Group.Id, State.Pending.Member.UserId);
+            return "Member removed.";
+        });
+    }
+
+    private static string DisplayName(GroupMemberSummaryDto? member) => member is null
+        ? "this user"
+        : string.IsNullOrWhiteSpace(member.UserName) ? member.Email : member.UserName;
+}

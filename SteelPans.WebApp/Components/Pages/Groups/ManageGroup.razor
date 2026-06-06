@@ -102,12 +102,12 @@
 
                                 @if (CanTransferLeadership(member))
                                 {
-                                    <button class="sp-app-button" type="button" disabled="@State.Task.Busy" @onclick="() => TransferLeadershipAsync(member)">Transfer Leadership</button>
+                                    <button class="sp-app-button" type="button" disabled="@State.Task.Busy" @onclick="() => OpenTransferLeadershipModalAsync(member)">Transfer Leadership</button>
                                 }
 
                                 @if (CanRemove(member))
                                 {
-                                    <button class="sp-app-button sp-app-button--danger" type="button" disabled="@State.Task.Busy" @onclick="() => RemoveMemberAsync(member)">Remove</button>
+                                    <button class="sp-app-button sp-app-button--danger" type="button" disabled="@State.Task.Busy" @onclick="() => OpenRemoveMemberModalAsync(member)">Remove</button>
                                 }
                             </div>
                         </article>
@@ -234,6 +234,14 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync();
+        State.User.OnRefresh += OnUserStateRefreshAsync;
+    }
+
+    private async Task OnUserStateRefreshAsync()
+    {
+        // If the user's groups have changed we may need to update the current group info or navigate away if they lost access
+        await LoadAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task LoadAsync()
@@ -314,24 +322,24 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task TransferLeadershipAsync(GroupMemberSummaryDto member)
+    private async Task OpenTransferLeadershipModalAsync(GroupMemberSummaryDto member)
     {
-        await State.Task.RunSafe(async () =>
-        {
-            await Db.Groups.TransferLeadershipAsync(GroupId, member.UserId);
-            await LoadAsync();
-            return "Leadership transferred.";
-        });
+        if (group_ is null)
+            return;
+            
+        State.Pending.Group = group_;
+        State.Pending.Member = member;
+        await Modals.OpenAsync("TransferLeadership");
     }
 
-    private async Task RemoveMemberAsync(GroupMemberSummaryDto member)
+    private async Task OpenRemoveMemberModalAsync(GroupMemberSummaryDto member)
     {
-        await State.Task.RunSafe(async () =>
-        {
-            await Db.Groups.RemoveMemberAsync(GroupId, member.UserId);
-            await LoadAsync();
-            return "Member removed.";
-        });
+        if (group_ is null)
+            return;
+
+        State.Pending.Group = group_;
+        State.Pending.Member = member;
+        await Modals.OpenAsync("RemoveGroupMember");
     }
 
     private async Task OpenLeaveGroupModalAsync()
@@ -339,7 +347,7 @@
         if (group_ is null)
             return;
 
-        State.Pending.LeaveGroup = group_;
+        State.Pending.Group = group_;
         await Modals.OpenAsync("LeaveGroup");
     }
 
@@ -348,7 +356,7 @@
         if (group_ is null)
             return;
 
-        State.Pending.DeleteGroup = group_;
+        State.Pending.Group = group_;
         await Modals.OpenAsync("DeleteGroup");
     }
 

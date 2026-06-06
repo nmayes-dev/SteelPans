@@ -8,11 +8,11 @@ namespace SteelPans.Shared.Music;
 public enum PanType
 {
     None,
-    Bass,
     LeadTenor,
     DoubleGuitar,
     DoubleSecond,
     TripleCello,
+    Bass,
 }
 
 public class PanNote

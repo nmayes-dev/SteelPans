@@ -73,7 +73,7 @@
 
     private async Task OnRemovePan(MidiAssignedPan pan)
     {
-        State.Pending.PanRemoval = pan;
+        State.Pending.AssignedPan = pan;
         await Modals.OpenAsync("RemovePan");
     }
 
