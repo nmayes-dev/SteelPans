@@ -56,6 +56,9 @@ public class Program
 
         app.UseHttpsRedirection();
 
+        app.UseStaticFiles();
+        app.MapStaticAssets();
+
         app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
         app.UseAuthentication();
@@ -63,8 +66,6 @@ public class Program
         app.UseAntiforgery();
 
         app.MapAccountEndpoints();
-
-        app.MapStaticAssets();
 
         app.MapHub<AppUpdatesHub>("/hubs/app-updates");
 
