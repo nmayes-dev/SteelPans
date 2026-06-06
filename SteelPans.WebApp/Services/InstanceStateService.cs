@@ -11,7 +11,7 @@ using System.Threading.Channels;
 namespace SteelPans.WebApp.Services
 {
 
-    public class InstanceStateService : IDisposable
+    public class InstanceStateService : IDisposable, IAsyncDisposable
     {
         public readonly long MaxMidiFileSize = 64L * 1024L * 1024L;
 
@@ -19,16 +19,22 @@ namespace SteelPans.WebApp.Services
         public TaskState Task { get; set; }
         public UserState User { get; set; }
 
-        public InstanceStateService(DbService db, NavigationManager nav)
+        public InstanceStateService(DbService db, NavigationManager nav, AppUpdatesService updates)
         {
             Task = new(nav);
-            User = new(db, nav, Task);
+            User = new(db, nav, Task, updates);
         }
 
         public void Dispose()
         {
             Task.Dispose();
             User.Dispose();
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            Task.Dispose();
+            await User.DisposeAsync();
         }
 
 
@@ -127,7 +133,7 @@ namespace SteelPans.WebApp.Services
             }
         }
 
-        public sealed class UserState : IDisposable
+        public sealed class UserState : IDisposable, IAsyncDisposable
         {
             public event Func<Task>? OnRefresh;
 
@@ -140,22 +146,34 @@ namespace SteelPans.WebApp.Services
             private readonly DbService db_;
             private readonly NavigationManager nav_;
             private readonly TaskState task_;
+            private readonly AppUpdatesService updates_;
 
             private readonly SemaphoreSlim refreshLock_ = new(1, 1);
 
-            public UserState(DbService db, NavigationManager nav, TaskState task)
+            public UserState(DbService db, NavigationManager nav, TaskState task, AppUpdatesService updates)
             {
                 db_ = db;
                 nav_ = nav;
                 task_ = task;
+                updates_ = updates;
 
                 nav_.LocationChanged += OnNavigationAsync;
+                updates_.UserStateChanged += OnRealtimeUserStateChangedAsync;
+                updates_.GroupChanged += OnRealtimeGroupChangedAsync;
             }
 
             public void Dispose()
             {
                 nav_.LocationChanged -= OnNavigationAsync;
+                updates_.UserStateChanged -= OnRealtimeUserStateChangedAsync;
+                updates_.GroupChanged -= OnRealtimeGroupChangedAsync;
                 refreshLock_.Dispose();
+            }
+
+            public async ValueTask DisposeAsync()
+            {
+                Dispose();
+                await updates_.DisposeAsync();
             }
 
             public async ValueTask RefreshAsync()
@@ -180,11 +198,35 @@ namespace SteelPans.WebApp.Services
 
                 GroupFiles = groupFiles;
 
+                try
+                {
+                    await updates_.StartAsync(Id, Groups.Select(x => x.Id));
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"SignalR update client failed to start: {ex.Message}");
+                }
+
                 await RaiseOnRefreshAsync();
             }
 
             private async void OnNavigationAsync(object? sender, LocationChangedEventArgs e)
             {
+                await RefreshAsync();
+            }
+
+            private async Task OnRealtimeUserStateChangedAsync()
+            {
+                await RefreshAsync();
+            }
+
+            private async Task OnRealtimeGroupChangedAsync(Guid groupId)
+            {
+                if (Groups?.Any(x => x.Id == groupId) != true)
+                {
+                    return;
+                }
+
                 await RefreshAsync();
             }
 

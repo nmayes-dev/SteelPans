@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using SteelPans.Shared.Auth;
 using SteelPans.Shared.Data;
 using SteelPans.Shared.Services;
@@ -70,6 +71,7 @@ public static class WebApplicationBuilderExtensions
         builder.Services.AddScoped<IEnsembleFileStore>(sp =>
             sp.GetRequiredService<LocalEnsembleFileStore>());
 
+        builder.Services.TryAddScoped<IRealtimeUpdateDispatcher, NullRealtimeUpdateDispatcher>();
         builder.Services.AddScoped<DbService>();
 
         builder.Services.AddScoped<IEmailSender, EmailSender>();

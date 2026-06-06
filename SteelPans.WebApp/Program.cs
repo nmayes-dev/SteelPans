@@ -3,7 +3,9 @@ using SteelPans.Shared.Auth;
 using SteelPans.Shared.Config;
 using SteelPans.Shared.Extensions;
 using SteelPans.WebApp.Components;
+using SteelPans.WebApp.Hubs;
 using SteelPans.WebApp.Services;
+using SteelPans.Shared.Services;
 using System.Text;
 
 namespace SteelPans.WebApp;
@@ -29,6 +31,8 @@ public class Program
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
 
+        builder.Services.AddSignalR();
+
         builder.Services.AddSingleton<SteelPanLoaderService>();
         builder.Services.AddSingleton<SteelPanSvgService>();
         builder.Services.AddScoped<MidiLoaderService>();
@@ -36,6 +40,8 @@ public class Program
         builder.Services.AddScoped<OverlayManagerService>();
         builder.Services.AddScoped<ModalPopupService>();
         builder.Services.AddScoped<KeyboardManagerService>();
+        builder.Services.AddScoped<IRealtimeUpdateDispatcher, SignalRRealtimeUpdateDispatcher>();
+        builder.Services.AddScoped<AppUpdatesService>();
         builder.Services.AddScoped<InstanceStateService>();
 
         builder.Services.Configure<Settings>(builder.Configuration.GetSection("Settings"));
@@ -59,6 +65,8 @@ public class Program
         app.MapAccountEndpoints();
 
         app.MapStaticAssets();
+
+        app.MapHub<AppUpdatesHub>("/hubs/app-updates");
 
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();

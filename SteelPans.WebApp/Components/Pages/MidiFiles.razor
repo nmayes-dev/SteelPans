@@ -12,7 +12,7 @@
     <div class="sp-app-page__header">
         <p class="sp-app-page__eyebrow">Ensemble Tools</p>
         <h1>MIDI Files</h1>
-        <p>Preview a MIDI file locally, upload it privately, then optionally share it with a group.</p>
+        <p>Preview a MIDI file locally, upload it, then share it with a group.</p>
     </div>
 
     <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
@@ -56,7 +56,7 @@
             <button class="sp-app-button sp-app-button--primary"
                     type="button"
                     @onclick="UploadAsync"
-                    disabled="@(selectedFile_ is null || State.Task.Busy)">
+                    disabled="@(selectedFile_ is null)">
                 Upload
             </button>
         </div>
@@ -124,7 +124,7 @@
     </div>
 
     <div class="sp-app-card sp-app-card--wide midi-file-list">
-        <h2>My MIDI files</h2>
+        <h2>My Files</h2>
 
         @if (State.User.Files is null)
         {
@@ -139,6 +139,7 @@
             <div class="sp-app-list">
                 @foreach (var file in State.User.Files)
                 {
+                    var fileId = file.Id;
                     <article class="sp-app-list-item midi-files__list-item">
                         <div class="midi-files__item-copy">
                             <strong>@file.Title</strong>
@@ -150,7 +151,7 @@
                         <div class="sp-app-list-item__actions">
                             <button class="sp-app-button"
                                     type="button"
-                                    @onclick="() => filePreview_!.OpenPreviewAsync(file.Id)">
+                                    @onclick="() => filePreview_!.OpenPreviewAsync(fileId)">
                                 Edit
                             </button>
                             <button class="sp-app-button sp-app-button--danger"
@@ -166,10 +167,10 @@
                                     .ToList() ?? [];
                             }
 
-                            <select class="sp-app-button sp-app-select @(string.IsNullOrEmpty(targetShareGroup_) ? "sp-app-select--placeholder" : "")"
-                                    value="@targetShareGroup_"
-                                    @onchange="e => SetShareGroupId(e.Value?.ToString())"
-                                    disabled="@(State.Task.Busy || groups.Count == 0)">
+                            <select class="sp-app-button sp-app-select @(string.IsNullOrEmpty(GetTargetShareGroup(fileId)) ? "sp-app-select--placeholder" : "")"
+                                    value="@GetTargetShareGroup(fileId)"
+                                    @onchange="e => SetShareGroupId(fileId, e.Value?.ToString())"
+                                    disabled="@(groups.Count == 0)">
                                 <option disabled hidden value="">Share with...</option>
 
                                 @foreach (var group in groups)
@@ -180,8 +181,8 @@
 
                             <button class="sp-app-button sp-app-button--primary"
                                     type="button"
-                                    disabled="@(string.IsNullOrEmpty(targetShareGroup_) || State.Task.Busy)"
-                                    @onclick="() => ShareFileAsync(file.Id)">
+                                    disabled="@(string.IsNullOrEmpty(GetTargetShareGroup(fileId)))"
+                                    @onclick="() => ShareFileAsync(fileId)">
                                 Share
                             </button>
                         </div>
@@ -208,7 +209,7 @@
     private string? localFileName_;
     private IReadOnlyList<MidiTrackInfo>? localPreview_;
 
-    private string targetShareGroup_ = string.Empty;
+    private Dictionary<Guid, string> targetShareGroups_ = new();
     private MidiFilePreview? filePreview_;
 
     protected override async Task OnInitializedAsync()
@@ -223,7 +224,17 @@
 
     private Task OnUserStateRefreshAsync()
     {
+        foreach (var file in State.User.Files?.Where(x => !targetShareGroups_.ContainsKey(x.Id)) ?? [])
+        {
+            targetShareGroups_[file.Id] = string.Empty;
+        }
+
         return InvokeAsync(StateHasChanged);
+    }
+
+    private string GetTargetShareGroup(Guid fileId)
+    {
+        return targetShareGroups_.GetValueOrDefault(fileId) ?? string.Empty;
     }
 
     private async Task PreviewFileAsync(InputFileChangeEventArgs args)
@@ -301,24 +312,24 @@
     {
         await State.Task.RunSafe(async () =>
         {
-            if (!Guid.TryParse(targetShareGroup_, out var group))
+            if (!Guid.TryParse(targetShareGroups_[fileId], out var group))
                 throw new InvalidOperationException("Target group id was not valid");
 
             await Db.MidiFiles.ShareMidiFileWithGroupAsync(fileId, group);
             await State.User.RefreshAsync();
 
-            targetShareGroup_ = string.Empty;
+            targetShareGroups_[fileId] = string.Empty;
 
             return "MIDI file shared with group.";
         });
     }
 
-    private void SetShareGroupId(string? value)
+    private void SetShareGroupId(Guid fileId, string? value)
     {
         if (!Guid.TryParse(value, out var groupId))
             return;
 
-        targetShareGroup_ = value;
+        targetShareGroups_[fileId] = value;
     }
 
     private string GetFileAccessLabel(GroupFileDto file)

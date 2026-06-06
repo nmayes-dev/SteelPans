@@ -21,14 +21,15 @@ public sealed class DbService
     public DbService(IDbContextFactory<EnsembleDbContext> dbFactory,
         ICurrentUserAccessor currentUser,
         IEnsembleFileStore fileStore,
-        MidiInspectionService midiInspection)
+        MidiInspectionService midiInspection,
+        IRealtimeUpdateDispatcher updates)
     {
         User = currentUser.UserId;
-        Groups = new(dbFactory, currentUser);
-        MidiFiles = new(dbFactory, currentUser, Groups, fileStore, midiInspection);
+        Groups = new(dbFactory, currentUser, updates);
+        MidiFiles = new(dbFactory, currentUser, Groups, fileStore, midiInspection, updates);
     }
 
-    public sealed class GroupService(IDbContextFactory<EnsembleDbContext> dbFactory, ICurrentUserAccessor currentUser)
+    public sealed class GroupService(IDbContextFactory<EnsembleDbContext> dbFactory, ICurrentUserAccessor currentUser, IRealtimeUpdateDispatcher updates)
     {
         public async Task<IReadOnlyList<GroupSummaryDto>> GetMyGroupsAsync(
             CancellationToken cancellationToken = default)
@@ -120,6 +121,7 @@ public sealed class DbService
 
             db.Groups.Add(group);
             await db.SaveChangesAsync(cancellationToken);
+            await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
 
             return new GroupSummaryDto(group.Id, group.Name, group.InviteCode, GroupRole.Leader);
         }
@@ -187,6 +189,8 @@ public sealed class DbService
             }
 
             await db.SaveChangesAsync(cancellationToken);
+            await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
+            await updates.NotifyGroupChangedAsync(invite.Group.Id, cancellationToken);
 
             return new GroupSummaryDto(invite.Group.Id, invite.Group.Name, invite.Group.InviteCode, role);
         }
@@ -237,8 +241,15 @@ public sealed class DbService
                 throw new UnauthorizedAccessException();
             }
 
+            var memberUserIds = group.Members.Select(x => x.UserId).ToList();
+
             db.Groups.Remove(group);
             await db.SaveChangesAsync(cancellationToken);
+
+            foreach (var userId in memberUserIds)
+            {
+                await updates.NotifyUserStateChangedAsync(userId, cancellationToken);
+            }
         }
 
         public async Task<List<GroupMemberSummaryDto>> GetGroupMembersAsync(Guid groupId, CancellationToken cancellationToken = default)
@@ -298,6 +309,7 @@ public sealed class DbService
                 : null;
 
             await db.SaveChangesAsync(cancellationToken);
+            await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
         }
 
         public async Task TransferLeadershipAsync(Guid groupId, Guid newLeaderUserId, CancellationToken cancellationToken = default)
@@ -318,6 +330,7 @@ public sealed class DbService
             newLeader.AdminSince = null;
 
             await db.SaveChangesAsync(cancellationToken);
+            await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
         }
 
         public async Task RemoveMemberAsync(Guid groupId, Guid userId, CancellationToken cancellationToken = default)
@@ -357,6 +370,8 @@ public sealed class DbService
                 cancellationToken);
 
             await db.SaveChangesAsync(cancellationToken);
+            await updates.NotifyUserStateChangedAsync(userId, cancellationToken);
+            await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
         }
 
         public Task LeaveGroupAsync(Guid groupId, CancellationToken cancellationToken = default)
@@ -425,7 +440,8 @@ public sealed class DbService
         ICurrentUserAccessor currentUser,
         GroupService groups,
         IEnsembleFileStore fileStore,
-        MidiInspectionService midiInspection)
+        MidiInspectionService midiInspection,
+        IRealtimeUpdateDispatcher updates)
     {
         public async Task<GroupFileDto> UploadMidiFileAsync(
             Guid? groupId,
@@ -508,6 +524,16 @@ public sealed class DbService
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             db.MidiFiles.Add(midiFile);
 
+            if (groupId is not null)
+            {
+                midiFile.SharedGroups.Add(new EnsembleGroupMidiFile
+                {
+                    GroupId = groupId.Value,
+                    MidiFileId = fileId,
+                    SharedAt = DateTimeOffset.UtcNow
+                });
+            }
+
             await db.SaveChangesAsync(cancellationToken);
 
             await SaveMidiAssignmentsAsync(
@@ -518,7 +544,14 @@ public sealed class DbService
                             x.TrackIndex,
                             x.PanType,
                             x.Label))
-                    .ToList()));
+                    .ToList()),
+                cancellationToken);
+
+            await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
+            if (groupId is not null)
+            {
+                await updates.NotifyGroupChangedAsync(groupId.Value, cancellationToken);
+            }
 
             return new GroupFileDto(
                 midiFile.Id,
@@ -541,6 +574,7 @@ public sealed class DbService
                 .AsNoTracking()
                 .Include(x => x.Tracks)
                 .Include(x => x.Assignments)
+                .Include(x => x.SharedGroups)
                 .FirstOrDefaultAsync(x => x.Id == fileId, cancellationToken);
 
             if (file is null)
@@ -611,6 +645,7 @@ public sealed class DbService
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var file = await db.MidiFiles
                 .Include(x => x.Assignments)
+                .Include(x => x.SharedGroups)
                 .FirstOrDefaultAsync(x => x.Id == fileId, cancellationToken);
 
             if (file is null)
@@ -638,11 +673,14 @@ public sealed class DbService
             }
 
             await db.SaveChangesAsync(cancellationToken);
+            await updates.NotifyUserStateChangedAsync(file.UploadedByUserId, cancellationToken);
+            await updates.NotifyGroupsChangedAsync(file.SharedGroups.Select(x => x.GroupId), cancellationToken);
         }
         public async Task DeleteMidiFileAsync(Guid fileId, CancellationToken cancellationToken = default)
         {
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var file = await db.MidiFiles
+                .Include(x => x.SharedGroups)
                 .FirstOrDefaultAsync(x => x.Id == fileId && x.UploadedByUserId == currentUser.UserId, cancellationToken);
 
             if (file is null)
@@ -650,8 +688,12 @@ public sealed class DbService
                 throw new InvalidOperationException("MIDI file was not found.");
             }
 
+            var sharedGroupIds = file.SharedGroups.Select(x => x.GroupId).ToList();
+
             db.MidiFiles.Remove(file);
-            await db.SaveChangesAsync();
+            await db.SaveChangesAsync(cancellationToken);
+            await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
+            await updates.NotifyGroupsChangedAsync(sharedGroupIds, cancellationToken);
         }
         public async Task<IReadOnlyList<GroupFileDto>> GetMyMidiFilesAsync(
             CancellationToken cancellationToken = default)
@@ -700,6 +742,8 @@ public sealed class DbService
             db.GroupMidiFiles.Remove(share);
 
             await db.SaveChangesAsync(cancellationToken);
+            await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
+            await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
         }
 
         public async Task ShareMidiFileWithGroupAsync(
@@ -739,6 +783,8 @@ public sealed class DbService
                 });
 
                 await db.SaveChangesAsync(cancellationToken);
+                await updates.NotifyUserStateChangedAsync(currentUser.UserId, cancellationToken);
+                await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
             }
         }
 
