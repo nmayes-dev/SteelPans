@@ -3,6 +3,7 @@
     grid-template-rows: min-content min-content minmax(0, 1fr);
     gap: clamp(0.65rem, 1.5vw, 1rem);
     min-width: 0;
+    height: 100%;
     min-height: 0;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
@@ -263,12 +264,10 @@
 
 @media (max-width: 720px) {
     .midi-files {
-        height: auto;
         min-height: 100%;
         grid-template-rows: none;
         grid-auto-rows: min-content;
         padding: clamp(0.5rem, 2.5vw, 0.75rem);
-        padding-bottom: max(1rem, env(safe-area-inset-bottom));
         overflow-y: auto;
     }
 

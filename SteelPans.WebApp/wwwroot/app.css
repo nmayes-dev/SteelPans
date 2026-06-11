@@ -163,7 +163,6 @@ h4 {
 
 .sp-app-page__header {
     display: grid;
-    gap: 0.25rem;
 }
 
 .sp-app-page__eyebrow {
@@ -298,6 +297,11 @@ h4 {
 .sp-app-card h2 {
     margin: 0;
     font-size: clamp(1rem, 1.2vw, 1.6rem);
+}
+
+.sp-app-card p {
+    margin: 0;
+    font-size: clamp(0.7rem, 0.8vw, 1rem);
 }
 
 .sp-app-card--wide {

@@ -3,6 +3,7 @@
     grid-template-rows: min-content minmax(0,1fr);
     gap: clamp(0.75rem, 2vw, 1rem);
     min-width: 0;
+    height: 100%;
     min-height: 0;
     overflow: auto;
     -webkit-overflow-scrolling: touch;
@@ -18,7 +19,7 @@
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: start;
-    gap: clamp(1rem, 1.5vw, 1.5rem);
+    gap: clamp(0.6rem, 1vw, 1.5rem);
     min-width: 0;
     color: inherit;
     text-decoration: none;
@@ -58,15 +59,13 @@
 
 @media (max-width: 720px) {
     .manage-home-page {
-        height: auto;
         min-height: 100%;
         padding: clamp(0.5rem, 2.5vw, 0.75rem);
-        padding-bottom: max(1rem, env(safe-area-inset-bottom));
         overflow-y: auto;
     }
 
     .manage-home-page__grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         grid-auto-rows: min-content;
         gap: 0.75rem;
     }

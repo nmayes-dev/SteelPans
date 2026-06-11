@@ -20,7 +20,6 @@
 @media (max-width: 720px) {
     .join-group {
         align-items: start;
-        padding-bottom: max(1rem, env(safe-area-inset-bottom));
     }
 
     .join-group .sp-app-button {

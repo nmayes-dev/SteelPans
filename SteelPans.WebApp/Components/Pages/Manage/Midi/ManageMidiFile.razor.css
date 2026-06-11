@@ -265,7 +265,6 @@
         grid-template-rows: none;
         grid-auto-rows: min-content;
         padding: clamp(0.5rem, 2.5vw, 0.75rem);
-        padding-bottom: max(1rem, env(safe-area-inset-bottom));
         overflow-y: auto;
     }
 
