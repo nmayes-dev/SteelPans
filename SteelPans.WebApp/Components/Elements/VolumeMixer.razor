@@ -16,7 +16,7 @@
 
     private RenderFragment<MidiAssignedPan> Channel => pan =>@<section class="mixer__channel" @key="pan.InstanceId">
         <div class="mixer__channel-copy">
-            <div class="mixer__channel-title">@pan.Assignment.Track?.Name</div>B
+            <div class="mixer__channel-title">@(pan.Assignment.Track?.Name ?? string.Empty)</div>
             <div class="mixer__channel-subtitle">@pan.Assignment.AssignedPanType.ToSpacedPascal()</div>
         </div>
 
