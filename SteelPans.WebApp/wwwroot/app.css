@@ -25,14 +25,14 @@ body {
     flex-direction: column;
 }
 
-@media (max-width: 640.98px) {
+@media (max-width: 800px) {
     .page:has(.navbar-toggler:checked) .toolbar {
         visibility: hidden;
     }
 
-    .page:has(.navbar-toggler:checked) .toolbar * {
-        visibility: hidden;
-    }
+        .page:has(.navbar-toggler:checked) .toolbar * {
+            visibility: hidden;
+        }
 }
 
 main {
