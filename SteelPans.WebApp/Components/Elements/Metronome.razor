@@ -1,4 +1,3 @@
-@inject IJSRuntime JS
 @implements IAsyncDisposable
 
 <div class="metronome toolbar__shrink_to_fit">
@@ -101,8 +100,8 @@
                 <div class="metronome__arm-pivot"></div>
 
                 <div class="metronome__arm-wrap">
-                    <div class="metronome__arm"
-                         style="@($"transform: rotate({ArmAngleDeg:F2}deg);")">
+                    <div class="@ArmCssClass"
+                         style="@($"transform: rotate({armAngleDeg_:F2}deg);")">
                         <div class="metronome__arm-stick"></div>
 
                         <div class="metronome__arm-weight-track" @ref="weightTrackRef_">

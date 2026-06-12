@@ -61,7 +61,7 @@ main {
             text-overflow: ellipsis;
         }
 
-@media (max-width: 640.98px) {
+@media (max-width: 800px) {
     .top-row {
         justify-content: space-between;
     }
@@ -72,7 +72,7 @@ main {
         }
 }
 
-@media (min-width: 641px) {
+@media (min-width: 800px) {
     .page {
         --layout-nav-top-height: 3.5rem;
         --layout-nav-link-height: 3rem;

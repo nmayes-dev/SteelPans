@@ -1353,7 +1353,7 @@ window.panLayout = {
     },
 
     rowsFillWidth(rows, containerWidth, columnGap) {
-        const tolerance = 20;
+        const tolerance = 10;
 
         return rows.every(row => {
             const rowWidth = row.widths.reduce((sum, width) => sum + width, 0)

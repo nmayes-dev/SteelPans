@@ -338,7 +338,11 @@
     width: 35.295%;
     height: 78.955%;
     transform-origin: top center;
-    transition: transform 90ms ease-out;
+    transition: transform 220ms ease-out;
+}
+
+.metronome__arm--beating {
+    transition: transform 90ms linear;
 }
 
 .metronome__arm-stick {

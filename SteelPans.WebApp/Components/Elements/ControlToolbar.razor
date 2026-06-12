@@ -6,6 +6,7 @@
 @inject InstanceStateService State
 @inject IOptions<Settings> SettingsAccessor
 @inject IJSRuntime JS
+@implements IDisposable
 
 <Toolbar @ref="toolbar_"
          ClosedIconClass="bi-gear-fill"
@@ -18,13 +19,13 @@
         <SubMenu>
             <AuthorizeView>
                 <Authorized>
-                    @if (Groups is not null && Groups.Any(x => x.Value.Count > 0))
+                    @if (groups_ is not null && groups_.Any(x => x.Value.Count > 0))
                     {
                         <ToolbarElement Order="1"
                                         Text="From Group"
                                         IconClass="bi-collection">
                             <SubMenu>
-                                @foreach (var (group, files) in Groups.Where(x => x.Value.Count > 0))
+                                @foreach (var (group, files) in groups_.Where(x => x.Value.Count > 0))
                                 {
                                     <ToolbarElement Text="@group.Name"
                                                     IconClass="bi-people">
@@ -192,13 +193,42 @@
 @code {
     private Toolbar? toolbar_;
 
+    private bool anyPans_;
     private Settings Settings => SettingsAccessor.Value;
 
-    private IReadOnlyDictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>> Groups => State.User.Groups?
-        .ToDictionary(
-            x => x,
-            x => State.User.GroupFiles[x.Id]
-        ) ?? new Dictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>>();
+    private IReadOnlyDictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>>? groups_;
+
+    protected override Task OnInitializedAsync()
+    {
+        State.User.OnRefresh += OnUserRefreshAsync;
+        Playback.AssignmentsChanged += OnAssignmentsChangedAsync;
+
+        anyPans_ = Playback.ActivePans.Any();
+        return Task.CompletedTask;
+    }
+
+    private async Task OnUserRefreshAsync()
+    {
+        groups_ = State.User.Groups?.ToDictionary(
+            group => group,
+            group => State.User.GroupFiles.TryGetValue(group.Id, out var files)
+                ? files
+                : []);
+    }
+
+    private async Task OnAssignmentsChangedAsync(PlaybackAssignmentsChangedEventArgs args)
+    {
+        if (anyPans_ && !Playback.ActivePans.Any())
+        {
+            anyPans_ = false;
+            await InvokeAsync(StateHasChanged);
+        }
+        else if (!anyPans_ && Playback.ActivePans.Any())
+        {
+            anyPans_ = true;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
 
     private async Task OpenLogoutAsync()
     {
@@ -369,12 +399,12 @@
     private async Task LoadGroupMidiFileAsync(GroupFileDto file)
     {
         await toolbar_!.RequestCloseAsync();
-        await Task.Delay(50); // Wait for toolbar to close
+        await Task.Delay(250); // Wait for toolbar to close
 
         await Playback.LoadGroupMidiFile(file.Id);
     }
 
-    
+
 
     private async Task OnClickTrackEnabledShellChangedAsync(bool enabled)
     {
@@ -392,5 +422,12 @@
     private bool IsTrackAssigned(MidiTrackInfo track)
     {
         return Playback.Assignments.Any(a => a.Track?.Index == track.Index);
+    }
+
+
+    public void Dispose()
+    {
+        State.User.OnRefresh -= OnUserRefreshAsync;
+        Playback.AssignmentsChanged -= OnAssignmentsChangedAsync;
     }
 }

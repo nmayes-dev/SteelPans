@@ -207,28 +207,30 @@ public sealed class InstanceStateService : IAsyncDisposable
 
         private async Task RunRefreshAsync()
         {
-            Id = await db_.GetUserIdAsync();
+            var id = await db_.GetUserIdAsync();
 
-            Groups = await db_.Groups.GetMyGroupsAsync();
-            Files = await db_.MidiFiles.GetMyMidiFilesAsync();
+            var groups = await db_.Groups.GetMyGroupsAsync();
+            var files = await db_.MidiFiles.GetMyMidiFilesAsync();
 
             var groupFiles = new Dictionary<Guid, IReadOnlyList<GroupFileDto>>();
 
-            foreach (var group in Groups)
+            foreach (var group in groups)
                 groupFiles[group.Id] = await db_.Groups.GetGroupFilesAsync(group.Id);
 
+            Id = id;
+            Groups = groups;
+            Files = files;
             GroupFiles = groupFiles;
 
             try
             {
                 await updates_.StartAsync(
                     Id,
-                    Groups.Select(x => x.Id));
+                    groups.Select(x => x.Id));
             }
             catch (Exception ex)
             {
-                Console.WriteLine(
-                    $"SignalR update client failed to start: {ex.Message}");
+                Console.WriteLine($"SignalR update client failed to start: {ex.Message}");
             }
 
             await RaiseOnRefreshAsync();

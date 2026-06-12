@@ -19,6 +19,10 @@ public partial class Metronome
     private const int MinBpm = 20;
     private const int MaxBpm = 200;
 
+    private string ArmCssClass => isBeating_
+    ? "metronome__arm metronome__arm--beating"
+    : "metronome__arm";
+
     // Original design values converted to track-relative ratios.
     // Base design track height was 167px, with the draggable weight 21px tall.
     private const double DesignTrackHeightPx = 167.0;
@@ -36,6 +40,7 @@ public partial class Metronome
     private const int AllegroBpm = 144;
 
     private const double MaxArmAngleDeg = 24.0;
+    private const double PrimedArmAngleDeg = MaxArmAngleDeg;
 
     private const int BpmRepeatInitialDelayMs = 350;
     private const int BpmRepeatIntervalMs = 50;
@@ -48,13 +53,13 @@ public partial class Metronome
     private DotNetObjectReference<Metronome>? selfRef_;
     private ElementReference weightTrackRef_;
 
+    private bool isBeating_;
     private int beatIndex_;
     private int displayBeat_ = 1;
     private int? lastFlashedBeatIndex_;
-    private bool jsAvailable_;
+    private int? lastObservedMetronomeActionIndex_;
     private double armAngleDeg_;
 
-    private double midiVisualStartOffsetSeconds_;
     private double? midiStartAt_;
     private double? midiVisualAudioAnchorTime_;
     private double midiVisualScoreAnchorSeconds_;
@@ -73,41 +78,36 @@ public partial class Metronome
     private bool tickFlash_;
     private bool accentFlash_;
 
-    private bool EffectiveIsPlaying => Enabled && IsPlaying;
-
     private bool CanEditBpm => Enabled || MidiLoaded;
     private bool CanEditTimeSignature => Enabled && !IsPlaying && !MidiLoaded;
-
-    private double ArmAngleDeg => !Enabled || !EffectiveIsPlaying
-        ? 0.0
-        : armAngleDeg_;
 
     private double WeightTopPercent => GetWeightTopRatio(Bpm) * 100.0;
 
     protected override void OnInitialized()
     {
-        Playback.ClickTrackSettingsChanged += OnPlaybackStateChangedAsync;
+        Playback.ClickTrackSettingsChanged += OnClickTrackSettingsChangedAsync;
         Playback.PlaybackStarted += OnPlaybackStartedAsync;
         Playback.PlaybackPaused += OnPlaybackPausedAsync;
         Playback.PlaybackStopped += OnPlaybackStoppedAsync;
         Playback.TempoChanged += OnTempoChangedAsync;
+        Playback.PositionChanged += OnPlaybackPositionChangedAsync;
+
+        selfRef_ = DotNetObjectReference.Create(this);
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            selfRef_ = DotNetObjectReference.Create(this);
-            jsAvailable_ = true;
-        }
 
-        await base.OnAfterRenderAsync(firstRender);
-    }
-
-    private async Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)
+    private async Task OnClickTrackSettingsChangedAsync(ClickTrackSettingsChangedEventArgs e)
     {
         if (!Enabled && IsPlaying)
+        {
             await StopAsync();
+        }
+        else if (Playback.IsPlaying && playState_ != PlayState.MIDI)
+        {
+            await StartMidiVisualSyncAsync(
+                Playback.MidiStartAt ?? await Playback.GetAudioTimeAsync(),
+                Playback.Position.TotalSeconds);
+        }
 
         await InvokeAsync(StateHasChanged);
     }
@@ -116,22 +116,15 @@ public partial class Metronome
     {
         await StopAsync(resetVisuals: false);
 
-        if (!Enabled || !jsAvailable_)
+        if (!Enabled)
         {
             playState_ = PlayState.NotPlaying;
             await InvokeAsync(StateHasChanged);
             return;
         }
 
-        var clickTrackActions = MidiPlaybackService.BuildClickTrackActions(
-            args.PlaybackEvents,
-            Bpm,
-            BeatsPerBar,
-            BeatUnit,
-            args.StartOffset);
-
-        await JS.InvokeVoidAsync("panPlayback.playMetronomeSchedule", clickTrackActions, args.StartAt);
         await StartMidiVisualSyncAsync(args.StartAt, args.StartOffset.TotalSeconds);
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task OnPlaybackPausedAsync(MidiPlaybackPausedEventArgs args)
@@ -158,12 +151,37 @@ public partial class Metronome
         await InvokeAsync(StateHasChanged);
     }
 
+    private async Task OnPlaybackPositionChangedAsync(PlaybackPositionChangedEventArgs args)
+    {
+        if (!Enabled || args.IsTick)
+            return;
+
+        var bpm = Math.Clamp(Bpm, MinBpm, MaxBpm);
+        var beatsPerBar = Math.Max(1, BeatsPerBar);
+        var beatUnit = BeatUnit > 0 ? BeatUnit : 4;
+        var secondsPerBeat = (60.0 / bpm) * (4.0 / beatUnit);
+
+        var elapsedSeconds = args.Position.TotalSeconds;
+        var elapsedBeats = elapsedSeconds / secondsPerBeat;
+
+        var totalBeatIndex = (int)Math.Floor(elapsedBeats);
+        var beatInBar = Mod(totalBeatIndex, beatsPerBar);
+        var beatPhase = elapsedBeats - totalBeatIndex;
+
+        displayBeat_ = beatInBar + 1;
+        beatIndex_ = totalBeatIndex;
+
+        armAngleDeg_ = Math.Sin(elapsedBeats * Math.PI) * MaxArmAngleDeg;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
     private async Task BeginWeightDragAsync(PointerEventArgs e)
     {
         if (selfRef_ is null || IsPlaying)
             return;
 
-        await JS.InvokeVoidAsync("panPlayback.beginMetronomeWeightDrag", weightTrackRef_, selfRef_, e.ClientY);
+        await Playback.BeginMetronomeWeightDragAsync(weightTrackRef_, selfRef_, e.ClientY);
     }
 
     [JSInvokable]
@@ -181,7 +199,6 @@ public partial class Metronome
             await StopMidiVisualSyncAsync(resetVisuals: resetVisuals);
 
         playState_ = PlayState.NotPlaying;
-        await InvokeAsync(StateHasChanged);
     }
 
     private async Task ToggleManualPlayAsync()
@@ -192,20 +209,12 @@ public partial class Metronome
         if (playState_ == PlayState.Manual)
         {
             await StopAsync();
-            return;
+        }
+        else
+        {
+            await StartLoopAsync();
         }
 
-        await StartLoopAsync();
-    }
-
-    private async Task IncrementBpmAsync()
-    {
-        await SetBpmAsync(Bpm + 1);
-    }
-
-    private async Task DecrementBpmAsync()
-    {
-        await SetBpmAsync(Bpm - 1);
     }
 
     private async Task BeginBpmRepeatAsync(int delta)
@@ -379,7 +388,7 @@ public partial class Metronome
                     accentFlash_ = isAccent;
 
                     await InvokeAsync(StateHasChanged);
-                    await JS.InvokeVoidAsync("panPlayback.playMetronomeTick", isAccent);
+                    await Playback.PlayMetronomeTickAsync(isAccent, cancellationToken);
 
                     _ = ClearFlashSoonAsync();
 
@@ -406,11 +415,10 @@ public partial class Metronome
     {
         playState_ = PlayState.MIDI;
 
-        if (!Enabled || !jsAvailable_)
+        if (!Enabled)
             return;
 
         midiStartAt_ = midiStartAt;
-        midiVisualStartOffsetSeconds_ = Math.Max(0.0, startOffsetSeconds);
 
         midiVisualAudioAnchorTime_ = midiStartAt;
         midiVisualScoreAnchorSeconds_ = Math.Max(0.0, startOffsetSeconds);
@@ -421,10 +429,9 @@ public partial class Metronome
         midiVisualCts_ = new CancellationTokenSource();
 
         lastFlashedBeatIndex_ = null;
+        lastObservedMetronomeActionIndex_ = null;
 
         _ = RunMidiVisualSyncAsync(midiVisualCts_.Token);
-
-        await InvokeAsync(StateHasChanged);
     }
 
     private async Task RunMidiVisualSyncAsync(CancellationToken cancellationToken)
@@ -445,49 +452,111 @@ public partial class Metronome
                     break;
 
                 double audioTime;
+                double elapsedSeconds;
+                MidiPlaybackService.MetronomeScheduleState? metronomeState = null;
 
                 try
                 {
-                    audioTime = await JS.InvokeAsync<double>("panPlayback.getAudioTime");
+                    metronomeState = await Playback.GetMetronomeScheduleStateAsync(cancellationToken);
+                    audioTime = metronomeState?.AudioTime
+                        ?? await Playback.GetAudioTimeAsync(cancellationToken);
                 }
                 catch
                 {
                     break;
                 }
 
-                var elapsedSeconds = midiVisualScoreAnchorSeconds_
-                    + Math.Max(0.0, audioTime - (midiVisualAudioAnchorTime_ ?? MidiStartAt.Value));
-
-                var elapsedBeats = elapsedSeconds / secondsPerBeat;
-
-                var totalBeatIndex = (int)Math.Floor(elapsedBeats);
-                var beatInBar = Mod(totalBeatIndex, beatsPerBar);
-                var beatPhase = elapsedBeats - totalBeatIndex;
-
-                displayBeat_ = beatInBar + 1;
-                beatIndex_ = totalBeatIndex;
-
-                var isAccent = beatInBar == 0;
-
-                var shouldFlash = beatPhase <= 0.09;
-                if (shouldFlash)
+                if (metronomeState?.IsRunning == true)
                 {
-                    tickFlash_ = true;
-                    accentFlash_ = isAccent;
-                    lastFlashedBeatIndex_ = totalBeatIndex;
-                }
-                else if (lastFlashedBeatIndex_ == totalBeatIndex)
-                {
-                    tickFlash_ = false;
-                    accentFlash_ = false;
+                    var firstActionAudioTime = metronomeState.StartAt + metronomeState.FirstActionTimeSeconds;
+
+                    if (audioTime < firstActionAudioTime)
+                    {
+                        var firstActionScoreSeconds = metronomeState.ScoreSeconds
+                            - metronomeState.ElapsedSeconds
+                            + metronomeState.FirstActionTimeSeconds;
+
+                        UpdateBeatDisplay(firstActionScoreSeconds, secondsPerBeat, beatsPerBar);
+                        armAngleDeg_ = GetPreFirstBeatArmAngle(
+                            metronomeState.ScoreSeconds,
+                            firstActionScoreSeconds,
+                            secondsPerBeat);
+
+                        tickFlash_ = false;
+                        accentFlash_ = false;
+
+                        await InvokeAsync(StateHasChanged);
+                        await Task.Delay(16, cancellationToken);
+                        continue;
+                    }
+
+                    elapsedSeconds = metronomeState.ScoreSeconds;
                 }
                 else
                 {
-                    tickFlash_ = false;
-                    accentFlash_ = false;
+                    var visualStartAt = midiVisualAudioAnchorTime_ ?? MidiStartAt.Value;
+
+                    if (audioTime < visualStartAt)
+                    {
+                        var scoreSeconds = midiVisualScoreAnchorSeconds_ + (audioTime - visualStartAt);
+
+                        UpdateBeatDisplay(midiVisualScoreAnchorSeconds_, secondsPerBeat, beatsPerBar);
+                        armAngleDeg_ = GetPreFirstBeatArmAngle(
+                            scoreSeconds,
+                            midiVisualScoreAnchorSeconds_,
+                            secondsPerBeat);
+
+                        tickFlash_ = false;
+                        accentFlash_ = false;
+
+                        await InvokeAsync(StateHasChanged);
+                        await Task.Delay(16, cancellationToken);
+                        continue;
+                    }
+
+                    elapsedSeconds = midiVisualScoreAnchorSeconds_
+                        + Math.Max(0.0, audioTime - visualStartAt);
                 }
 
-                armAngleDeg_ = Math.Sin(elapsedBeats * Math.PI) * MaxArmAngleDeg;
+                isBeating_ = true;
+                var elapsedBeats = elapsedSeconds / secondsPerBeat;
+                var beatPhase = UpdateBeatDisplay(elapsedSeconds, secondsPerBeat, beatsPerBar);
+                var totalBeatIndex = beatIndex_;
+                var beatInBar = displayBeat_ - 1;
+
+                var isAccent = beatInBar == 0;
+
+                if (metronomeState?.LastAction is not null
+                    && metronomeState.LastActionIndex >= 0
+                    && lastObservedMetronomeActionIndex_ != metronomeState.LastActionIndex)
+                {
+                    tickFlash_ = true;
+                    accentFlash_ = metronomeState.LastAction.IsAccent;
+                    lastObservedMetronomeActionIndex_ = metronomeState.LastActionIndex;
+                    _ = ClearFlashSoonAsync();
+                }
+                else if (metronomeState?.LastAction is null)
+                {
+                    var shouldFlash = beatPhase <= 0.09;
+                    if (shouldFlash)
+                    {
+                        tickFlash_ = true;
+                        accentFlash_ = isAccent;
+                        lastFlashedBeatIndex_ = totalBeatIndex;
+                    }
+                    else if (lastFlashedBeatIndex_ == totalBeatIndex)
+                    {
+                        tickFlash_ = false;
+                        accentFlash_ = false;
+                    }
+                    else
+                    {
+                        tickFlash_ = false;
+                        accentFlash_ = false;
+                    }
+                }
+
+                armAngleDeg_ = GetArmAngle(elapsedBeats);
 
                 await InvokeAsync(StateHasChanged);
                 await Task.Delay(16, cancellationToken);
@@ -509,7 +578,7 @@ public partial class Metronome
 
         try
         {
-            audioTime = await JS.InvokeAsync<double>("panPlayback.getAudioTime");
+            audioTime = await Playback.GetAudioTimeAsync();
         }
         catch
         {
@@ -546,6 +615,8 @@ public partial class Metronome
 
     private async Task StopLoopAsync()
     {
+        var hadLoop = loopCts_ is not null;
+
         if (loopCts_ is not null)
         {
             loopCts_.Cancel();
@@ -553,27 +624,23 @@ public partial class Metronome
             loopCts_ = null;
         }
 
-        if (jsAvailable_)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("panPlayback.stopMetronome");
-            }
-            catch
-            {
-            }
-        }
+        if (hadLoop)
+            await Playback.StopMetronomeAudioAsync();
 
+        isBeating_ = false;
         tickFlash_ = false;
         accentFlash_ = false;
         beatIndex_ = 0;
         displayBeat_ = 1;
         armAngleDeg_ = 0.0;
         lastFlashedBeatIndex_ = null;
+        lastObservedMetronomeActionIndex_ = null;
     }
 
     private async Task StopMidiVisualSyncAsync(bool resetVisuals = true)
     {
+        isBeating_ = false;
+
         if (midiVisualCts_ is not null)
         {
             midiVisualCts_.Cancel();
@@ -581,21 +648,9 @@ public partial class Metronome
             midiVisualCts_ = null;
         }
 
-        if (jsAvailable_)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("panPlayback.stopMetronome");
-            }
-            catch
-            {
-            }
-        }
-
         if (resetVisuals)
         {
             midiStartAt_ = null;
-            midiVisualStartOffsetSeconds_ = 0.0;
             midiVisualAudioAnchorTime_ = null;
             midiVisualScoreAnchorSeconds_ = 0.0;
             tickFlash_ = false;
@@ -604,7 +659,59 @@ public partial class Metronome
             displayBeat_ = 1;
             armAngleDeg_ = 0.0;
             lastFlashedBeatIndex_ = null;
+            lastObservedMetronomeActionIndex_ = null;
         }
+    }
+
+    private double UpdateBeatDisplay(double scoreSeconds, double secondsPerBeat, int beatsPerBar)
+    {
+        if (secondsPerBeat <= 0.0)
+        {
+            beatIndex_ = 0;
+            displayBeat_ = 1;
+            return 0.0;
+        }
+
+        var elapsedBeats = scoreSeconds / secondsPerBeat;
+        var totalBeatIndex = (int)Math.Floor(elapsedBeats);
+        var beatInBar = Mod(totalBeatIndex, beatsPerBar);
+
+        beatIndex_ = totalBeatIndex;
+        displayBeat_ = beatInBar + 1;
+
+        return elapsedBeats - totalBeatIndex;
+    }
+
+    private double GetPreFirstBeatArmAngle(
+        double scoreSeconds,
+        double firstBeatScoreSeconds,
+        double secondsPerBeat)
+    {
+        if (secondsPerBeat <= 0.0)
+            return PrimedArmAngleDeg;
+
+        var secondsBeforeFirstBeat = firstBeatScoreSeconds - scoreSeconds;
+        var preSwingSeconds = secondsPerBeat / 2.0;
+
+        if (secondsBeforeFirstBeat >= preSwingSeconds)
+        {
+            if (scoreSeconds <= 0)
+            {
+                var firstBeatIndex = (int)Math.Floor(firstBeatScoreSeconds / secondsPerBeat);
+                return firstBeatIndex % 2 == 0
+                    ? PrimedArmAngleDeg
+                    : -PrimedArmAngleDeg;
+            }
+            else
+            {
+                return armAngleDeg_;
+            }
+        }
+
+        var visualScoreSeconds = firstBeatScoreSeconds - Math.Max(0.0, secondsBeforeFirstBeat);
+        var visualBeats = visualScoreSeconds / secondsPerBeat;
+
+        return GetArmAngle(visualBeats);
     }
 
     private static int Mod(int value, int modulus)
@@ -667,13 +774,19 @@ public partial class Metronome
         return Math.Clamp((value - start) / (end - start), 0.0, 1.0);
     }
 
+    private static double GetArmAngle(double beats)
+    {
+        return -Math.Sin(beats * Math.PI) * MaxArmAngleDeg;
+    }
+
     public async ValueTask DisposeAsync()
     {
-        Playback.ClickTrackSettingsChanged -= OnPlaybackStateChangedAsync;
+        Playback.ClickTrackSettingsChanged -= OnClickTrackSettingsChangedAsync;
         Playback.PlaybackStarted -= OnPlaybackStartedAsync;
         Playback.PlaybackPaused -= OnPlaybackPausedAsync;
         Playback.PlaybackStopped -= OnPlaybackStoppedAsync;
         Playback.TempoChanged -= OnTempoChangedAsync;
+        Playback.PositionChanged -= OnPlaybackPositionChangedAsync;
 
         StopBpmRepeat();
 

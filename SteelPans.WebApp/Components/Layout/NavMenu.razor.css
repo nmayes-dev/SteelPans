@@ -113,7 +113,7 @@
 }
 
 
-@media (min-width: 641px) {
+@media (min-width: 800px) {
     .top-row .container-fluid {
         padding-right: var(--layout-nav-top-padding-x);
     }

@@ -12,6 +12,7 @@ window.panPlayback = {
     _panElements: {},
     _metronomeNodes: [],
     _metronomeGeneration: 0,
+    _metronomeScheduleState: null,
     _midiScheduleStateByComponent: {},
 
     register: function (id, dotNetRef) {
@@ -758,18 +759,35 @@ window.panPlayback = {
         state.currentBpm = numericBpm;
     },
 
-    playMetronomeSchedule: async function (actions, startAt) {
+    playMetronomeSchedule: async function (actions, startAt, scoreOffsetAtStartSeconds) {
         if (!Array.isArray(actions) || actions.length === 0)
             return null;
 
         const ctx = await this._resumeAudioContext();
         const generation = ++this._metronomeGeneration;
         const actualStartAt = startAt ?? (ctx.currentTime + 0.05);
+        const numericScoreOffset = Number(scoreOffsetAtStartSeconds);
+        const scheduleActions = actions
+            .filter(action => action && typeof action.timeSeconds === "number")
+            .map(action => ({
+                timeSeconds: Number(action.timeSeconds),
+                isAccent: action.isAccent === true,
+                isSubdivision: action.isSubdivision === true
+            }))
+            .sort((a, b) => a.timeSeconds - b.timeSeconds);
 
-        for (const action of actions) {
-            if (!action || typeof action.timeSeconds !== "number")
-                continue;
+        this._metronomeScheduleState = {
+            generation,
+            startAt: actualStartAt,
+            scoreOffsetAtStartSeconds: Number.isFinite(numericScoreOffset) ? numericScoreOffset : 0,
+            actions: scheduleActions,
+            firstActionTimeSeconds: scheduleActions.length > 0 ? scheduleActions[0].timeSeconds : 0,
+            lastActionIndex: -1,
+            isRunning: true
+        };
 
+        for (let actionIndex = 0; actionIndex < scheduleActions.length; actionIndex++) {
+            const action = scheduleActions[actionIndex];
             const when = actualStartAt + action.timeSeconds;
 
             const oscillator = ctx.createOscillator();
@@ -806,6 +824,10 @@ window.panPlayback = {
                     return;
 
                 entry.started = true;
+
+                if (this._metronomeScheduleState?.generation === generation)
+                    this._metronomeScheduleState.lastActionIndex = actionIndex;
+
                 oscillator.start(when);
                 oscillator.stop(when + 0.07);
             };
@@ -821,6 +843,32 @@ window.panPlayback = {
         }
 
         return actualStartAt;
+    },
+
+    getMetronomeScheduleState: function () {
+        const state = this._metronomeScheduleState;
+        if (!state?.isRunning)
+            return null;
+
+        const ctx = this._ensureAudioContext();
+        const audioTime = ctx.currentTime;
+        const elapsedSeconds = audioTime - state.startAt;
+        const scoreSeconds = state.scoreOffsetAtStartSeconds + elapsedSeconds;
+        const lastAction = state.lastActionIndex >= 0
+            ? state.actions[state.lastActionIndex]
+            : null;
+
+        return {
+            isRunning: true,
+            generation: state.generation,
+            startAt: state.startAt,
+            audioTime,
+            elapsedSeconds,
+            scoreSeconds,
+            firstActionTimeSeconds: state.firstActionTimeSeconds ?? 0,
+            lastActionIndex: state.lastActionIndex,
+            lastAction
+        };
     },
 
     playMetronomeCountIn: async function (countInCount, countInNoteDivision, bpm, beatsPerBar, beatUnit, startAt) {
@@ -981,6 +1029,7 @@ window.panPlayback = {
         }
 
         this._metronomeNodes = [];
+        this._metronomeScheduleState = null;
     },
 
     beginMetronomeWeightDrag: function (trackElement, dotNetRef, initialClientY) {

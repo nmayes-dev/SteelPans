@@ -2,7 +2,7 @@
 @inject MidiPlaybackService Playback
 @inject ModalPopupService Modals
 @inject InstanceStateService State
-@inject IJSRuntime JS
+@inject SafeJSInteropService JS
 @inject IHostEnvironment Environment
 
 <div class="pans-display">
@@ -50,7 +50,7 @@
     </div>
 </div>
 
-@code {
+@code {   
     [Parameter, EditorRequired]
     public IReadOnlyList<MidiAssignedPan> Pans { get; set; } = [];
 
@@ -78,7 +78,7 @@
 
     private async Task InitialiseLayoutAsync()
     {
-        if (!Playback.ActivePans.Any())
+        if (startingUp_ || !Playback.ActivePans.Any())
             return;
 
         startingUp_ = true;
@@ -118,29 +118,13 @@
 
     private async Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)
     {
-        if (startingUp_)
-            return;
-
         await InitialiseLayoutAsync();
     }
 
     public async ValueTask DisposeAsync()
     {
         if (panLayoutObserved_)
-        {
-            try
-            {
-                await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
-            }
-            catch (InvalidOperationException)
-            {
-                // JS interop is not available during prerender/static disposal.
-            }
-            catch (JSDisconnectedException)
-            {
-                // Circuit/browser already disconnected.
-            }
-        }
+            await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
         
         Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
         dotNetReference_?.Dispose();
