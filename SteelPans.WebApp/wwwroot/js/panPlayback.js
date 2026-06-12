@@ -1,4 +1,4 @@
-window.steelPan = {
+window.panPlayback = {
     _refs: {},
     _audioBuffers: {},
     _audioContext: null,
@@ -155,6 +155,22 @@ window.steelPan = {
         return `/audio/samples/${encodeURIComponent(normalized)}.ogg`;
     },
 
+    _preloadSampleBytes: async function (noteKey) {
+        const path = this._getSamplePath(noteKey);
+
+        let arrayBuffer = this._audioSampleBytes?.[path];
+        if (arrayBuffer)
+            return arrayBuffer;
+
+        const response = await fetch(path);
+        if (!response.ok)
+            throw new Error(`Failed to load sample ${path}: ${response.status} ${response.statusText}`);
+
+        arrayBuffer = await response.arrayBuffer();
+        this._audioSampleBytes[path] = arrayBuffer;
+        return arrayBuffer;
+    },
+
     _loadBuffer: async function (noteKey) {
         const ctx = this._ensureAudioContext();
         const path = this._getSamplePath(noteKey);
@@ -163,36 +179,58 @@ window.steelPan = {
         if (buffer)
             return buffer;
 
-        const response = await fetch(path);
-        if (!response.ok)
-            throw new Error(`Failed to load sample ${path}: ${response.status} ${response.statusText}`);
-
-        const arrayBuffer = await response.arrayBuffer();
-        buffer = await ctx.decodeAudioData(arrayBuffer);
+        const bytes = await this._preloadSampleBytes(noteKey);
+        buffer = await ctx.decodeAudioData(bytes.slice(0));
 
         this._audioBuffers[path] = buffer;
         return buffer;
     },
 
-    preloadNotes: async function (noteKeys) {
-        if (!Array.isArray(noteKeys) || noteKeys.length === 0)
-            return;
-
-        await this._resumeAudioContext();
+    preloadNoteFiles: async function (noteKeys) {
+        this._audioSampleBytes ??= {};
 
         const uniqueNoteKeys = [
-            ...new Set(noteKeys.filter(noteKey =>
-                typeof noteKey === "string" && noteKey.length > 0))
+            ...new Set(noteKeys.filter(x => typeof x === "string" && x.length > 0))
         ];
 
-        const results = await Promise.allSettled(
-            uniqueNoteKeys.map(noteKey => this._loadBuffer(noteKey))
-        );
+        await Promise.allSettled(uniqueNoteKeys.map(x => this._preloadSampleBytes(x)));
+    },
 
-        for (let i = 0; i < results.length; i++) {
-            if (results[i].status === "rejected")
-                console.warn("Failed to preload note sample", uniqueNoteKeys[i], results[i].reason);
-        }
+    unlockAudio: async function () {
+        const ctx = this._ensureAudioContext();
+
+        if (ctx.state === "suspended")
+            await ctx.resume();
+
+        return ctx;
+    },
+
+    _decodePreloadedBuffer: async function (noteKey) {
+        const ctx = await this.unlockAudio();
+        const path = this._getSamplePath(noteKey);
+
+        let buffer = this._audioBuffers[path];
+        if (buffer)
+            return buffer;
+
+        const bytes = await this._preloadSampleBytes(noteKey);
+
+        // decodeAudioData detaches/consumes the ArrayBuffer in some implementations,
+        // so pass a copy if you want to keep the cached bytes.
+        buffer = await ctx.decodeAudioData(bytes.slice(0));
+
+        this._audioBuffers[path] = buffer;
+        return buffer;
+    },
+
+    preloadNotesAfterGesture: async function (noteKeys) {
+        await this.unlockAudio();
+
+        const uniqueNoteKeys = [
+            ...new Set(noteKeys.filter(x => typeof x === "string" && x.length > 0))
+        ];
+
+        await Promise.allSettled(uniqueNoteKeys.map(x => this._decodePreloadedBuffer(x)));
     },
 
     playNote: async function (componentId, noteKey) {

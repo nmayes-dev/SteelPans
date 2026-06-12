@@ -36,7 +36,14 @@ else
     [Parameter]
     public Guid? PlaybackInstanceId { get; set; }
 
-    private bool notesPreloaded_;
+    private bool noteFilesPreloaded_;
+    private bool noteBuffersPreloaded_;
+
+    private string[] NoteKeys => Pan.Notes
+            .Select(n => n.ToString())
+            .Distinct()
+            .ToArray();
+
     private readonly string componentId_ = $"steelpan_{Guid.NewGuid():N}";
     private DotNetObjectReference<SteelPanView>? selfRef_;
     private string panSvg_ = string.Empty;
@@ -68,34 +75,58 @@ else
 
     protected override async Task OnParametersSetAsync()
     {
-        notesPreloaded_ = false;
+        noteFilesPreloaded_ = false;
+        noteBuffersPreloaded_ = false;
+
         await RebuildSvgAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && selfRef_ is not null)
-            await JS.InvokeVoidAsync("steelPan.register", componentId_, selfRef_);
+            await JS.InvokeVoidAsync("panPlayback.register", componentId_, selfRef_);
 
         if (firstRender && PlaybackInstanceId is not null)
             await Playback.RegisterSteelPanViewAsync(PlaybackInstanceId.Value, this);
 
         if (firstRender && !string.IsNullOrWhiteSpace(panSvg_))
-            await JS.InvokeVoidAsync("steelPan.bindPanElements", componentId_);
-            
-        if (!notesPreloaded_ && await JS.InvokeAsync<bool>("steelPan.hasUserGestureOccurred"))
-        {
-            await JS.InvokeVoidAsync(
-                "steelPan.preloadNotes",
-                (object)Pan.Notes.Select(n => n.ToString()).Distinct().ToArray());
+            await JS.InvokeVoidAsync("panPlayback.bindPanElements", componentId_);
 
-            notesPreloaded_ = true;
-        }
+        if (firstRender)
+            await PreloadNoteFilesAsync();
+
+        await EnsureNoteBuffersPreloadedAsync();
     }
 
     public async Task RebuildSvgAsync()
     {
         panSvg_ = await SvgService.LoadPanAsync(Pan, componentId_);
+    }
+
+    private async Task PreloadNoteFilesAsync()
+    {
+        if (noteFilesPreloaded_)
+            return;
+
+        await JS.InvokeVoidAsync(
+            "panPlayback.preloadNoteFiles",
+            (object)NoteKeys);
+
+        noteFilesPreloaded_ = true;
+    }
+
+    private async Task EnsureNoteBuffersPreloadedAsync()
+    {
+        if (noteBuffersPreloaded_ || !await JS.InvokeAsync<bool>("panPlayback.hasUserGestureOccurred"))
+            return;
+
+        await PreloadNoteFilesAsync();
+
+        await JS.InvokeVoidAsync(
+            "panPlayback.preloadNotesAfterGesture",
+            (object)NoteKeys);
+
+        noteBuffersPreloaded_ = true;
     }
 
     public async Task ClearMidiVisualStateAsync()
@@ -106,7 +137,7 @@ else
         foreach (var note in Pan.Notes)
             note.Playing = false;
 
-        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_);
+        await JS.InvokeVoidAsync("panPlayback.clearPlayingVisuals", componentId_);
     }
 
     public async Task ClearSelectionAndMidiVisualStateAsync()
@@ -117,7 +148,7 @@ else
             note.Playing = false;
         }
 
-        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_);
+        await JS.InvokeVoidAsync("panPlayback.clearPlayingVisuals", componentId_);
 
         await RebuildSvgAsync();
         await InvokeAsync(StateHasChanged);
@@ -135,7 +166,7 @@ else
             note.Playing = false;
         }
 
-        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_);
+        await JS.InvokeVoidAsync("panPlayback.clearPlayingVisuals", componentId_);
 
         await RebuildSvgAsync();
         await InvokeAsync(StateHasChanged);
@@ -161,9 +192,9 @@ else
         var cts = new CancellationTokenSource();
         playSelectedCts_ = cts;
 
-        await JS.InvokeVoidAsync("steelPan.playNotes", componentId_, (object)selectedNoteKeys);
+        await JS.InvokeVoidAsync("panPlayback.playNotes", componentId_, (object)selectedNoteKeys);
         await JS.InvokeVoidAsync(
-            "steelPan.flashNotes",
+            "panPlayback.flashNotes",
             componentId_,
             (object)selectedNoteKeys,
             (int)Math.Max(120, sampleDuration_.TotalMilliseconds));
@@ -191,7 +222,7 @@ else
             playSelectedCts_ = null;
         }
 
-        await JS.InvokeVoidAsync("steelPan.clearPlayingVisuals", componentId_, (object)noteKeys);
+        await JS.InvokeVoidAsync("panPlayback.clearPlayingVisuals", componentId_, (object)noteKeys);
     }
 
     private TimeSpan GetWavDuration()
@@ -219,8 +250,8 @@ else
 
         try
         {
-            await JS.InvokeVoidAsync("steelPan.stopMidiSchedule", componentId_);
-            await JS.InvokeVoidAsync("steelPan.unregister", componentId_);
+            await JS.InvokeVoidAsync("panPlayback.stopMidiSchedule", componentId_);
+            await JS.InvokeVoidAsync("panPlayback.unregister", componentId_);
         }
         catch
         {

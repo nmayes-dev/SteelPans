@@ -616,7 +616,7 @@ public sealed class SteelPanSvgService
         string labelElementId)
     {
         var noteClick =
-            $"steelPan.notePointerDown(this,document.getElementById('{EscapeJs(labelElementId)}'),'{EscapeJs(componentId)}','{EscapeJs(noteKey)}',event)";
+            $"panPlayback.notePointerDown(this,document.getElementById('{EscapeJs(labelElementId)}'),'{EscapeJs(componentId)}','{EscapeJs(noteKey)}',event)";
 
         return template
             .Replace("__COMPONENT_ID__", EscapeAttribute(componentId), StringComparison.Ordinal)

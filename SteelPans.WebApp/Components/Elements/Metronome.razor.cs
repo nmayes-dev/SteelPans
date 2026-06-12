@@ -130,7 +130,7 @@ public partial class Metronome
             BeatUnit,
             args.StartOffset);
 
-        await JS.InvokeVoidAsync("steelPan.playMetronomeSchedule", clickTrackActions, args.StartAt);
+        await JS.InvokeVoidAsync("panPlayback.playMetronomeSchedule", clickTrackActions, args.StartAt);
         await StartMidiVisualSyncAsync(args.StartAt, args.StartOffset.TotalSeconds);
     }
 
@@ -163,7 +163,7 @@ public partial class Metronome
         if (selfRef_ is null || IsPlaying)
             return;
 
-        await JS.InvokeVoidAsync("steelPan.beginMetronomeWeightDrag", weightTrackRef_, selfRef_, e.ClientY);
+        await JS.InvokeVoidAsync("panPlayback.beginMetronomeWeightDrag", weightTrackRef_, selfRef_, e.ClientY);
     }
 
     [JSInvokable]
@@ -379,7 +379,7 @@ public partial class Metronome
                     accentFlash_ = isAccent;
 
                     await InvokeAsync(StateHasChanged);
-                    await JS.InvokeVoidAsync("steelPan.playMetronomeTick", isAccent);
+                    await JS.InvokeVoidAsync("panPlayback.playMetronomeTick", isAccent);
 
                     _ = ClearFlashSoonAsync();
 
@@ -448,7 +448,7 @@ public partial class Metronome
 
                 try
                 {
-                    audioTime = await JS.InvokeAsync<double>("steelPan.getAudioTime");
+                    audioTime = await JS.InvokeAsync<double>("panPlayback.getAudioTime");
                 }
                 catch
                 {
@@ -509,7 +509,7 @@ public partial class Metronome
 
         try
         {
-            audioTime = await JS.InvokeAsync<double>("steelPan.getAudioTime");
+            audioTime = await JS.InvokeAsync<double>("panPlayback.getAudioTime");
         }
         catch
         {
@@ -557,7 +557,7 @@ public partial class Metronome
         {
             try
             {
-                await JS.InvokeVoidAsync("steelPan.stopMetronome");
+                await JS.InvokeVoidAsync("panPlayback.stopMetronome");
             }
             catch
             {
@@ -585,7 +585,7 @@ public partial class Metronome
         {
             try
             {
-                await JS.InvokeVoidAsync("steelPan.stopMetronome");
+                await JS.InvokeVoidAsync("panPlayback.stopMetronome");
             }
             catch
             {

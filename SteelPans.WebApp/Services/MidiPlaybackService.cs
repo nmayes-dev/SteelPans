@@ -64,7 +64,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     private readonly MidiLoaderService midiLoader_;
     private readonly DbService db_;
     private readonly InstanceStateService state_;
-    private readonly IJSRuntime js_;
+    private readonly SafeJSInteropService js_;
 
     private IDisposable navCallback_;
 
@@ -84,7 +84,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     private TimeSpan playbackScoreAnchorOffset_ = TimeSpan.Zero;
     private int playbackTempoAnchorBpm_ = 120;
 
-    public MidiPlaybackService(MidiLoaderService midiLoader, DbService db, InstanceStateService state, SteelPanLoaderService panLoader, NavigationManager nav, IJSRuntime js)
+    public MidiPlaybackService(MidiLoaderService midiLoader, DbService db, InstanceStateService state, SteelPanLoaderService panLoader, NavigationManager nav, SafeJSInteropService js)
     {
         midiLoader_ = midiLoader;
         db_ = db;
@@ -361,7 +361,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (assignedPan is null)
             return;
 
-        await js_.InvokeVoidAsync("steelPan.setComponentVolume", view.ComponentId, GetEffectivePanVolume(assignedPan));
+        await js_.InvokeVoidAsync("panPlayback.setComponentVolume", view.ComponentId, GetEffectivePanVolume(assignedPan));
 
         if (!IsPlaying)
             return;
@@ -374,7 +374,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (!IsPlaying || midiPlaybackCts_ is null || playbackAudioAnchorTime_ is null)
             return;
 
-        var currentAudioTime = await js_.InvokeAsync<double>("steelPan.getAudioTime");
+        var currentAudioTime = await js_.InvokeAsync<double>("panPlayback.getAudioTime");
 
         const double scheduleLeadSeconds = 0.8;
 
@@ -402,7 +402,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (steelPanViews_.TryGetValue(activePan.InstanceId, out var view))
         {
             await js_.InvokeVoidAsync(
-                "steelPan.setComponentVolume",
+                "panPlayback.setComponentVolume",
                 view.ComponentId,
                 GetEffectivePanVolume(activePan));
         }
@@ -419,7 +419,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             if (steelPanViews_.TryGetValue(activePan.InstanceId, out var view))
             {
                 await js_.InvokeVoidAsync(
-                    "steelPan.setComponentVolume",
+                    "panPlayback.setComponentVolume",
                     view.ComponentId,
                     GetEffectivePanVolume(activePan));
             }
@@ -438,7 +438,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (steelPanViews_.TryGetValue(activePan.InstanceId, out var view))
         {
             await js_.InvokeVoidAsync(
-                "steelPan.setComponentVolume",
+                "panPlayback.setComponentVolume",
                 view.ComponentId,
                 GetEffectivePanVolume(activePan));
         }
@@ -471,14 +471,14 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                 if (solo)
                 {
                     await js_.InvokeVoidAsync(
-                        "steelPan.setComponentVolume",
+                        "panPlayback.setComponentVolume",
                         view.ComponentId,
                         pan.Soloing ? pan.Volume : 0.0);
                 }
                 else
                 {
                     await js_.InvokeVoidAsync(
-                        "steelPan.setComponentVolume",
+                        "panPlayback.setComponentVolume",
                         view.ComponentId,
                         GetEffectivePanVolume(pan));
                 }
@@ -583,7 +583,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
             const double scheduleLeadSeconds = 0.8;
 
-            var currentAudioTime = await js_.InvokeAsync<double>("steelPan.getAudioTime", playbackToken);
+            var currentAudioTime = await js_.InvokeAsync<double>("panPlayback.getAudioTime", playbackToken);
             playbackToken.ThrowIfCancellationRequested();
 
             var shouldCountIn = playbackSessionStartOffset_ <= TimeSpan.Zero;
@@ -597,7 +597,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             if (shouldCountIn && CountInBeats > 0 && countInDurationSeconds > 0.0)
             {
                 await js_.InvokeVoidAsync(
-                    "steelPan.playMetronomeCountIn",
+                    "panPlayback.playMetronomeCountIn",
                     playbackToken,
                     CountInBeats,
                     CountInNoteDivision,
@@ -674,7 +674,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (!IsPlaying)
             return;
 
-        await js_.InvokeVoidAsync("steelPan.stopMetronome");
+        await js_.InvokeVoidAsync("panPlayback.stopMetronome");
 
         midiPlaybackCts_?.Cancel();
         midiPlaybackCts_?.Dispose();
@@ -718,7 +718,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (IsPlaying)
         {
             var currentPosition = await GetCurrentPositionAsync();
-            var currentAudioTime = await js_.InvokeAsync<double>("steelPan.getAudioTime");
+            var currentAudioTime = await js_.InvokeAsync<double>("panPlayback.getAudioTime");
 
             Position = currentPosition;
             playbackScoreAnchorOffset_ = currentPosition;
@@ -726,7 +726,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             playbackTempoAnchorBpm_ = bpm;
 
             foreach (var view in steelPanViews_.Values)
-                await js_.InvokeVoidAsync("steelPan.updateMidiTempo", view.ComponentId, bpm);
+                await js_.InvokeVoidAsync("panPlayback.updateMidiTempo", view.ComponentId, bpm);
 
             await NotifyTempoChangedAsync(new PlaybackTempoChangedEventArgs(bpm));
         }
@@ -757,7 +757,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (ClickTrackEnabled && IsPlaying)
         {
             var currentPosition = await GetCurrentPositionAsync();
-            var currentAudioTime = await js_.InvokeAsync<double>("steelPan.getAudioTime");
+            var currentAudioTime = await js_.InvokeAsync<double>("panPlayback.getAudioTime");
 
             var remainingEvents = ActivePans
                 .SelectMany(x => GetPlaybackEventsFromOffset(x.Events, currentPosition))
@@ -871,7 +871,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         var actualStartAt = await js_.InvokeAsync<double?>(
-            "steelPan.playMidiSchedule",
+            "panPlayback.playMidiSchedule",
             cancellationToken,
             view.ComponentId,
             scheduledActions,
@@ -892,7 +892,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (!playingComponentIds_.Remove(view.ComponentId))
             return;
 
-        await js_.InvokeVoidAsync("steelPan.stopMidiSchedule", view.ComponentId);
+        await js_.InvokeVoidAsync("panPlayback.stopMidiSchedule", view.ComponentId);
         await view.ClearMidiVisualStateAsync();
     }
 
@@ -1072,7 +1072,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     private async Task<TimeSpan> GetCurrentPositionAsync(TimeSpan? baseOffset = null)
     {
-        var currentAudioTime = await js_.InvokeAsync<double>("steelPan.getAudioTime");
+        var currentAudioTime = await js_.InvokeAsync<double>("panPlayback.getAudioTime");
         return GetCurrentPositionAtAudioTime(currentAudioTime, baseOffset);
     }
 
