@@ -190,7 +190,7 @@
     }
 </Toolbar>
 
-@code {
+    @code {
     private Toolbar? toolbar_;
 
     private bool anyPans_;
@@ -198,13 +198,13 @@
 
     private IReadOnlyDictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>>? groups_;
 
-    protected override Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync()
     {
         State.User.OnRefresh += OnUserRefreshAsync;
         Playback.AssignmentsChanged += OnAssignmentsChangedAsync;
 
         anyPans_ = Playback.ActivePans.Any();
-        return Task.CompletedTask;
+        await OnUserRefreshAsync();
     }
 
     private async Task OnUserRefreshAsync()
