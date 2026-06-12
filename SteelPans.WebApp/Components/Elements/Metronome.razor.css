@@ -261,8 +261,14 @@
     overflow: hidden;
     opacity: 1;
     transform: scale(1);
+    transform-origin: center;
     transition: opacity 220ms ease, transform 220ms ease, max-height 220ms ease, margin 220ms ease, padding 220ms ease;
     container-type: inline-size;
+}
+
+.metronome__visual--disabled {
+    opacity: 0.46;
+    transform: scale(0.985);
 }
 
 

@@ -1,0 +1,73 @@
+﻿.toggle-switch {
+    --switch-base-size: 1.8rem;
+    --switch-track-width: clamp(2rem, var(--switch-base-size) + 0.8vw, 3rem);
+    position: relative;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+
+    .toggle-switch:hover .toggle-switch__track {
+        filter: brightness(1.02);
+    }
+
+.toggle-switch__input {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.toggle-switch__track {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    inline-size: 2.75rem;
+    block-size: 1.5rem;
+    background: linear-gradient(135deg, #64748b, #475569);
+    border-radius: 999px;
+    transition: background-color 0.15s ease;
+}
+
+.toggle-switch__thumb {
+    --track-padding: clamp(0.28rem, 0.28rem + 0.16vw, 0.4rem);
+    width: calc(var(--switch-base-size) * 0.46);
+    height: calc(var(--switch-base-size) * 0.46);
+    border-radius: 50%;
+    background: linear-gradient(180deg, #ffffff, #e2e8f0);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
+    transform: translateX(var(--track-padding));
+    transition: transform 160ms ease;
+}
+
+.toggle-switch__input:checked + .toggle-switch__track {
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+    border-color: rgba(147, 197, 253, 0.35);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 0 1px rgba(37, 99, 235, 0.08);
+}
+
+    .toggle-switch__input:checked + .toggle-switch__track .toggle-switch__thumb {
+        transform: translateX(calc(var(--switch-track-width) - calc(var(--switch-base-size) * 0.46) - var(--track-padding)));
+    }
+
+.metronome-shell__status-switch:hover .toggle-switch__track {
+    filter: brightness(1.04);
+}
+
+.toggle-switch__input:focus-visible + .toggle-switch__track {
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.24), 0 0 0 0.18rem rgba(37, 99, 235, 0.14);
+}
+
+.toggle-switch__input:disabled + .toggle-switch__track {
+    opacity: 0.6;
+    cursor: not-allowed;
+    filter: saturate(0.75);
+}

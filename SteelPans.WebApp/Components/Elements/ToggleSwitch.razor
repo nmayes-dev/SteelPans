@@ -1,0 +1,27 @@
+﻿<label class="toggle-switch">
+    <input class="toggle-switch__input"
+           type="checkbox"
+           checked="@Value"
+           @onchange="OnChanged"
+           aria-label="@AriaLabel" />
+
+    <span class="toggle-switch__track" aria-hidden="true">
+        <span class="toggle-switch__thumb"></span>
+    </span>
+</label>
+
+@code {
+    [Parameter]
+    public bool Value { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> ValueChanged { get; set; }
+
+    [Parameter]
+    public string? AriaLabel { get; set; }
+
+    private async Task OnChanged(ChangeEventArgs args)
+    {
+        await ValueChanged.InvokeAsync((bool)(args.Value ?? false));
+    }
+}

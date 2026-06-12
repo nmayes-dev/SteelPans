@@ -112,7 +112,7 @@
             }
         </SubMenu>
     </ToolbarElement>
-    
+
     <ToolbarElement Order="2"
                     Text="Layout">
         <SubMenu>
@@ -120,7 +120,7 @@
                             Text="Add Pan"
                             IconClass="bi-plus-lg"
                             OnClick="() => OpenAddPanAsync(closeOthers: true)" />
-                            
+
             @if (Playback.IsMidiLoaded)
             {
                 <ToolbarElement Order="2"
@@ -168,18 +168,9 @@
                                 Text="Metronome"
                                 IconClass="bi-music-note-beamed">
                     <HeaderActions>
-                        <label class="metronome-shell__status-switch">
-                            <input class="metronome-shell__status-switch-input"
-                                   type="checkbox"
-                                   checked="@Playback.ClickTrackEnabled"
-                                   @onchange="OnClickTrackEnabledShellChangedAsync"
-                                   @onclick:stopPropagation="true"
-                                   aria-label="Enable metronome" />
-
-                            <span class="metronome-shell__status-switch-track" aria-hidden="true">
-                                <span class="metronome-shell__status-switch-thumb"></span>
-                            </span>
-                        </label>
+                        <ToggleSwitch Value="@Playback.ClickTrackEnabled"
+                                      ValueChanged="OnClickTrackEnabledShellChangedAsync"
+                                      AriaLabel="Enable Metronome" />
                     </HeaderActions>
                     <ChildContent>
                         <Metronome />
@@ -198,7 +189,7 @@
     }
 </Toolbar>
 
-    @code {
+@code {
     private Toolbar? toolbar_;
 
     private Settings Settings => SettingsAccessor.Value;
@@ -385,15 +376,8 @@
 
     
 
-    private async Task OnClickTrackEnabledShellChangedAsync(ChangeEventArgs e)
+    private async Task OnClickTrackEnabledShellChangedAsync(bool enabled)
     {
-        var enabled = e.Value switch
-        {
-            bool value => value,
-            string value when bool.TryParse(value, out var parsed) => parsed,
-            _ => Playback.ClickTrackEnabled
-        };
-
         if (Playback.ClickTrackEnabled == enabled)
             return;
 
