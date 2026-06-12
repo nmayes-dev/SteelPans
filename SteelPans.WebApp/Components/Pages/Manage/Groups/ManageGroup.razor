@@ -16,8 +16,8 @@
             <h1>@(group_?.Name ?? "Manage Group")</h1>
             <p>@(group_ is null ? "Loading group..." : $"Your role: {group_.Role}")</p>
 
-            <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "")">@State.Task.Error</p>
-            <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--visible" : "")">@State.Task.Message</p>
+            <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Error</p>
+            <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Message</p>
         </div>
 
         @if (group_ is not null)

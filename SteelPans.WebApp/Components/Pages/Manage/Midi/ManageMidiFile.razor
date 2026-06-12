@@ -14,8 +14,8 @@
         <h1>@title_</h1>
         <p>@subtitle_</p>
 
-        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "")">@State.Task.Error</p>
-        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--visible" : "")">@State.Task.Message</p>
+        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Error</p>
+        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Message</p>
     </div>
 
     <div class="midi-file-page__actions">

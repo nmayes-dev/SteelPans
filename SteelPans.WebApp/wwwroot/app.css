@@ -373,7 +373,7 @@ h4 {
         background: #fff;
     }
 
-.sp-app-alert {
+.sp-app-alert--hidden {
     width: 0;
     height: 0;
     padding: 0;

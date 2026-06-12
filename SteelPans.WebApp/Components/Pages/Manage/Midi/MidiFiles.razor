@@ -11,8 +11,8 @@
         <h1>MIDI Files</h1>
         <p>Manage uploaded MIDI files, track assignments, and group sharing.</p>
 
-        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "")">@State.Task.Error</p>
-        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--visible" : "")">@State.Task.Message</p>
+        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Error</p>
+        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Message</p>
     </div>
 
     <div class="midi-files-home__actions">
@@ -48,7 +48,7 @@
 
                         <div class="sp-app-list-item__actions">
                             <a class="sp-app-button sp-app-button--primary" href="/manage/midi/@file.Id">View / Edit</a>
-                            <a class="sp-app-button" href="/practice/play?file=@file.Id">Open in Pans</a>
+                            <a class="sp-app-button" href="/practice/play?file=@file.Id">Practice</a>
                         </div>
                     </article>
                 }
