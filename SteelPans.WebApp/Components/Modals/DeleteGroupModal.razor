@@ -39,12 +39,9 @@
     private string title_ = string.Empty;
     private ConfirmationStage stage_;
 
-    private void OnOpen(GroupSummaryDto? payload)
+    private void OnOpen(GroupSummaryDto payload)
     {
-        var group = payload ?? throw new InvalidOperationException(
-            "DeleteGroup modal requires a group payload.");
-
-        title_ = $"Delete {group.Name}?";
+        title_ = $"Delete {payload.Name}?";
         stage_ = ConfirmationStage.One;
     }
 
@@ -59,18 +56,15 @@
         });
     }
 
-    private async Task<bool> OnConfirmAsync(GroupSummaryDto? payload)
+    private async Task<bool> OnConfirmAsync(GroupSummaryDto payload)
     {
-        var group = payload ?? throw new InvalidOperationException(
-            "DeleteGroup modal requires a group payload.");
-
         switch (stage_)
         {
             case ConfirmationStage.One:
                 stage_ = ConfirmationStage.Two;
                 return false;
             case ConfirmationStage.Two:
-                await DeleteAccountAsync(group);
+                await DeleteAccountAsync(payload);
                 return true;
         }
 

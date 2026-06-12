@@ -58,28 +58,21 @@
 
 @code {
     private RenderFragment RenderButtons => @<div class="modal-popup__actions">
-        @if (Buttons is not null)
+        @if (!string.IsNullOrEmpty(CloseButton))
         {
-            @Buttons
+            <button type="button"
+                    class="btn @(string.IsNullOrWhiteSpace(CloseButtonClass) ? "btn-outline-secondary" : CloseButtonClass)"
+                    @onclick="RequestCloseAsync">
+                @CloseButton
+            </button>
         }
-        else
+        @if (!string.IsNullOrEmpty(ConfirmButton))
         {
-            @if (!string.IsNullOrEmpty(CloseButton))
-            {
-                <button type="button"
-                        class="btn @(string.IsNullOrWhiteSpace(CloseButtonClass) ? "btn-outline-secondary" : CloseButtonClass)"
-                        @onclick="RequestCloseAsync">
-                    @CloseButton
-                </button>
-            }
-            @if (!string.IsNullOrEmpty(ConfirmButton))
-            {
-                <button type="button"
-                        class="btn @(string.IsNullOrWhiteSpace(ConfirmButtonClass) ? "btn-primary" : ConfirmButtonClass)"
-                        @onclick="ConfirmAsync">
-                    @ConfirmButton
-                </button>
-            }
+            <button type="button"
+                    class="btn @(string.IsNullOrWhiteSpace(ConfirmButtonClass) ? "btn-primary" : ConfirmButtonClass)"
+                    @onclick="ConfirmAsync">
+                @ConfirmButton
+            </button>
         }
     </div>;
 }

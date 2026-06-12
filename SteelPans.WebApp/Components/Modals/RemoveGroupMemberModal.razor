@@ -25,23 +25,17 @@
 
     private string title_ = string.Empty;
 
-    private void OnOpen(Payload? payload)
+    private void OnOpen(Payload payload)
     {
-        var midiFile = payload ?? throw new InvalidOperationException(
-            "RemoveGroupMember modal requires a payload.");
-
         title_ = $"Remove {DisplayName(payload.Member)}?";
     }
 
-    private async Task<bool> OnConfirmAsync(Payload? payload)
+    private async Task<bool> OnConfirmAsync(Payload payload)
     {
-        var data = payload ?? throw new InvalidOperationException(
-            "LeaveGroup modal requires a group payload.");
-
         await State.Task.RunSafe(async () =>
         {
-            await Db.Groups.RemoveMemberAsync(data.Group.Id, data.Member.UserId);
-            return "Member removed.";
+            await Db.Groups.RemoveMemberAsync(payload.Group.Id, payload.Member.UserId);
+            return $"{DisplayName(payload.Member)} removed from group.";
         });
 
         return true;

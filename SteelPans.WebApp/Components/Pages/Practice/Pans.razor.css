@@ -1,6 +1,6 @@
 .pans-page {
     display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-rows: auto 0 minmax(0, 1fr);
     height: 100%;
     min-height: 0;
     overflow: hidden;
@@ -10,8 +10,12 @@
     padding-block-end: clamp(0.1rem, 0.35vw, 1rem);
 }
 
-    .pans-page:has(.sp-app-alert--hidden) {
-        grid-template-rows: 0 auto minmax(0, 1fr);
+    .pans-page:has(.sp-app-alert--visible) {
+        grid-template-rows: auto auto minmax(0, 1fr);
+    }
+
+    .pans-page .sp-app-alert--visible {
+        margin-top: clamp(0.2rem, 0.5vw, 0.9rem);
     }
 
 .pans-page__controls {

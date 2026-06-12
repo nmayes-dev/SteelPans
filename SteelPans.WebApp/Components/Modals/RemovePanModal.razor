@@ -13,20 +13,14 @@
 @code {
     private string title_ = "Remove Pan?";
 
-    private void OnOpen(MidiAssignedPan? payload)
+    private void OnOpen(MidiAssignedPan payload)
     {
-        var assignedPan = payload ?? throw new InvalidOperationException(
-            "RemovePan modal requires a payload.");
-
-        title_ = $"Remove {assignedPan.Pan.Type.ToSpacedPascal()}?";
+        title_ = $"Remove {payload.Pan.Type.ToSpacedPascal()}?";
     }
 
-    private async Task<bool> OnConfirmAsync(MidiAssignedPan? payload)
+    private async Task<bool> OnConfirmAsync(MidiAssignedPan payload)
     {
-        var assignedPan = payload ?? throw new InvalidOperationException(
-            "RemovePan modal requires a payload.");
-
-        var index = assignedPan.Assignment.Track?.Index ?? -1;
+        var index = payload.Assignment.Track?.Index ?? -1;
 
         await Playback.OnRemoveAssignmentAsync(index);
         return true;

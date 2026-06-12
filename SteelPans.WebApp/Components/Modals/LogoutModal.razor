@@ -4,7 +4,7 @@
 <ModalPopup TPayload="object"
             Id="Logout"
             Title="Logout"
-            OnConfirm="SubmitAsync">
+            OnConfirm="_ => SubmitAsync()">
     <ChildContent>
         <div class="account-card__header">
             <p class="account-card__subtitle">End this session on the current device.</p>
@@ -40,7 +40,7 @@
         }
     }
 
-    public async Task<bool> SubmitAsync(object? _)
+    public async Task<bool> SubmitAsync()
     {
         try
         {

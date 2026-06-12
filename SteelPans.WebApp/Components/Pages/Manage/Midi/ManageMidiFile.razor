@@ -12,17 +12,17 @@
     <div class="sp-app-page__header midi-file-page__header">
         <p class="sp-app-page__eyebrow">Steel Pans</p>
         <h1>@title_</h1>
-        <p>@(File is null ? "Loading file..." : $"{File.OriginalFileName} · {FormatSize(File.SizeBytes)} · {GetFileAccessLabel(File)}")</p>
+        <p>@subtitle_</p>
 
-        <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
-        <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--hidden" : "")">@State.Task.Message</p>
+        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "")">@State.Task.Error</p>
+        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--visible" : "")">@State.Task.Message</p>
     </div>
 
     <div class="midi-file-page__actions">
         <a class="sp-app-button" href="/manage/midi">Back</a>
         @if (File is not null)
         {
-            <a class="sp-app-button" href="/practice/play?file=@File.Id">Open in Pans</a>
+            <a class="sp-app-button" href="/practice/play?file=@File.Id">Practice</a>
             <button class="sp-app-button sp-app-button--danger"
                     type="button"
                     @onclick="() => OpenDeleteFileModal(File)">
@@ -31,13 +31,7 @@
         }
     </div>
 
-    @if (File is null)
-    {
-        <div class="sp-app-card midi-file-page__card">
-            <p>File was not found.</p>
-        </div>
-    }
-    else
+    @if (File is not null)
     {
         <div class="sp-app-grid sp-app-grid--two midi-file-page__grid">
             <div class="sp-app-card midi-file-page__card">
@@ -146,7 +140,15 @@
     public Guid FileId { get; set; }
 
     private GroupFileDto? File => State.User.Files?.FirstOrDefault(x => x.Id == FileId);
+
     private string title_ => File?.Title ?? "MIDI File";
+
+    private const string LoadingFileSubtitle = "Loading file...";
+    private const string NoFileSubtitle = "File not found.";
+    private string noFileSubtitle_ = LoadingFileSubtitle;
+
+    private string subtitle_ => File is null ? noFileSubtitle_ : $"{File.OriginalFileName} · {FormatSize(File.SizeBytes)} · {GetFileAccessLabel(File)}";
+
     private Guid? targetShareGroup_;
     private MidiFilePreview? filePreview_;
     private bool openedPreview_;
@@ -156,8 +158,25 @@
         State.User.OnRefresh += OnRefreshAsync;
     }
 
+    private async Task UpdateNotFoundSubtitleAsync()
+    {
+        if (File is not null)
+            return;
+
+        await Task.Delay(1000).ContinueWith(async _ =>
+        {
+            noFileSubtitle_ = NoFileSubtitle;
+            await InvokeAsync(StateHasChanged);
+        });
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (!firstRender)
+            return;
+
+        await UpdateNotFoundSubtitleAsync();
+
         if (!openedPreview_ && filePreview_ is not null && File is not null)
         {
             openedPreview_ = true;

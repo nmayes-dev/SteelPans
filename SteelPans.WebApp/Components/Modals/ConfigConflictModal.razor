@@ -10,12 +10,9 @@
             OnConfirm="OnConfirmAsync" />
 
 @code {
-    private async Task<bool> OnConfirmAsync(Configuration? payload)
+    private async Task<bool> OnConfirmAsync(Configuration payload)
     {
-        var config = payload ?? throw new InvalidOperationException(
-            "ConfigConflict modal requires a payload.");
-
-        await Playback.LoadPanLayoutAsync(config.Layout);
+        await Playback.LoadPanLayoutAsync(payload.Layout);
         return true;
     }
 }

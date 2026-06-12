@@ -1,6 +1,8 @@
 ﻿@inherits LayoutComponentBase
+@inject SafeJSInteropService SafeJS
 @inject KeyboardManagerService KeyboardManager
 @inject InstanceStateService State
+@implements IDisposable
 
 <div class="page">
     <div class="sidebar">
@@ -35,6 +37,12 @@
         if (!firstRender)
             return;
 
+        SafeJS.MarkSafe();
         await KeyboardManager.InitializeAsync();
+    }
+
+    public void Dispose()
+    {
+        SafeJS.MarkUnsafe();
     }
 }

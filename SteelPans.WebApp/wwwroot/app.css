@@ -374,15 +374,17 @@ h4 {
     }
 
 .sp-app-alert {
-    border-radius: 0.75rem;
-    padding: 0.65rem 0.7rem;
-    margin-bottom: 0.4rem;
-}
-
-.sp-app-alert--hidden {
     width: 0;
     height: 0;
     padding: 0;
+}
+
+.sp-app-alert--visible {
+    width: 100%;
+    height: auto;
+    border-radius: 0.75rem;
+    padding: 0.65rem 0.7rem;
+    margin-bottom: 0.4rem;
 }
 
 .sp-app-alert--error {

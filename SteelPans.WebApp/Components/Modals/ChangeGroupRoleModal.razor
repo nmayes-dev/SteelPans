@@ -1,0 +1,75 @@
+﻿@inject DbService Db
+@inject InstanceStateService State
+
+<ModalPopup TPayload="Payload"
+            Id="ChangeRole"
+            Title="@title_"
+            OnOpen="OnOpen"
+            CloseButton="Cancel"
+            ConfirmButton="Confirm"
+            ConfirmButtonClass="btn-danger"
+            OnConfirm="OnConfirmAsync">
+    <ChildContent>
+        @if (!string.IsNullOrWhiteSpace(body_))
+        {
+            <div class="manage-group-modal">
+                <p>
+                    You will become an admin and this member will become the group leader. Only the new leader will be able to delete the group or transfer leadership again.
+                </p>
+            </div>
+        }
+    </ChildContent>
+</ModalPopup>
+
+@code {
+    public sealed record Payload(
+        GroupSummaryDto Group,
+        GroupMemberSummaryDto Member,
+        GroupRole NewRole);
+
+    private string title_ = string.Empty;
+    private string body_ = string.Empty;
+
+    private void OnOpen(Payload payload)
+    {
+        switch (payload.NewRole)
+        {
+            case GroupRole.Admin:
+                title_ = $"Make {DisplayName(payload.Member)} an admin?";
+                body_ = string.Empty;
+                break;
+            case GroupRole.Leader:
+                title_ = $"Transfer Group to {DisplayName(payload.Member)}?";
+                body_ = "You will become an admin and this member will become the group leader. Only the new leader will be able to delete the group or transfer leadership again.";
+                break;
+            default:
+                break;
+        }
+    }
+
+    private async Task<string> UpdateRoleAsync(Payload payload)
+    {
+        switch (payload.NewRole)
+        {
+            case GroupRole.Admin:
+                await Db.Groups.SetMemberRoleAsync(payload.Group.Id, new UpdateGroupMemberRoleRequest(payload.Member.UserId, payload.NewRole));
+                await State.User.RefreshAsync();
+                return $"{DisplayName(payload.Member)} is now an admin.";
+            case GroupRole.Leader:
+                await Db.Groups.TransferLeadershipAsync(payload.Group.Id, payload.Member.UserId);
+                await State.User.RefreshAsync();
+                return "Leadership transferred.";
+            default:
+                throw new InvalidOperationException("Confirmation not required for setting member role");
+        }
+    }
+
+    private async Task<bool> OnConfirmAsync(Payload payload)
+    {
+        await State.Task.RunSafe(() => UpdateRoleAsync(payload));
+        return true;
+    }
+
+    private static string DisplayName(GroupMemberSummaryDto member) =>
+        string.IsNullOrWhiteSpace(member.UserName) ? member.Email : member.UserName;
+}

@@ -77,21 +77,21 @@ public sealed class InstanceStateService : IAsyncDisposable
         private ValueTask OnLocationChanged(LocationChangingContext context)
         {
             if (!Busy)
-                InitializeState(false);
+                InitializeState(block: false, resetMessage: true);
 
             return ValueTask.CompletedTask;
         }
 
-        private void InitializeState(bool block)
+        private void InitializeState(bool block, bool resetMessage)
         {
             Busy = block;
-            Message = string.Empty;
+            Message = resetMessage ? string.Empty : Message;
             Error = string.Empty;
         }
 
         private async Task<bool> Run(bool block, Func<Task<string>> job)
         {
-            InitializeState(block);
+            InitializeState(block, resetMessage: true);
 
             try
             {
@@ -111,7 +111,7 @@ public sealed class InstanceStateService : IAsyncDisposable
 
         private async Task<bool> Run(bool block, Func<Task> job)
         {
-            InitializeState(block);
+            InitializeState(block, resetMessage: false);
 
             try
             {

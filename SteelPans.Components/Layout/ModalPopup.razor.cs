@@ -34,9 +34,6 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
     public RenderFragment? ChildContent { get; set; }
 
     [Parameter]
-    public RenderFragment? Buttons { get; set; }
-
-    [Parameter]
     public string? CloseButton { get; set; }
 
     [Parameter]
@@ -49,13 +46,13 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
     public string? ConfirmButtonClass { get; set; }
 
     [Parameter]
-    public EventCallback<TPayload?> OnOpen { get; set; }
+    public EventCallback<TPayload> OnOpen { get; set; }
 
     [Parameter]
     public Func<TPayload?, Task<bool>>? OnConfirm { get; set; }
 
     [Parameter]
-    public EventCallback<TPayload?> OnClose { get; set; }
+    public EventCallback<TPayload> OnClose { get; set; }
 
     [Parameter]
     public Func<Task<bool>> CanOpen { get; set; } = () => Task.FromResult(true);
@@ -63,7 +60,9 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
     public object? Payload => payload_;
 
     private TPayload? payload_;
-    private Func<Task>? onSuccess_;
+    private ModalOptions? options_;
+    private bool success_;
+
     private double dragStartClientX_;
     private double dragStartClientY_;
     private double dragStartOffsetX_;
@@ -100,7 +99,7 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
 
     protected override void OnInitialized()
     {
-        if (Buttons is null && CloseButton is null && ConfirmButton is null && !ShowCloseButton && CloseOnBackdropClick)
+        if (CloseButton is null && ConfirmButton is null && !ShowCloseButton && CloseOnBackdropClick)
         {
             throw new InvalidOperationException("This modal will be unable to close");
         }
@@ -139,16 +138,17 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
         if (!await CanOpen())
             return;
 
-        var opts = options ?? new ModalOptions();
-
         payload_ = GetTypedPayload(payload);
-        onSuccess_ = opts.OnSuccess;
+        options_ = options;
+
+        success_ = false;
         isOpen_ = true;
         focusOnRender_ = true;
+
         ResetDrag();
 
         await OnOpen.InvokeAsync(payload_);
-        await NotifyOpenedAsync(opts.CloseOthers);
+        await NotifyOpenedAsync(options_?.CloseOthers ?? true);
         await InvokeAsync(StateHasChanged);
     }
 
@@ -157,22 +157,33 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
         if (OnConfirm is not null && !await OnConfirm.Invoke(payload_))
             return;
 
-        if (onSuccess_ is not null)
-            await onSuccess_();
+        success_ = true;
 
         await RequestCloseAsync();
     }
 
+
     protected override async Task OnCloseAsync()
     {
         var payload = payload_;
+        var options = options_;
 
         isOpen_ = false;
         isDragging_ = false;
         payload_ = default;
-        onSuccess_ = null;
+        options_ = null;
 
         await OnClose.InvokeAsync(payload);
+
+        if (success_ && options?.OnSuccess != null)
+            await options.OnSuccess();
+
+        if (!success_ && options?.OnFailure != null)
+            await options.OnFailure();
+
+        if (options?.OnComplete != null)
+            await options.OnComplete();
+
         await InvokeAsync(StateHasChanged);
     }
 

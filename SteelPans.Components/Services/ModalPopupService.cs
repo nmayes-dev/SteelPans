@@ -5,7 +5,9 @@ namespace SteelPans.Components.Services;
 public sealed class ModalOptions
 {
     public bool CloseOthers { get; set; } = true;
+    public Func<Task>? OnComplete { get; set; }
     public Func<Task>? OnSuccess { get; set; }
+    public Func<Task>? OnFailure { get; set; }
 }
 
 public interface IModalPopup

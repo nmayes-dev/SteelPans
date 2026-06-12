@@ -7,7 +7,6 @@
             Title="Merge MIDI tracks"
             OnOpen="OnOpen"
             CloseButton="Cancel"
-            OnClose="OnClose"
             ConfirmButton="Merge"
             OnConfirm="OnConfirmAsync">
     <ChildContent>
@@ -19,24 +18,16 @@
 </ModalPopup>
 
 @code {
-    private IReadOnlyList<DialogFile> files_ = [];
     private string mergeMidiFileName_ = string.Empty;
 
-    private void OnOpen(IReadOnlyList<DialogFile>? files)
+    private void OnOpen(IReadOnlyList<DialogFile> files)
     {
-        files_ = files ?? [];
+        if (files.Count == 0)
+            throw new InvalidOperationException("Must provide at least one file");
     }
 
-    private void OnClose(IReadOnlyList<DialogFile>? _)
+    private async Task<bool> OnConfirmAsync(IReadOnlyList<DialogFile> files)
     {
-        mergeMidiFileName_ = string.Empty;
-        files_ = [];
-    }
-
-    private async Task<bool> OnConfirmAsync(IReadOnlyList<DialogFile>? files)
-    {
-        files ??= files_;
-
         if (files.Count == 0)
             return true;
 

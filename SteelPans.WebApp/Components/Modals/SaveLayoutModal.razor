@@ -10,7 +10,7 @@
                      CloseButton="Cancel"
                      OnClose="OnCloseAsync"
                      ConfirmButton="Save"
-                     OnConfirm="OnConfirmAsync">
+                     OnConfirm="_ => OnConfirmAsync()">
     <ChildContent>
         <div class="file-save__body">
             <input class="form-control"
@@ -53,7 +53,7 @@
         error_ = null;
     }
 
-    private async Task<bool> OnConfirmAsync(object? _)
+    private async Task<bool> OnConfirmAsync()
     {
         var fileName = fileName_.Trim();
 

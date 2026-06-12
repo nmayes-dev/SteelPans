@@ -22,22 +22,16 @@
 @code {
     private string title_ = string.Empty;
 
-    private void OnOpen(GroupSummaryDto? payload)
+    private void OnOpen(GroupSummaryDto payload)
     {
-        var group = payload ?? throw new InvalidOperationException(
-            "LeaveGroup modal requires a group payload.");
-
-        title_ = $"Leave {group.Name}?";
+        title_ = $"Leave {payload.Name}?";
     }
 
-    private async Task<bool> OnConfirmAsync(GroupSummaryDto? payload)
+    private async Task<bool> OnConfirmAsync(GroupSummaryDto payload)
     {
-        var group = payload ?? throw new InvalidOperationException(
-            "LeaveGroup modal requires a group payload.");
-
         bool success = await State.Task.RunSafe(async () =>
         {
-            await Db.Groups.LeaveGroupAsync(group.Id);
+            await Db.Groups.LeaveGroupAsync(payload.Id);
             return "Left group.";
         });
 

@@ -21,22 +21,16 @@
 @code {
     private string title_ = string.Empty;
 
-    private void OnOpen(GroupFileDto? payload)
+    private void OnOpen(GroupFileDto payload)
     {
-        var midiFile = payload ?? throw new InvalidOperationException(
-            "DeleteMidi modal requires a payload.");
-
-        title_ = $"Delete {midiFile.OriginalFileName}?";
+        title_ = $"Delete {payload.OriginalFileName}?";
     }
 
-    private async Task<bool> OnConfirmAsync(GroupFileDto? payload)
+    private async Task<bool> OnConfirmAsync(GroupFileDto payload)
     {
-        var midiFile = payload ?? throw new InvalidOperationException(
-            "DeleteMidi modal requires a payload.");
-
         await State.Task.RunSafe(async () =>
         {
-            var deletedFileId = midiFile.Id;
+            var deletedFileId = payload.Id;
             await Db.MidiFiles.DeleteMidiFileAsync(deletedFileId);
 
             await State.User.RefreshAsync();

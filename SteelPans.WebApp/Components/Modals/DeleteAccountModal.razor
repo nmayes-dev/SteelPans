@@ -7,7 +7,7 @@
             CloseButton="Cancel"
             ConfirmButton="Delete Account"
             ConfirmButtonClass="btn-danger"
-            OnConfirm="OnConfirmAsync">
+            OnConfirm="_ => OnConfirmAsync()">
     <ChildContent>
         <div class="delete-account-modal">
             @switch (stage_)
@@ -50,7 +50,7 @@
         stage_ = ConfirmationStage.One;
     }
 
-    private async Task<bool> OnConfirmAsync(object? _)
+    private async Task<bool> OnConfirmAsync()
     {
         switch (stage_)
         {

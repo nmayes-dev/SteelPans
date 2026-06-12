@@ -13,8 +13,8 @@
         <h1>Upload MIDI File</h1>
         <p>Preview a MIDI file locally before uploading it to your account.</p>
 
-        <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
-        <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--hidden" : "")">@State.Task.Message</p>
+        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "")">@State.Task.Error</p>
+        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--visible" : "")">@State.Task.Message</p>
     </div>
 
     <div class="midi-upload-page__actions">

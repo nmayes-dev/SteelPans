@@ -7,7 +7,7 @@
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
-<PageTitle>Manage Group</PageTitle>
+<PageTitle>@pageTitle_</PageTitle>
 
 <section class="sp-app-page groups-page manage-group-page">
     <div class="sp-app-page__header manage-group-page__header">
@@ -16,8 +16,8 @@
             <h1>@(group_?.Name ?? "Manage Group")</h1>
             <p>@(group_ is null ? "Loading group..." : $"Your role: {group_.Role}")</p>
 
-            <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
-            <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--hidden" : "")">@State.Task.Message</p>
+            <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "")">@State.Task.Error</p>
+            <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--visible" : "")">@State.Task.Message</p>
         </div>
 
         @if (group_ is not null)
@@ -155,7 +155,7 @@
                 }
             </section>
         </div>
-        
+
         <MidiFilePreview @ref="filePreview_"
                          AllowEdit="CanManageFiles"
                          OnSave="StateHasChanged" />
@@ -175,13 +175,15 @@
 
     private MidiFilePreview? filePreview_;
 
+    private string pageTitle_ => group_?.Name ?? "Manage";
+
     private bool IsLeader => group_?.Role == GroupRole.Leader;
     private bool IsAdmin => group_?.Role == GroupRole.Admin;
     private bool CanManageFiles => IsLeader || IsAdmin;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadAsync();
+        await LoadAsync(refresh: false);
         State.User.OnRefresh += OnUserStateRefreshAsync;
     }
 
@@ -193,11 +195,10 @@
     private async Task OnUserStateRefreshAsync()
     {
         // If the user's groups have changed we may need to update the current group info or navigate away if they lost access
-        await LoadAsync();
-        await InvokeAsync(StateHasChanged);
+        await LoadAsync(refresh: true);
     }
 
-    private async Task LoadAsync()
+    private async Task LoadAsync(bool refresh)
     {
         var success = await State.Task.RunUnsafe(async () =>
         {
@@ -214,7 +215,11 @@
         {
             // If we failed to load the group, navigate back to the groups page (maybe they were removed from the group?)
             Nav.NavigateTo("/manage/groups");
+            return;
         }
+
+        if (refresh)
+            await InvokeAsync(StateHasChanged);
     }
 
     private async Task CreateInviteAsync()
@@ -245,7 +250,7 @@
         await State.Task.RunSafe(async () =>
         {
             await Db.MidiFiles.UnshareMidiFileWithGroupAsync(fileId, GroupId);
-            await LoadAsync();
+            await LoadAsync(refresh: false);
 
             await filePreview_!.ClosePreviewIfAsync(fileId);
 
@@ -269,12 +274,12 @@
         switch (newRole)
         {
             case GroupRole.Member:
-            case GroupRole.Admin:
                 await SetRoleAsync(member, newRole);
                 break;
 
             case GroupRole.Leader:
-                await OpenTransferLeadershipModalAsync(member);
+            case GroupRole.Admin:
+                await OpenRoleChangeConfirmationAsync(member, newRole);
                 break;
         }
     }
@@ -285,7 +290,7 @@
         {
             await Db.Groups.SetMemberRoleAsync(GroupId, new UpdateGroupMemberRoleRequest(member.UserId, role));
             roles_[member.UserId] = role;
-            await LoadAsync();
+            await LoadAsync(refresh: false);
             return "Member role updated.";
         });
     }
@@ -295,12 +300,24 @@
         Nav.NavigateTo($"/practice/play?file={fileId}");
     }
 
-    private async Task OpenTransferLeadershipModalAsync(GroupMemberSummaryDto member)
+    private async Task OpenRoleChangeConfirmationAsync(GroupMemberSummaryDto member, GroupRole newRole)
     {
         if (group_ is null)
             return;
-            
-        await Modals.OpenAsync("TransferLeadership", new TransferLeadershipModal.Payload(group_, member));
+
+        var resetRole = () =>
+        {
+            roles_[member.UserId] = member.Role;
+            return Task.CompletedTask;
+        };
+
+        await Modals.OpenAsync("ChangeRole",
+            new ChangeGroupRoleModal.Payload(group_, member, newRole),
+            new ModalOptions { 
+                OnFailure = resetRole,
+                OnComplete = () => InvokeAsync(StateHasChanged)
+            }
+        );
     }
 
     private async Task OpenRemoveMemberModalAsync(GroupMemberSummaryDto member)
