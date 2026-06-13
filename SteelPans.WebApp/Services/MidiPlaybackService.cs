@@ -708,8 +708,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         StopPlaybackProgressLoop();
 
-        foreach (var view in steelPanViews_.Values)
-            await StopMidiSequenceAsync(view);
+        await Task.WhenAll(steelPanViews_.Values.Select(StopMidiSequenceAsync));
 
         playingComponentIds_.Clear();
 
