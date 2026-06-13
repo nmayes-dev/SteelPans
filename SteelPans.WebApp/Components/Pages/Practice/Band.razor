@@ -1,4 +1,4 @@
-@page "/practice/play"
+@page "/play/ensemble"
 @inject SteelPanLoaderService PanLoader
 @inject MidiLoaderService MidiService
 @inject MidiPlaybackService Playback
@@ -8,32 +8,32 @@
 @inject IJSRuntime JS
 @inject IOptions<Settings> SettingsAccessor
 
-<PageTitle>Practice</PageTitle>
+<PageTitle>Band</PageTitle>
 
-<div class="pans-page">
+<div class="band-page">
     @if (Playback.AvailablePans.Count > 0)
     {
         var hasMidiControls = Playback.ActivePans.Any(x => x.Events.Count > 0);
         
-        <section class="sp-app-section pans-page__controls">
-            <div class="pans-page__toolbar">
+        <section class="sp-app-section band-page__controls">
+            <div class="band-page__toolbar">
                 <ControlToolbar />
             </div>
-            <div class="pans-page__midi-controls @(Playback.IsMidiLoaded ? "pans-page__midi-controls--visible" : "pans-page__midi-controls--empty")">
+            <div class="band-page__midi-controls @(Playback.IsMidiLoaded ? "band-page__midi-controls--visible" : "band-page__midi-controls--empty")">
                 @if (Playback.IsMidiLoaded)
                 {
                     <MidiPlaybackControl Enabled="@hasMidiControls" />
                 }
                 else
                 {
-                    <div class="pans-page__midi-message">
+                    <div class="band-page__midi-message">
                         @if (Playback.ActivePans.Any())
                         {
-                            <span>Load a MIDI file to enable playback controls.</span>
+                            <span>Load a MIDI file to enable ensemble playback controls.</span>
                         }
                         else
                         {
-                            <span>Load a MIDI file or add a pan to begin.</span>
+                            <span>Load a MIDI file or add pans to begin ensemble playback.</span>
                         }
                     </div>
                 }
@@ -41,7 +41,7 @@
 
             @if (Playback.IsMidiLoaded)
             {
-                <div class="pans-page__count-in">
+                <div class="band-page__count-in">
                     <CountInControl />
                 </div>
             }
@@ -49,7 +49,7 @@
 
         <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Error</p>
 
-        <section class="pans-page__content">
+        <section class="band-page__content">
             <PansLayout Pans="@Playback.ActivePans" />
         </section>
     }

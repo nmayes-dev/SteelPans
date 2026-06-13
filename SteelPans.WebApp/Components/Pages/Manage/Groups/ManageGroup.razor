@@ -146,7 +146,7 @@
                                             type="button"
                                             disabled="@State.Task.Busy"
                                             @onclick="() => OpenInPans(file.Id)">
-                                        Practice
+                                        Ensemble
                                     </button>
                                 </div>
                             </article>
@@ -297,7 +297,7 @@
 
     private void OpenInPans(Guid fileId)
     {
-        Nav.NavigateTo($"/practice/play?file={fileId}");
+        Nav.NavigateTo($"/play/ensemble?file={fileId}");
     }
 
     private async Task OpenRoleChangeConfirmationAsync(GroupMemberSummaryDto member, GroupRole newRole)

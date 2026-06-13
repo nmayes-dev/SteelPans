@@ -120,6 +120,7 @@ public static class Program
         builder.Services.AddScoped<OverlayManagerService>();
         builder.Services.AddScoped<ModalPopupService>();
         builder.Services.AddScoped<KeyboardManagerService>();
+        builder.Services.AddScoped<RecordDraftService>();
 
         builder.Services.Configure<Settings>(builder.Configuration.GetSection("Settings"));
 

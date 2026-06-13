@@ -1,4 +1,4 @@
-.pans-page {
+.band-page {
     display: grid;
     grid-template-rows: auto 0 minmax(0, 1fr);
     height: 100%;
@@ -10,22 +10,22 @@
     padding-block-end: clamp(0.1rem, 0.35vw, 1rem);
 }
 
-    .pans-page:has(.sp-app-alert--visible) {
+    .band-page:has(.sp-app-alert--visible) {
         grid-template-rows: auto auto minmax(0, 1fr);
     }
 
-    .pans-page .sp-app-alert--visible {
+    .band-page .sp-app-alert--visible {
         margin-top: clamp(0.2rem, 0.5vw, 0.9rem);
     }
 
-.pans-page__controls {
+.band-page__controls {
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
 }
 
 
-.pans-page__toolbar {
+.band-page__toolbar {
     --toolbar__button-override-size: calc(1.2 * var(--ui-icon-button-size));
     position: relative;
     overflow: visible;
@@ -36,7 +36,7 @@
     justify-content: flex-end;
 }
 
-.pans-page__midi-controls {
+.band-page__midi-controls {
     flex: 1 1 auto;
     width: 100%;
     min-width: 0;
@@ -48,12 +48,12 @@
     transition: opacity 250ms ease, transform 350ms ease, max-height 350ms ease;
 }
 
-.pans-page__midi-controls--empty {
+.band-page__midi-controls--empty {
     display: grid;
     place-items: center;
 }
 
-.pans-page__midi-message {
+.band-page__midi-message {
     width: 100%;
     padding: clamp(0.6rem, 1vw, 1rem);
     text-align: center;
@@ -63,7 +63,7 @@
 }
 
 
-.pans-page__count-in {
+.band-page__count-in {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
@@ -71,7 +71,7 @@
     padding: clamp(0.2rem, 0.4vw, 0.5rem);
 }
 
-.pans-page__content {
+.band-page__content {
     position: relative;
     min-width: 0;
     min-height: 0;
@@ -91,7 +91,7 @@
 
 @media (max-width: 700px) {
 
-    .pans-page__content {
+    .band-page__content {
         overflow: visible;
     }
 }

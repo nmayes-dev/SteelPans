@@ -97,22 +97,13 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
 
     private readonly List<IDisposable> keyCallbacks_ = [];
 
+
     protected override void OnInitialized()
     {
         if (CloseButton is null && ConfirmButton is null && !ShowCloseButton && CloseOnBackdropClick)
         {
             throw new InvalidOperationException("This modal will be unable to close");
         }
-
-        keyCallbacks_.Add(
-            Keyboard.Register(
-                e => isOpen_ && e.Key == "Escape" && !e.IsEditableTarget,
-                _ => RequestCloseAsync()));
-
-        keyCallbacks_.Add(
-            Keyboard.Register(
-                e => isOpen_ && e.Key == "Enter" && !e.IsEditableTarget,
-                _ => ConfirmAsync()));
 
         Modals.Register(Id, this);
 
@@ -126,6 +117,34 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
 
         focusOnRender_ = false;
         await popupElement_.Value.FocusAsync();
+    }
+
+    private bool AcceptEscape(KeyboardEventData e)
+    {
+        return isOpen_ && e.Key == "Escape" && !e.IsEditableTarget;
+    }
+    private bool AcceptEnter(KeyboardEventData e)
+    {
+        return isOpen_ && e.Key == "Enter" && !e.IsEditableTarget;
+    }
+    private void AddKeyCallbacks()
+    {
+        keyCallbacks_.Add(
+            Keyboard.Register(
+                AcceptEscape,
+                _ => RequestCloseAsync()));
+
+        keyCallbacks_.Add(
+            Keyboard.Register(
+                AcceptEnter,
+                _ => ConfirmAsync()));
+    }
+    private void RemoveKeyCallbacks()
+    {
+        foreach (var registration in keyCallbacks_)
+            registration.Dispose();
+
+        keyCallbacks_.Clear();
     }
 
     public virtual Task OpenAsync()
@@ -146,6 +165,8 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
         focusOnRender_ = true;
 
         ResetDrag();
+
+        AddKeyCallbacks();
 
         await OnOpen.InvokeAsync(payload_);
         await NotifyOpenedAsync(options_?.CloseOthers ?? true);
@@ -183,6 +204,8 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
 
         if (options?.OnComplete != null)
             await options.OnComplete();
+
+        RemoveKeyCallbacks();
 
         await InvokeAsync(StateHasChanged);
     }
@@ -253,10 +276,7 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
     {
         Modals.Unregister(Id, this);
 
-        foreach (var registration in keyCallbacks_)
-            registration.Dispose();
-
-        keyCallbacks_.Clear();
+        RemoveKeyCallbacks();
 
         base.Dispose();
     }

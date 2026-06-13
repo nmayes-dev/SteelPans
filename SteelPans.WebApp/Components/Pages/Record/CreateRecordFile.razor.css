@@ -1,0 +1,36 @@
+.record-file-page__form {
+    display: grid;
+    gap: 1rem;
+}
+
+.record-file-page__form label {
+    display: grid;
+    gap: 0.35rem;
+    font-weight: 700;
+}
+
+.record-file-page__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.record-file-page__tracks {
+    display: grid;
+    gap: 1rem;
+}
+
+.record-file-page__track {
+    display: grid;
+    gap: 1rem;
+}
+
+.record-file-page__track h2,
+.record-file-page__track p {
+    margin: 0;
+}
+
+.record-file-page__empty {
+    display: grid;
+    gap: 0.75rem;
+}

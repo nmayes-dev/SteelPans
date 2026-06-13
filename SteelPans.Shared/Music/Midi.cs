@@ -18,6 +18,8 @@ public sealed class MidiTrackInfo
             return $"{baseName}{noteCount}";
         }
     }
+
+    public string TrackLabel => Name ?? $"Track {Index}";
 }
 public sealed class MidiPanPlaybackAction
 {

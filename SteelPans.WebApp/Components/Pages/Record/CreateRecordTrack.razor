@@ -1,0 +1,283 @@
+@page "/record/tracks/create"
+@attribute [Authorize]
+@inject RecordDraftService Draft
+@inject SteelPanLoaderService PanLoader
+@inject NavigationManager Nav
+@implements IAsyncDisposable
+
+<PageTitle>Create Track</PageTitle>
+
+<section class="sp-app-page record-track-page">
+    <div class="sp-app-page__header record-track-page__header">
+        <p class="sp-app-page__eyebrow">Record</p>
+        <h1>Create Track</h1>
+        <p>Set up the track, add a pan, then press record and play notes on the pan.</p>
+        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(error_) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@error_</p>
+    </div>
+
+    <div class="sp-app-card record-track-page__setup">
+        <div class="record-track-page__settings">
+            <label>
+                Name
+                <input class="sp-app-input" @bind="trackName_" />
+            </label>
+
+            <label>
+                Pan
+                <select class="sp-app-input" @bind="panType_">
+                    @foreach (var pan in AvailablePans)
+                    {
+                        <option value="@pan.Type">@pan.Type.ToSpacedPascal()</option>
+                    }
+                </select>
+            </label>
+
+            <label>
+                Tempo
+                <input class="sp-app-input" type="number" min="1" max="300" @bind="tempoBpm_" />
+            </label>
+
+            <label>
+                Time signature
+                <span class="record-track-page__signature">
+                    <input class="sp-app-input" type="number" min="1" max="32" @bind="beatsPerBar_" />
+                    <span>/</span>
+                    <NoteDivisionDropdown @bind-Value="beatUnit_"
+                                          NoteDivisions="@([2, 4, 8, 16])" />
+                </span>
+            </label>
+
+            <label>
+                Duration seconds
+                <input class="sp-app-input" type="number" min="1" max="1800" @bind="durationSeconds_" />
+            </label>
+        </div>
+
+        <div class="record-track-page__controls">
+            <div>
+                <strong>@(isRecording_ ? "Recording" : "Ready")</strong>
+                <p>@(overwriteOnRecord_ ? "Fresh recording mode replaces the current notes when recording starts." : "Additive recording mode keeps existing notes and layers new notes on top.")</p>
+            </div>
+            <label class="record-track-page__toggle">
+                <input type="checkbox" @bind="overwriteOnRecord_" />
+                Record a fresh track
+            </label>
+            <button type="button" class="sp-app-button" @onclick="ToggleRecordingAsync">@(isRecording_ ? "Stop recording" : "Record")</button>
+            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="ClearNotes">Clear notes</button>
+            <button type="button" class="sp-app-button" @onclick="SaveTrack">Add track to file draft</button>
+        </div>
+    </div>
+
+    <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.RecordEdit"
+                         PanLabel="@panType_.ToSpacedPascal()"
+                         TrackLabel="@trackName_"
+                         RecordNotes="notes_"
+                         SelectedNoteId="selectedNoteId_"
+                         DurationSeconds="durationSeconds_"
+                         ShowPlayhead="isRecording_"
+                         PositionSeconds="recordingPositionSeconds_"
+                         TempoBpm="tempoBpm_"
+                         BeatsPerBar="beatsPerBar_"
+                         BeatUnit="beatUnit_"
+                         SelectNote="SelectNote"
+                         MoveSelected="MoveSelected"
+                         ResizeSelected="ResizeSelected"
+                         DeleteSelected="DeleteNote" />
+
+    @if (SelectedPan is not null)
+    {
+        <div class="sp-app-card record-track-page__pan-card">
+            <SteelPanView Pan="SelectedPan" Class="record-track-page__pan" OnNotePlayed="OnPanNotePlayedAsync" />
+        </div>
+    }
+</section>
+
+@code {
+    private string? error_;
+    private string trackName_ = "Recorded track";
+    private PanType panType_ = PanType.LeadTenor;
+    private int tempoBpm_ = 120;
+    private int beatsPerBar_ = 4;
+    private int beatUnit_ = 4;
+    private double durationSeconds_ = 60;
+    private bool overwriteOnRecord_ = true;
+    private bool isRecording_;
+    private DateTimeOffset recordStartedAt_;
+    private double recordingPositionSeconds_;
+    private CancellationTokenSource? recordingPositionCts_;
+    private Guid? selectedNoteId_;
+    private readonly List<RecordNoteDraft> notes_ = [];
+
+    private IReadOnlyList<SteelPan> AvailablePans => PanLoader.Pans.Where(x => x.Type != PanType.None).ToList();
+    private SteelPan? SelectedPan => AvailablePans.FirstOrDefault(x => x.Type == panType_) ?? AvailablePans.FirstOrDefault();
+
+    protected override void OnInitialized()
+    {
+        if (AvailablePans.Count > 0)
+            panType_ = AvailablePans[0].Type;
+    }
+
+    private Task ToggleRecordingAsync()
+    {
+        error_ = null;
+        if (isRecording_)
+        {
+            StopRecording();
+            return Task.CompletedTask;
+        }
+
+        if (overwriteOnRecord_)
+        {
+            notes_.Clear();
+            selectedNoteId_ = null;
+        }
+
+        recordingPositionSeconds_ = 0;
+        recordStartedAt_ = DateTimeOffset.UtcNow;
+        isRecording_ = true;
+        StartRecordingPositionLoop();
+        return Task.CompletedTask;
+    }
+
+    private Task OnPanNotePlayedAsync(Note note)
+    {
+        if (!isRecording_)
+            return Task.CompletedTask;
+
+        var start = Math.Clamp((DateTimeOffset.UtcNow - recordStartedAt_).TotalSeconds, 0, Math.Max(1, durationSeconds_));
+        var defaultDuration = Math.Max(0.15, 60.0 / Math.Max(1, tempoBpm_) / 2.0);
+        var draft = new RecordNoteDraft
+        {
+            Note = note,
+            StartSeconds = start,
+            DurationSeconds = Math.Min(defaultDuration, Math.Max(0.1, durationSeconds_ - start))
+        };
+
+        notes_.Add(draft);
+        selectedNoteId_ = draft.Id;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    private void SelectNote(Guid id) => selectedNoteId_ = id;
+
+    private void MoveSelected(double delta)
+    {
+        var note = notes_.FirstOrDefault(x => x.Id == selectedNoteId_);
+        if (note is null)
+            return;
+
+        note.StartSeconds = Math.Clamp(note.StartSeconds + delta, 0, Math.Max(0, durationSeconds_ - note.DurationSeconds));
+    }
+
+    private void ResizeSelected(double delta)
+    {
+        var note = notes_.FirstOrDefault(x => x.Id == selectedNoteId_);
+        if (note is null)
+            return;
+
+        note.DurationSeconds = Math.Clamp(note.DurationSeconds + delta, 0.05, Math.Max(0.05, durationSeconds_ - note.StartSeconds));
+    }
+
+    private void DeleteNote(Guid id)
+    {
+        notes_.RemoveAll(x => x.Id == id);
+        if (selectedNoteId_ == id)
+            selectedNoteId_ = null;
+    }
+
+    private void ClearNotes()
+    {
+        notes_.Clear();
+        selectedNoteId_ = null;
+    }
+
+    private void StartRecordingPositionLoop()
+    {
+        recordingPositionCts_?.Cancel();
+        recordingPositionCts_?.Dispose();
+        recordingPositionCts_ = new CancellationTokenSource();
+        _ = UpdateRecordingPositionAsync(recordingPositionCts_.Token);
+    }
+
+    private async Task UpdateRecordingPositionAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(33));
+
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                if (!isRecording_)
+                    return;
+
+                recordingPositionSeconds_ = Math.Clamp(
+                    (DateTimeOffset.UtcNow - recordStartedAt_).TotalSeconds,
+                    0,
+                    Math.Max(1, durationSeconds_));
+
+                if (recordingPositionSeconds_ >= durationSeconds_)
+                {
+                    StopRecording();
+                }
+
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private void StopRecording()
+    {
+        if (!isRecording_)
+            return;
+
+        recordingPositionSeconds_ = Math.Clamp(
+            (DateTimeOffset.UtcNow - recordStartedAt_).TotalSeconds,
+            0,
+            Math.Max(1, durationSeconds_));
+
+        isRecording_ = false;
+        recordingPositionCts_?.Cancel();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        recordingPositionCts_?.Cancel();
+        recordingPositionCts_?.Dispose();
+        recordingPositionCts_ = null;
+        return ValueTask.CompletedTask;
+    }
+
+    private void SaveTrack()
+    {
+        StopRecording();
+        error_ = null;
+        if (notes_.Count == 0)
+        {
+            error_ = "Record at least one note before adding the track.";
+            return;
+        }
+
+        Draft.AddOrReplaceTrack(new RecordTrackDraft
+        {
+            Name = string.IsNullOrWhiteSpace(trackName_) ? "Recorded track" : trackName_.Trim(),
+            PanType = panType_,
+            TempoBpm = Math.Clamp(tempoBpm_, 1, 300),
+            BeatsPerBar = Math.Clamp(beatsPerBar_, 1, 32),
+            BeatUnit = Math.Clamp(beatUnit_, 1, 64),
+            DurationSeconds = Math.Clamp(durationSeconds_, 1, 1800),
+            Notes = notes_.Select(x => new RecordNoteDraft
+            {
+                Id = x.Id,
+                Note = x.Note,
+                StartSeconds = x.StartSeconds,
+                DurationSeconds = x.DurationSeconds
+            }).ToList()
+        });
+
+        Nav.NavigateTo("/record/files/create");
+    }
+}

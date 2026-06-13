@@ -1,9 +1,10 @@
-﻿using Melanchall.DryWetMidi.Core;
+using Melanchall.DryWetMidi.Core;
 using Microsoft.EntityFrameworkCore;
 using SteelPans.Shared.Auth;
 using SteelPans.Shared.Data;
 using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Extensions;
+using SteelPans.Shared.Music;
 using System;
 using System.Collections.Generic;
 using System.Security.Cryptography;
@@ -660,6 +661,245 @@ public sealed class DbService
                 sharedGroupIds,
                 cancellationToken);
         }
+
+        public sealed record CreateRecordedMidiFileRequest(
+            string Title,
+            int TempoBpm,
+            int BeatsPerBar,
+            int BeatUnit,
+            IReadOnlyList<CreateRecordedMidiTrackRequest> Tracks);
+
+        public sealed record CreateRecordedMidiTrackRequest(
+            string Name,
+            PanType PanType,
+            double DurationSeconds,
+            IReadOnlyList<CreateRecordedMidiNoteRequest> Notes);
+
+        public sealed record CreateRecordedMidiNoteRequest(
+            Note Note,
+            double StartSeconds,
+            double DurationSeconds);
+
+        public async Task<GroupFileDto> CreateRecordedMidiFileAsync(
+            CreateRecordedMidiFileRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var title = string.IsNullOrWhiteSpace(request.Title)
+                ? "Recorded MIDI"
+                : request.Title.Trim();
+
+            if (request.Tracks.Count == 0)
+                throw new InvalidOperationException("Add at least one recorded track before saving the file.");
+
+            var fileId = Guid.NewGuid();
+            var originalFileName = $"{SanitizeFileName(title)}.mid";
+            await using var midiContent = new MemoryStream();
+            WriteRecordedMidiFile(midiContent, request);
+            midiContent.Position = 0;
+
+            var storageKey = await fileStore.SaveAsync(
+                await currentUser.GetUserIdAsync(),
+                fileId,
+                originalFileName,
+                midiContent,
+                cancellationToken);
+
+            var now = DateTimeOffset.UtcNow;
+            var midiFile = new EnsembleMidiFile
+            {
+                Id = fileId,
+                UploadedByUserId = await currentUser.GetUserIdAsync(),
+                Title = title,
+                OriginalFileName = originalFileName,
+                ContentType = "audio/midi",
+                SizeBytes = midiContent.Length,
+                StorageKey = storageKey,
+                UploadedAt = now
+            };
+
+            foreach (var (index, track) in request.Tracks.Enumerate())
+            {
+                var trackIndex = index + 1;
+                var trackName = string.IsNullOrWhiteSpace(track.Name)
+                    ? $"Track {trackIndex}"
+                    : track.Name.Trim();
+
+                midiFile.Tracks.Add(new EnsembleMidiTrack
+                {
+                    Id = Guid.NewGuid(),
+                    MidiFileId = fileId,
+                    TrackIndex = trackIndex,
+                    TrackName = trackName,
+                    SuggestedPanType = track.PanType
+                });
+
+                midiFile.Assignments.Add(new EnsembleMidiTrackAssignment
+                {
+                    Id = Guid.NewGuid(),
+                    MidiFileId = fileId,
+                    TrackIndex = trackIndex,
+                    PanType = track.PanType,
+                    Label = trackName
+                });
+            }
+
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            db.MidiFiles.Add(midiFile);
+            await db.SaveChangesAsync(cancellationToken);
+            await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
+
+            return new GroupFileDto(
+                midiFile.Id,
+                midiFile.UploadedByUserId,
+                [],
+                midiFile.Title,
+                midiFile.OriginalFileName,
+                midiFile.SizeBytes,
+                midiFile.UploadedAt);
+        }
+
+        private static void WriteRecordedMidiFile(Stream output, CreateRecordedMidiFileRequest request)
+        {
+            const short ticksPerQuarter = 480;
+            using var writer = new BinaryWriter(output, Encoding.ASCII, leaveOpen: true);
+            WriteAscii(writer, "MThd");
+            WriteInt32BE(writer, 6);
+            WriteInt16BE(writer, 1);
+            WriteInt16BE(writer, (short)(request.Tracks.Count + 1));
+            WriteInt16BE(writer, ticksPerQuarter);
+
+            using (var meta = new MemoryStream())
+            using (var metaWriter = new BinaryWriter(meta, Encoding.ASCII, leaveOpen: true))
+            {
+                WriteVarLength(metaWriter, 0);
+                metaWriter.Write((byte)0xFF);
+                metaWriter.Write((byte)0x51);
+                metaWriter.Write((byte)0x03);
+                var microsecondsPerQuarter = 60_000_000 / Math.Clamp(request.TempoBpm, 1, 999);
+                metaWriter.Write((byte)((microsecondsPerQuarter >> 16) & 0xFF));
+                metaWriter.Write((byte)((microsecondsPerQuarter >> 8) & 0xFF));
+                metaWriter.Write((byte)(microsecondsPerQuarter & 0xFF));
+
+                WriteVarLength(metaWriter, 0);
+                metaWriter.Write((byte)0xFF);
+                metaWriter.Write((byte)0x58);
+                metaWriter.Write((byte)0x04);
+                metaWriter.Write((byte)Math.Clamp(request.BeatsPerBar, 1, 32));
+                metaWriter.Write((byte)GetBeatUnitPower(Math.Clamp(request.BeatUnit, 1, 64)));
+                metaWriter.Write((byte)24);
+                metaWriter.Write((byte)8);
+
+                WriteEndOfTrack(metaWriter);
+                WriteTrackChunk(writer, meta.ToArray());
+            }
+
+            for (var i = 0; i < request.Tracks.Count; i++)
+            {
+                var channel = i % 16;
+                var track = request.Tracks[i];
+                var events = new List<(long Tick, int Order, byte[] Data)>();
+                var nameBytes = Encoding.UTF8.GetBytes(string.IsNullOrWhiteSpace(track.Name) ? $"Track {i + 1}" : track.Name.Trim());
+                events.Add((0, 0, [(byte)0xFF, (byte)0x03, (byte)nameBytes.Length, .. nameBytes]));
+                events.Add((0, 1, [(byte)(0xC0 | channel), (byte)12]));
+
+                foreach (var note in track.Notes)
+                {
+                    var midi = Math.Clamp(note.Note.ToMidi(), 0, 127);
+                    var startTick = SecondsToTicks(note.StartSeconds, request.TempoBpm, ticksPerQuarter);
+                    var endTick = SecondsToTicks(note.StartSeconds + Math.Max(0.05, note.DurationSeconds), request.TempoBpm, ticksPerQuarter);
+                    events.Add((startTick, 2, [(byte)(0x90 | channel), (byte)midi, (byte)96]));
+                    events.Add((Math.Max(startTick + 1, endTick), 1, [(byte)(0x80 | channel), (byte)midi, (byte)0]));
+                }
+
+                events.Sort((a, b) => a.Tick != b.Tick ? a.Tick.CompareTo(b.Tick) : a.Order.CompareTo(b.Order));
+
+                using var trackStream = new MemoryStream();
+                using var trackWriter = new BinaryWriter(trackStream, Encoding.ASCII, leaveOpen: true);
+                var previousTick = 0L;
+                foreach (var midiEvent in events)
+                {
+                    WriteVarLength(trackWriter, midiEvent.Tick - previousTick);
+                    trackWriter.Write(midiEvent.Data);
+                    previousTick = midiEvent.Tick;
+                }
+
+                WriteEndOfTrack(trackWriter);
+                WriteTrackChunk(writer, trackStream.ToArray());
+            }
+        }
+
+        private static long SecondsToTicks(double seconds, int tempoBpm, short ticksPerQuarter)
+            => (long)Math.Round(Math.Max(0, seconds) * Math.Clamp(tempoBpm, 1, 999) / 60.0 * ticksPerQuarter);
+
+        private static int GetBeatUnitPower(int beatUnit)
+        {
+            var power = 0;
+            var value = 1;
+            while (value < beatUnit)
+            {
+                value *= 2;
+                power++;
+            }
+            return power;
+        }
+
+        private static void WriteTrackChunk(BinaryWriter writer, byte[] data)
+        {
+            WriteAscii(writer, "MTrk");
+            WriteInt32BE(writer, data.Length);
+            writer.Write(data);
+        }
+
+        private static void WriteEndOfTrack(BinaryWriter writer)
+        {
+            WriteVarLength(writer, 0);
+            writer.Write((byte)0xFF);
+            writer.Write((byte)0x2F);
+            writer.Write((byte)0x00);
+        }
+
+        private static void WriteAscii(BinaryWriter writer, string value)
+            => writer.Write(Encoding.ASCII.GetBytes(value));
+
+        private static void WriteInt16BE(BinaryWriter writer, short value)
+        {
+            writer.Write((byte)((value >> 8) & 0xFF));
+            writer.Write((byte)(value & 0xFF));
+        }
+
+        private static void WriteInt32BE(BinaryWriter writer, int value)
+        {
+            writer.Write((byte)((value >> 24) & 0xFF));
+            writer.Write((byte)((value >> 16) & 0xFF));
+            writer.Write((byte)((value >> 8) & 0xFF));
+            writer.Write((byte)(value & 0xFF));
+        }
+
+        private static void WriteVarLength(BinaryWriter writer, long value)
+        {
+            var buffer = value & 0x7F;
+            while ((value >>= 7) > 0)
+            {
+                buffer <<= 8;
+                buffer |= ((value & 0x7F) | 0x80);
+            }
+
+            while (true)
+            {
+                writer.Write((byte)(buffer & 0xFF));
+                if ((buffer & 0x80) == 0)
+                    break;
+                buffer >>= 8;
+            }
+        }
+
+        private static string SanitizeFileName(string title)
+        {
+            var invalid = Path.GetInvalidFileNameChars();
+            var sanitized = new string(title.Select(ch => invalid.Contains(ch) ? '-' : ch).ToArray()).Trim();
+            return string.IsNullOrWhiteSpace(sanitized) ? "recorded-midi" : sanitized;
+        }
+
         public async Task DeleteMidiFileAsync(Guid fileId, CancellationToken cancellationToken = default)
         {
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);

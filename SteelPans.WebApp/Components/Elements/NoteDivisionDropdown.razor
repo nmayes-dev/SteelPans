@@ -1,0 +1,46 @@
+﻿<select class="note-division__select"
+        aria-label="Note Division"
+        title="Note Division"
+        value="@Value"
+        disabled="@Disabled"
+        @onchange="OnValueChanged">
+    @foreach (var option in NoteDivisions)
+    {
+        @if (AllNoteDivisionOptions.TryGetValue(option, out var label))
+        {
+            <option value="@option">@label</option>
+        }
+    }
+</select>
+
+@code {
+    [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
+    public int Value { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<int> NoteDivisions { get; set; } = [];
+
+    [Parameter]
+    public EventCallback<int> ValueChanged { get; set; }
+
+
+    private async Task OnValueChanged(ChangeEventArgs args)
+    {
+        if (!int.TryParse(args.Value?.ToString(), out var noteDivision))
+            return;
+
+        await ValueChanged.InvokeAsync(noteDivision);
+    }
+
+    private static readonly Dictionary<int, string> AllNoteDivisionOptions = new()
+    {
+        [1] = "𝅝",
+        [2] = "𝅗𝅥",
+        [4] = "𝅘𝅥",
+        [8] = "𝅘𝅥𝅮",
+        [16] = "𝅘𝅥𝅯",
+    };
+}

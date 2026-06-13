@@ -89,3 +89,9 @@
         padding: clamp(0.15rem, 0.1rem + 0.2cqw, 0.4rem) clamp(0.3rem, 0.15rem + 0.4cqw, 0.75rem);
         font-size: inherit;
     }
+
+.midi-file-preview .sp-app-button--small {
+    min-height: 0;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.85em;
+}

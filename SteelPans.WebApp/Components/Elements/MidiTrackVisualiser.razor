@@ -1,0 +1,43 @@
+@inject IJSRuntime JS
+@inject MidiPlaybackService Playback
+@implements IAsyncDisposable
+
+<div class="midi-track-visualiser midi-track-visualiser--@Mode.ToString().ToLowerInvariant()" @ref="root_">
+    <div class="midi-track-visualiser__labels">
+        <div class="midi-track-visualiser__corner" />
+        <div class="midi-track-visualiser__track-label">
+            <strong>@PanLabel</strong>
+            @if (!string.IsNullOrWhiteSpace(TrackLabel))
+            {
+                <span>@TrackLabel</span>
+            }
+            <small>@VisualNoteCount note@(VisualNoteCount == 1 ? string.Empty : "s")</small>
+        </div>
+    </div>
+
+    <div class="midi-track-visualiser__viewport" data-midi-track-visualiser-viewport>
+        <div class="midi-track-visualiser__timeline" data-midi-track-visualiser-timeline>
+            <div class="midi-track-visualiser__ruler" data-midi-track-visualiser-ruler></div>
+            <div class="midi-track-visualiser__tracks" data-midi-track-visualiser-tracks></div>
+        </div>
+    </div>
+</div>
+
+@if (Mode == MidiTrackVisualiserMode.RecordEdit && ShowEditTools)
+{
+    <div class="midi-track-visualiser__tools">
+        @if (SelectedRecordNote is null)
+        {
+            <span>Select a note to edit it.</span>
+        }
+        else
+        {
+            <strong>@SelectedRecordNote.Note</strong>
+            <button type="button" class="sp-app-button sp-app-button--compact" @onclick="() => MoveSelected.InvokeAsync(-StepSeconds)">←</button>
+            <button type="button" class="sp-app-button sp-app-button--compact" @onclick="() => MoveSelected.InvokeAsync(StepSeconds)">→</button>
+            <button type="button" class="sp-app-button sp-app-button--compact" @onclick="() => ResizeSelected.InvokeAsync(-StepSeconds)">Shorter</button>
+            <button type="button" class="sp-app-button sp-app-button--compact" @onclick="() => ResizeSelected.InvokeAsync(StepSeconds)">Longer</button>
+            <button type="button" class="sp-app-button sp-app-button--compact sp-app-button--danger" @onclick="() => DeleteSelected.InvokeAsync(SelectedRecordNote.Id)">Delete</button>
+        }
+    </div>
+}

@@ -1,4 +1,4 @@
-﻿@inject InstanceStateService State
+@inject InstanceStateService State
 @inject DbService Db
 @inject AppUpdatesService Updates
 @implements IAsyncDisposable
@@ -22,6 +22,7 @@
                         <th>Name</th>
                         <th>Pan</th>
                         <th>Label</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -46,6 +47,12 @@
                                 <input value="@(assignment?.Label ?? track.TrackName ?? $"Track {track.TrackIndex}")"
                                        disabled="@disabled_"
                                        @onchange="e => SetLabel(track.TrackIndex, e.Value?.ToString())" />
+                            </td>
+                            <td>
+                                @if (file_ is not null)
+                                {
+                                    <a class="sp-app-button sp-app-button--small" href="/play/practice?file=@file_.Id&track=@track.TrackIndex">Practice</a>
+                                }
                             </td>
                         </tr>
                     }
@@ -84,6 +91,8 @@
 
     private bool isPreviewOpen_;
     private CancellationTokenSource? closeCts_;
+
+    public bool IsPreviewOpen => isPreviewOpen_;
 
     private MidiFileDetailsDto? file_;
     private Dictionary<int, MidiTrackAssignmentDto> assignments_ = [];

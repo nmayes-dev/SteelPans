@@ -1,4 +1,4 @@
-﻿@inject ModalPopupService Modals
+@inject ModalPopupService Modals
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
@@ -17,13 +17,20 @@
         </div>
 
         <div class="nav-item px-3">
-            <NavLink class="nav-link" href="practice/play">
-                <span class="bi bi-grid-1x2" aria-hidden="true"></span> Practice
+            <NavLink class="nav-link" href="play">
+                <span class="bi bi-play-circle" aria-hidden="true"></span> Play
             </NavLink>
         </div>
 
         <AuthorizeView>
             <Authorized Context="auth">
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="record">
+                        <span class="bi bi-record-circle" aria-hidden="true"></span> Record
+                    </NavLink>
+                </div>
+
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="manage">
                         <span class="bi bi-sliders" aria-hidden="true"></span> Manage

@@ -7,7 +7,7 @@ using SteelPans.WebApp.Components.Elements;
 
 namespace SteelPans.WebApp.Components.Pages.Practice;
 
-public partial class Pans : IAsyncDisposable
+public partial class Band : IAsyncDisposable
 {
 
     [SupplyParameterFromQuery(Name = "file")]
@@ -21,7 +21,6 @@ public partial class Pans : IAsyncDisposable
         Playback.MidiFileLoaded += OnPlaybackStateChangedAsync;
         Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
         Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
-        Playback.PlaybackStatusChanged += OnPlaybackStateChangedAsync;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -87,7 +86,6 @@ public partial class Pans : IAsyncDisposable
         Playback.MidiFileLoaded -= OnPlaybackStateChangedAsync;
         Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
         Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
-        Playback.PlaybackStatusChanged -= OnPlaybackStateChangedAsync;
         return ValueTask.CompletedTask;
     }
 }

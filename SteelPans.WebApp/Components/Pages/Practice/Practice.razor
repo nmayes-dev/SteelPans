@@ -1,0 +1,216 @@
+@page "/play/practice"
+@attribute [Authorize]
+@inject MidiPlaybackService Playback
+@inject InstanceStateService State
+@implements IAsyncDisposable
+
+<PageTitle>Practice</PageTitle>
+
+@if (!Playback.IsMidiLoaded)
+{
+    <section class="sp-app-page">
+        <div class="practice-page__actions">
+            <a class="sp-app-button" href="/play/ensemble@(FileId is null ? string.Empty : $"?file={FileId}")">Band</a>
+            <a class="sp-app-button" href="/manage/midi">MIDI Files</a>
+        </div>
+
+        <div class="sp-app-card practice-page__empty-card">
+            <h2>No MIDI file loaded</h2>
+            <p>Open a saved MIDI file from the MIDI file manager, or use a practice link from an assigned file.</p>
+            <a class="sp-app-button sp-app-button--primary" href="/manage/midi">Choose MIDI File</a>
+        </div>
+    </section>
+}
+else if (Playback.Tracks.Count == 0)
+{
+    <section class="sp-app-page">
+        <div class="sp-app-card practice-page__empty-card">
+            <h2>No Playable MIDI tracks</h2>
+            <p>@Playback.MidiFileName is loaded, but no tracks with note events were found.</p>
+            <a class="sp-app-button sp-app-button--primary" href="/manage/midi@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
+        </div>
+    </section>
+}
+else if (Playback.Assignments.Count == 0)
+{
+    <section class="sp-app-page">
+        <div class="sp-app-card practice-page__empty-card">
+            <h2>No Assigned Tracks</h2>
+            <p>@Playback.MidiFileName is loaded, but no pans were assigned to the tracks.</p>
+            <a class="sp-app-button sp-app-button--primary" href="/manage/midi@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
+        </div>
+    </section>
+}
+else
+{
+    <section class="sp-app-page practice-page">
+        <div class="practice-page__control">
+            <div class="sp-app-card practice-page__transport">
+                <div class="practice-page__transport-copy">
+                    <strong>@Playback.MidiFileName</strong>
+                    <small>@Playback.Tracks.Count MIDI track@(Plural(Playback.Tracks.Count)) · @AssignedTrackCount assigned · @FormatTime(VisualDuration)</small>
+                </div>
+                <div class="practice-page__field">
+                    <div class="practice-page__field-header">
+                        <span>Track</span>
+                        <label class="practice-page__checkbox">
+                            <input type="checkbox"
+                                   checked="@soloTrack_"
+                                   @onchange="OnAllowOtherTrackAudioChangedAsync" />
+                            <span>Solo</span>
+                        </label>
+                    </div>
+                    <select class="sp-app-input" value="@SelectedTrackIndex" @onchange="OnSelectedTrackChangedAsync">
+                        @foreach (var track in Playback.Tracks)
+                        {
+                            <option value="@track.Index">@track.DisplayInfo</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="sp-app-card practice-page__playback">
+                <MidiPlaybackControl Enabled="@(SelectedAssignedPan is not null && SelectedTrackEvents.Count > 0)" />
+            </div>
+        </div>
+
+        
+        @if (SelectedAssignedPan is not null)
+        {
+            <MidiTrackVisualiser TrackIndex="@SelectedTrackIndex"
+                                 PanLabel="@AssignedPanLabel"
+                                 TrackLabel="@SelectedTrackLabel"
+                                 Notes="@SelectedTrackEvents"
+                                 Duration="@VisualDuration"
+                                 TempoBpm="@Playback.TempoBpm"
+                                 InitialMidiBpm="@Playback.InitialMidiBpm"
+                                 BeatsPerBar="@Playback.BeatsPerBar"
+                                 BeatUnit="@Playback.BeatUnit" />
+
+            <PansLayout Pans="@SelectedPanList"
+                        Locked="true" />
+        }
+    </section>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "file")]
+    public Guid? FileId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "track")]
+    public int? Track { get; set; }
+
+    private bool loadedFileFromQuery_;
+    private bool soloTrack_ = true;
+    private int? selectedTrackIndex_;
+
+    private int SelectedTrackIndex => selectedTrackIndex_ ?? Track ?? Playback.Tracks.FirstOrDefault()?.Index ?? -1;
+    private MidiTrackInfo? SelectedTrack => Playback.Tracks.FirstOrDefault(x => x.Index == SelectedTrackIndex);
+    private MidiAssignedPan? SelectedAssignedPan => Playback.GetAssignedPanForTrack(SelectedTrackIndex);
+    private IReadOnlyList<MidiAssignedPan> SelectedPanList => SelectedAssignedPan is null ? [] : [SelectedAssignedPan];
+
+    private IReadOnlyList<MidiPanEvent> SelectedTrackEvents => Playback.GetMidiTrackEvents(SelectedTrackIndex)
+        .OrderBy(x => x.Start)
+        .ThenBy(x => x.Note.SemitoneNumber)
+        .ToList();
+
+    private int AssignedTrackCount => Playback.ActivePans.Count;
+    private string AssignedPanLabel => SelectedAssignedPan?.Pan.Type.ToSpacedPascal() ?? "Unassigned";
+    private string? SelectedTrackLabel => SelectedAssignedPan?.Assignment?.Track?.TrackLabel ?? SelectedTrack?.Name;
+
+    private TimeSpan VisualDuration
+    {
+        get
+        {
+            var selectedEnd = SelectedTrackEvents
+                .DefaultIfEmpty()
+                .Max(x => x is null ? TimeSpan.Zero : x.End);
+
+            return selectedEnd > Playback.Duration ? selectedEnd : Playback.Duration;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
+        Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
+
+        if (loadedFileFromQuery_ || FileId is null)
+            return;
+
+        loadedFileFromQuery_ = true;
+        await Playback.LoadGroupMidiFile(FileId.Value);
+        EnsureSelectedTrack();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await ApplySelectedTrackSoloAsync();
+    }
+
+    private async Task OnSelectedTrackChangedAsync(ChangeEventArgs args)
+    {
+        if (int.TryParse(args.Value?.ToString(), out var trackIndex))
+            selectedTrackIndex_ = trackIndex;
+
+        await ApplySelectedTrackSoloAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnAllowOtherTrackAudioChangedAsync(ChangeEventArgs args)
+    {
+        soloTrack_ = args.Value is bool value && value;
+        await ApplySelectedTrackSoloAsync();
+    }
+
+    private async Task ApplySelectedTrackSoloAsync()
+    {
+        if (SelectedAssignedPan is null)
+            return;
+
+        await Playback.SetPanSoloingAsync(SelectedAssignedPan, soloTrack_);
+    }
+
+    private async Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)
+    {
+        EnsureSelectedTrack();
+        await ApplySelectedTrackSoloAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void EnsureSelectedTrack()
+    {
+        if (Playback.Tracks.Count == 0)
+        {
+            selectedTrackIndex_ = null;
+            return;
+        }
+
+        if (selectedTrackIndex_ is null && Track is not null && Playback.Tracks.Any(x => x.Index == Track.Value))
+        {
+            selectedTrackIndex_ = Track.Value;
+            return;
+        }
+
+        if (selectedTrackIndex_ is null || Playback.Tracks.All(x => x.Index != selectedTrackIndex_))
+            selectedTrackIndex_ = Playback.Tracks[0].Index;
+    }
+
+    private static string FormatTime(TimeSpan time)
+    {
+        return time.TotalHours >= 1
+            ? $"{(int)time.TotalHours}:{time.Minutes:00}:{time.Seconds:00}"
+            : $"{time.Minutes}:{time.Seconds:00}.{time.Milliseconds:000}";
+    }
+
+    private static string Plural(int count) => count == 1 ? string.Empty : "s";
+
+    public ValueTask DisposeAsync()
+    {
+        Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
+        Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
+        return ValueTask.CompletedTask;
+    }
+}

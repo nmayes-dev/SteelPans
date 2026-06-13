@@ -14,6 +14,43 @@ window.panPlayback = {
     _metronomeGeneration: 0,
     _metronomeScheduleState: null,
     _midiScheduleStateByComponent: {},
+    _midiPlaybackState: {
+        isPlaying: false,
+        positionSeconds: 0,
+        durationSeconds: 0,
+        midiStartAt: null,
+        audioAnchorTime: null,
+        initialMidiBpm: 120,
+        tempoBpm: 120
+    },
+
+    setMidiPlaybackState: function (state) {
+        const next = state || {};
+        const durationSeconds = Number(next.durationSeconds);
+        const positionSeconds = Number(next.positionSeconds);
+        const midiStartAt = Number(next.midiStartAt);
+        const audioAnchorTime = Number(next.audioAnchorTime);
+        const initialMidiBpm = Number(next.initialMidiBpm);
+        const tempoBpm = Number(next.tempoBpm);
+
+        this._midiPlaybackState = {
+            isPlaying: next.isPlaying === true,
+            positionSeconds: Number.isFinite(positionSeconds) ? Math.max(0, positionSeconds) : 0,
+            durationSeconds: Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0.01,
+            midiStartAt: Number.isFinite(midiStartAt) ? midiStartAt : null,
+            audioAnchorTime: Number.isFinite(audioAnchorTime) ? audioAnchorTime : null,
+            initialMidiBpm: Number.isFinite(initialMidiBpm) && initialMidiBpm > 0 ? initialMidiBpm : 120,
+            tempoBpm: Number.isFinite(tempoBpm) && tempoBpm > 0 ? tempoBpm : 120
+        };
+
+        window.dispatchEvent(new CustomEvent("panplayback:midiplaybackstatechanged", {
+            detail: this.getMidiPlaybackState()
+        }));
+    },
+
+    getMidiPlaybackState: function () {
+        return { ...this._midiPlaybackState };
+    },
 
     register: function (id, dotNetRef) {
         this._refs[id] = dotNetRef;
@@ -522,6 +559,12 @@ window.panPlayback = {
 
         await this.playNote(componentId, noteKey);
 
+        try {
+            await ref.invokeMethodAsync("OnNotePointerDown", noteKey);
+        } catch (error) {
+            console.warn("Note callback failed", error);
+        }
+
         this._setNotePlaying(componentId, noteKey, true);
 
         const timeoutId = window.setTimeout(() => {
@@ -559,9 +602,6 @@ window.panPlayback = {
             ? numericStartAt
             : ctx.currentTime + 0.8;
 
-        console.log("Provided startAt", numericStartAt);
-        console.log("Current time", ctx.currentTime);
-        console.log("Scheduling MIDI actions for component", componentId, "starting at audio time", actualStartAt);
 
         const state = this._getOrCreateMidiScheduleState(componentId);
         state.baseBpm = effectiveBaseBpm;

@@ -1,0 +1,53 @@
+@page "/play"
+@attribute [Authorize]
+@inject InstanceStateService State
+@implements IDisposable
+
+<PageTitle>Play</PageTitle>
+
+<section class="sp-app-page practice-home-page">
+    <div class="sp-app-page__header practice-home-page__header">
+        <p class="sp-app-page__eyebrow">Steel Pans</p>
+        <h1>Play</h1>
+        <p>Play full ensemble demos, or practise an individual assigned track.</p>
+
+        <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
+        <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--hidden" : "")">@State.Task.Message</p>
+        <a class="sp-app-button" href="/">Back</a>
+    </div>
+
+    <div class="sp-app-grid sp-app-grid--two practice-home-page__grid">
+        <a class="sp-app-card practice-home-page__card" href="/play/ensemble">
+            <span class="practice-home-page__icon bi bi-soundwave" aria-hidden="true"></span>
+            <div class="practice-home-page__copy">
+                <h2>Band</h2>
+                <p>Load a MIDI file and play all assigned pans together.</p>
+            </div>
+        </a>
+
+        <a class="sp-app-card practice-home-page__card" href="/play/practice">
+            <span class="practice-home-page__icon bi bi-vinyl" aria-hidden="true"></span>
+            <div class="practice-home-page__copy">
+                <h2>Practice</h2>
+                <p>Work on one assigned track with playback, a visualiser, and a single pan.</p>
+            </div>
+        </a>
+    </div>
+</section>
+
+@code {
+    protected override void OnInitialized()
+    {
+        State.User.OnRefresh += OnRefreshAsync;
+    }
+
+    private Task OnRefreshAsync()
+    {
+        return InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        State.User.OnRefresh -= OnRefreshAsync;
+    }
+}

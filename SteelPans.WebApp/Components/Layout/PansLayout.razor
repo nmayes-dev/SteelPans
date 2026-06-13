@@ -36,14 +36,17 @@
                         </div>
                     </div>
 
-                    <button type="button"
-                            class="pans-display__remove-button"
-                            title="Remove"
-                            aria-label="Remove"
-                            data-pan-layout-no-drag
-                            @onclick="() => OnRemovePan(assignedPan)">
-                        <span class="bi bi-trash3"></span>
-                    </button>
+                    @if (!Locked)
+                    {
+                        <button type="button"
+                                class="pans-display__remove-button"
+                                title="Remove"
+                                aria-label="Remove"
+                                data-pan-layout-no-drag
+                                @onclick="() => OnRemovePan(assignedPan)">
+                            <span class="bi bi-trash3"></span>
+                        </button>
+                    }
                 </div>
             </section>
         }
@@ -57,6 +60,9 @@
     [Parameter]
     public EventCallback<IReadOnlyList<Guid>> OnPansReordered { get; set; }
 
+    [Parameter]
+    public bool Locked { get; set; }
+
     private bool startingUp_;
     private ElementReference assignedPansElement_;
     private DotNetObjectReference<PansLayout>? dotNetReference_;
@@ -67,7 +73,8 @@
         if (!firstRender)
             return;
 
-        Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
+        Playback.MidiFileLoaded += OnPlaybackStateChangedAsync;
+        Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
         await InitialiseLayoutAsync();
     }
 
@@ -126,7 +133,8 @@
         if (panLayoutObserved_)
             await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
         
-        Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
+        Playback.MidiFileLoaded -= OnPlaybackStateChangedAsync;
+        Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
         dotNetReference_?.Dispose();
     }
 }

@@ -50,12 +50,6 @@ public sealed record ClickTrackSettingsChangedEventArgs(
     int BeatUnit,
     bool Enabled);
 
-public sealed record PlaybackStatusChangedEventArgs(
-    bool IsPlaying,
-    TimeSpan Position,
-    TimeSpan Duration,
-    double? MidiStartAt);
-
 public sealed record PlaybackPositionChangedEventArgs(
     TimeSpan Position,
     TimeSpan Duration,
@@ -65,6 +59,15 @@ public sealed record PlaybackPositionChangedEventArgs(
 public sealed record PlaybackTempoChangedEventArgs(int Bpm);
 
 public sealed record PlaybackCountInChangedEventArgs(int Count, int NoteDivision);
+
+public sealed record MidiPlaybackJsState(
+    bool IsPlaying,
+    double PositionSeconds,
+    double DurationSeconds,
+    double? MidiStartAt,
+    double? AudioAnchorTime,
+    int InitialMidiBpm,
+    int TempoBpm);
 
 public sealed class MidiPlaybackService : IAsyncDisposable
 {
@@ -129,7 +132,6 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     public event Func<PlaybackAssignmentsChangedEventArgs, Task>? AssignmentsChanged;
     public event Func<PanMixChangedEventArgs, Task>? PanMixChanged;
     public event Func<ClickTrackSettingsChangedEventArgs, Task>? ClickTrackSettingsChanged;
-    public event Func<PlaybackStatusChangedEventArgs, Task>? PlaybackStatusChanged;
     public event Func<MidiPlaybackStartedEventArgs, Task>? PlaybackStarted;
     public event Func<MidiPlaybackPausedEventArgs, Task>? PlaybackPaused;
     public event Func<MidiPlaybackStoppedEventArgs, Task>? PlaybackStopped;
@@ -160,6 +162,61 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     public int InitialMidiBpm => midiPlaybackInfo_?.InitialBpm ?? TempoBpm;
     public int EffectiveMidiBpm => midiBpmOverride_ ?? midiPlaybackInfo_?.InitialBpm ?? TempoBpm;
 
+    public IReadOnlyList<MidiPanEvent> GetMidiTrackEvents(int trackIndex)
+    {
+        return midiTrackEventsByIndex_.GetValueOrDefault(trackIndex) ?? [];
+    }
+
+    public MidiAssignedPan? GetAssignedPanForTrack(int trackIndex)
+    {
+        return ActivePans.FirstOrDefault(x => x.Assignment.Track?.Index == trackIndex);
+    }
+
+    private static string GetHeadlessPlaybackComponentId(Guid instanceId)
+    {
+        return $"midi-playback-{instanceId:N}";
+    }
+
+    private string GetPlaybackComponentId(MidiAssignedPan assignedPan)
+    {
+        return steelPanViews_.TryGetValue(assignedPan.InstanceId, out var view)
+            ? view.ComponentId
+            : GetHeadlessPlaybackComponentId(assignedPan.InstanceId);
+    }
+
+    private async Task SetPlaybackComponentVolumeAsync(MidiAssignedPan assignedPan, double volume)
+    {
+        var clampedVolume = Math.Clamp(volume, 0.0, 1.0);
+        var headlessComponentId = GetHeadlessPlaybackComponentId(assignedPan.InstanceId);
+
+        await js_.InvokeVoidAsync(
+            "panPlayback.setComponentVolume",
+            headlessComponentId,
+            clampedVolume);
+
+        if (!steelPanViews_.TryGetValue(assignedPan.InstanceId, out var view) || view.ComponentId == headlessComponentId)
+            return;
+
+        await js_.InvokeVoidAsync(
+            "panPlayback.setComponentVolume",
+            view.ComponentId,
+            clampedVolume);
+    }
+
+    private async Task ApplyPlaybackVolumesAsync()
+    {
+        var anySolo = ActivePans.Any(x => x.Soloing);
+
+        foreach (var pan in ActivePans)
+        {
+            var volume = anySolo
+                ? (pan.Soloing ? Math.Clamp(pan.Volume, 0.0, 1.0) : 0.0)
+                : GetEffectivePanVolume(pan);
+
+            await SetPlaybackComponentVolumeAsync(pan, volume);
+        }
+    }
+
     public async Task OnUnloadMidiAsync()
     {
         await StopAsync(resetPosition: true);
@@ -187,8 +244,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         await NotifyMidiFileUnloadedAsync();
         await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Remove);
         await NotifyClickTrackSettingsChangedAsync();
-        await NotifyPlaybackStatusChangedAsync();
         await NotifyPositionChangedAsync(jump: true);
+        await PushPlaybackStateToJsAsync();
     }
 
     public async Task OnLoadMidiAsync(Func<Task<(string, MidiFile)>> getMidiFile)
@@ -239,8 +296,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         await NotifyMidiFileLoadedAsync();
         await NotifyClickTrackSettingsChangedAsync();
-        await NotifyPlaybackStatusChangedAsync();
         await NotifyPositionChangedAsync(jump: true);
+        await PushPlaybackStateToJsAsync();
     }
 
     public async Task LoadPanLayoutAsync(IReadOnlyList<ConfigurationPan> layout)
@@ -324,8 +381,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         Duration = TimeSpan.Zero;
 
         await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Remove);
-        await NotifyPlaybackStatusChangedAsync();
         await NotifyPositionChangedAsync(jump: true);
+        await PushPlaybackStateToJsAsync();
     }
 
     public async Task OnAddAssignmentAsync(MidiTrackAssignment assignment)
@@ -342,7 +399,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         RecalculateDuration();
 
         await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Add);
-        await NotifyPlaybackStatusChangedAsync();
+        await PushPlaybackStateToJsAsync();
     }
 
     public async Task OnRemoveAssignmentAsync(int index)
@@ -363,8 +420,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         playbackSessionStartOffset_ = TimeSpan.Zero;
 
         await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Remove);
-        await NotifyPlaybackStatusChangedAsync();
         await NotifyPositionChangedAsync(jump: true);
+        await PushPlaybackStateToJsAsync();
     }
 
     public void UnregisterSteelPanView(Guid instanceId)
@@ -389,10 +446,14 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (assignedPan is null)
             return;
 
-        await js_.InvokeVoidAsync("panPlayback.setComponentVolume", view.ComponentId, GetEffectivePanVolume(assignedPan));
-
         if (!IsPlaying)
             return;
+
+        await ApplyPlaybackVolumesAsync();
+
+        var headlessComponentId = GetHeadlessPlaybackComponentId(instanceId);
+        if (playingComponentIds_.Contains(headlessComponentId))
+            await StopMidiSequenceAsync(headlessComponentId);
 
         await StartPanInCurrentPlaybackAsync(assignedPan, view);
     }
@@ -435,24 +496,16 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                 GetEffectivePanVolume(activePan));
         }
 
+        await ApplyPlaybackVolumesAsync();
         await NotifyPanMixChangedAsync();
     }
 
     public async Task SetPanVolumesAsync(IEnumerable<MidiAssignedPan> pans, double volume)
     {
         foreach (var activePan in pans)
-        {
             activePan.Volume = Math.Clamp(volume, 0.0, 1.0);
 
-            if (steelPanViews_.TryGetValue(activePan.InstanceId, out var view))
-            {
-                await js_.InvokeVoidAsync(
-                    "panPlayback.setComponentVolume",
-                    view.ComponentId,
-                    GetEffectivePanVolume(activePan));
-            }
-        }
-
+        await ApplyPlaybackVolumesAsync();
         await NotifyPanMixChangedAsync();
     }
 
@@ -463,14 +516,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         activePan.Muted = muted;
 
-        if (steelPanViews_.TryGetValue(activePan.InstanceId, out var view))
-        {
-            await js_.InvokeVoidAsync(
-                "panPlayback.setComponentVolume",
-                view.ComponentId,
-                GetEffectivePanVolume(activePan));
-        }
-
+        await ApplyPlaybackVolumesAsync();
         await NotifyPanMixChangedAsync();
     }
 
@@ -492,27 +538,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             }
         }
 
-        foreach (var pan in ActivePans)
-        {
-            if (steelPanViews_.TryGetValue(pan.InstanceId, out var view))
-            {
-                if (solo)
-                {
-                    await js_.InvokeVoidAsync(
-                        "panPlayback.setComponentVolume",
-                        view.ComponentId,
-                        pan.Soloing ? pan.Volume : 0.0);
-                }
-                else
-                {
-                    await js_.InvokeVoidAsync(
-                        "panPlayback.setComponentVolume",
-                        view.ComponentId,
-                        GetEffectivePanVolume(pan));
-                }
-            }
-        }
-
+        await ApplyPlaybackVolumesAsync();
         await NotifyPanMixChangedAsync();
     }
 
@@ -562,6 +588,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             .Select(x => new
             {
                 Pan = x,
+                ComponentId = GetPlaybackComponentId(x),
                 Events = GetPlaybackEventsFromOffset(x.Events, startOffset)
             })
             .Where(x => x.Events.Count > 0)
@@ -572,7 +599,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             IsPlaying = false;
             Position = Duration;
             playbackSessionStartOffset_ = Duration;
-            await NotifyPlaybackStatusChangedAsync();
+            await PushPlaybackStateToJsAsync();
             return;
         }
 
@@ -589,6 +616,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         Position = playbackSessionStartOffset_;
         midiStartAt_ = null;
 
+        await ApplyPlaybackVolumesAsync();
+
         if (midiPlaybackInfo_ is not null)
         {
             TempoBpm = EffectiveMidiBpm;
@@ -598,17 +627,6 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         try
         {
-            var playableGroups = playbackGroups
-                .Where(group => steelPanViews_.ContainsKey(group.Pan.InstanceId))
-                .ToList();
-
-            if (playableGroups.Count == 0)
-            {
-                IsPlaying = false;
-                await NotifyPlaybackStatusChangedAsync();
-                return;
-            }
-
             const double scheduleLeadSeconds = 0.8;
 
             var currentAudioTime = await GetAudioTimeAsync(playbackToken);
@@ -624,7 +642,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             var sharedStartAt = metronomeStartAt + countInDurationSeconds;
 
             await SchedulePlaybackMetronomeAsync(
-                playableGroups.SelectMany(x => x.Events).OrderBy(x => x.Start).ToList(),
+                playbackGroups.SelectMany(x => x.Events).OrderBy(x => x.Start).ToList(),
                 playbackSessionStartOffset_,
                 metronomeStartAt,
                 countInDurationSeconds,
@@ -634,20 +652,18 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
             playbackToken.ThrowIfCancellationRequested();
 
-            foreach (var group in playableGroups)
+            foreach (var group in playbackGroups)
             {
-                var view = steelPanViews_[group.Pan.InstanceId];
-                await view.ClearSelectionAndMidiVisualStateAsync();
+                if (steelPanViews_.TryGetValue(group.Pan.InstanceId, out var view))
+                    await view.ClearSelectionAndMidiVisualStateAsync();
             }
 
-            foreach (var group in playableGroups)
+            foreach (var group in playbackGroups)
             {
-                var view = steelPanViews_[group.Pan.InstanceId];
-
                 playbackToken.ThrowIfCancellationRequested();
 
                 var actualStartAt = await StartMidiSequenceAsync(
-                    view,
+                    group.ComponentId,
                     group.Events,
                     playbackToken,
                     sharedStartAt);
@@ -659,7 +675,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             {
                 await StopMetronomeAudioAsync();
                 IsPlaying = false;
-                await NotifyPlaybackStatusChangedAsync();
+                await PushPlaybackStateToJsAsync();
                 return;
             }
 
@@ -670,10 +686,10 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             await NotifyPlaybackStartedAsync(new MidiPlaybackStartedEventArgs(
                 midiStartAt_.Value,
                 playbackSessionStartOffset_,
-                playableGroups.SelectMany(x => x.Events).OrderBy(x => x.Start).ToList()));
+                playbackGroups.SelectMany(x => x.Events).OrderBy(x => x.Start).ToList()));
 
             StartPlaybackProgressLoop(playbackProgressCts_.Token);
-            await NotifyPlaybackStatusChangedAsync();
+            await PushPlaybackStateToJsAsync();
         }
         catch (OperationCanceledException)
         {
@@ -686,7 +702,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         await StopAsync(resetPosition: false);
         Position = playbackSessionStartOffset_;
         await NotifyPlaybackPausedAsync(new MidiPlaybackPausedEventArgs(Position));
-        await NotifyPlaybackStatusChangedAsync();
+        await PushPlaybackStateToJsAsync();
     }
 
     public async Task RestartFromAsync(TimeSpan startOffset)
@@ -708,7 +724,10 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         StopPlaybackProgressLoop();
 
-        await Task.WhenAll(steelPanViews_.Values.Select(StopMidiSequenceAsync));
+        var stopTasks = playingComponentIds_.Select(StopMidiSequenceAsync);
+        var clearTasks = steelPanViews_.Values.Select(x => x.ClearMidiVisualStateAsync());
+
+        await Task.WhenAll(Enumerable.Concat(stopTasks, clearTasks));
 
         playingComponentIds_.Clear();
 
@@ -730,7 +749,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         }
 
         await NotifyPlaybackStoppedAsync(new MidiPlaybackStoppedEventArgs(resetPosition, Position));
-        await NotifyPlaybackStatusChangedAsync();
+        await PushPlaybackStateToJsAsync();
     }
 
     public async Task SetTempoBpmAsync(int bpm)
@@ -755,8 +774,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             playbackAudioAnchorTime_ = currentAudioTime;
             playbackTempoAnchorBpm_ = bpm;
 
-            foreach (var view in steelPanViews_.Values)
-                await js_.InvokeVoidAsync("panPlayback.updateMidiTempo", view.ComponentId, bpm);
+            foreach (var componentId in playingComponentIds_)
+                await js_.InvokeVoidAsync("panPlayback.updateMidiTempo", componentId, bpm);
 
             await RescheduleClickTrackAsync(currentPosition, currentAudioTime);
             await NotifyTempoChangedAsync(new PlaybackTempoChangedEventArgs(bpm));
@@ -767,7 +786,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         }
 
         await NotifyClickTrackSettingsChangedAsync();
-        await NotifyPlaybackStatusChangedAsync();
+        await PushPlaybackStateToJsAsync();
     }
 
     public async Task SetBeatsPerBarAsync(int beatsPerBar)
@@ -818,7 +837,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         }
 
         await NotifyClickTrackSettingsChangedAsync();
-        await NotifyPlaybackStatusChangedAsync();
+        await PushPlaybackStateToJsAsync();
     }
 
     public async Task SetCountInBeatsAsync(int beats)
@@ -830,7 +849,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         CountInBeats = beats;
         await NotifyCountInChangedAsync(new PlaybackCountInChangedEventArgs(CountInBeats, CountInNoteDivision));
-        await NotifyPlaybackStatusChangedAsync();
+        await PushPlaybackStateToJsAsync();
     }
 
     public async Task SetCountInNoteDivisionAsync(int noteDivision)
@@ -846,7 +865,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         CountInNoteDivision = noteDivision;
         await NotifyCountInChangedAsync(new PlaybackCountInChangedEventArgs(CountInBeats, CountInNoteDivision));
-        await NotifyPlaybackStatusChangedAsync();
+        await PushPlaybackStateToJsAsync();
     }
 
     public async Task SeekToStartAsync()
@@ -857,7 +876,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (IsPlaying)
             await RestartFromAsync(TimeSpan.Zero);
         else
-            await NotifyPlaybackStatusChangedAsync();
+            await PushPlaybackStateToJsAsync();
 
         await NotifyPositionChangedAsync(jump: true);
     }
@@ -870,8 +889,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         Position = Duration;
         playbackSessionStartOffset_ = Duration;
 
-        await NotifyPlaybackStatusChangedAsync();
         await NotifyPositionChangedAsync(jump: true);
+        await PushPlaybackStateToJsAsync();
     }
 
     public async Task CommitSeekAsync(TimeSpan seekTime)
@@ -884,7 +903,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (IsPlaying)
             await RestartFromAsync(clamped);
         else
-            await NotifyPlaybackStatusChangedAsync();
+            await PushPlaybackStateToJsAsync();
 
         await NotifyPositionChangedAsync(jump: true);
     }
@@ -934,6 +953,19 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         CancellationToken cancellationToken = default,
         double? startAt = null)
     {
+        return await StartMidiSequenceAsync(
+            view.ComponentId,
+            events,
+            cancellationToken,
+            startAt);
+    }
+
+    private async Task<double?> StartMidiSequenceAsync(
+        string componentId,
+        IReadOnlyList<MidiPanEvent> events,
+        CancellationToken cancellationToken = default,
+        double? startAt = null)
+    {
         if (events.Count == 0)
             return null;
 
@@ -948,7 +980,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         var actualStartAt = await js_.InvokeAsync<double?>(
             "panPlayback.playMidiSchedule",
             cancellationToken,
-            view.ComponentId,
+            componentId,
             scheduledActions,
             InitialMidiBpm,
             EffectiveMidiBpm,
@@ -957,18 +989,21 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         if (actualStartAt is not null)
-            playingComponentIds_.Add(view.ComponentId);
+            playingComponentIds_.Add(componentId);
 
         return actualStartAt;
     }
 
-    private async Task StopMidiSequenceAsync(SteelPanView view)
+    private async Task StopMidiSequenceAsync(string componentId)
     {
-        if (!playingComponentIds_.Remove(view.ComponentId))
+        if (!playingComponentIds_.Remove(componentId))
             return;
 
-        await js_.InvokeVoidAsync("panPlayback.stopMidiSchedule", view.ComponentId);
-        await view.ClearMidiVisualStateAsync();
+        await js_.InvokeVoidAsync("panPlayback.stopMidiSchedule", componentId);
+
+        var view = steelPanViews_.Values.FirstOrDefault(x => x.ComponentId == componentId);
+        if (view is not null)
+            await view.ClearMidiVisualStateAsync();
     }
 
 
@@ -1293,8 +1328,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                         midiStartAt_ = null;
 
                         await NotifyPlaybackStoppedAsync(new MidiPlaybackStoppedEventArgs(false, Position));
-                        await NotifyPlaybackStatusChangedAsync();
                         await NotifyPositionChangedAsync(jump: false);
+                        await PushPlaybackStateToJsAsync();
 
                         break;
                     }
@@ -1460,20 +1495,25 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             await handler(args);
     }
 
-    private async Task NotifyPlaybackStatusChangedAsync()
+
+    private async Task PushPlaybackStateToJsAsync()
     {
-        var handlers = PlaybackStatusChanged;
-        if (handlers is null)
-            return;
-
-        var args = new PlaybackStatusChangedEventArgs(
-            IsPlaying,
-            Position,
-            Duration,
-            MidiStartAt);
-
-        foreach (Func<PlaybackStatusChangedEventArgs, Task> handler in handlers.GetInvocationList())
-            await handler(args);
+        try
+        {
+            await js_.InvokeVoidAsync(
+                "panPlayback.setMidiPlaybackState",
+                new MidiPlaybackJsState(
+                    IsPlaying,
+                    Position.TotalSeconds,
+                    Math.Max(Duration.TotalSeconds, 0.01),
+                    MidiStartAt,
+                    playbackAudioAnchorTime_,
+                    Math.Max(InitialMidiBpm, 1),
+                    Math.Max(TempoBpm, 1)));
+        }
+        catch (JSDisconnectedException)
+        {
+        }
     }
 
     private double GetEffectivePanVolume(MidiAssignedPan activePan)

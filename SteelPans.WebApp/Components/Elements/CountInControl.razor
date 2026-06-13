@@ -1,5 +1,4 @@
 @inject MidiPlaybackService Playback
-@implements IDisposable
 
 <div class="count-in-control" aria-label="Metronome Count In">
     <div class="count-in-control__control">
@@ -30,39 +29,18 @@
             </div>
         </div>
 
-        <select class="count-in-control__select"
-                aria-label="Note Division"
-                title="Note Division"
-                value="@Playback.CountInNoteDivision"
-                disabled="@Playback.IsPlaying"
-                @onchange="SetCountInNoteDivisionAsync">
-            @foreach (var option in NoteDivisionOptions)
-            {
-                <option value="@option.Value">@option.Label</option>
-            }
-        </select>
+        <NoteDivisionDropdown Value="@Playback.CountInNoteDivision"
+                              Disabled="@Playback.IsPlaying" 
+                              OnChange="SetCountInNoteDivisionAsync"
+                              NoteDivisions="@([2, 4, 8, 16])"/>
     </div>
 
     <span class="count-in-control__label">Count In</span>
 </div>
 
 @code {
-    private static readonly IReadOnlyList<(int Value, string Label)> NoteDivisionOptions =
-    [
-        (2, "𝅗𝅥"),
-        (4, "𝅘𝅥"),
-        (8, "𝅘𝅥𝅮"),
-        (16, "𝅘𝅥𝅯"),
-    ];
-
     private bool CanDecrement => !Playback.IsPlaying && Playback.CountInBeats > 0;
     private bool CanIncrement => !Playback.IsPlaying && Playback.CountInBeats < 32;
-
-    protected override void OnInitialized()
-    {
-        Playback.CountInChanged += OnPlaybackStateChangedAsync;
-        Playback.PlaybackStatusChanged += OnPlaybackStateChangedAsync;
-    }
 
     private async Task IncrementAsync()
     {
@@ -82,12 +60,9 @@
             await Playback.SetCountInBeatsAsync(beats);
     }
 
-    private async Task SetCountInNoteDivisionAsync(ChangeEventArgs args)
+    private async Task SetCountInNoteDivisionAsync(int noteDivision)
     {
         if (Playback.IsPlaying)
-            return;
-
-        if (!int.TryParse(args.Value?.ToString(), out var noteDivision))
             return;
 
         var scale = (double)noteDivision / Playback.CountInNoteDivision;
@@ -95,16 +70,5 @@
 
         await Playback.SetCountInNoteDivisionAsync(noteDivision);
         await Playback.SetCountInBeatsAsync(newBeats);
-    }
-
-    private async Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)
-    {
-        await InvokeAsync(StateHasChanged);
-    }
-
-    public void Dispose()
-    {
-        Playback.CountInChanged -= OnPlaybackStateChangedAsync;
-        Playback.PlaybackStatusChanged -= OnPlaybackStateChangedAsync;
     }
 }

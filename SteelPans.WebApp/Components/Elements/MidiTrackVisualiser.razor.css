@@ -1,0 +1,300 @@
+.midi-track-visualiser {
+    --label-width: 224px;
+    --ruler-height: 24px;
+    --lane-height: 200px;
+    --timeline-width: 960px;
+    --note-height: 10px;
+    --bar-grid-size: 576px;
+    --playhead-width: 3px;
+    position: relative;
+    display: grid;
+    grid-template-columns: var(--label-width) minmax(0, 1fr);
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 1rem;
+    background: #f8fafc;
+}
+
+.midi-track-visualiser__labels {
+    position: relative;
+    z-index: 8;
+    display: grid;
+    grid-template-rows: var(--ruler-height) var(--lane-height);
+    width: var(--label-width);
+    background: #f8fafc;
+    box-shadow: 1px 0 0 rgba(148, 163, 184, 0.35);
+}
+
+.midi-track-visualiser__corner,
+.midi-track-visualiser__track-label {
+    display: grid;
+    align-content: center;
+    gap: 0.15rem;
+    min-width: 0;
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.midi-track-visualiser__corner {
+    color: #64748b;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.midi-track-visualiser__track-label strong,
+.midi-track-visualiser__track-label span,
+.midi-track-visualiser__track-label small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.midi-track-visualiser__track-label span,
+.midi-track-visualiser__track-label small {
+    color: #64748b;
+}
+
+.midi-track-visualiser__viewport {
+    position: relative;
+    min-width: 0;
+    overflow: auto;
+    overscroll-behavior-x: contain;
+    background: linear-gradient(180deg, #e2e8f0, #f8fafc);
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+    .midi-track-visualiser__viewport::-webkit-scrollbar {
+        display: none; /* Chrome/Safari/Opera */
+    }
+
+.midi-track-visualiser__timeline {
+    width: var(--timeline-width);
+}
+
+.midi-track-visualiser__ruler {
+    position: relative;
+    height: var(--ruler-height);
+    width: var(--timeline-width);
+    cursor: grab;
+    touch-action: none;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+    user-select: none;
+}
+
+.midi-track-visualiser__bar-label {
+    position: absolute;
+    bottom: 0.25rem;
+    margin: 0;
+    padding: 0.1rem 0.3rem;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: #64748b;
+    font: inherit;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+    cursor: pointer;
+    z-index: 2;
+}
+
+.midi-track-visualiser--viewport-dragging .midi-track-visualiser__ruler,
+.midi-track-visualiser--viewport-dragging .midi-track-visualiser__tracks {
+    cursor: grabbing;
+}
+
+.midi-track-visualiser__bar-label:hover,
+.midi-track-visualiser__bar-label:focus-visible {
+    background: rgba(37, 99, 235, 0.12);
+    color: #1d4ed8;
+    outline: none;
+}
+
+.midi-track-visualiser__tracks {
+    position: relative;
+    width: var(--timeline-width);
+    height: var(--lane-height);
+    min-height: var(--lane-height);
+    cursor: grab;
+    touch-action: none;
+    background-size: 100% 100%, 100% var(--lane-height);
+    user-select: none;
+}
+
+.midi-track-visualiser__track-row {
+    position: absolute;
+    inset: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.25);
+    pointer-events: none;
+}
+
+.midi-track-visualiser__beatline {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(148, 163, 184, 0.14);
+    pointer-events: none;
+}
+
+.midi-track-visualiser__beatline--bar {
+    background: transparent;
+}
+
+.midi-track-visualiser__barline {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(15, 23, 42, 0.18);
+    pointer-events: none;
+}
+
+.midi-track-visualiser__barline--hover {
+    width: 2px;
+    background: rgba(37, 99, 235, 0.65);
+}
+
+.midi-track-visualiser__barline--accent {
+    width: 2px;
+    background: rgba(15, 23, 42, 0.3);
+}
+
+.midi-track-visualiser__note {
+    position: absolute;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+    justify-content: center;
+    min-width: 8px;
+    height: var(--note-height);
+    padding: 0 4px;
+    overflow: hidden;
+    border-radius: 999px;
+    font-size: 0.66rem;
+    line-height: 1;
+    white-space: nowrap;
+    pointer-events: none;
+}
+
+.midi-track-visualiser__note--track {
+    border: 1px solid rgba(71, 85, 105, 0.45);
+    background: linear-gradient(180deg, #94a3b8, #475569);
+    color: #f8fafc;
+    box-shadow: 0 4px 10px rgba(71, 85, 105, 0.16);
+    transition: background 80ms ease, border-color 80ms ease, box-shadow 80ms ease, transform 80ms ease;
+}
+
+.midi-track-visualiser__note--active {
+    z-index: 4;
+    border-color: rgba(245, 158, 11, 0.95);
+    background: linear-gradient(180deg, #fbbf24, #f97316);
+    color: #111827;
+    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35), 0 6px 14px rgba(249, 115, 22, 0.28);
+}
+
+.midi-track-visualiser__note span {
+    display: block;
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: clip;
+    line-height: 1;
+    text-align: center;
+    transform-origin: center center;
+}
+
+.midi-track-visualiser__playhead {
+    position: absolute;
+    z-index: 20;
+    top: var(--ruler-height);
+    bottom: 0;
+    left: var(--label-width);
+    width: var(--playhead-width);
+    height: var(--lane-height);
+    border-radius: 999px;
+    background: #2563eb;
+    box-shadow: 0 0 0 0.35rem rgba(37, 99, 235, 0.12);
+    cursor: ew-resize;
+    pointer-events: auto;
+    touch-action: none;
+}
+
+.midi-track-visualiser__playhead::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1.4rem;
+    transform: translateX(-50%);
+}
+
+.midi-track-visualiser__playhead::before {
+    content: "";
+    position: absolute;
+    top: -0.35rem;
+    left: 50%;
+    width: 0.8rem;
+    height: 0.8rem;
+    transform: translateX(-50%) rotate(45deg);
+    border-radius: 0.15rem;
+    background: #2563eb;
+}
+
+@media (max-width: 760px) {
+    .midi-track-visualiser {
+        --label-width: 10.5rem;
+    }
+
+    .midi-track-visualiser__track-label {
+        padding-inline: 0.6rem;
+    }
+
+}
+
+.midi-track-visualiser--recordedit {
+    --lane-height: 200px;
+}
+
+.midi-track-visualiser__note--editable {
+    appearance: none;
+    border: 1px solid rgba(71, 85, 105, 0.45);
+    font: inherit;
+    font-size: 0.66rem;
+    font-weight: 700;
+    cursor: pointer;
+    pointer-events: auto;
+}
+
+.midi-track-visualiser__note--editable:hover,
+.midi-track-visualiser__note--editable:focus-visible {
+    border-color: rgba(37, 99, 235, 0.75);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18), 0 6px 14px rgba(71, 85, 105, 0.18);
+    outline: none;
+    transform: translateY(-1px);
+}
+
+.midi-track-visualiser__note--selected {
+    z-index: 5;
+    border-color: rgba(37, 99, 235, 0.95);
+    background: linear-gradient(180deg, #60a5fa, #2563eb);
+    color: #f8fafc;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.26), 0 6px 14px rgba(37, 99, 235, 0.22);
+}
+
+.midi-track-visualiser__tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    padding: 0.75rem;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 0.85rem;
+    background: #f8fafc;
+}

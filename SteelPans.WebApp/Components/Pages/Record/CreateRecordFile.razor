@@ -1,0 +1,118 @@
+@page "/record/files/create"
+@attribute [Authorize]
+@inject RecordDraftService Draft
+@inject DbService Db
+@inject NavigationManager Nav
+@inject InstanceStateService State
+
+<PageTitle>Create Recorded File</PageTitle>
+
+<section class="sp-app-page record-file-page">
+    <div class="sp-app-page__header record-file-page__header">
+        <p class="sp-app-page__eyebrow">Record</p>
+        <h1>Create File</h1>
+        <p>Review your recorded tracks and save them as a MIDI file.</p>
+        <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(error_) ? "sp-app-alert--hidden" : "")">@error_</p>
+        <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(message_) ? "sp-app-alert--hidden" : "")">@message_</p>
+    </div>
+
+    <div class="sp-app-card record-file-page__form">
+        <label>
+            File title
+            <input class="sp-app-input" @bind="title_" />
+        </label>
+
+        <div class="record-file-page__actions">
+            <a class="sp-app-button sp-app-button--secondary" href="/record/tracks/create">Add another track</a>
+            <button type="button" class="sp-app-button" disabled="@(isSaving_ || Draft.Tracks.Count == 0)" @onclick="SaveFileAsync">Save MIDI file</button>
+        </div>
+    </div>
+
+    @if (Draft.Tracks.Count == 0)
+    {
+        <div class="sp-app-card record-file-page__empty">
+            <h2>No recorded tracks</h2>
+            <p>Create a track before saving a file.</p>
+            <a class="sp-app-button" href="/record/tracks/create">Create Track</a>
+        </div>
+    }
+    else
+    {
+        <div class="record-file-page__tracks">
+            @foreach (var track in Draft.Tracks)
+            {
+                <article class="sp-app-card record-file-page__track">
+                    <div>
+                        <h2>@track.Name</h2>
+                        <p>@track.PanType · @track.TempoBpm BPM · @track.BeatsPerBar/@track.BeatUnit · @track.DurationSeconds.ToString("0.#")s</p>
+                        <small>@track.Notes.Count note@(track.Notes.Count == 1 ? "" : "s")</small>
+                    </div>
+                    <button type="button" class="sp-app-button sp-app-button--danger" @onclick="() => RemoveTrack(track.Id)">Remove</button>
+                    <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.RecordEdit"
+                                         ShowEditTools="false"
+                                         PanLabel="@track.PanType.ToSpacedPascal()"
+                                         TrackLabel="@track.Name"
+                                         RecordNotes="track.Notes"
+                                         DurationSeconds="track.DurationSeconds"
+                                         TempoBpm="track.TempoBpm"
+                                         BeatsPerBar="track.BeatsPerBar"
+                                         BeatUnit="track.BeatUnit" />
+                </article>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private string title_ = "Recorded MIDI";
+    private string? error_;
+    private string? message_;
+    private bool isSaving_;
+
+    private void RemoveTrack(Guid id) => Draft.RemoveTrack(id);
+
+    private async Task SaveFileAsync()
+    {
+        error_ = null;
+        message_ = null;
+
+        if (Draft.Tracks.Count == 0)
+        {
+            error_ = "Add at least one track before saving.";
+            return;
+        }
+
+        isSaving_ = true;
+        try
+        {
+            var first = Draft.Tracks[0];
+            var file = await Db.MidiFiles.CreateRecordedMidiFileAsync(
+                new DbService.MidiFileService.CreateRecordedMidiFileRequest(
+                    title_,
+                    first.TempoBpm,
+                    first.BeatsPerBar,
+                    first.BeatUnit,
+                    Draft.Tracks.Select(track => new DbService.MidiFileService.CreateRecordedMidiTrackRequest(
+                        track.Name,
+                        track.PanType,
+                        track.DurationSeconds,
+                        track.Notes.Select(note => new DbService.MidiFileService.CreateRecordedMidiNoteRequest(
+                            note.Note,
+                            note.StartSeconds,
+                            note.DurationSeconds)).ToList())).ToList()));
+
+            Draft.Clear();
+            await State.User.RefreshAsync();
+            message_ = $"Saved {file.Title}.";
+            Nav.NavigateTo($"/manage/midi/{file.Id}");
+        }
+        catch (Exception ex)
+        {
+            error_ = ex.Message;
+        }
+        finally
+        {
+            isSaving_ = false;
+        }
+    }
+}

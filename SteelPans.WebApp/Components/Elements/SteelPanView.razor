@@ -36,6 +36,9 @@ else
     [Parameter]
     public Guid? PlaybackInstanceId { get; set; }
 
+    [Parameter]
+    public EventCallback<Note> OnNotePlayed { get; set; }
+    
     private bool noteFilesPreloaded_;
     private bool noteBuffersPreloaded_;
 
@@ -127,6 +130,17 @@ else
             (object)NoteKeys);
 
         noteBuffersPreloaded_ = true;
+    }
+
+    [JSInvokable]
+    public async Task OnNotePointerDown(string noteKey)
+    {
+        if (!OnNotePlayed.HasDelegate)
+            return;
+
+        var note = Pan.Notes.FirstOrDefault(x => string.Equals(x.Note.ToString(), noteKey, StringComparison.OrdinalIgnoreCase));
+        if (note is not null)
+            await OnNotePlayed.InvokeAsync(note.Note);
     }
 
     public async Task ClearMidiVisualStateAsync()

@@ -86,7 +86,6 @@
 
     protected override void OnInitialized()
     {
-        Playback.PlaybackStatusChanged += HandlePlaybackStateChangedAsync;
         Playback.PositionChanged += HandlePlaybackPositionChangedAsync;
 
         keyCallbacks_.Add(Keyboard.Register(
@@ -99,14 +98,6 @@
     {
         if (!isSeeking_)
             previewSeconds_ = ClampSeconds(Playback.Position.TotalSeconds);
-    }
-
-    private async Task HandlePlaybackStateChangedAsync<TArgs>(TArgs _)
-    {
-        if (!isSeeking_)
-            previewSeconds_ = ClampSeconds(Playback.Position.TotalSeconds);
-
-        await InvokeAsync(StateHasChanged);
     }
 
     private async Task HandlePlaybackPositionChangedAsync(PlaybackPositionChangedEventArgs args)
@@ -199,7 +190,6 @@
 
     public void Dispose()
     {
-        Playback.PlaybackStatusChanged -= HandlePlaybackStateChangedAsync;
         Playback.PositionChanged -= HandlePlaybackPositionChangedAsync;
 
         foreach (var registration in keyCallbacks_)

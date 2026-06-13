@@ -22,7 +22,13 @@
         <a class="sp-app-button" href="/manage/midi">Back</a>
         @if (File is not null)
         {
-            <a class="sp-app-button" href="/practice/play?file=@File.Id">Practice</a>
+            <a class="sp-app-button" href="/play/ensemble?file=@File.Id">Band</a>
+            <a class="sp-app-button" href="/play/practice?file=@File.Id">Practice</a>
+            <button class="sp-app-button"
+                    type="button"
+                    @onclick="TogglePreviewAsync">
+                @(IsPreviewOpen ? "Close Preview" : "Open Preview")
+            </button>
             <button class="sp-app-button sp-app-button--danger"
                     type="button"
                     @onclick="() => OpenDeleteFileModal(File)">
@@ -36,7 +42,7 @@
         <div class="sp-app-grid sp-app-grid--two midi-file-page__grid">
             <div class="sp-app-card midi-file-page__card">
                 <div class="midi-files__section-header">
-                    <h2>Sharing</h2>
+                    <h2>Share</h2>
                 </div>
 
                 @if (State.User.Groups is null)
@@ -51,12 +57,10 @@
                         .ToList();
 
                     <div class="sp-app-field">
-                        <label for="share-group-select">Share with group</label>
-                        <select id="share-group-select"
-                                class="sp-app-select @(targetShareGroup_ is null ? "sp-app-select--placeholder" : "")"
+                        <select class="sp-app-select @(targetShareGroup_ is null ? "sp-app-select--placeholder" : "")"
                                 @bind="targetShareGroup_"
                                 disabled="@(groups.Count == 0)">
-                            <option value="">Choose a group...</option>
+                            <option disabled hidden value="">Choose a group...</option>
                             @foreach (var group in groups)
                             {
                                 <option value="@group.Id">@group.Name</option>
@@ -151,7 +155,8 @@
 
     private Guid? targetShareGroup_;
     private MidiFilePreview? filePreview_;
-    private bool openedPreview_;
+
+    private bool IsPreviewOpen => filePreview_?.IsPreviewOpen == true;
 
     protected override void OnInitialized()
     {
@@ -176,12 +181,6 @@
             return;
 
         await UpdateNotFoundSubtitleAsync();
-
-        if (!openedPreview_ && filePreview_ is not null && File is not null)
-        {
-            openedPreview_ = true;
-            await filePreview_.OpenPreviewAsync(FileId);
-        }
     }
 
     private Task OnRefreshAsync()
@@ -192,6 +191,16 @@
     public void Dispose()
     {
         State.User.OnRefresh -= OnRefreshAsync;
+    }
+
+
+    private async Task TogglePreviewAsync()
+    {
+        if (filePreview_ is null)
+            return;
+
+        await filePreview_.TogglePreviewAsync(FileId);
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task OnAssignmentsSavedAsync()

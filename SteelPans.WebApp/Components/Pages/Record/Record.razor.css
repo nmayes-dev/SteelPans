@@ -1,0 +1,22 @@
+.record-home-page__grid {
+    align-items: stretch;
+}
+
+.record-home-page__card {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    text-decoration: none;
+    color: inherit;
+}
+
+.record-home-page__icon {
+    display: grid;
+    place-items: center;
+    width: 3rem;
+    height: 3rem;
+    flex: 0 0 auto;
+    border-radius: 1rem;
+    background: rgba(15, 23, 42, 0.08);
+    font-size: 1.35rem;
+}

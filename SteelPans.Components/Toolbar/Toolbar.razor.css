@@ -622,6 +622,7 @@
 .toolbar__panel-content-active {
     opacity: 1;
     height: 100%;
+    overflow: auto;
     padding: clamp(0.4rem, 0.85vw, 0.85rem) clamp(0.3rem, 0.75vw, 1rem) clamp(0.35rem, 0.5vw, 0.75rem);
 }
 

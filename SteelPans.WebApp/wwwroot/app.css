@@ -474,3 +474,9 @@ h4 {
     *::-webkit-scrollbar-corner {
         background: transparent;
     }
+
+.sp-app-button--compact {
+    min-height: 2rem;
+    padding: 0.35rem 0.65rem;
+    font-size: 0.85rem;
+}
