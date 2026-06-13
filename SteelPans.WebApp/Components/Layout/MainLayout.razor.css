@@ -64,7 +64,7 @@ main {
 @media (min-width: 900px) {
     .page {
         --layout-nav-top-height: 3.5rem;
-        --layout-nav-link-height: 3rem;S
+        --layout-nav-link-height: 3rem;
         --layout-nav-link-gap: 0.5rem;
         --layout-nav-item-padding-x: 1rem;
         --layout-nav-font-size: 0.9rem;

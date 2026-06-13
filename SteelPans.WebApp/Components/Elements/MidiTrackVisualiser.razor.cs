@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using SteelPans.Shared.Music;
 using SteelPans.WebApp.Services;
@@ -10,7 +11,16 @@ public enum MidiTrackVisualiserMode
     Playback,
     RecordEdit
 }
-
+public enum NoteSnapDivision
+{
+    None,
+    Barline,
+    Beat,
+    HalfBeat,
+    QuarterBeat,
+    EighthBeat,
+    SixteenthBeat
+}
 
 public partial class MidiTrackVisualiser
 {
@@ -63,13 +73,34 @@ public partial class MidiTrackVisualiser
     public double PositionSeconds { get; set; }
 
     [Parameter]
+    public NoteSnapDivision NoteSnapDivision { get; set; }
+
+    [Parameter]
+    public int? MinSemitone { get; set; }
+
+    [Parameter]
+    public int? MaxSemitone { get; set; }
+
+    [Parameter]
     public EventCallback<Guid> SelectNote { get; set; }
+
+    [Parameter]
+    public EventCallback<Note> PreviewNote { get; set; }
+
+    [Parameter]
+    public EventCallback<double> PositionChanged { get; set; }
 
     [Parameter]
     public EventCallback<double> MoveSelected { get; set; }
 
     [Parameter]
     public EventCallback<double> ResizeSelected { get; set; }
+
+    [Parameter]
+    public EventCallback<int> ChangeSelectedPitch { get; set; }
+
+    [Parameter]
+    public EventCallback<int> SetSelectedPitch { get; set; }
 
     [Parameter]
     public EventCallback<Guid> DeleteSelected { get; set; }
@@ -88,7 +119,57 @@ public partial class MidiTrackVisualiser
         0.01);
 
     private RecordNoteDraft? SelectedRecordNote => RecordNotes.FirstOrDefault(x => x.Id == SelectedNoteId);
+    private bool ShouldPreventKeyDefault => Mode == MidiTrackVisualiserMode.RecordEdit && SelectedRecordNote is not null;
     private double StepSeconds => 60.0 / Math.Max(1, TempoBpm) / 4.0;
+
+    private double NoteSnapValue
+    {
+        get
+        {
+            double beat = 1.0 / BeatUnit;
+            return NoteSnapDivision switch
+            {
+                NoteSnapDivision.None => 0,
+                NoteSnapDivision.Barline => BeatsPerBar,
+                NoteSnapDivision.Beat => beat,
+                NoteSnapDivision.HalfBeat => 0.5 * beat,
+                NoteSnapDivision.QuarterBeat => 0.25 * beat,
+                NoteSnapDivision.EighthBeat => 0.125 * beat,
+                NoteSnapDivision.SixteenthBeat => 0.0625 * beat,
+                _ => 0.0
+            };
+        }
+    }
+
+    private int VisualMinSemitone
+    {
+        get
+        {
+            if (MinSemitone is int min)
+                return min;
+
+            var source = Mode == MidiTrackVisualiserMode.RecordEdit
+                ? RecordNotes.Select(x => x.Note.SemitoneNumber)
+                : Notes.Select(x => x.Note.SemitoneNumber);
+
+            return source.DefaultIfEmpty(0).Min();
+        }
+    }
+
+    private int VisualMaxSemitone
+    {
+        get
+        {
+            if (MaxSemitone is int max)
+                return max;
+
+            var source = Mode == MidiTrackVisualiserMode.RecordEdit
+                ? RecordNotes.Select(x => x.Note.SemitoneNumber)
+                : Notes.Select(x => x.Note.SemitoneNumber);
+
+            return source.DefaultIfEmpty(VisualMinSemitone).Max();
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -109,6 +190,39 @@ public partial class MidiTrackVisualiser
 
         await RenderVisualiserIfChangedAsync();
         await UpdatePlayheadPositionAsync();
+    }
+
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs args)
+    {
+        if (Mode != MidiTrackVisualiserMode.RecordEdit || !ShowEditTools || SelectedRecordNote is null)
+            return;
+
+        switch (args.Key)
+        {
+            case "+":
+            case "=":
+                await ResizeSelected.InvokeAsync(StepSeconds);
+                break;
+
+            case "-":
+            case "_":
+                await ResizeSelected.InvokeAsync(-StepSeconds);
+                break;
+
+            case "ArrowUp":
+                await ChangeSelectedPitch.InvokeAsync(1);
+                break;
+
+            case "ArrowDown":
+                await ChangeSelectedPitch.InvokeAsync(-1);
+                break;
+
+            case "Delete":
+            case "Backspace":
+                await DeleteSelected.InvokeAsync(SelectedRecordNote.Id);
+                break;
+        }
     }
 
     private async Task RenderVisualiserIfChangedAsync(bool force = false)
@@ -161,6 +275,10 @@ public partial class MidiTrackVisualiser
                 Math.Max(InitialMidiBpm, 1),
                 Math.Max(BeatsPerBar, 1),
                 Math.Max(BeatUnit, 1),
+                Math.Max(NoteSnapValue, 0),
+                SelectedNoteId,
+                Math.Min(VisualMinSemitone, VisualMaxSemitone),
+                Math.Max(VisualMinSemitone, VisualMaxSemitone),
                 ShouldShowPlayhead));
     }
 
@@ -190,7 +308,10 @@ public partial class MidiTrackVisualiser
         hash.Add(InitialMidiBpm);
         hash.Add(BeatsPerBar);
         hash.Add(BeatUnit);
+        hash.Add(NoteSnapDivision);
         hash.Add(SelectedNoteId);
+        hash.Add(VisualMinSemitone);
+        hash.Add(VisualMaxSemitone);
         hash.Add(ShowEditTools);
         hash.Add(ShouldShowPlayhead);
 
@@ -237,6 +358,16 @@ public partial class MidiTrackVisualiser
         await Playback.CommitSeekAsync(TimeSpan.FromSeconds(Math.Max(0, seconds)));
     }
 
+
+    [JSInvokable]
+    public async Task SetRecordPositionSeconds(double seconds)
+    {
+        if (Mode != MidiTrackVisualiserMode.RecordEdit)
+            return;
+
+        await PositionChanged.InvokeAsync(Math.Clamp(seconds, 0.0, VisualDurationSeconds));
+    }
+
     [JSInvokable]
     public async Task SelectRecordNote(string id)
     {
@@ -244,6 +375,80 @@ public partial class MidiTrackVisualiser
             return;
 
         await SelectNote.InvokeAsync(noteId);
+
+        var note = RecordNotes.FirstOrDefault(x => x.Id == noteId);
+        if (note is not null)
+            await PreviewNote.InvokeAsync(note.Note);
+    }
+
+
+
+    [JSInvokable]
+    public async Task MoveRecordNote(string id, double deltaSeconds)
+    {
+        if (Mode != MidiTrackVisualiserMode.RecordEdit || !Guid.TryParse(id, out var noteId))
+            return;
+
+        await SelectNote.InvokeAsync(noteId);
+        await MoveSelected.InvokeAsync(deltaSeconds);
+    }
+
+    [JSInvokable]
+    public async Task MoveRecordNoteAndPitch(string id, double deltaSeconds, int semitone)
+    {
+        if (Mode != MidiTrackVisualiserMode.RecordEdit || !Guid.TryParse(id, out var noteId))
+            return;
+
+        await SelectNote.InvokeAsync(noteId);
+
+        if (Math.Abs(deltaSeconds) > 0.0001)
+            await MoveSelected.InvokeAsync(deltaSeconds);
+
+        var clampedSemitone = Math.Clamp(semitone, Math.Min(VisualMinSemitone, VisualMaxSemitone), Math.Max(VisualMinSemitone, VisualMaxSemitone));
+        await SetSelectedPitch.InvokeAsync(clampedSemitone);
+        await PreviewNote.InvokeAsync(Note.FromSemitoneNumber(clampedSemitone));
+    }
+
+    [JSInvokable]
+    public async Task MoveSelectedRecordNote(double deltaSeconds)
+    {
+        if (Mode != MidiTrackVisualiserMode.RecordEdit || SelectedRecordNote is null)
+            return;
+
+        await MoveSelected.InvokeAsync(deltaSeconds);
+    }
+
+    [JSInvokable]
+    public async Task ResizeSelectedRecordNote(double deltaSeconds)
+    {
+        if (Mode != MidiTrackVisualiserMode.RecordEdit || SelectedRecordNote is null)
+            return;
+
+        await ResizeSelected.InvokeAsync(deltaSeconds);
+    }
+
+    [JSInvokable]
+    public async Task ChangeSelectedRecordNotePitch(int semitoneDelta)
+    {
+        if (Mode != MidiTrackVisualiserMode.RecordEdit || SelectedRecordNote is null)
+            return;
+
+        var semitone = Math.Clamp(
+            SelectedRecordNote.Note.SemitoneNumber + semitoneDelta,
+            Math.Min(VisualMinSemitone, VisualMaxSemitone),
+            Math.Max(VisualMinSemitone, VisualMaxSemitone));
+
+        await ChangeSelectedPitch.InvokeAsync(semitoneDelta);
+        await PreviewNote.InvokeAsync(Note.FromSemitoneNumber(semitone));
+    }
+
+    [JSInvokable]
+    public async Task DeleteSelectedRecordNote()
+    {
+        if (Mode != MidiTrackVisualiserMode.RecordEdit || SelectedRecordNote is null)
+            return;
+
+        await DeleteSelected.InvokeAsync(SelectedRecordNote.Id);
     }
 
     public async ValueTask DisposeAsync()
@@ -282,5 +487,9 @@ public partial class MidiTrackVisualiser
         int InitialMidiBpm,
         int BeatsPerBar,
         int BeatUnit,
+        double SnapNoteDivision,
+        Guid? SelectedNoteId,
+        int MinSemitone,
+        int MaxSemitone,
         bool ShowPlayhead);
 }

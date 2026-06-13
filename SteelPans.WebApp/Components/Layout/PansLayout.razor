@@ -73,8 +73,7 @@
         if (!firstRender)
             return;
 
-        Playback.MidiFileLoaded += OnPlaybackStateChangedAsync;
-        Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
+        Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
         await InitialiseLayoutAsync();
     }
 

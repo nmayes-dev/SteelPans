@@ -1,7 +1,7 @@
 .midi-track-visualiser {
-    --label-width: 224px;
+    --label-width: 200px;
     --ruler-height: 24px;
-    --lane-height: 200px;
+    --lane-height: 160px;
     --timeline-width: 960px;
     --note-height: 10px;
     --bar-grid-size: 576px;
@@ -257,17 +257,14 @@
 
 }
 
-.midi-track-visualiser--recordedit {
-    --lane-height: 200px;
-}
-
 .midi-track-visualiser__note--editable {
     appearance: none;
     border: 1px solid rgba(71, 85, 105, 0.45);
     font: inherit;
     font-size: 0.66rem;
     font-weight: 700;
-    cursor: pointer;
+    cursor: grab;
+    touch-action: none;
     pointer-events: auto;
 }
 
@@ -287,14 +284,35 @@
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.26), 0 6px 14px rgba(37, 99, 235, 0.22);
 }
 
-.midi-track-visualiser__tools {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 0;
-    padding: 0.75rem;
-    border: 1px solid rgba(148, 163, 184, 0.28);
-    border-radius: 0.85rem;
-    background: #f8fafc;
+
+.midi-track-visualiser:focus {
+    outline: none;
+}
+
+.midi-track-visualiser:focus-visible {
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+}
+
+.midi-track-visualiser--note-dragging .midi-track-visualiser__note--editable,
+.midi-track-visualiser__note--editable:active,
+.midi-track-visualiser__note--dragging {
+    cursor: grabbing;
+}
+
+.midi-track-visualiser__note--dragging {
+    z-index: 6;
+    transform: translateY(-1px);
+}
+
+@media (max-width: 760px) {
+    .midi-track-visualiser__legend {
+        left: calc(var(--label-width) + 0.5rem);
+        right: 0.5rem;
+        bottom: 0.5rem;
+        max-width: none;
+    }
+
+    .midi-track-visualiser__legend span {
+        font-size: 0.66rem;
+    }
 }

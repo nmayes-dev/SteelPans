@@ -1,8 +1,8 @@
 const pixelsPerSecond = 192;
 const minTimelineWidth = 960;
-const labelWidth = 224;
+const labelWidth = 200;
 const rulerHeight = 24;
-const laneHeight = 200;
+const laneHeight = 160;
 const noteHeight = 10;
 const playheadWidth = 3;
 const timelinePaddingRight = playheadWidth;
@@ -39,6 +39,10 @@ window.visualiser = {
             midiStartAt: null,
             initialMidiBpm: 120,
             tempoBpm: 120,
+            snapNoteDivision: 0,
+            selectedNoteId: null,
+            minSemitone: 0,
+            maxSemitone: 0,
             animationFrame: 0,
             dragging: false,
             viewportDragging: false,
@@ -51,6 +55,8 @@ window.visualiser = {
             pendingPlaybackSeek: false,
             playbackStateChanged: null,
             mode: "Playback",
+            suppressNextNoteClick: false,
+            recordPlayheadDragging: false,
         };
 
         this._states.set(root, state);
@@ -59,14 +65,17 @@ window.visualiser = {
 
         const viewportPointerDown = event => this._beginViewportDrag(root, event);
         const playheadPointerDown = event => this._beginPlayheadDrag(root, event);
+        const rootKeyDown = event => this._handleRecordEditKeyDown(state, event);
         const playbackStateChanged = event => this._applyPlaybackState(state, event.detail);
 
         ruler?.addEventListener("pointerdown", viewportPointerDown);
         tracks?.addEventListener("pointerdown", viewportPointerDown);
+        root.addEventListener("keydown", rootKeyDown);
         window.addEventListener("panplayback:midiplaybackstatechanged", playbackStateChanged);
 
         state.viewportPointerDown = viewportPointerDown;
         state.playheadPointerDown = playheadPointerDown;
+        state.rootKeyDown = rootKeyDown;
         state.playbackStateChanged = playbackStateChanged;
 
         this._applyPlaybackState(state, window.panPlayback?.getMidiPlaybackState?.());
@@ -81,10 +90,23 @@ window.visualiser = {
         const mode = String(data.mode || "Playback");
         const isRecordEdit = mode === "RecordEdit";
         const durationSeconds = Math.max(Number(data.durationSeconds) || 0.01, 0.01);
+        const activeElement = document.activeElement;
+        const shouldRestoreKeyboardFocus = isRecordEdit
+            && data.selectedNoteId
+            && (activeElement === state.root || state.root.contains(activeElement));
 
         state.mode = mode;
         state.initialMidiBpm = Math.max(Number(data.initialMidiBpm) || Number(data.tempoBpm) || 120, 1);
         state.tempoBpm = Math.max(Number(data.tempoBpm) || state.initialMidiBpm, 1);
+        state.snapNoteDivision = Math.max(Number(data.snapNoteDivision) || 0, 0);
+        state.selectedNoteId = data.selectedNoteId ? String(data.selectedNoteId) : null;
+        state.minSemitone = Number.isFinite(Number(data.minSemitone)) ? Number(data.minSemitone) : 0;
+        state.maxSemitone = Number.isFinite(Number(data.maxSemitone)) ? Number(data.maxSemitone) : state.minSemitone;
+        if (state.maxSemitone < state.minSemitone) {
+            const temp = state.minSemitone;
+            state.minSemitone = state.maxSemitone;
+            state.maxSemitone = temp;
+        }
         const contentWidth = Math.max(durationSeconds * pixelsPerSecond, minTimelineWidth);
         const timelineWidth = contentWidth + timelinePaddingRight;
 
@@ -149,16 +171,18 @@ window.visualiser = {
         const row = this._createScopedElement(state, "div", "midi-track-visualiser__track-row");
         state.tracks.appendChild(row);
 
-        const semitones = notes.map(x => Number(x.semitone)).filter(Number.isFinite);
-        const minSemitone = semitones.length ? Math.min(...semitones) : 0;
-        const maxSemitone = semitones.length ? Math.max(...semitones) : minSemitone;
+        const minSemitone = state.minSemitone;
+        const maxSemitone = state.maxSemitone;
         const range = Math.max(1, maxSemitone - minSemitone);
         const availableHeight = laneHeight - noteHeight - 22;
 
         for (const note of notes) {
             const start = Math.max(0, Number(note.startSeconds) || 0);
             const duration = Math.max(Number(note.durationSeconds) || 0, 0.001);
-            const semitone = Number.isFinite(Number(note.semitone)) ? Number(note.semitone) : minSemitone;
+            const semitone = this._clamp(
+                Number.isFinite(Number(note.semitone)) ? Number(note.semitone) : minSemitone,
+                minSemitone,
+                maxSemitone);
             const normalized = (semitone - minSemitone) / range;
             const top = 11 + ((1.0 - normalized) * availableHeight);
 
@@ -171,10 +195,15 @@ window.visualiser = {
 
             if (isRecordEdit) {
                 element.type = "button";
-                element.addEventListener("pointerdown", event => event.stopPropagation());
+                element.addEventListener("pointerdown", event => this._beginRecordNoteDrag(state, event, id, start, duration, semitone));
                 element.addEventListener("click", async event => {
                     event.preventDefault();
                     event.stopPropagation();
+
+                    if (state.suppressNextNoteClick) {
+                        state.suppressNextNoteClick = false;
+                        return;
+                    }
 
                     if (!id)
                         return;
@@ -208,11 +237,15 @@ window.visualiser = {
 
         state.root.querySelector(".midi-track-visualiser__playhead")?.remove();
 
+        if (shouldRestoreKeyboardFocus)
+            requestAnimationFrame(() => state.root?.focus?.({ preventScroll: true }));
+
         if (!isRecordEdit || data.showPlayhead === true) {
             const playhead = this._createScopedElement(state, "div", "midi-track-visualiser__playhead");
 
-            if (!isRecordEdit)
-                playhead.addEventListener("pointerdown", state.playheadPointerDown);
+            playhead.addEventListener("pointerdown", isRecordEdit
+                ? event => this._beginRecordPlayheadDrag(state, event)
+                : state.playheadPointerDown);
 
             state.root.appendChild(playhead);
             state.playhead = playhead;
@@ -291,10 +324,56 @@ window.visualiser = {
         state.tracks?.removeEventListener("pointerdown", state.viewportPointerDown);
         state.playhead?.removeEventListener("pointerdown", state.playheadPointerDown);
 
+        if (state.rootKeyDown)
+            state.root?.removeEventListener("keydown", state.rootKeyDown);
+
         if (state.playbackStateChanged)
             window.removeEventListener("panplayback:midiplaybackstatechanged", state.playbackStateChanged);
 
         this._states.delete(root);
+    },
+
+    _handleRecordEditKeyDown(state, event) {
+        if (!state || state.mode !== "RecordEdit" || !state.selectedNoteId)
+            return;
+
+        const key = event.key;
+        const handled = key === "+"
+            || key === "="
+            || key === "-"
+            || key === "_"
+            || key === "ArrowUp"
+            || key === "ArrowDown"
+            || key === "Delete"
+            || key === "Backspace";
+
+        if (!handled)
+            return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        try {
+            if (key === "+" || key === "=") {
+                void state.dotNetRef?.invokeMethodAsync("ResizeSelectedRecordNote", this._getKeyboardStepSeconds(state));
+            } else if (key === "-" || key === "_") {
+                void state.dotNetRef?.invokeMethodAsync("ResizeSelectedRecordNote", -this._getKeyboardStepSeconds(state));
+            } else if (key === "ArrowUp") {
+                void state.dotNetRef?.invokeMethodAsync("ChangeSelectedRecordNotePitch", 1);
+            } else if (key === "ArrowDown") {
+                void state.dotNetRef?.invokeMethodAsync("ChangeSelectedRecordNotePitch", -1);
+            } else if (key === "Delete" || key === "Backspace") {
+                void state.dotNetRef?.invokeMethodAsync("DeleteSelectedRecordNote");
+            }
+
+            state.root?.focus?.({ preventScroll: true });
+        } catch (error) {
+            console.warn("Failed to handle record visualiser key", error);
+        }
+    },
+
+    _getKeyboardStepSeconds(state) {
+        return 60.0 / Math.max(1, Number(state.tempoBpm) || 120) / 4.0;
     },
 
     _beginPlayheadDrag(root, event) {
@@ -425,6 +504,187 @@ window.visualiser = {
         window.addEventListener("pointercancel", up);
     },
 
+
+    _beginRecordNoteDrag(state, event, id, startSeconds, durationSeconds, semitoneNumber) {
+        if (event.button !== undefined && event.button !== 0)
+            return;
+
+        if (!state || state.mode !== "RecordEdit" || !state.viewport || !id)
+            return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const target = event.currentTarget;
+        const pointerId = event.pointerId;
+        const startClientX = event.clientX;
+        const startClientY = event.clientY;
+        const start = Math.max(0, Number(startSeconds) || 0);
+        const duration = Math.max(0.001, Number(durationSeconds) || 0.001);
+        const maxStart = Math.max(0, (state.durationSeconds || 0) - duration);
+        const startSemitone = this._clamp(
+            Number.isFinite(Number(semitoneNumber)) ? Number(semitoneNumber) : state.minSemitone,
+            state.minSemitone,
+            state.maxSemitone);
+        let currentStart = start;
+        let currentSemitone = startSemitone;
+        let moved = false;
+
+        state.selectedNoteId = id;
+        target?.focus?.({ preventScroll: true });
+        target?.setPointerCapture?.(pointerId);
+        target?.classList.add("midi-track-visualiser__note--dragging");
+        target?.classList.add("midi-track-visualiser__note--selected");
+        state.root.classList.add("midi-track-visualiser--note-dragging");
+
+        const select = async () => {
+            try {
+                await state.dotNetRef?.invokeMethodAsync("SelectRecordNote", id);
+            } catch (error) {
+                console.warn("Failed to select record visualiser note", error);
+            }
+        };
+
+        const move = moveEvent => {
+            moveEvent.preventDefault();
+            const deltaX = moveEvent.clientX - startClientX;
+            const deltaY = moveEvent.clientY - startClientY;
+
+            if (Math.abs(deltaX) >= 3 || Math.abs(deltaY) >= 3)
+                moved = true;
+
+            const rawStart = start + (deltaX / pixelsPerSecond);
+            currentStart = this._snapRecordNoteStart(state, rawStart, maxStart);
+            currentSemitone = this._getSemitoneFromPointerY(state, moveEvent.clientY);
+
+            target.style.left = `${currentStart * pixelsPerSecond}px`;
+            target.style.top = `${this._getNoteTop(state, currentSemitone)}px`;
+        };
+
+        const up = async upEvent => {
+            upEvent.preventDefault();
+            upEvent.stopPropagation();
+
+            target?.releasePointerCapture?.(pointerId);
+            target?.classList.remove("midi-track-visualiser__note--dragging");
+            state.root.classList.remove("midi-track-visualiser--note-dragging");
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", up);
+            window.removeEventListener("pointercancel", up);
+
+            const deltaSeconds = currentStart - start;
+            const semitoneChanged = currentSemitone !== startSemitone;
+
+            if (moved && (Math.abs(deltaSeconds) > 0.0001 || semitoneChanged)) {
+                state.suppressNextNoteClick = true;
+
+                try {
+                    await state.dotNetRef?.invokeMethodAsync("MoveRecordNoteAndPitch", id, deltaSeconds, currentSemitone);
+                } catch (error) {
+                    console.warn("Failed to move record visualiser note", error);
+                }
+            } else {
+                await select();
+            }
+        };
+
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+        window.addEventListener("pointercancel", up);
+    },
+
+
+    _beginRecordPlayheadDrag(state, event) {
+        if (event.button !== undefined && event.button !== 0)
+            return;
+
+        if (!state || state.mode !== "RecordEdit" || !state.viewport || !state.tracks)
+            return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const pointerId = event.pointerId;
+        const target = event.currentTarget;
+        state.recordPlayheadDragging = true;
+        state.root?.focus?.({ preventScroll: true });
+        target?.setPointerCapture?.(pointerId);
+
+        const move = moveEvent => {
+            moveEvent.preventDefault();
+            const seconds = this._getSecondsFromPointer(state, moveEvent);
+            state.positionSeconds = seconds;
+            state.positionAnchorSeconds = seconds;
+            state.audioAnchorTime = this._getAudioTimeOrNull();
+            this._setDraggedPlayheadPosition(state, moveEvent);
+            this._updateActiveNotes(state, seconds);
+        };
+
+        const up = async upEvent => {
+            upEvent.preventDefault();
+            upEvent.stopPropagation();
+            target?.releasePointerCapture?.(pointerId);
+            window.removeEventListener("pointermove", move);
+            window.removeEventListener("pointerup", up);
+            window.removeEventListener("pointercancel", up);
+            state.recordPlayheadDragging = false;
+
+            const seconds = this._getSecondsFromPointer(state, upEvent);
+            state.positionSeconds = seconds;
+            state.positionAnchorSeconds = seconds;
+            state.audioAnchorTime = this._getAudioTimeOrNull();
+            state.dragPlayheadViewportX = null;
+            this._setPlayheadPosition(state, seconds, false);
+
+            try {
+                await state.dotNetRef?.invokeMethodAsync("SetRecordPositionSeconds", seconds);
+            } catch (error) {
+                console.warn("Failed to set record visualiser position", error);
+            }
+        };
+
+        move(event);
+        window.addEventListener("pointermove", move);
+        window.addEventListener("pointerup", up);
+        window.addEventListener("pointercancel", up);
+    },
+
+    _getNoteTop(state, semitone) {
+        const minSemitone = Number.isFinite(Number(state.minSemitone)) ? Number(state.minSemitone) : 0;
+        const maxSemitone = Number.isFinite(Number(state.maxSemitone)) ? Number(state.maxSemitone) : minSemitone;
+        const range = Math.max(1, maxSemitone - minSemitone);
+        const availableHeight = laneHeight - noteHeight - 22;
+        const clampedSemitone = this._clamp(Number(semitone) || minSemitone, minSemitone, maxSemitone);
+        const normalized = (clampedSemitone - minSemitone) / range;
+
+        return 11 + ((1.0 - normalized) * availableHeight);
+    },
+
+    _getSemitoneFromPointerY(state, clientY) {
+        const rect = state.tracks.getBoundingClientRect();
+        const minSemitone = Number.isFinite(Number(state.minSemitone)) ? Number(state.minSemitone) : 0;
+        const maxSemitone = Number.isFinite(Number(state.maxSemitone)) ? Number(state.maxSemitone) : minSemitone;
+        const range = Math.max(1, maxSemitone - minSemitone);
+        const availableHeight = laneHeight - noteHeight - 22;
+        const y = this._clamp(clientY - rect.top - 11, 0, availableHeight);
+        const normalized = 1.0 - (y / availableHeight);
+        return Math.round(this._clamp(minSemitone + (normalized * range), minSemitone, maxSemitone));
+    },
+
+    _snapRecordNoteStart(state, startSeconds, maxStart) {
+        const clamped = this._clamp(startSeconds, 0, maxStart);
+        const snapDivision = Number(state.snapNoteDivision) || 0;
+
+        if (snapDivision <= 0)
+            return clamped;
+
+        const snapSeconds = this._getSecondsPerBeat(state.tempoBpm, snapDivision);
+        if (!Number.isFinite(snapSeconds) || snapSeconds <= 0)
+            return clamped;
+
+        return this._clamp(Math.round(clamped / snapSeconds) * snapSeconds, 0, maxStart);
+    },
+
     _setDraggedPlayheadPosition(state, event) {
         if (!state.viewport || !state.playhead)
             return;
@@ -455,7 +715,7 @@ window.visualiser = {
         const left = seconds * pixelsPerSecond;
         const targetViewportX = state.dragPlayheadViewportX ?? scrollOffset;
 
-        state.viewport.scrollLeft = this._clamp(left - targetViewportX, 0, this._getMaxScrollLeft(state)    );
+        state.viewport.scrollLeft = this._clamp(left - targetViewportX, 0, this._getMaxScrollLeft(state));
     },
 
     _updateDragAutoScroll(state) {
@@ -620,8 +880,12 @@ window.visualiser = {
         }
 
         try {
-            await state.dotNetRef?.invokeMethodAsync("PreviewSeekSeconds", clamped);
-            await state.dotNetRef?.invokeMethodAsync("CommitSeekSeconds", clamped);
+            if (state.mode === "RecordEdit") {
+                await state.dotNetRef?.invokeMethodAsync("SetRecordPositionSeconds", clamped);
+            } else {
+                await state.dotNetRef?.invokeMethodAsync("PreviewSeekSeconds", clamped);
+                await state.dotNetRef?.invokeMethodAsync("CommitSeekSeconds", clamped);
+            }
         } catch (error) {
             console.warn("Failed to commit MIDI visualiser barline seek", error);
         }

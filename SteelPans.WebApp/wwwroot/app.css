@@ -45,6 +45,7 @@ main {
     height: 100%;
     min-height: 0;
     overflow: hidden;
+    container-type: inline-size;
 }
 
 a,
@@ -429,12 +430,24 @@ h4 {
 .sp-app-svg-label {
     pointer-events: none;
     fill: #000000;
+    transition: fill 80ms ease, transform 80ms ease;
+}
+
+.sp-app-svg-label--on {
+    fill: #ffffff !important;
 }
 
 .sp-app-svg-note {
     touch-action: none;
     fill: #ffffff;
+    cursor: pointer;
+    transition: fill 50ms ease, transform 50ms ease;
 }
+
+.sp-app-svg-note--on {
+    fill: #e2201c !important;
+}
+
 
 @media (hover: hover) and (pointer: fine) {
     .sp-app-svg-note:hover {

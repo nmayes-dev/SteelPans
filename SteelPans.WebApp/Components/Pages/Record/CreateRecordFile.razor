@@ -1,6 +1,7 @@
 @page "/record/files/create"
 @attribute [Authorize]
 @inject RecordDraftService Draft
+@inject SteelPanLoaderService PanLoader
 @inject DbService Db
 @inject NavigationManager Nav
 @inject InstanceStateService State
@@ -54,6 +55,8 @@
                                          TrackLabel="@track.Name"
                                          RecordNotes="track.Notes"
                                          DurationSeconds="track.DurationSeconds"
+                                         MinSemitone="GetPanMinSemitone(track.PanType)"
+                                         MaxSemitone="GetPanMaxSemitone(track.PanType)"
                                          TempoBpm="track.TempoBpm"
                                          BeatsPerBar="track.BeatsPerBar"
                                          BeatUnit="track.BeatUnit" />
@@ -70,6 +73,10 @@
     private bool isSaving_;
 
     private void RemoveTrack(Guid id) => Draft.RemoveTrack(id);
+
+    private SteelPan? GetPan(PanType panType) => PanLoader.Pans.FirstOrDefault(x => x.Type == panType);
+    private int? GetPanMinSemitone(PanType panType) => GetPan(panType)?.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Min();
+    private int? GetPanMaxSemitone(PanType panType) => GetPan(panType)?.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Max();
 
     private async Task SaveFileAsync()
     {

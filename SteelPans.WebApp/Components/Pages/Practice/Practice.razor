@@ -80,6 +80,8 @@ else
                                  PanLabel="@AssignedPanLabel"
                                  TrackLabel="@SelectedTrackLabel"
                                  Notes="@SelectedTrackEvents"
+                                 MinSemitone="SelectedPanMinSemitone"
+                                 MaxSemitone="SelectedPanMaxSemitone"
                                  Duration="@VisualDuration"
                                  TempoBpm="@Playback.TempoBpm"
                                  InitialMidiBpm="@Playback.InitialMidiBpm"
@@ -107,6 +109,8 @@ else
     private MidiTrackInfo? SelectedTrack => Playback.Tracks.FirstOrDefault(x => x.Index == SelectedTrackIndex);
     private MidiAssignedPan? SelectedAssignedPan => Playback.GetAssignedPanForTrack(SelectedTrackIndex);
     private IReadOnlyList<MidiAssignedPan> SelectedPanList => SelectedAssignedPan is null ? [] : [SelectedAssignedPan];
+    private int? SelectedPanMinSemitone => SelectedAssignedPan?.Pan.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Min();
+    private int? SelectedPanMaxSemitone => SelectedAssignedPan?.Pan.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Max();
 
     private IReadOnlyList<MidiPanEvent> SelectedTrackEvents => Playback.GetMidiTrackEvents(SelectedTrackIndex)
         .OrderBy(x => x.Start)

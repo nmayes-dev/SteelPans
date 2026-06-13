@@ -14,11 +14,11 @@
     gap: 1rem;
 }
 
-.record-track-page__settings label {
-    display: grid;
-    gap: 0.35rem;
-    font-weight: 700;
-}
+    .record-track-page__settings label {
+        display: grid;
+        gap: 0.35rem;
+        font-weight: 700;
+    }
 
 .record-track-page__signature {
     display: grid;
@@ -37,9 +37,9 @@
     border-top: 1px solid rgba(148, 163, 184, 0.28);
 }
 
-.record-track-page__controls p {
-    margin: 0.25rem 0 0;
-}
+    .record-track-page__controls p {
+        margin: 0.25rem 0 0;
+    }
 
 .record-track-page__toggle {
     display: inline-flex;
@@ -57,4 +57,127 @@
 
 .record-track-page__pan {
     width: min(100%, 34rem);
+}
+
+.record-track-page__audio-pan {
+    position: fixed;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.record-track-page__overlay {
+    position: absolute;
+    z-index: 1000;
+    width: 100cqw;
+    height: 100%;
+    overflow: auto;
+}
+
+.record-track-page__overlay--show {
+    padding: 0.75rem;
+    top: 0px;
+    backdrop-filter: blur(10px);
+}
+
+.record-track-page__overlay--hide {
+    visibility: hidden;
+}
+
+.record-track-page__overlay-shell {
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    gap: 1rem;
+    width: 100%;
+    height: 100%;
+    padding: 1rem;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 1.25rem;
+    background: #f8fafc;
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.32);
+}
+
+.record-track-page__overlay-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+    .record-track-page__overlay-header div {
+        display: grid;
+        gap: 0.15rem;
+    }
+
+    .record-track-page__overlay-header span {
+        color: #64748b;
+        font-size: 0.9rem;
+    }
+
+.record-track-page__overlay-visualiser {
+    position: relative;
+}
+
+.record-track-page__overlay-pan-card {
+    display: grid;
+    place-items: center;
+    min-height: 22rem;
+    overflow: hidden;
+}
+
+.record-track-page__overlay-pan {
+    width: min(100%, 34rem);
+}
+
+.record-track-page__count-in {
+    --ring-size: min(38vw, 12rem);
+    position: absolute;
+    z-index: 40;
+}
+
+.record-track-page__count-in--show {
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+}
+
+.record-track-page__count-in--hide {
+    visibility: hidden;
+}
+
+
+.record-track-page__count-in-ring {
+    display: grid;
+    place-items: center;
+    width: var(--ring-size);
+    height: var(--ring-size);
+    border-radius: 50%;
+    background: radial-gradient(circle at center, #f8fafc 0 58%, transparent 59%), conic-gradient(#2563eb calc(var(--count-in-progress, 0) * 1turn), rgba(148, 163, 184, 0.3) 0);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.26);
+}
+
+    .record-track-page__count-in-ring span {
+        font-size: clamp(4rem, 12vw, 8rem);
+        font-weight: 900;
+        line-height: 1;
+        color: #0f172a;
+        font-variant-numeric: tabular-nums;
+    }
+
+@media (max-width: 760px) {
+    .record-track-page__overlay {
+        padding: 0.5rem;
+    }
+
+    .record-track-page__overlay-shell {
+        padding: 0.75rem;
+    }
+
+    .record-track-page__overlay-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
 }

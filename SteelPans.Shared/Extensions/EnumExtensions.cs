@@ -11,13 +11,13 @@ public static class EnumExtensions
     private static readonly Regex splitPascal_ =
     new(@"(?<!^)([A-Z])", RegexOptions.Compiled);
 
-    public static string ToKebabCase(this PanType value)
+    public static string ToSpacedPascal(this Enum value) => splitPascal_.Replace(value.ToString(), " $1");
+
+    public static string ToKebabCase(this Enum value)
     {
         var name = value.ToString();
         return splitKebab_.Replace(name, "$1-$2").ToLowerInvariant();
     }
-
-    public static string ToSpacedPascal(this PanType value) => splitPascal_.Replace(value.ToString(), " $1");
 
     public static string ToPath(this PanType value) => $"images/pans/{value.ToKebabCase()}.svg";
 }

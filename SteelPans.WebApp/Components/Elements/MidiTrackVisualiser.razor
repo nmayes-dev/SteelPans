@@ -2,7 +2,7 @@
 @inject MidiPlaybackService Playback
 @implements IAsyncDisposable
 
-<div class="midi-track-visualiser midi-track-visualiser--@Mode.ToString().ToLowerInvariant()" @ref="root_">
+<div class="midi-track-visualiser midi-track-visualiser--@Mode.ToString().ToLowerInvariant()" @ref="root_" tabindex="0" @onkeydown="OnKeyDownAsync" @onkeydown:preventDefault="ShouldPreventKeyDefault">
     <div class="midi-track-visualiser__labels">
         <div class="midi-track-visualiser__corner" />
         <div class="midi-track-visualiser__track-label">
@@ -22,22 +22,3 @@
         </div>
     </div>
 </div>
-
-@if (Mode == MidiTrackVisualiserMode.RecordEdit && ShowEditTools)
-{
-    <div class="midi-track-visualiser__tools">
-        @if (SelectedRecordNote is null)
-        {
-            <span>Select a note to edit it.</span>
-        }
-        else
-        {
-            <strong>@SelectedRecordNote.Note</strong>
-            <button type="button" class="sp-app-button sp-app-button--compact" @onclick="() => MoveSelected.InvokeAsync(-StepSeconds)">←</button>
-            <button type="button" class="sp-app-button sp-app-button--compact" @onclick="() => MoveSelected.InvokeAsync(StepSeconds)">→</button>
-            <button type="button" class="sp-app-button sp-app-button--compact" @onclick="() => ResizeSelected.InvokeAsync(-StepSeconds)">Shorter</button>
-            <button type="button" class="sp-app-button sp-app-button--compact" @onclick="() => ResizeSelected.InvokeAsync(StepSeconds)">Longer</button>
-            <button type="button" class="sp-app-button sp-app-button--compact sp-app-button--danger" @onclick="() => DeleteSelected.InvokeAsync(SelectedRecordNote.Id)">Delete</button>
-        }
-    </div>
-}

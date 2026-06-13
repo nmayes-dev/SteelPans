@@ -15,6 +15,12 @@
     transition: opacity 180ms ease, filter 180ms ease;
 }
 
+.steel-pan__root--disabled {
+    pointer-events: none;
+    cursor: default;
+}
+
+.steel-pan__root--disabled,
 .steel-pan__root--muted {
     opacity: 0.62;
     filter: grayscale(0.35) saturate(0.85);

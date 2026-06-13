@@ -31,7 +31,7 @@
 
         <NoteDivisionDropdown Value="@Playback.CountInNoteDivision"
                               Disabled="@Playback.IsPlaying" 
-                              OnChange="SetCountInNoteDivisionAsync"
+                              ValueChanged="SetCountInNoteDivisionAsync"
                               NoteDivisions="@([2, 4, 8, 16])"/>
     </div>
 

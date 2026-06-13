@@ -28,6 +28,9 @@ else
     public required SteelPan Pan { get; set; }
 
     [Parameter]
+    public bool Disabled { get; set; }
+
+    [Parameter]
     public string? Class { get; set; }
 
     [Parameter]
@@ -67,7 +70,7 @@ else
     private bool IsOtherSolo => AssignedPan?.Soloing == false && OtherPans.Any(p => p.Soloing);
 
     private string RootCssClass =>
-        $"steel-pan__root{((IsMuted || IsOtherSolo) ? " steel-pan__root--muted" : string.Empty)}";
+        $"steel-pan__root{((IsMuted || IsOtherSolo) ? " steel-pan__root--muted" : string.Empty)}{(Disabled ? " steel-pan__root--disabled" : string.Empty)}";
 
     protected override Task OnInitializedAsync()
     {
@@ -184,6 +187,18 @@ else
 
         await RebuildSvgAsync();
         await InvokeAsync(StateHasChanged);
+    }
+
+
+    public async Task PlayNoteAsync(Note note)
+    {
+        var noteKey = note.ToString();
+        await JS.InvokeVoidAsync("panPlayback.playNote", componentId_, noteKey);
+        await JS.InvokeVoidAsync(
+            "panPlayback.flashNotes",
+            componentId_,
+            (object)new[] { noteKey },
+            (int)Math.Max(120, sampleDuration_.TotalMilliseconds));
     }
 
     public async Task PlaySelectedNotesAsync()
