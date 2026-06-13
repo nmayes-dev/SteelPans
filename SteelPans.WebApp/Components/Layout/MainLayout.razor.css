@@ -61,21 +61,10 @@ main {
             text-overflow: ellipsis;
         }
 
-@media (max-width: 800px) {
-    .top-row {
-        justify-content: space-between;
-    }
-
-        .top-row ::deep a,
-        .top-row ::deep .btn-link {
-            margin-left: 0;
-        }
-}
-
-@media (min-width: 800px) {
+@media (min-width: 900px) {
     .page {
         --layout-nav-top-height: 3.5rem;
-        --layout-nav-link-height: 3rem;
+        --layout-nav-link-height: 3rem;S
         --layout-nav-link-gap: 0.5rem;
         --layout-nav-item-padding-x: 1rem;
         --layout-nav-font-size: 0.9rem;
@@ -88,18 +77,6 @@ main {
         width: fit-content;
         height: 100dvh;
     }
-
-    .top-row {
-        position: sticky;
-        top: 0;
-        z-index: 1;
-    }
-
-        .top-row.auth ::deep a:first-child {
-            flex: 1;
-            width: 0;
-            text-align: right;
-        }
 }
 
 #blazor-error-ui {

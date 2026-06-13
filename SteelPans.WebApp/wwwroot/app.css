@@ -25,7 +25,7 @@ body {
     flex-direction: column;
 }
 
-@media (max-width: 800px) {
+@media (max-width: 900px) {
     .page:has(.navbar-toggler:checked) .toolbar {
         visibility: hidden;
     }
