@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 
 namespace SteelPans.WebApp.Services;
 
-public sealed class AppUpdatesService(NavigationManager nav) : IAsyncDisposable
+public sealed class AppUpdatesService(NavigationManager nav, IConfiguration config) : IAsyncDisposable
 {
     public event Func<Task>? UserStateChanged;
     public event Func<Guid, Task>? GroupChanged;
@@ -25,8 +25,12 @@ public sealed class AppUpdatesService(NavigationManager nav) : IAsyncDisposable
 
         if (connection_ is null)
         {
+            var hubUrl = config["AppUpdates:HubUrl"];
+
             connection_ = new HubConnectionBuilder()
-                .WithUrl(nav.ToAbsoluteUri("/hubs/app-updates"))
+                .WithUrl(string.IsNullOrWhiteSpace(hubUrl)
+                    ? nav.ToAbsoluteUri("/hubs/app-updates")
+                    : new Uri(hubUrl))
                 .WithAutomaticReconnect()
                 .Build();
 
