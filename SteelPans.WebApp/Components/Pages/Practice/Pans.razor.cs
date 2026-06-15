@@ -1,6 +1,5 @@
 using Melanchall.DryWetMidi.Core;
 using Microsoft.AspNetCore.Components;
-using SteelPans.Shared.Config;
 using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Music;
 using SteelPans.WebApp.Components.Elements;
@@ -12,8 +11,6 @@ public partial class Pans : IAsyncDisposable
 
     [SupplyParameterFromQuery(Name = "file")]
     public Guid? FileId { get; set; }
-
-    private Settings Settings => SettingsAccessor.Value;
 
 
     protected override async Task OnInitializedAsync()
@@ -29,12 +26,6 @@ public partial class Pans : IAsyncDisposable
         if (!firstRender)
             return;
 
-
-        if (Settings.UseStartupConfig)
-        {
-            await LoadStartupFileAsync(Settings.StartupConfig.MidiFilePath);
-            await LoadPanLayoutAsync(Settings.StartupConfig.Layout);
-        }
 
         if (FileId is not null)
         {
@@ -54,26 +45,6 @@ public partial class Pans : IAsyncDisposable
             await using var stream = File.OpenRead(filePath);
             return (fileInfo.Name, await MidiService.OpenMidiFileAsync(stream));
         });
-    }
-
-    private async Task LoadPanLayoutAsync(List<ConfigurationPan> layout)
-    {
-        await Playback.OnClearAssignmentsAsync();
-
-        foreach (var pan in layout)
-        {
-            var track = Playback.Tracks.Where(t => t.Index == pan.Track).FirstOrDefault();
-            if (track is not null)
-            {
-                var assignment = new MidiTrackAssignment
-                {
-                    AssignedPanType = pan.Pan,
-                    Track = track,
-                };
-
-                await Playback.OnAddAssignmentAsync(assignment);
-            }
-        }
     }
 
     private async Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)

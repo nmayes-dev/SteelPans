@@ -3,10 +3,9 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using SteelPans.Components.Services;
+using SteelPans.Shared;
 using SteelPans.Shared.Auth;
-using SteelPans.Shared.Config;
 using SteelPans.Shared.Data;
-using SteelPans.Shared.Extensions;
 using SteelPans.Shared.Services;
 using SteelPans.WebApp.Components;
 using SteelPans.WebApp.Hubs;
@@ -22,28 +21,27 @@ public sealed record DownloadFileRequest(
 
 public static class Program
 {
-
     public static async Task Main(string[] args)
     {
-        var app = await WebApplication.CreateBuilder(args)
-            .BuildPansApp()
-            .ConfigureAsync();
-
-        await app.RunAsync();
+        await StartupPipeline 
+            .AddStep(WebApplication.CreateBuilder)
+            .AddStep(AddAuthServices)
+            .AddStep(AddCoreServices)
+            .AddStep(AddAppServices)
+            .AddStep(AddBlazorServices)
+            .AddStep(BuildApp)
+            .AddStep(ConfigureApp)
+            .AddStep(InitializeServices)
+            .AddStep(LaunchApp)
+            .RunAsync(args);
     }
 
 
 
 
 
-    private static WebApplication BuildPansApp(this WebApplicationBuilder builder)
+    private static WebApplicationBuilder AddAuthServices(WebApplicationBuilder builder)
     {
-        builder.Services.AddDbContextFactory<EnsembleDbContext>(options =>
-        {
-            options.UseNpgsql(
-                builder.Configuration.GetConnectionString("EnsembleDb"));
-        });
-
         builder.Services
             .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
             {
@@ -86,9 +84,24 @@ public static class Program
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddScoped<ICurrentUserAccessor, BlazorCurrentUserAccessor>();
 
+        builder.Services.AddAntiforgery(options =>
+        {
+            options.Cookie.Name = "SteelPans.Web.Antiforgery";
+        });
+
+        return builder;
+    }
+
+    private static WebApplicationBuilder AddCoreServices(WebApplicationBuilder builder)
+    {
         builder.Services.AddScoped<SafeJSInteropService>();
 
-        builder.Services.AddScoped<EnsembleApiTokenService>();
+        builder.Services.AddDbContextFactory<EnsembleDbContext>(options =>
+        {
+            options.UseNpgsql(
+                builder.Configuration.GetConnectionString("EnsembleDb"));
+        });
+
         builder.Services.AddScoped<MidiInspectionService>();
 
         builder.Services.AddScoped<LocalEnsembleFileStore>();
@@ -100,33 +113,45 @@ public static class Program
 
         builder.Services.AddScoped<IEmailSender, EmailSender>();
 
-        builder.Services.AddAntiforgery(options =>
-        {
-            options.Cookie.Name = "SteelPans.Web.Antiforgery";
-        });
+        return builder;
+    }
 
-        builder.Services.AddRazorComponents()
-            .AddInteractiveServerComponents();
-
-        builder.Services.AddSignalR();
-
+    private static WebApplicationBuilder AddAppServices(WebApplicationBuilder builder)
+    {
         builder.Services.AddSingleton<SteelPanLoaderService>();
         builder.Services.AddSingleton<SteelPanSvgService>();
+
         builder.Services.AddScoped<IRealtimeUpdateDispatcher, SignalRRealtimeUpdateDispatcher>();
         builder.Services.AddScoped<AppUpdatesService>();
+
         builder.Services.AddScoped<InstanceStateService>();
+
         builder.Services.AddScoped<MidiLoaderService>();
         builder.Services.AddScoped<MidiPlaybackService>();
+
         builder.Services.AddScoped<OverlayManagerService>();
         builder.Services.AddScoped<ModalPopupService>();
         builder.Services.AddScoped<KeyboardManagerService>();
 
-        builder.Services.Configure<Settings>(builder.Configuration.GetSection("Settings"));
+        return builder;
+    }
 
+    private static WebApplicationBuilder AddBlazorServices(WebApplicationBuilder builder)
+    {
+        builder.Services.AddRazorComponents()
+            .AddInteractiveServerComponents();
+
+        builder.Services.AddSignalR();
+        
+        return builder;
+    }
+
+    private static WebApplication BuildApp(WebApplicationBuilder builder)
+    {
         return builder.Build();
     }
 
-    private static async Task<WebApplication> ConfigureAsync(this WebApplication app)
+    private static WebApplication ConfigureApp(WebApplication app)
     {
         if (!app.Environment.IsDevelopment())
         {
@@ -179,9 +204,19 @@ public static class Program
                 enableRangeProcessing: false);
         });
 
+        return app;
+    }
+
+    private static async Task<WebApplication> InitializeServices(WebApplication app)
+    {
         await app.Services.GetRequiredService<SteelPanLoaderService>().InitializeAsync();
         await app.Services.GetRequiredService<SteelPanSvgService>().InitializeAsync();
 
         return app;
+    }
+
+    private static Task LaunchApp(WebApplication app)
+    {
+        return app.RunAsync();
     }
 }

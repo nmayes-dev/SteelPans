@@ -2,7 +2,7 @@
 @inject MidiPlaybackService Playback
 @inject InstanceStateService State
 
-<ModalPopup TPayload="IReadOnlyList<DialogFile>"
+<ModalPopup TPayload="IReadOnlyList<IBrowserFile>"
             Id="MergeMidiFiles"
             Title="Merge MIDI tracks"
             OnOpen="OnOpen"
@@ -20,13 +20,13 @@
 @code {
     private string mergeMidiFileName_ = string.Empty;
 
-    private void OnOpen(IReadOnlyList<DialogFile> files)
+    private void OnOpen(IReadOnlyList<IBrowserFile> files)
     {
         if (files.Count == 0)
             throw new InvalidOperationException("Must provide at least one file");
     }
 
-    private async Task<bool> OnConfirmAsync(IReadOnlyList<DialogFile> files)
+    private async Task<bool> OnConfirmAsync(IReadOnlyList<IBrowserFile> files)
     {
         if (files.Count == 0)
             return true;
@@ -41,10 +41,7 @@
             {
                 foreach (var file in files)
                 {
-                    if (file.File is null)
-                        continue;
-
-                    var stream = file.File.OpenReadStream(State.MaxMidiFileSize);
+                    var stream = file.OpenReadStream(State.MaxMidiFileSize);
                     streamFiles.Add((file.Name, stream));
                 }
 

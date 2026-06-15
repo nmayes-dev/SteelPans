@@ -1,0 +1,51 @@
+﻿@implements IDisposable
+@inject MidiPlaybackService Playback
+
+<section class="sp-app-section practice-header__controls">
+    <ControlToolbar />
+
+    <div class="practice-header__midi-controls @(Playback.IsMidiLoaded ? "practice-header__midi-controls--visible" : "practice-header__midi-controls--empty")">
+        @if (Playback.IsMidiLoaded)
+        {
+            var hasMidiControls = Playback.ActivePans.Any(x => x.Events.Count > 0);
+            <MidiPlaybackControl Enabled="@hasMidiControls" />
+        }
+        else
+        {
+            <div class="practice-header__midi-message">
+                @if (Playback.ActivePans.Any())
+                {
+                    <span>Load a MIDI file to enable ensemble playback controls.</span>
+                }
+                else
+                {
+                    <span>Load a MIDI file or add pans to begin ensemble playback.</span>
+                }
+            </div>
+        }
+    </div>
+
+    @if (Playback.IsMidiLoaded)
+    {
+        <CountInControl />
+    }
+</section>
+
+@code {
+    protected override void OnInitialized()
+    {
+        Playback.MidiFileLoaded += PlaybackStateUpdate;
+        Playback.MidiFileUnloaded += PlaybackStateUpdate;
+    }
+
+    public void Dispose()
+    {
+        Playback.MidiFileLoaded -= PlaybackStateUpdate;
+        Playback.MidiFileUnloaded -= PlaybackStateUpdate;
+    }
+
+    private Task PlaybackStateUpdate<TArgs>(TArgs _)
+    {
+        return InvokeAsync(StateHasChanged);
+    }
+}

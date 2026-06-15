@@ -53,5 +53,8 @@ public sealed class SteelPanLoaderService
                 Type = p.PanType,
                 Notes = p.Notes.Select(n => new PanNote { Note = n }).ToList()
             }).ToList();
+
+        if (Pans?.Any() == false)
+            throw new ApplicationException("Failed to find any pans on startup.");
     }
 }

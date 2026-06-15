@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure;
 using Microsoft.JSInterop;
-using SteelPans.Shared.Config;
 using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Music;
 using SteelPans.Shared.Services;
@@ -241,26 +240,6 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         await NotifyClickTrackSettingsChangedAsync();
         await NotifyPlaybackStatusChangedAsync();
         await NotifyPositionChangedAsync(jump: true);
-    }
-
-    public async Task LoadPanLayoutAsync(IReadOnlyList<ConfigurationPan> layout)
-    {
-        await OnClearAssignmentsAsync();
-
-        foreach (var pan in layout)
-        {
-            var track = Tracks.FirstOrDefault(t => t.Index == pan.Track);
-            if (track is not null)
-            {
-                var assignment = new MidiTrackAssignment
-                {
-                    AssignedPanType = pan.Pan,
-                    Track = track,
-                };
-
-                await OnAddAssignmentAsync(assignment);
-            }
-        }
     }
 
     public async Task LoadGroupMidiFile(Guid fileId)

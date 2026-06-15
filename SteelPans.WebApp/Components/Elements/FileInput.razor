@@ -1,0 +1,46 @@
+﻿<div class="file-input-wrap">
+    @if (OnMultipleFileLoad.HasDelegate)
+    {
+        <InputFile id="@Id"
+                   class="file-input"
+                   OnChange="OnFileChangeAsync"
+                   multiple
+                   accept="@Accepts" />
+    }
+    else
+    {
+        <InputFile id="@Id"
+                   class="file-input"
+                   OnChange="OnFileChangeAsync"
+                   accept="@Accepts" />
+    }
+</div>
+
+
+@code {
+    [Parameter]
+    public required string Id { get; set; }
+
+    [Parameter]
+    public EventCallback<IBrowserFile> OnSingleFileLoad { get; set; }
+
+    [Parameter]
+    public EventCallback<IReadOnlyList<IBrowserFile>> OnMultipleFileLoad { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<string> Extensions { get; set; } = [];
+
+    private string Accepts => Extensions.Any() ? string.Join(',', Extensions) : "*";
+
+    private async Task OnFileChangeAsync(InputFileChangeEventArgs e)
+    {
+        if (e.FileCount > 1)
+        {
+            await OnMultipleFileLoad.InvokeAsync(e.GetMultipleFiles());
+        }
+        else
+        {
+            await OnSingleFileLoad.InvokeAsync(e.File);
+        }
+    }
+}

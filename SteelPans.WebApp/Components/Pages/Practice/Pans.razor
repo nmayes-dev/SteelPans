@@ -6,46 +6,13 @@
 @inject NavigationManager Nav
 @inject InstanceStateService State
 @inject IJSRuntime JS
-@inject IOptions<Settings> SettingsAccessor
 
 <PageTitle>Practice</PageTitle>
 
 <div class="pans-page">
     @if (Playback.AvailablePans.Count > 0)
     {
-        var hasMidiControls = Playback.ActivePans.Any(x => x.Events.Count > 0);
-        
-        <section class="sp-app-section pans-page__controls">
-            <div class="pans-page__toolbar">
-                <ControlToolbar />
-            </div>
-            <div class="pans-page__midi-controls @(Playback.IsMidiLoaded ? "pans-page__midi-controls--visible" : "pans-page__midi-controls--empty")">
-                @if (Playback.IsMidiLoaded)
-                {
-                    <MidiPlaybackControl Enabled="@hasMidiControls" />
-                }
-                else
-                {
-                    <div class="pans-page__midi-message">
-                        @if (Playback.ActivePans.Any())
-                        {
-                            <span>Load a MIDI file to enable playback controls.</span>
-                        }
-                        else
-                        {
-                            <span>Load a MIDI file or add a pan to begin.</span>
-                        }
-                    </div>
-                }
-            </div>
-
-            @if (Playback.IsMidiLoaded)
-            {
-                <div class="pans-page__count-in">
-                    <CountInControl />
-                </div>
-            }
-        </section>
+        <PracticeHeader />
 
         <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Error</p>
 
