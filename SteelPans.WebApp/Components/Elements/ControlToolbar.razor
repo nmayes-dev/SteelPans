@@ -4,7 +4,6 @@
 @inject ModalPopupService Modals
 @inject DbService Db
 @inject InstanceStateService State
-@inject IOptions<Settings> SettingsAccessor
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -69,15 +68,25 @@
                             IconClass="bi-file-earmark-music"
                             LabelFor="midi-file-input" />
 
-            <InputFile id="midi-file-input"
-                       class="pans__file-input"
-                       OnChange="OnMidiFilesChangedAsync"
-                       multiple
-                       accept=".mid,.midi,audio/midi,audio/x-midi" />
+            <FileInput Id="midi-file-input"
+                       OnSingleFileLoad="OnSingleMidiSelectedAsync"
+                       OnMultipleFileLoad="OnMultipleMidiSelectedAsync"
+                       Extensions="Midi.Extensions" />
+        </SubMenu>
+    </ToolbarElement>
 
+    <ToolbarElement Order="2"
+                    Text="Pans">
+        <SubMenu>
+            <ToolbarElement Order="1"
+                            Text="Add"
+                            IconClass="bi-plus-lg"
+                            OnClick="() => OpenAddPanAsync(closeOthers: true)" />
+
+                            
             @if (Playback.IsMidiLoaded)
             {
-                <ToolbarElement Order="3"
+                <ToolbarElement Order="2"
                                 Text="Tracks"
                                 IconClass="bi-music-note-list"
                                 Disabled="@(!Playback.Tracks.Any())"
@@ -110,42 +119,6 @@
                         </div>
                     </ChildContent>
                 </ToolbarElement>
-            }
-        </SubMenu>
-    </ToolbarElement>
-
-    <ToolbarElement Order="2"
-                    Text="Layout">
-        <SubMenu>
-            <ToolbarElement Order="1"
-                            Text="Add Pan"
-                            IconClass="bi-plus-lg"
-                            OnClick="() => OpenAddPanAsync(closeOthers: true)" />
-
-            @if (Playback.IsMidiLoaded)
-            {
-                <ToolbarElement Order="2"
-                                Text="Load"
-                                IconClass="bi-folder2-open"
-                                Disabled="!Playback.IsMidiLoaded"
-                                LabelFor="layout-file-input" />
-
-                <InputFile id="layout-file-input"
-                           class="pans__file-input"
-                           OnChange="OnLoadConfigurationFileAsync"
-                           accept=".pans" />
-
-                <ToolbarElement Order="3"
-                                Text="Save"
-                                IconClass="bi-floppy"
-                                Disabled="@(string.IsNullOrWhiteSpace(State.User.CurrentLayout) || !Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                OnClick="() => SaveConfigurationFileAsync()" />
-
-                <ToolbarElement Order="4"
-                                Text="Save As..."
-                                IconClass="bi-floppy2"
-                                Disabled="@(!Playback.IsMidiLoaded || !Playback.ActivePans.Any())"
-                                OnClick="OpenSaveLayoutAsync" />
             }
         </SubMenu>
     </ToolbarElement>
@@ -190,11 +163,10 @@
     }
 </Toolbar>
 
-    @code {
+@code {
     private Toolbar? toolbar_;
 
     private bool anyPans_;
-    private Settings Settings => SettingsAccessor.Value;
 
     private IReadOnlyDictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>>? groups_;
 
@@ -245,11 +217,6 @@
         await Modals.OpenAsync("SaveLayout");
     }
 
-    private async Task OpenConfigConflictAsync(Configuration config)
-    {
-        await Modals.OpenAsync("ConfigConflict", config);
-    }
-
     private async Task OpenRemovePanAsync(MidiTrackInfo track)
     {
         var pan = Playback.ActivePans.First(a => a.Assignment.Track?.Index == track.Index);
@@ -274,71 +241,6 @@
 
 
 
-
-    private async Task OnLoadConfigurationFileAsync(InputFileChangeEventArgs e)
-    {
-        await State.Task.RunUnsafe(async () =>
-        {
-            var file = e.File;
-
-            await using var stream = file.OpenReadStream(
-                maxAllowedSize: 1024 * 1024);
-
-            var result = await JsonSerializer.DeserializeAsync<Configuration>(
-                stream,
-                new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-            if (result is null)
-                return;
-
-            if (result.Version != Settings.LayoutFileVersion)
-                throw new InvalidOperationException("Incompatible layout file version.");
-
-            if (!string.Equals(result.MidiFile, Playback.MidiFileName, StringComparison.OrdinalIgnoreCase))
-            {
-                await OpenConfigConflictAsync(result);
-                return;
-            }
-
-            await Playback.LoadPanLayoutAsync(result.Layout);
-        });
-    }
-
-
-    private async Task SaveConfigurationFileAsync()
-    {
-        var configuration = new Configuration
-        {
-            Version = Settings.Version,
-            MidiFile = Playback.MidiFileName,
-            Layout = Playback.Assignments.Select(a => new ConfigurationPan
-            {
-                Pan = a.AssignedPanType,
-                Track = a.Track?.Index ?? -1,
-            }).ToList()
-        };
-
-        await State.Task.RunUnsafe(async () =>
-        {
-            var json = JsonSerializer.Serialize(configuration, new JsonSerializerOptions
-            {
-                WriteIndented = true
-            });
-
-            await JS.InvokeVoidAsync(
-                "fileHandling.submitDownloadForm",
-                "/api/download",
-                State.User.CurrentLayout,
-                json,
-                "application/json;charset=utf-8");
-        });
-    }
-
-
-
     private async Task OnTrackButtonPressedAsync(MidiTrackInfo track)
     {
         if (IsTrackAssigned(track))
@@ -352,46 +254,16 @@
     }
 
 
-    private async Task OnMidiFilesChangedAsync(InputFileChangeEventArgs e)
-    {
-        await State.Task.RunUnsafe(async () =>
-        {
-            var files = e.GetMultipleFiles()
-                .Select(file => new DialogFile
-                {
-                    Name = file.Name,
-                    Size = file.Size,
-                    File = file
-                })
-                .ToList();
-
-            if (files.Count == 0)
-                return;
-
-            if (files.Count == 1)
-            {
-                await OnSingleMidiSelectedAsync(files[0]);
-                return;
-            }
-
-            await OnMultipleMidiSelectedAsync(files);
-        });
-    }
-
-
-    private async Task OnMultipleMidiSelectedAsync(IReadOnlyList<DialogFile> files)
+    private async Task OnMultipleMidiSelectedAsync(IReadOnlyList<IBrowserFile> files)
     {
         await Modals.OpenAsync("MergeMidiFiles", files);
     }
 
-    private async Task OnSingleMidiSelectedAsync(DialogFile file)
+    private async Task OnSingleMidiSelectedAsync(IBrowserFile file)
     {
-        if (file.File is null)
-            return;
-
         await Playback.OnLoadMidiAsync(async () =>
         {
-            await using var stream = file.File.OpenReadStream(State.MaxMidiFileSize);
+            await using var stream = file.OpenReadStream(State.MaxMidiFileSize);
             return (file.Name, await MidiService.OpenMidiFileAsync(stream));
         });
     }

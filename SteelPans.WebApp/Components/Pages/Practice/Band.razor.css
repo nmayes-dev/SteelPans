@@ -18,74 +18,11 @@
         margin-top: clamp(0.2rem, 0.5vw, 0.9rem);
     }
 
-.band-page__controls {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-}
-
-
-.band-page__toolbar {
-    --toolbar__button-override-size: calc(1.2 * var(--ui-icon-button-size));
-    position: relative;
-    overflow: visible;
-    padding: clamp(0.4rem, 0.6vw, 0.6rem);
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-end;
-}
-
-.band-page__midi-controls {
-    flex: 1 1 auto;
-    width: 100%;
-    min-width: 0;
-    overflow: clip;
-    border-radius: 1.35rem;
-    max-height: 12rem;
-    opacity: 1;
-    pointer-events: auto;
-    transition: opacity 250ms ease, transform 350ms ease, max-height 350ms ease;
-}
-
-.band-page__midi-controls--empty {
-    display: grid;
-    place-items: center;
-}
-
-.band-page__midi-message {
-    width: 100%;
-    padding: clamp(0.6rem, 1vw, 1rem);
-    text-align: center;
-    color: rgba(15, 23, 42, 0.58);
-    font-size: clamp(0.6rem, 0.65rem + 0.25vw, 1rem);
-    font-weight: 600;
-}
-
-
-.band-page__count-in {
-    flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    padding: clamp(0.2rem, 0.4vw, 0.5rem);
-}
-
 .band-page__content {
     position: relative;
     min-width: 0;
     min-height: 0;
     margin-top: clamp(0.2rem, 0.5vw, 0.9rem);
-}
-
-
-::deep .pans__file-input {
-    position: fixed;
-    inline-size: 1px;
-    block-size: 1px;
-    opacity: 0;
-    pointer-events: none;
-    inset-inline-start: -9999px;
 }
 
 

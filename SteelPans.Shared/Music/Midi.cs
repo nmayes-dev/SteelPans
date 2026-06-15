@@ -1,5 +1,16 @@
 ﻿namespace SteelPans.Shared.Music;
 
+
+public static class Midi
+{
+    public static readonly string[] Extensions = [
+        ".mid",
+        ".midi",
+        "audio/midi",
+        "audio/x-midi"
+    ];
+}
+
 public sealed class MidiTrackInfo
 {
     public required int Index { get; init; }

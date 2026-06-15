@@ -1,0 +1,17 @@
+﻿.file-input-wrap {
+    position: fixed;
+    inline-size: 1px;
+    block-size: 1px;
+    opacity: 0;
+    pointer-events: none;
+    inset-inline-start: -9999px;
+}
+
+.file-input-wrap ::deep .file-input {
+    position: fixed;
+    inline-size: 1px;
+    block-size: 1px;
+    opacity: 0;
+    pointer-events: none;
+    inset-inline-start: -9999px;
+}
