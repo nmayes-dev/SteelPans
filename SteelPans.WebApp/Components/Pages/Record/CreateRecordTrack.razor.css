@@ -1,62 +1,83 @@
 .record-track-page {
-    gap: 1rem;
+    --record-page-gap: clamp(0.65rem, 2vw, 1rem);
+    --record-card-gap: clamp(0.65rem, 1.8vw, 1rem);
+    --record-control-gap: clamp(0.5rem, 1.6vw, 0.75rem);
+    --record-overlay-padding: clamp(0.35rem, 1.5vw, 0.75rem);
+    gap: var(--record-page-gap);
+    min-width: 0;
     overflow: auto;
 }
 
 .record-track-page__setup {
     display: grid;
-    gap: 1rem;
+    gap: var(--record-card-gap);
+    min-width: 0;
 }
 
 .record-track-page__settings {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, clamp(9.5rem, 28vw, 13rem)), 1fr));
+    gap: clamp(0.6rem, 1.7vw, 1rem);
+    min-width: 0;
 }
 
     .record-track-page__settings label {
         display: grid;
-        gap: 0.35rem;
+        gap: clamp(0.25rem, 1vw, 0.35rem);
+        min-width: 0;
         font-weight: 700;
     }
 
 .record-track-page__signature {
     display: grid;
-    grid-template-columns: 1fr auto 1fr;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
-    gap: 0.35rem;
+    gap: clamp(0.25rem, 1vw, 0.35rem);
+    min-width: 0;
 }
 
 .record-track-page__controls {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: var(--record-control-gap);
     align-items: center;
     justify-content: space-between;
-    padding-top: 1rem;
+    min-width: 0;
+    padding-top: clamp(0.65rem, 1.8vw, 1rem);
     border-top: 1px solid rgba(148, 163, 184, 0.28);
 }
 
-    .record-track-page__controls p {
-        margin: 0.25rem 0 0;
-    }
+.record-track-page__controls > div {
+    flex: 999 1 min(100%, 18rem);
+    min-width: min(100%, 14rem);
+}
+
+.record-track-page__controls p {
+    margin: 0.25rem 0 0;
+}
+
+.record-track-page__controls .sp-app-button {
+    flex: 1 1 clamp(7.5rem, 22vw, 11rem);
+}
 
 .record-track-page__toggle {
     display: inline-flex;
+    flex: 1 1 clamp(10rem, 28vw, 15rem);
     align-items: center;
-    gap: 0.45rem;
+    gap: clamp(0.35rem, 1.3vw, 0.45rem);
+    min-width: 0;
     font-weight: 700;
 }
 
 .record-track-page__pan-card {
     display: grid;
     place-items: center;
-    min-height: 24rem;
+    min-height: clamp(16rem, 55vw, 24rem);
     overflow: hidden;
 }
 
 .record-track-page__pan {
-    width: min(100%, 34rem);
+    width: min(100%, clamp(18rem, 72vw, 34rem));
 }
 
 .record-track-page__audio-pan {
@@ -85,56 +106,50 @@
 
 .record-track-page__overlay--hide {
     visibility: hidden;
+    pointer-events: none;
 }
 
 .record-track-page__overlay-shell {
     display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr);
-    gap: 1rem;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: clamp(0.35rem, 1.4vw, 0.6rem);
     width: 100%;
     height: 100%;
-    padding: 1rem;
+    padding: clamp(0.4rem, 1.5vw, 0.75rem);
     border: 1px solid rgba(148, 163, 184, 0.35);
-    border-radius: 1.25rem;
+    border-radius: clamp(0.8rem, 2.5vw, 1.25rem);
     background: #f8fafc;
     box-shadow: 0 24px 80px rgba(15, 23, 42, 0.32);
 }
 
-.record-track-page__overlay-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-}
-
-    .record-track-page__overlay-header div {
-        display: grid;
-        gap: 0.15rem;
-    }
-
-    .record-track-page__overlay-header span {
-        color: #64748b;
-        font-size: 0.9rem;
-    }
-
 .record-track-page__overlay-visualiser {
     position: relative;
+    min-width: 0;
 }
 
 .record-track-page__overlay-pan-card {
+    position: relative;
     display: grid;
     place-items: center;
-    min-height: 22rem;
     overflow: hidden;
 }
 
+.record-track-page__overlay-pan-card button {
+    position: absolute;
+    inset-block-start: clamp(0.5rem, 1.5vw, 0.8rem);
+    inset-inline-start: clamp(0.5rem, 1.5vw, 0.8rem);
+    z-index: 5;
+}
+
 .record-track-page__overlay-pan {
-    width: min(100%, 34rem);
+    width: min(100%, clamp(18rem, 70vmin, 34rem));
 }
 
 .record-track-page__count-in {
-    --ring-size: min(38vw, 12rem);
+    --ring-size: clamp(7rem, 34vmin, 12rem);
     position: absolute;
+    justify-self: center;
+    align-self: center;
     z-index: 40;
 }
 
@@ -148,7 +163,6 @@
     visibility: hidden;
 }
 
-
 .record-track-page__count-in-ring {
     display: grid;
     place-items: center;
@@ -159,25 +173,10 @@
     box-shadow: 0 16px 40px rgba(15, 23, 42, 0.26);
 }
 
-    .record-track-page__count-in-ring span {
-        font-size: clamp(4rem, 12vw, 8rem);
-        font-weight: 900;
-        line-height: 1;
-        color: #0f172a;
-        font-variant-numeric: tabular-nums;
-    }
-
-@media (max-width: 760px) {
-    .record-track-page__overlay {
-        padding: 0.5rem;
-    }
-
-    .record-track-page__overlay-shell {
-        padding: 0.75rem;
-    }
-
-    .record-track-page__overlay-header {
-        align-items: flex-start;
-        flex-direction: column;
-    }
+.record-track-page__count-in-ring span {
+    font-size: clamp(3.5rem, 18vmin, 8rem);
+    font-weight: 900;
+    line-height: 1;
+    color: #0f172a;
+    font-variant-numeric: tabular-nums;
 }

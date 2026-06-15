@@ -20,7 +20,7 @@
     <div class="sp-app-card record-file-page__form">
         <label>
             File title
-            <input class="sp-app-input" @bind="title_" />
+            <input @bind="title_" />
         </label>
 
         <div class="record-file-page__actions">
@@ -49,7 +49,7 @@
                         <small>@track.Notes.Count note@(track.Notes.Count == 1 ? "" : "s")</small>
                     </div>
                     <button type="button" class="sp-app-button sp-app-button--danger" @onclick="() => RemoveTrack(track.Id)">Remove</button>
-                    <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.RecordEdit"
+                    <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.Edit"
                                          ShowEditTools="false"
                                          PanLabel="@track.PanType.ToSpacedPascal()"
                                          TrackLabel="@track.Name"

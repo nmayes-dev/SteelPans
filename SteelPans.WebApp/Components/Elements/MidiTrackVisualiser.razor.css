@@ -1,9 +1,9 @@
 .midi-track-visualiser {
-    --label-width: 200px;
-    --ruler-height: 24px;
-    --lane-height: 160px;
-    --timeline-width: 960px;
-    --note-height: 10px;
+    --label-width: clamp(6rem, 28vw, 12.5rem);
+    --ruler-height: clamp(1.35rem, 3vw, 1.75rem);
+    --lane-height: clamp(6rem, 16vw, 13.75rem);
+    --timeline-width: max(100%, 60rem);
+    --note-height: clamp(0.625rem, 2.4vw, 0.875rem);
     --bar-grid-size: 576px;
     --playhead-width: 3px;
     position: relative;
@@ -11,7 +11,8 @@
     grid-template-columns: var(--label-width) minmax(0, 1fr);
     overflow: hidden;
     border: 1px solid rgba(148, 163, 184, 0.35);
-    border-radius: 1rem;
+    border-radius: clamp(0.75rem, 2.5vw, 1rem);
+    min-width: 0;
     background: #f8fafc;
 }
 
@@ -31,16 +32,16 @@
     align-content: center;
     gap: 0.15rem;
     min-width: 0;
-    padding: 0.55rem 0.75rem;
+    padding: clamp(0.4rem, 1.6vw, 0.55rem) clamp(0.45rem, 2vw, 0.75rem);
     border-bottom: 1px solid rgba(148, 163, 184, 0.25);
 }
 
 .midi-track-visualiser__corner {
     color: #64748b;
-    font-size: 0.8rem;
+    font-size: clamp(0.62rem, 1.8vw, 0.8rem);
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
+    letter-spacing: clamp(0.035em, 0.45vw, 0.08em);
 }
 
 .midi-track-visualiser__track-label strong,
@@ -94,7 +95,7 @@
     background: transparent;
     color: #64748b;
     font: inherit;
-    font-size: 0.75rem;
+    font-size: clamp(0.62rem, 1.7vw, 0.75rem);
     font-variant-numeric: tabular-nums;
     line-height: 1.1;
     cursor: pointer;
@@ -172,10 +173,10 @@
     justify-content: center;
     min-width: 8px;
     height: var(--note-height);
-    padding: 0 4px;
+    padding: 0 clamp(2px, 0.8vw, 4px);
     overflow: hidden;
     border-radius: 999px;
-    font-size: 0.66rem;
+    font-size: clamp(0.56rem, 1.6vw, 0.66rem);
     line-height: 1;
     white-space: nowrap;
     pointer-events: none;
@@ -246,22 +247,11 @@
     background: #2563eb;
 }
 
-@media (max-width: 760px) {
-    .midi-track-visualiser {
-        --label-width: 10.5rem;
-    }
-
-    .midi-track-visualiser__track-label {
-        padding-inline: 0.6rem;
-    }
-
-}
-
 .midi-track-visualiser__note--editable {
     appearance: none;
     border: 1px solid rgba(71, 85, 105, 0.45);
     font: inherit;
-    font-size: 0.66rem;
+    font-size: clamp(0.56rem, 1.6vw, 0.66rem);
     font-weight: 700;
     cursor: grab;
     touch-action: none;
@@ -304,15 +294,23 @@
     transform: translateY(-1px);
 }
 
-@media (max-width: 760px) {
-    .midi-track-visualiser__legend {
-        left: calc(var(--label-width) + 0.5rem);
-        right: 0.5rem;
-        bottom: 0.5rem;
-        max-width: none;
-    }
+.midi-track-visualiser__legend {
+    left: calc(var(--label-width) + clamp(0.35rem, 1.4vw, 0.75rem));
+    right: clamp(0.35rem, 1.4vw, 0.75rem);
+    bottom: clamp(0.35rem, 1.4vw, 0.75rem);
+    max-width: min(28rem, calc(100% - var(--label-width) - 1rem));
+}
 
-    .midi-track-visualiser__legend span {
-        font-size: 0.66rem;
-    }
+.midi-track-visualiser__legend span {
+    font-size: clamp(0.58rem, 1.5vw, 0.7rem);
+}
+
+.midi-track-visualiser--record .midi-track-visualiser__viewport {
+    overflow: hidden;
+}
+
+.midi-track-visualiser--record .midi-track-visualiser__ruler,
+.midi-track-visualiser--record .midi-track-visualiser__tracks,
+.midi-track-visualiser--record .midi-track-visualiser__playhead {
+    cursor: default;
 }

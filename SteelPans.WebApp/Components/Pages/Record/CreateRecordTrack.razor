@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @inject RecordDraftService Draft
 @inject SteelPanLoaderService PanLoader
+@inject MidiPlaybackService Playback
 @inject NavigationManager Nav
 @implements IAsyncDisposable
 
@@ -19,12 +20,12 @@
         <div class="record-track-page__settings">
             <label>
                 Name
-                <input class="sp-app-input" @bind="trackName_" placeholder="@trackNamePlaceholder_" />
+                <input @bind="trackName_" placeholder="@trackNamePlaceholder_" />
             </label>
 
             <label>
                 Pan
-                <select class="sp-app-input" @bind="panType_">
+                <select @bind="panType_">
                     @foreach (var pan in AvailablePans)
                     {
                         <option value="@pan.Type">@pan.Type.ToSpacedPascal()</option>
@@ -34,13 +35,17 @@
 
             <label>
                 BPM
-                <input class="sp-app-input" type="number" min="1" max="300" @bind="tempoBpm_" />
+                <NumericInput Min=" 1"
+                              Max="200"
+                              @bind-Value="tempoBpm_" />
             </label>
 
             <label>
                 Time Signature
                 <span class="record-track-page__signature">
-                    <input class="sp-app-input" type="number" min="1" max="32" @bind="beatsPerBar_" />
+                    <NumericInput Min=" 1"
+                                  Max="32"
+                                  @bind-Value="beatsPerBar_" />
                     <span>/</span>
                     <NoteDivisionDropdown @bind-Value="beatUnit_"
                                           NoteDivisions="@([2, 4, 8, 16])" />
@@ -48,8 +53,10 @@
             </label>
 
             <label>
-                Duration (s)
-                <input class="sp-app-input" type="number" min="1" max="1800" @bind="durationSeconds_" />
+                Total Bars
+                <NumericInput Min=" 1"
+                              Max="1800" 
+                              @bind-Value="durationBars_" />
             </label>
 
             <label>
@@ -60,7 +67,7 @@
 
             <label>
                 Note Snapping
-                <select class="sp-app-input" @bind="noteSnapDivision_">
+                <select @bind="noteSnapDivision_">
                     @foreach (var option in Enum.GetValues<NoteSnapDivision>())
                     {
                         <option value="@option">@option.ToSpacedPascal()</option>
@@ -79,13 +86,13 @@
                 Record a fresh track
             </label>
             <button type="button" class="sp-app-button" @onclick="StartRecordingWithCountInAsync" disabled="@(isRecording_ || isCountingIn_ || isPlayingBack_)">Record</button>
-            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="TogglePlaybackAsync" disabled="@(isRecording_ || isCountingIn_ || notes_.Count == 0)">@(isPlayingBack_ ? "Stop playback" : "Play")</button>
+            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="TogglePlaybackAsync" disabled="@(isRecording_ || isCountingIn_ || notes_.Count == 0)">@(isPlayingBack_ ? "Stop" : "Play")</button>
             <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="ClearNotes" disabled="@(isRecording_ || isCountingIn_ || isPlayingBack_)">Clear notes</button>
             <button type="button" class="sp-app-button" @onclick="SaveTrack" disabled="@(isRecording_ || isCountingIn_ || isPlayingBack_)">Add track to file draft</button>
         </div>
     </div>
 
-    <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.RecordEdit"
+    <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.Edit"
                          PanLabel="@panType_.ToSpacedPascal()"
                          TrackLabel="@trackName_"
                          RecordNotes="notes_"
@@ -106,6 +113,7 @@
                          ResizeSelected="ResizeSelected"
                          ChangeSelectedPitch="ChangeSelectedPitch"
                          SetSelectedPitch="SetSelectedPitch"
+                         MoveAndPitchNote="MoveAndPitchNote"
                          DeleteSelected="DeleteNote" />
 </section>
 
@@ -118,16 +126,8 @@
          aria-label="Record Track">
 
         <div class="record-track-page__overlay-shell">
-            <div class="record-track-page__overlay-header">
-                <div>
-                    <strong>@StatusText</strong>
-                    <span>@panType_.ToSpacedPascal() · @Math.Clamp(tempoBpm_, 1, 300) BPM · @Math.Clamp(beatsPerBar_, 1, 32)/@Math.Clamp(beatUnit_, 1, 64)</span>
-                </div>
-                <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="StopRecordingOverlay">@(isCountingIn_ ? "Cancel" : "Stop")</button>
-            </div>
-
             <div class="record-track-page__overlay-visualiser">
-                <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.RecordEdit"
+                <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.Record"
                                      PanLabel="@panType_.ToSpacedPascal()"
                                      TrackLabel="@trackName_"
                                      RecordNotes="notes_"
@@ -148,7 +148,9 @@
                                      ResizeSelected="ResizeSelected"
                                      ChangeSelectedPitch="ChangeSelectedPitch"
                                      SetSelectedPitch="SetSelectedPitch"
+                                     MoveAndPitchNote="MoveAndPitchNote"
                                      DeleteSelected="DeleteNote" />
+
             </div>
 
             <div class="sp-app-card record-track-page__overlay-pan-card">
@@ -157,6 +159,8 @@
                               Class="record-track-page__overlay-pan"
                               OnNotePlayed="OnPanNotePlayedAsync"
                               Disabled="@isCountingIn_" />
+
+                <button type="button" class="sp-app-button sp-app-button--danger" @onclick="StopRecordingOverlay">@(isCountingIn_ ? "Cancel" : "Stop")</button>
 
                 <div class="@($"record-track-page__count-in{(isCountingIn_ ? " record-track-page__count-in--show" : " record-track-page__count-in--hide")}")"
                      style="--count-in-progress:@countInProgress_.ToString(System.Globalization.CultureInfo.InvariantCulture)">
@@ -178,11 +182,17 @@
     private PanType panType_ = PanType.None;
 
     private int tempoBpm_ = 120;
+    private double beatsPerSecond_ => 60.0 / tempoBpm_;
+
     private int beatsPerBar_ = 4;
     private int beatUnit_ = 4;
+    private double beatRatio_ => 4.0 / beatUnit_;
+
+    private int durationBars_ = 20;
+    private double durationSeconds_ => durationBars_ * (beatsPerBar_ * beatsPerSecond_ * beatRatio_);
+
     private int defaultNoteDivision_ = 4;
     private NoteSnapDivision noteSnapDivision_;
-    private double durationSeconds_ = 60;
 
     private bool overwriteOnRecord_ = true;
     private bool isRecordOverlayOpen_;
@@ -190,6 +200,7 @@
     private bool isRecording_;
     private bool isPlayingBack_;
     private DateTimeOffset recordStartedAt_;
+    private double? recordStartedAtAudioTimeSeconds_;
     private double recordingStartSeconds_;
     private double recordingPositionSeconds_;
     private int countInNumber_;
@@ -197,6 +208,7 @@
     private CancellationTokenSource? recordingPositionCts_;
     private CancellationTokenSource? playbackCts_;
     private CancellationTokenSource? countInCts_;
+    private CancellationTokenSource? metronomeCts_;
     private Guid? selectedNoteId_;
     private SteelPanView? overlayPan_;
     private readonly List<RecordNoteDraft> notes_ = [];
@@ -252,7 +264,7 @@
         }
 
         isCountingIn_ = false;
-        BeginRecordingAtCurrentPosition();
+        await BeginRecordingAtCurrentPositionAsync();
     }
 
     private async Task RunCountInAsync(CancellationToken cancellationToken)
@@ -265,6 +277,7 @@
         {
             countInNumber_ = beat;
             var beatStartedAt = DateTimeOffset.UtcNow;
+            await PlayMetronomeTickAsync(beat == beats, cancellationToken);
             await InvokeAsync(StateHasChanged);
 
             while ((DateTimeOffset.UtcNow - beatStartedAt).TotalSeconds < secondsPerBeat)
@@ -279,24 +292,26 @@
         }
     }
 
-    private void BeginRecordingAtCurrentPosition()
+    private async Task BeginRecordingAtCurrentPositionAsync()
     {
         recordingStartSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
         recordStartedAt_ = DateTimeOffset.UtcNow;
+        recordStartedAtAudioTimeSeconds_ = await TryGetAudioTimeAsync();
         isRecording_ = true;
         StartRecordingPositionLoop();
+        StartMetronomeClickLoop();
     }
 
-    private Task OnPanNotePlayedAsync(Note note)
+    private Task OnPanNotePlayedAsync(SteelPanView.PlayedNote playedNote)
     {
         if (!isRecording_)
             return Task.CompletedTask;
 
-        var start = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(1, durationSeconds_));
+        var start = GetCurrentRecordingPositionSeconds(playedNote.AudioTimeSeconds);
         var defaultDuration = GetDefaultNoteDurationSeconds();
         var draft = new RecordNoteDraft
         {
-            Note = note,
+            Note = playedNote.Note,
             StartSeconds = start,
             DurationSeconds = Math.Min(defaultDuration, Math.Max(0.05, durationSeconds_ - start))
         };
@@ -337,6 +352,23 @@
 
         note.StartSeconds = Math.Clamp(note.StartSeconds + delta, 0, Math.Max(0, durationSeconds_ - note.DurationSeconds));
     }
+    private void MoveAndPitchNote(MidiTrackVisualiser.RecordNoteMovePitchChange change)
+    {
+        var note = notes_.FirstOrDefault(x => x.Id == change.Id);
+        if (note is null)
+            return;
+
+        selectedNoteId_ = change.Id;
+        note.StartSeconds = Math.Clamp(
+            note.StartSeconds + change.DeltaSeconds,
+            0,
+            Math.Max(0, durationSeconds_ - note.DurationSeconds));
+
+        var min = SelectedPanMinSemitone ?? change.Semitone;
+        var max = SelectedPanMaxSemitone ?? change.Semitone;
+        note.Note = Note.FromSemitoneNumber(Math.Clamp(change.Semitone, Math.Min(min, max), Math.Max(min, max)));
+    }
+
 
     private void ResizeSelected(double delta)
     {
@@ -381,6 +413,35 @@
         recordingPositionSeconds_ = 0;
     }
 
+
+    private double GetCurrentRecordingPositionSeconds(double? audioTimeSeconds = null)
+    {
+        if (audioTimeSeconds is double audioTime && recordStartedAtAudioTimeSeconds_ is double startedAudioTime)
+        {
+            return Math.Clamp(
+                recordingStartSeconds_ + audioTime - startedAudioTime,
+                0,
+                Math.Max(1, durationSeconds_));
+        }
+
+        return Math.Clamp(
+            recordingStartSeconds_ + (DateTimeOffset.UtcNow - recordStartedAt_).TotalSeconds,
+            0,
+            Math.Max(1, durationSeconds_));
+    }
+
+    private async Task<double?> TryGetAudioTimeAsync()
+    {
+        try
+        {
+            return await Playback.GetAudioTimeAsync();
+        }
+        catch (JSException)
+        {
+            return null;
+        }
+    }
+
     private void StartRecordingPositionLoop()
     {
         recordingPositionCts_?.Cancel();
@@ -400,10 +461,7 @@
                 if (!isRecording_)
                     return;
 
-                recordingPositionSeconds_ = Math.Clamp(
-                    recordingStartSeconds_ + (DateTimeOffset.UtcNow - recordStartedAt_).TotalSeconds,
-                    0,
-                    Math.Max(1, durationSeconds_));
+                recordingPositionSeconds_ = GetCurrentRecordingPositionSeconds();
 
                 if (recordingPositionSeconds_ >= durationSeconds_)
                 {
@@ -430,16 +488,61 @@
     {
         if (isRecording_)
         {
-            recordingPositionSeconds_ = Math.Clamp(
-                recordingStartSeconds_ + (DateTimeOffset.UtcNow - recordStartedAt_).TotalSeconds,
-                0,
-                Math.Max(1, durationSeconds_));
+            recordingPositionSeconds_ = GetCurrentRecordingPositionSeconds();
         }
 
         isRecording_ = false;
         isRecordOverlayOpen_ = false;
         recordingPositionCts_?.Cancel();
+        metronomeCts_?.Cancel();
         recordingPositionSeconds_ = 0;
+    }
+
+    private void StartMetronomeClickLoop()
+    {
+        metronomeCts_?.Cancel();
+        metronomeCts_?.Dispose();
+        metronomeCts_ = new CancellationTokenSource();
+        _ = RunMetronomeClickLoopAsync(metronomeCts_.Token);
+    }
+
+    private async Task RunMetronomeClickLoopAsync(CancellationToken cancellationToken)
+    {
+        var secondsPerBeat = GetSecondsPerBeat(beatUnit_);
+        var nextBeatIndex = (int)Math.Ceiling(Math.Max(0, recordingStartSeconds_ - 0.0001) / Math.Max(secondsPerBeat, 0.001));
+
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested && isRecording_)
+            {
+                var nextBeatSeconds = nextBeatIndex * secondsPerBeat;
+                var delaySeconds = nextBeatSeconds - recordingPositionSeconds_;
+
+                if (delaySeconds > 0)
+                    await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
+
+                if (!isRecording_ || cancellationToken.IsCancellationRequested)
+                    return;
+
+                var isAccent = nextBeatIndex % Math.Max(1, beatsPerBar_) == 0;
+                await PlayMetronomeTickAsync(isAccent, cancellationToken);
+                nextBeatIndex++;
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task PlayMetronomeTickAsync(bool isAccent, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Playback.PlayMetronomeTickAsync(isAccent, cancellationToken);
+        }
+        catch (JSException)
+        {
+        }
     }
 
     private async Task TogglePlaybackAsync()
@@ -536,6 +639,9 @@
         playbackCts_?.Cancel();
         playbackCts_?.Dispose();
         playbackCts_ = null;
+        metronomeCts_?.Cancel();
+        metronomeCts_?.Dispose();
+        metronomeCts_ = null;
         await Task.CompletedTask;
     }
 

@@ -48,7 +48,6 @@ else
             <div class="sp-app-card practice-page__transport">
                 <div class="practice-page__transport-copy">
                     <strong>@Playback.MidiFileName</strong>
-                    <small>@Playback.Tracks.Count MIDI track@(Plural(Playback.Tracks.Count)) · @AssignedTrackCount assigned · @FormatTime(VisualDuration)</small>
                 </div>
                 <div class="practice-page__field">
                     <div class="practice-page__field-header">
@@ -60,7 +59,7 @@ else
                             <span>Solo</span>
                         </label>
                     </div>
-                    <select class="sp-app-input" value="@SelectedTrackIndex" @onchange="OnSelectedTrackChangedAsync">
+                    <select class="sp-min-content" value="@SelectedTrackIndex" @onchange="OnSelectedTrackChangedAsync">
                         @foreach (var track in Playback.Tracks)
                         {
                             <option value="@track.Index">@track.DisplayInfo</option>
@@ -68,9 +67,7 @@ else
                     </select>
                 </div>
             </div>
-            <div class="sp-app-card practice-page__playback">
-                <MidiPlaybackControl Enabled="@(SelectedAssignedPan is not null && SelectedTrackEvents.Count > 0)" />
-            </div>
+            <PracticeHeader />
         </div>
 
         

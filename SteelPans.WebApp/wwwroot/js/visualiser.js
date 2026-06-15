@@ -1,9 +1,9 @@
-const pixelsPerSecond = 192;
-const minTimelineWidth = 960;
-const labelWidth = 200;
-const rulerHeight = 24;
-const laneHeight = 160;
-const noteHeight = 10;
+const defaultPixelsPerSecond = 192;
+const defaultMinTimelineWidth = 960;
+const defaultLabelWidth = 200;
+const defaultRulerHeight = 24;
+const defaultLaneHeight = 160;
+const defaultNoteHeight = 10;
 const playheadWidth = 3;
 const timelinePaddingRight = playheadWidth;
 const playheadHalfWidth = playheadWidth / 2;
@@ -57,25 +57,57 @@ window.visualiser = {
             mode: "Playback",
             suppressNextNoteClick: false,
             recordPlayheadDragging: false,
+            suppressViewportScroll: false,
+            viewportScroll: null,
+            lastPreviewedDragSemitone: null,
+            lastData: null,
+            resizeObserver: null,
+            resizeAnimationFrame: 0,
+            pixelsPerSecond: defaultPixelsPerSecond,
+            minTimelineWidth: defaultMinTimelineWidth,
+            labelWidth: defaultLabelWidth,
+            rulerHeight: defaultRulerHeight,
+            laneHeight: defaultLaneHeight,
+            noteHeight: defaultNoteHeight,
         };
 
         this._states.set(root, state);
 
         root.style.setProperty("--playhead-width", `${playheadWidth}px`);
 
+        if (typeof ResizeObserver !== "undefined") {
+            state.resizeObserver = new ResizeObserver(() => {
+                if (!state.lastData)
+                    return;
+
+                if (state.resizeAnimationFrame)
+                    cancelAnimationFrame(state.resizeAnimationFrame);
+
+                state.resizeAnimationFrame = requestAnimationFrame(() => {
+                    state.resizeAnimationFrame = 0;
+                    this.setData(root, state.lastData);
+                    this._setPlayheadPosition(state, state.positionSeconds, true);
+                });
+            });
+            state.resizeObserver.observe(root);
+        }
+
         const viewportPointerDown = event => this._beginViewportDrag(root, event);
         const playheadPointerDown = event => this._beginPlayheadDrag(root, event);
         const rootKeyDown = event => this._handleRecordEditKeyDown(state, event);
+        const viewportScroll = () => this._syncPlayheadAfterViewportScroll(state, true);
         const playbackStateChanged = event => this._applyPlaybackState(state, event.detail);
 
         ruler?.addEventListener("pointerdown", viewportPointerDown);
         tracks?.addEventListener("pointerdown", viewportPointerDown);
+        viewport?.addEventListener("scroll", viewportScroll, { passive: true });
         root.addEventListener("keydown", rootKeyDown);
         window.addEventListener("panplayback:midiplaybackstatechanged", playbackStateChanged);
 
         state.viewportPointerDown = viewportPointerDown;
         state.playheadPointerDown = playheadPointerDown;
         state.rootKeyDown = rootKeyDown;
+        state.viewportScroll = viewportScroll;
         state.playbackStateChanged = playbackStateChanged;
 
         this._applyPlaybackState(state, window.panPlayback?.getMidiPlaybackState?.());
@@ -86,12 +118,16 @@ window.visualiser = {
         if (!state || !state.ruler || !state.tracks || !data)
             return;
 
+        state.lastData = data;
+
         const notes = Array.isArray(data.notes) ? data.notes : [];
         const mode = String(data.mode || "Playback");
-        const isRecordEdit = mode === "RecordEdit";
+        const isEditMode = mode === "Edit";
+        const isRecordMode = mode === "Record";
+        const isRecordNoteMode = isEditMode || isRecordMode;
         const durationSeconds = Math.max(Number(data.durationSeconds) || 0.01, 0.01);
         const activeElement = document.activeElement;
-        const shouldRestoreKeyboardFocus = isRecordEdit
+        const shouldRestoreKeyboardFocus = isEditMode
             && data.selectedNoteId
             && (activeElement === state.root || state.root.contains(activeElement));
 
@@ -107,18 +143,27 @@ window.visualiser = {
             state.minSemitone = state.maxSemitone;
             state.maxSemitone = temp;
         }
-        const contentWidth = Math.max(durationSeconds * pixelsPerSecond, minTimelineWidth);
+        const layout = this._measureLayout(state, durationSeconds);
+        state.pixelsPerSecond = layout.pixelsPerSecond;
+        state.minTimelineWidth = layout.minTimelineWidth;
+        state.labelWidth = layout.labelWidth;
+        state.rulerHeight = layout.rulerHeight;
+        state.laneHeight = layout.laneHeight;
+        state.noteHeight = layout.noteHeight;
+
+        const contentWidth = Math.max(durationSeconds * state.pixelsPerSecond, state.minTimelineWidth);
         const timelineWidth = contentWidth + timelinePaddingRight;
 
         state.durationSeconds = durationSeconds;
-        root.style.setProperty("--label-width", `${labelWidth}px`);
-        root.style.setProperty("--ruler-height", `${rulerHeight}px`);
-        root.style.setProperty("--lane-height", `${laneHeight}px`);
+        root.style.setProperty("--label-width", `${state.labelWidth}px`);
+        root.style.setProperty("--ruler-height", `${state.rulerHeight}px`);
+        root.style.setProperty("--lane-height", `${state.laneHeight}px`);
+        root.style.setProperty("--note-height", `${state.noteHeight}px`);
         root.style.setProperty("--timeline-width", `${timelineWidth}px`);
 
         state.ruler.style.width = `${timelineWidth}px`;
         state.tracks.style.width = `${timelineWidth}px`;
-        state.tracks.style.height = `${laneHeight}px`;
+        state.tracks.style.height = `${state.laneHeight}px`;
 
         state.ruler.replaceChildren();
         state.tracks.replaceChildren();
@@ -130,10 +175,10 @@ window.visualiser = {
         const secondsPerBeat = this._getSecondsPerBeat(data.tempoBpm, data.beatUnit);
         const beatsPerBar = Math.max(1, data.beatsPerBar || 4);
         const secondsPerBar = Math.max(0.01, secondsPerBeat * beatsPerBar);
-        root.style.setProperty("--bar-grid-size", `${secondsPerBar * pixelsPerSecond}px`);
+        root.style.setProperty("--bar-grid-size", `${secondsPerBar * state.pixelsPerSecond}px`);
 
         for (let beat = 0, time = 0; time <= durationSeconds + 0.0001; beat++, time = beat * secondsPerBeat) {
-            const left = time * pixelsPerSecond;
+            const left = time * state.pixelsPerSecond;
             const beatline = this._createScopedElement(
                 state,
                 "div",
@@ -143,7 +188,7 @@ window.visualiser = {
         }
 
         for (let i = 1, time = secondsPerBar; time <= durationSeconds + 0.0001; i++, time = i * secondsPerBar) {
-            const left = time * pixelsPerSecond;
+            const left = time * state.pixelsPerSecond;
 
             const label = this._createScopedElement(state, "button", "midi-track-visualiser__bar-label");
             label.type = "button";
@@ -174,7 +219,7 @@ window.visualiser = {
         const minSemitone = state.minSemitone;
         const maxSemitone = state.maxSemitone;
         const range = Math.max(1, maxSemitone - minSemitone);
-        const availableHeight = laneHeight - noteHeight - 22;
+        const availableHeight = state.laneHeight - state.noteHeight - 22;
 
         for (const note of notes) {
             const start = Math.max(0, Number(note.startSeconds) || 0);
@@ -190,10 +235,10 @@ window.visualiser = {
             const isSelected = note.isSelected === true;
             const element = this._createScopedElement(
                 state,
-                isRecordEdit ? "button" : "div",
-                `midi-track-visualiser__note midi-track-visualiser__note--track${isRecordEdit ? " midi-track-visualiser__note--editable" : ""}${isSelected ? " midi-track-visualiser__note--selected" : ""}`);
+                isEditMode ? "button" : "div",
+                `midi-track-visualiser__note midi-track-visualiser__note--track${isEditMode ? " midi-track-visualiser__note--editable" : ""}${isSelected ? " midi-track-visualiser__note--selected" : ""}`);
 
-            if (isRecordEdit) {
+            if (isEditMode) {
                 element.type = "button";
                 element.addEventListener("pointerdown", event => this._beginRecordNoteDrag(state, event, id, start, duration, semitone));
                 element.addEventListener("click", async event => {
@@ -215,10 +260,10 @@ window.visualiser = {
                     }
                 });
             }
-            const width = this._getNoteWidth(duration, note.note || "");
+            const width = this._getNoteWidth(state, duration, note.note || "");
             const end = start + duration;
 
-            element.style.left = `${start * pixelsPerSecond}px`;
+            element.style.left = `${start * state.pixelsPerSecond}px`;
             element.style.top = `${top}px`;
             element.style.width = `${width}px`;
             element.dataset.startSeconds = String(start);
@@ -240,12 +285,13 @@ window.visualiser = {
         if (shouldRestoreKeyboardFocus)
             requestAnimationFrame(() => state.root?.focus?.({ preventScroll: true }));
 
-        if (!isRecordEdit || data.showPlayhead === true) {
+        if (!isRecordNoteMode || data.showPlayhead === true) {
             const playhead = this._createScopedElement(state, "div", "midi-track-visualiser__playhead");
 
-            playhead.addEventListener("pointerdown", isRecordEdit
-                ? event => this._beginRecordPlayheadDrag(state, event)
-                : state.playheadPointerDown);
+            if (isEditMode)
+                playhead.addEventListener("pointerdown", event => this._beginRecordPlayheadDrag(state, event));
+            else if (!isRecordMode)
+                playhead.addEventListener("pointerdown", state.playheadPointerDown);
 
             state.root.appendChild(playhead);
             state.playhead = playhead;
@@ -266,6 +312,12 @@ window.visualiser = {
         state.positionSeconds = position;
         state.positionAnchorSeconds = position;
         state.audioAnchorTime = this._getAudioTimeOrNull();
+
+        if (position <= 0.0001) {
+            state.dragPlayheadViewportX = null;
+            this._setViewportScrollLeft(state, 0);
+        }
+
         this._setPlayheadPosition(state, position, true);
     },
 
@@ -303,9 +355,6 @@ window.visualiser = {
         this._scrollToPosition(state, state.positionSeconds);
         this._setPlayheadPosition(state, state.positionSeconds, false);
 
-        if (state.isPlaying)
-            state.dragPlayheadViewportX = null;
-
         this._updateAnimation(state);
     },
 
@@ -320,8 +369,14 @@ window.visualiser = {
         if (state.dragScrollAnimationFrame)
             cancelAnimationFrame(state.dragScrollAnimationFrame);
 
+        if (state.resizeAnimationFrame)
+            cancelAnimationFrame(state.resizeAnimationFrame);
+
+        state.resizeObserver?.disconnect();
+
         state.ruler?.removeEventListener("pointerdown", state.viewportPointerDown);
         state.tracks?.removeEventListener("pointerdown", state.viewportPointerDown);
+        state.viewport?.removeEventListener("scroll", state.viewportScroll);
         state.playhead?.removeEventListener("pointerdown", state.playheadPointerDown);
 
         if (state.rootKeyDown)
@@ -333,8 +388,23 @@ window.visualiser = {
         this._states.delete(root);
     },
 
+    _measureLayout(state, durationSeconds) {
+        const rootWidth = Math.max(280, state.root?.getBoundingClientRect?.().width || 0);
+        const viewportWidth = Math.max(180, rootWidth - Math.min(defaultLabelWidth, rootWidth * 0.36));
+        const compactness = this._clamp((rootWidth - 320) / 720, 0, 1);
+
+        return {
+            labelWidth: Math.round(this._clamp(rootWidth * 0.2, 96, 200)),
+            rulerHeight: Math.round(22 + (compactness * 6)),
+            laneHeight: Math.round(this._clamp(rootWidth * 0.15, 100, 220)),
+            noteHeight: Math.round(this._clamp(rootWidth * 0.01, 6, 14)),
+            pixelsPerSecond: this._clamp(viewportWidth / Math.max(4, Math.min(durationSeconds, 8)), 112, defaultPixelsPerSecond),
+            minTimelineWidth: Math.max(Math.round(viewportWidth), 560)
+        };
+    },
+
     _handleRecordEditKeyDown(state, event) {
-        if (!state || state.mode !== "RecordEdit" || !state.selectedNoteId)
+        if (!state || state.mode !== "Edit" || !state.selectedNoteId)
             return;
 
         const key = event.key;
@@ -342,6 +412,8 @@ window.visualiser = {
             || key === "="
             || key === "-"
             || key === "_"
+            || key === "ArrowLeft"
+            || key === "ArrowRight"
             || key === "ArrowUp"
             || key === "ArrowDown"
             || key === "Delete"
@@ -358,6 +430,10 @@ window.visualiser = {
                 void state.dotNetRef?.invokeMethodAsync("ResizeSelectedRecordNote", this._getKeyboardStepSeconds(state));
             } else if (key === "-" || key === "_") {
                 void state.dotNetRef?.invokeMethodAsync("ResizeSelectedRecordNote", -this._getKeyboardStepSeconds(state));
+            } else if (key === "ArrowLeft") {
+                void state.dotNetRef?.invokeMethodAsync("MoveSelectedRecordNote", -this._getKeyboardStepSeconds(state));
+            } else if (key === "ArrowRight") {
+                void state.dotNetRef?.invokeMethodAsync("MoveSelectedRecordNote", this._getKeyboardStepSeconds(state));
             } else if (key === "ArrowUp") {
                 void state.dotNetRef?.invokeMethodAsync("ChangeSelectedRecordNotePitch", 1);
             } else if (key === "ArrowDown") {
@@ -381,7 +457,7 @@ window.visualiser = {
             return;
 
         const state = this._states.get(root);
-        if (!state || state.mode === "RecordEdit" || !state.viewport || !state.tracks)
+        if (!state || (state.mode === "Edit" || state.mode === "Record") || !state.viewport || !state.tracks)
             return;
 
         event.preventDefault();
@@ -464,7 +540,7 @@ window.visualiser = {
             return;
 
         const state = this._states.get(root);
-        if (!state || !state.viewport || !state.tracks)
+        if (!state || !state.viewport || !state.tracks || state.mode === "Record")
             return;
 
         event.preventDefault();
@@ -485,7 +561,7 @@ window.visualiser = {
                 0,
                 this._getMaxScrollLeft(state));
 
-            this._setPlayheadPosition(state, state.positionSeconds, false);
+            this._syncPlayheadAfterViewportScroll(state, true);
         };
 
         const up = () => {
@@ -496,7 +572,7 @@ window.visualiser = {
 
             state.viewportDragging = false;
             state.root.classList.remove("midi-track-visualiser--viewport-dragging");
-            this._setPlayheadPosition(state, state.positionSeconds, false);
+            this._syncPlayheadAfterViewportScroll(state, true);
         };
 
         window.addEventListener("pointermove", move);
@@ -509,7 +585,7 @@ window.visualiser = {
         if (event.button !== undefined && event.button !== 0)
             return;
 
-        if (!state || state.mode !== "RecordEdit" || !state.viewport || !id)
+        if (!state || state.mode !== "Edit" || !state.viewport || !id)
             return;
 
         event.preventDefault();
@@ -529,6 +605,8 @@ window.visualiser = {
         let currentStart = start;
         let currentSemitone = startSemitone;
         let moved = false;
+        let lastPreviewedSemitone = startSemitone;
+        const label = target.querySelector("span");
 
         state.selectedNoteId = id;
         target?.focus?.({ preventScroll: true });
@@ -553,12 +631,28 @@ window.visualiser = {
             if (Math.abs(deltaX) >= 3 || Math.abs(deltaY) >= 3)
                 moved = true;
 
-            const rawStart = start + (deltaX / pixelsPerSecond);
+            const rawStart = start + (deltaX / state.pixelsPerSecond);
             currentStart = this._snapRecordNoteStart(state, rawStart, maxStart);
             currentSemitone = this._getSemitoneFromPointerY(state, moveEvent.clientY);
 
-            target.style.left = `${currentStart * pixelsPerSecond}px`;
+            target.style.left = `${currentStart * state.pixelsPerSecond}px`;
             target.style.top = `${this._getNoteTop(state, currentSemitone)}px`;
+
+            if (currentSemitone !== lastPreviewedSemitone) {
+                lastPreviewedSemitone = currentSemitone;
+                const noteLabel = this._formatNoteFromSemitone(currentSemitone);
+                target.title = target.title.replace(/· [A-G][#b]?-?\d+ ·/, `· ${noteLabel} ·`);
+                if (label) {
+                    label.textContent = noteLabel;
+                    this._fitNoteLabel(label, target.getBoundingClientRect().width || this._getNoteWidth(state, duration, noteLabel), noteLabel);
+                }
+
+                try {
+                    void state.dotNetRef?.invokeMethodAsync("PreviewRecordNoteSemitone", currentSemitone);
+                } catch (error) {
+                    console.warn("Failed to preview dragged record visualiser note", error);
+                }
+            }
         };
 
         const up = async upEvent => {
@@ -598,7 +692,7 @@ window.visualiser = {
         if (event.button !== undefined && event.button !== 0)
             return;
 
-        if (!state || state.mode !== "RecordEdit" || !state.viewport || !state.tracks)
+        if (!state || state.mode !== "Edit" || !state.viewport || !state.tracks)
             return;
 
         event.preventDefault();
@@ -633,7 +727,6 @@ window.visualiser = {
             state.positionSeconds = seconds;
             state.positionAnchorSeconds = seconds;
             state.audioAnchorTime = this._getAudioTimeOrNull();
-            state.dragPlayheadViewportX = null;
             this._setPlayheadPosition(state, seconds, false);
 
             try {
@@ -653,7 +746,7 @@ window.visualiser = {
         const minSemitone = Number.isFinite(Number(state.minSemitone)) ? Number(state.minSemitone) : 0;
         const maxSemitone = Number.isFinite(Number(state.maxSemitone)) ? Number(state.maxSemitone) : minSemitone;
         const range = Math.max(1, maxSemitone - minSemitone);
-        const availableHeight = laneHeight - noteHeight - 22;
+        const availableHeight = state.laneHeight - state.noteHeight - 22;
         const clampedSemitone = this._clamp(Number(semitone) || minSemitone, minSemitone, maxSemitone);
         const normalized = (clampedSemitone - minSemitone) / range;
 
@@ -665,7 +758,7 @@ window.visualiser = {
         const minSemitone = Number.isFinite(Number(state.minSemitone)) ? Number(state.minSemitone) : 0;
         const maxSemitone = Number.isFinite(Number(state.maxSemitone)) ? Number(state.maxSemitone) : minSemitone;
         const range = Math.max(1, maxSemitone - minSemitone);
-        const availableHeight = laneHeight - noteHeight - 22;
+        const availableHeight = state.laneHeight - state.noteHeight - 22;
         const y = this._clamp(clientY - rect.top - 11, 0, availableHeight);
         const normalized = 1.0 - (y / availableHeight);
         return Math.round(this._clamp(minSemitone + (normalized * range), minSemitone, maxSemitone));
@@ -712,10 +805,69 @@ window.visualiser = {
         if (!state.viewport)
             return;
 
-        const left = seconds * pixelsPerSecond;
+        const left = seconds * state.pixelsPerSecond;
         const targetViewportX = state.dragPlayheadViewportX ?? scrollOffset;
 
-        state.viewport.scrollLeft = this._clamp(left - targetViewportX, 0, this._getMaxScrollLeft(state));
+        this._setViewportScrollLeft(state, this._clamp(left - targetViewportX, 0, this._getMaxScrollLeft(state)));
+    },
+
+    _setViewportScrollLeft(state, scrollLeft) {
+        if (!state.viewport)
+            return;
+
+        state.suppressViewportScroll = true;
+        state.viewport.scrollLeft = this._clamp(scrollLeft, 0, this._getMaxScrollLeft(state));
+        window.setTimeout(() => {
+            state.suppressViewportScroll = false;
+        }, 0);
+    },
+
+    _syncPlayheadAfterViewportScroll(state, commit) {
+        if (!state || !state.viewport || !state.playhead || state.suppressViewportScroll || state.recordPlayheadDragging || state.dragging || state.mode === "Record")
+            return;
+
+        const viewportLeft = state.viewport.scrollLeft;
+        const viewportRight = viewportLeft + state.viewport.clientWidth;
+        const playheadContentX = state.positionSeconds * state.pixelsPerSecond;
+        let nextPosition = null;
+        let nextViewportX = null;
+
+        if (playheadContentX < viewportLeft) {
+            nextPosition = viewportLeft / state.pixelsPerSecond;
+            nextViewportX = playheadHalfWidth;
+        } else if (playheadContentX > viewportRight - playheadHalfWidth) {
+            nextPosition = (viewportRight - playheadHalfWidth) / state.pixelsPerSecond;
+            nextViewportX = state.viewport.clientWidth - playheadHalfWidth;
+        }
+
+        if (nextPosition === null) {
+            this._setPlayheadPosition(state, state.positionSeconds, false);
+            return;
+        }
+
+        const seconds = this._clamp(nextPosition, 0, state.durationSeconds || 0);
+        state.positionSeconds = seconds;
+        state.positionAnchorSeconds = seconds;
+        state.audioAnchorTime = this._getAudioTimeOrNull();
+        state.dragPlayheadViewportX = nextViewportX;
+        state.playhead.style.transform = `translateX(${nextViewportX - playheadHalfWidth}px)`;
+        this._updateActiveNotes(state, seconds);
+
+        if (commit)
+            void this._commitPositionChangedByViewportScroll(state, seconds);
+    },
+
+    async _commitPositionChangedByViewportScroll(state, seconds) {
+        try {
+            if (state.mode === "Edit" || state.mode === "Record") {
+                await state.dotNetRef?.invokeMethodAsync("SetRecordPositionSeconds", seconds);
+            } else if (!state.isPlaying) {
+                await state.dotNetRef?.invokeMethodAsync("PreviewSeekSeconds", seconds);
+                await state.dotNetRef?.invokeMethodAsync("CommitSeekSeconds", seconds);
+            }
+        } catch (error) {
+            console.warn("Failed to sync visualiser playhead after viewport scroll", error);
+        }
     },
 
     _updateDragAutoScroll(state) {
@@ -767,9 +919,9 @@ window.visualiser = {
                     state.viewport.clientWidth - playheadHalfWidth);
 
                 const contentX = state.viewport.scrollLeft + pointerViewportX;
-                const maxContentX = state.durationSeconds * pixelsPerSecond;
+                const maxContentX = state.durationSeconds * state.pixelsPerSecond;
                 const seconds = this._clamp(
-                    Math.min(contentX, maxContentX) / pixelsPerSecond,
+                    Math.min(contentX, maxContentX) / state.pixelsPerSecond,
                     0,
                     state.durationSeconds || 0);
 
@@ -831,7 +983,7 @@ window.visualiser = {
 
     _setPlayheadPosition(state, seconds, follow) {
         const clamped = this._clamp(seconds, 0, state.durationSeconds || 0);
-        const left = clamped * pixelsPerSecond;
+        const left = clamped * state.pixelsPerSecond;
         const scrollLeft = state.viewport?.scrollLeft ?? 0;
 
         let playheadViewportX = left - scrollLeft;
@@ -839,9 +991,15 @@ window.visualiser = {
         if (follow && state.viewport && !state.viewportDragging) {
             const targetViewportX = state.dragPlayheadViewportX ?? scrollOffset;
 
-            if (playheadViewportX > targetViewportX) {
-                state.viewport.scrollLeft = this._clamp(left - targetViewportX, 0, this._getMaxScrollLeft(state));
-                playheadViewportX = scrollOffset;
+            if (clamped <= 0.0001) {
+                this._setViewportScrollLeft(state, 0);
+                playheadViewportX = 0;
+            } else if (playheadViewportX > targetViewportX) {
+                this._setViewportScrollLeft(state, left - targetViewportX);
+                playheadViewportX = targetViewportX;
+            } else if (playheadViewportX < playheadHalfWidth) {
+                this._setViewportScrollLeft(state, Math.max(0, left - playheadHalfWidth));
+                playheadViewportX = playheadHalfWidth;
             }
         }
 
@@ -880,7 +1038,7 @@ window.visualiser = {
         }
 
         try {
-            if (state.mode === "RecordEdit") {
+            if (state.mode === "Edit" || state.mode === "Record") {
                 await state.dotNetRef?.invokeMethodAsync("SetRecordPositionSeconds", clamped);
             } else {
                 await state.dotNetRef?.invokeMethodAsync("PreviewSeekSeconds", clamped);
@@ -938,8 +1096,8 @@ window.visualiser = {
         state.activeNoteElements = active;
     },
 
-    _getNoteWidth(durationSeconds, text) {
-        const naturalWidth = Math.max(durationSeconds * pixelsPerSecond, 8);
+    _getNoteWidth(state, durationSeconds, text) {
+        const naturalWidth = Math.max(durationSeconds * state.pixelsPerSecond, 8);
         const labelLength = String(text || "").length;
 
         if (labelLength === 0)
@@ -959,7 +1117,7 @@ window.visualiser = {
         const characters = Math.max(1, String(text).length);
         const horizontalChrome = 10;
         const available = Math.max(1, width - horizontalChrome);
-        const fontSizePx = this._clamp(available / Math.max(characters * 0.64, 1), 7, 10.5);
+        const fontSizePx = this._clamp(available / Math.max(characters * 0.64, 1), 4, 10.5);
 
         label.style.fontSize = `${fontSizePx}px`;
         label.style.width = `${available}px`;
@@ -974,10 +1132,10 @@ window.visualiser = {
             playheadHalfWidth,
             state.viewport.clientWidth - playheadHalfWidth);
         const contentX = state.viewport.scrollLeft + viewportX;
-        const maxContentX = state.durationSeconds * pixelsPerSecond;
+        const maxContentX = state.durationSeconds * state.pixelsPerSecond;
 
         return this._clamp(
-            Math.min(contentX, maxContentX) / pixelsPerSecond,
+            Math.min(contentX, maxContentX) / state.pixelsPerSecond,
             0,
             state.durationSeconds || 0);
     },
@@ -1012,6 +1170,14 @@ window.visualiser = {
         const safeBpm = Math.max(Number(bpm) || 120, 1);
         const safeBeatUnit = Math.max(Number(beatUnit) || 4, 1);
         return (60.0 / safeBpm) * (4.0 / safeBeatUnit);
+    },
+
+    _formatNoteFromSemitone(semitoneNumber) {
+        const safe = Math.round(Number(semitoneNumber) || 0);
+        const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        const pitchClass = ((safe % 12) + 12) % 12;
+        const octave = Math.floor(safe / 12);
+        return `${names[pitchClass]}${octave}`;
     },
 
     _clamp(value, min, max) {

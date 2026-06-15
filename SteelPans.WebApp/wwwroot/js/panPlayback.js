@@ -557,13 +557,23 @@ window.panPlayback = {
         if (!ref)
             return;
 
-        await this.playNote(componentId, noteKey);
+        let noteAudioTime = null;
+        try {
+            const ctx = await this._resumeAudioContext();
+            noteAudioTime = ctx.currentTime;
+        } catch {
+            noteAudioTime = null;
+        }
+
+        const playNotePromise = this.playNote(componentId, noteKey);
 
         try {
-            await ref.invokeMethodAsync("OnNotePointerDown", noteKey);
+            await ref.invokeMethodAsync("OnNotePointerDown", noteKey, noteAudioTime);
         } catch (error) {
             console.warn("Note callback failed", error);
         }
+
+        await playNotePromise;
 
         this._setNotePlaying(componentId, noteKey, true);
 

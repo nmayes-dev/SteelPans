@@ -2,7 +2,7 @@
 @inject MidiPlaybackService Playback
 @implements IAsyncDisposable
 
-<div class="midi-track-visualiser midi-track-visualiser--@Mode.ToString().ToLowerInvariant()" @ref="root_" tabindex="0" @onkeydown="OnKeyDownAsync" @onkeydown:preventDefault="ShouldPreventKeyDefault">
+<div class="midi-track-visualiser midi-track-visualiser--@Mode.ToString().ToLowerInvariant()" @ref="root_" tabindex="0">
     <div class="midi-track-visualiser__labels">
         <div class="midi-track-visualiser__corner" />
         <div class="midi-track-visualiser__track-label">

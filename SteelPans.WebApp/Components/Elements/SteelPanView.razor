@@ -22,6 +22,8 @@ else
 }
 
 @code {
+    public readonly record struct PlayedNote(Note Note, double? AudioTimeSeconds);
+
     public string ComponentId => componentId_;
 
     [Parameter]
@@ -40,7 +42,7 @@ else
     public Guid? PlaybackInstanceId { get; set; }
 
     [Parameter]
-    public EventCallback<Note> OnNotePlayed { get; set; }
+    public EventCallback<PlayedNote> OnNotePlayed { get; set; }
     
     private bool noteFilesPreloaded_;
     private bool noteBuffersPreloaded_;
@@ -136,14 +138,14 @@ else
     }
 
     [JSInvokable]
-    public async Task OnNotePointerDown(string noteKey)
+    public async Task OnNotePointerDown(string noteKey, double? audioTimeSeconds)
     {
         if (!OnNotePlayed.HasDelegate)
             return;
 
         var note = Pan.Notes.FirstOrDefault(x => string.Equals(x.Note.ToString(), noteKey, StringComparison.OrdinalIgnoreCase));
         if (note is not null)
-            await OnNotePlayed.InvokeAsync(note.Note);
+            await OnNotePlayed.InvokeAsync(new PlayedNote(note.Note, audioTimeSeconds));
     }
 
     public async Task ClearMidiVisualStateAsync()
