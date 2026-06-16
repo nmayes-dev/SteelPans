@@ -1,7 +1,7 @@
 .record-track-page {
-    --record-page-gap: clamp(0.65rem, 2vw, 1rem);
-    --record-card-gap: clamp(0.65rem, 1.8vw, 1rem);
-    --record-control-gap: clamp(0.5rem, 1.6vw, 0.75rem);
+    --record-page-gap: clamp(0.45rem, 1.4vw, 0.85rem);
+    --record-card-gap: clamp(0.45rem, 1.2vw, 0.75rem);
+    --record-control-gap: clamp(0.4rem, 1vw, 0.6rem);
     --record-overlay-padding: clamp(0.35rem, 1.5vw, 0.75rem);
     gap: var(--record-page-gap);
     min-width: 0;
@@ -10,22 +10,78 @@
 
 .record-track-page__setup {
     display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: var(--record-card-gap);
     min-width: 0;
+    overflow: visible;
+    justify-content: end;
+    align-items: end;
 }
+
+    .record-track-page__setup input {
+        height: 100%;
+        border-radius: clamp(0.45rem, 0.3rem + 0.4cqw, 0.65rem);
+        padding-left: 0.65rem;
+    }
 
 .record-track-page__settings {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, clamp(9.5rem, 28vw, 13rem)), 1fr));
-    gap: clamp(0.6rem, 1.7vw, 1rem);
+    gap: clamp(0.45rem, 1.1vw, 0.75rem);
     min-width: 0;
 }
 
     .record-track-page__settings label {
         display: grid;
-        gap: clamp(0.25rem, 1vw, 0.35rem);
         min-width: 0;
-        font-weight: 700;
+        font-weight: 650;
+    }
+
+    .record-track-page__settings span {
+        font-size: clamp(0.6rem, 0.9vw, 0.9rem);
+    }
+
+.record-track-page__settings-control,
+.record-track-page__settings-beat {
+    gap: clamp(0.45rem, 1.1vw, 0.75rem);
+}
+
+.record-track-page__settings-control {
+    display: flex;
+}
+
+    .record-track-page__settings-control span,
+    .record-track-page__settings-beat span {
+        margin-left: 0.1rem;
+    }
+
+    .record-track-page__settings-control select {
+        width: 100%;
+        height: 100%;
+        border: 1px solid rgba(148, 163, 184, 0.4);
+        border-radius: 0.8rem;
+        background: rgba(255, 255, 255, 0.95);
+        color: #0f172a;
+        font-size: clamp(0.7rem, 1vw, 1rem);
+        padding: clamp(0.15rem, 0.2vw, 0.25rem) clamp(0.25rem, 0.5vw, 0.65rem);
+    }
+
+        .record-track-page__settings-control select:focus-visible {
+            outline: 0.16rem solid rgba(37, 99, 235, 0.22);
+            outline-offset: 0.1rem;
+        }
+
+        .record-track-page__settings-control select:disabled {
+            opacity: 0.65;
+        }
+
+
+.record-track-page__settings-beat {
+    display: grid;
+    grid-template-columns: minmax(0, 0.16fr) minmax(0, 0.17fr) minmax(0, 0.4fr) minmax(0, 0.22fr);
+}
+
+    .record-track-page__settings-beat span {
+        text-wrap: nowrap;
     }
 
 .record-track-page__signature {
@@ -36,38 +92,34 @@
     min-width: 0;
 }
 
-.record-track-page__controls {
+.record-track-page__recording {
     display: flex;
     flex-wrap: wrap;
     gap: var(--record-control-gap);
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     min-width: 0;
-    padding-top: clamp(0.65rem, 1.8vw, 1rem);
-    border-top: 1px solid rgba(148, 163, 184, 0.28);
 }
 
-.record-track-page__controls > div {
-    flex: 999 1 min(100%, 18rem);
-    min-width: min(100%, 14rem);
+    .record-track-page__recording > div {
+        flex: 1 1 min(100%, 16rem);
+        min-width: min(100%, 12rem);
+    }
+
+    .record-track-page__recording p {
+        margin: 0.15rem 0 0;
+        font-size: clamp(0.78rem, 1.5vw, 0.9rem);
+    }
+
+.record-track-page__controls {
+    height: 100%;
 }
 
-.record-track-page__controls p {
-    margin: 0.25rem 0 0;
-}
-
-.record-track-page__controls .sp-app-button {
-    flex: 1 1 clamp(7.5rem, 22vw, 11rem);
-}
-
-.record-track-page__toggle {
-    display: inline-flex;
-    flex: 1 1 clamp(10rem, 28vw, 15rem);
-    align-items: center;
-    gap: clamp(0.35rem, 1.3vw, 0.45rem);
-    min-width: 0;
-    font-weight: 700;
-}
+    .record-track-page__controls .sp-app-button {
+        height: 100%;
+        width: max-content;
+        white-space: nowrap;
+    }
 
 .record-track-page__pan-card {
     display: grid;
@@ -134,12 +186,12 @@
     overflow: hidden;
 }
 
-.record-track-page__overlay-pan-card button {
-    position: absolute;
-    inset-block-start: clamp(0.5rem, 1.5vw, 0.8rem);
-    inset-inline-start: clamp(0.5rem, 1.5vw, 0.8rem);
-    z-index: 5;
-}
+    .record-track-page__overlay-pan-card button {
+        position: absolute;
+        inset-block-start: clamp(0.5rem, 1.5vw, 0.8rem);
+        inset-inline-start: clamp(0.5rem, 1.5vw, 0.8rem);
+        z-index: 5;
+    }
 
 .record-track-page__overlay-pan {
     width: min(100%, clamp(18rem, 70vmin, 34rem));
@@ -173,10 +225,10 @@
     box-shadow: 0 16px 40px rgba(15, 23, 42, 0.26);
 }
 
-.record-track-page__count-in-ring span {
-    font-size: clamp(3.5rem, 18vmin, 8rem);
-    font-weight: 900;
-    line-height: 1;
-    color: #0f172a;
-    font-variant-numeric: tabular-nums;
-}
+    .record-track-page__count-in-ring span {
+        font-size: clamp(3.5rem, 18vmin, 8rem);
+        font-weight: 900;
+        line-height: 1;
+        color: #0f172a;
+        font-variant-numeric: tabular-nums;
+    }

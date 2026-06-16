@@ -48,7 +48,10 @@
                         <p>@track.PanType · @track.TempoBpm BPM · @track.BeatsPerBar/@track.BeatUnit · @track.DurationSeconds.ToString("0.#")s</p>
                         <small>@track.Notes.Count note@(track.Notes.Count == 1 ? "" : "s")</small>
                     </div>
-                    <button type="button" class="sp-app-button sp-app-button--danger" @onclick="() => RemoveTrack(track.Id)">Remove</button>
+                    <div class="record-file-page__track-actions">
+                        <a class="sp-app-button sp-app-button--secondary" href="/record/tracks/edit/@track.Id">Edit</a>
+                        <button type="button" class="sp-app-button sp-app-button--danger" @onclick="() => RemoveTrack(track.Id)">Remove</button>
+                    </div>
                     <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.Edit"
                                          ShowEditTools="false"
                                          PanLabel="@track.PanType.ToSpacedPascal()"

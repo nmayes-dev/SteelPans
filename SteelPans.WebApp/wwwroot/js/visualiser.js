@@ -389,15 +389,20 @@ window.visualiser = {
     },
 
     _measureLayout(state, durationSeconds) {
-        const rootWidth = Math.max(280, state.root?.getBoundingClientRect?.().width || 0);
+        const rootBounds = state.root?.getBoundingClientRect?.() || { width: 0, height: 0 };
+        const rootWidth = Math.max(280, rootBounds.width || 0);
+        const viewportHeight = Math.max(260, window.visualViewport?.height || window.innerHeight || rootBounds.height || 0);
         const viewportWidth = Math.max(180, rootWidth - Math.min(defaultLabelWidth, rootWidth * 0.36));
-        const compactness = this._clamp((rootWidth - 320) / 720, 0, 1);
+        const compactness = this._clamp((Math.min(rootWidth, viewportHeight) - 320) / 720, 0, 1);
+        const heightDrivenLaneHeight = viewportHeight * (state.mode === "Record" ? 0.18 : 0.14);
+        const widthDrivenLaneHeight = rootWidth * 0.13;
+        const laneHeight = this._clamp(Math.min(widthDrivenLaneHeight, heightDrivenLaneHeight), 56, 220);
 
         return {
-            labelWidth: Math.round(this._clamp(rootWidth * 0.2, 96, 200)),
-            rulerHeight: Math.round(22 + (compactness * 6)),
-            laneHeight: Math.round(this._clamp(rootWidth * 0.15, 100, 220)),
-            noteHeight: Math.round(this._clamp(rootWidth * 0.01, 6, 14)),
+            labelWidth: Math.round(this._clamp(rootWidth * 0.2, 78, 200)),
+            rulerHeight: Math.round(this._clamp(20 + (compactness * 6), 20, 28)),
+            laneHeight: Math.round(laneHeight),
+            noteHeight: Math.round(this._clamp(laneHeight * 0.1, 5, 14)),
             pixelsPerSecond: this._clamp(viewportWidth / Math.max(4, Math.min(durationSeconds, 8)), 112, defaultPixelsPerSecond),
             minTimelineWidth: Math.max(Math.round(viewportWidth), 560)
         };

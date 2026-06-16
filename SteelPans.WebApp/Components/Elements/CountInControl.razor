@@ -2,32 +2,11 @@
 
 <div class="count-in-control" aria-label="Metronome Count In">
     <div class="count-in-control__control">
-        <div class="count-in-control__number-input">
-            <NumericInput Class="count-in-control__input count-in-control__number-input-control"
-                          Value="@Playback.CountInBeats"
-                          ValueChanged="SetCountInBeatsAsync"
-                          Min="0"
-                          Max="32"
-                          Disabled="@Playback.IsPlaying" />
-
-            <div class="count-in-control__number-buttons">
-                <button class="count-in-control__number-button count-in-control__number-button--up"
-                        type="button"
-                        title="Increase Count In"
-                        aria-label="Increase Count In"
-                        disabled="@(!CanIncrement)"
-                        tabindex="-1"
-                        @onclick="IncrementAsync"></button>
-
-                <button class="count-in-control__number-button count-in-control__number-button--down"
-                        type="button"
-                        title="Decrease Count In"
-                        aria-label="Decrease Count In"
-                        disabled="@(!CanDecrement)"
-                        tabindex="-1"
-                        @onclick="DecrementAsync"></button>
-            </div>
-        </div>
+        <NumericInput Value="@Playback.CountInBeats"
+                      ValueChanged="SetCountInBeatsAsync"
+                      Min="0"
+                      Max="32"
+                      Disabled="@Playback.IsPlaying" />
 
         <NoteDivisionDropdown Value="@Playback.CountInNoteDivision"
                               Disabled="@Playback.IsPlaying" 

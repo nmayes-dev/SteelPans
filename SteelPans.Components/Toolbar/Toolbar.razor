@@ -11,11 +11,10 @@
         <button class="toolbar__header"
                 role="button"
                 aria-label="@MenuButtonLabel"
-                aria-expanded="@anyOpen_"
-                @onclick="ToggleMenuAsync">
+                @onclick="ChangeStateAsync">
             <div class="toolbar__header-content">
                 <span class="toolbar__header-button-icon">
-                    <span class="bi @(anyOpen_ ? OpenIconClass : ClosedIconClass)" aria-hidden="true"></span>
+                    <span class="@ButtonClass" aria-hidden="true"></span>
                 </span>
 
                 <div class="toolbar__header-container">

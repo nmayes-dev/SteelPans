@@ -1,9 +1,9 @@
 .midi-track-visualiser {
-    --label-width: clamp(6rem, 28vw, 12.5rem);
-    --ruler-height: clamp(1.35rem, 3vw, 1.75rem);
-    --lane-height: clamp(6rem, 16vw, 13.75rem);
+    --label-width: clamp(4.875rem, 20vw, 12.5rem);
+    --ruler-height: clamp(1.25rem, 3svh, 1.75rem);
+    --lane-height: clamp(3.5rem, 14svh, 13.75rem);
     --timeline-width: max(100%, 60rem);
-    --note-height: clamp(0.625rem, 2.4vw, 0.875rem);
+    --note-height: clamp(0.3125rem, 1.4svh, 0.875rem);
     --bar-grid-size: 576px;
     --playhead-width: 3px;
     position: relative;
@@ -32,7 +32,7 @@
     align-content: center;
     gap: 0.15rem;
     min-width: 0;
-    padding: clamp(0.4rem, 1.6vw, 0.55rem) clamp(0.45rem, 2vw, 0.75rem);
+    padding: clamp(0.28rem, 1.2svh, 0.55rem) clamp(0.35rem, 1.8vw, 0.75rem);
     border-bottom: 1px solid rgba(148, 163, 184, 0.25);
 }
 
@@ -173,10 +173,10 @@
     justify-content: center;
     min-width: 8px;
     height: var(--note-height);
-    padding: 0 clamp(2px, 0.8vw, 4px);
+    padding: 0 clamp(1px, 0.8vw, 4px);
     overflow: hidden;
     border-radius: 999px;
-    font-size: clamp(0.56rem, 1.6vw, 0.66rem);
+    font-size: clamp(0.5rem, 1.1svh, 0.66rem);
     line-height: 1;
     white-space: nowrap;
     pointer-events: none;
@@ -251,7 +251,7 @@
     appearance: none;
     border: 1px solid rgba(71, 85, 105, 0.45);
     font: inherit;
-    font-size: clamp(0.56rem, 1.6vw, 0.66rem);
+    font-size: clamp(0.5rem, 1.1svh, 0.66rem);
     font-weight: 700;
     cursor: grab;
     touch-action: none;

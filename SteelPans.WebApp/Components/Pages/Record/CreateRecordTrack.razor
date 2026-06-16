@@ -1,94 +1,113 @@
 @page "/record/tracks/create"
+@page "/record/tracks/edit/{TrackId:guid}"
 @attribute [Authorize]
 @inject RecordDraftService Draft
 @inject SteelPanLoaderService PanLoader
 @inject MidiPlaybackService Playback
 @inject NavigationManager Nav
+@inject ModalPopupService Modals
 @implements IAsyncDisposable
 
-<PageTitle>Create Track</PageTitle>
+
+<PageTitle>@PageTitleText</PageTitle>
 
 <section class="sp-app-page record-track-page">
     <div class="sp-app-page__header record-track-page__header">
         <p class="sp-app-page__eyebrow">Record</p>
-        <h1>Create Track</h1>
+        <h1>@PageTitleText</h1>
         <p>Set up the track, then press record to open the recording view.</p>
         <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(error_) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@error_</p>
     </div>
 
     <div class="sp-app-card record-track-page__setup">
-        <div class="record-track-page__settings">
-            <label>
-                Name
-                <input @bind="trackName_" placeholder="@trackNamePlaceholder_" />
-            </label>
+        <Toolbar @ref="toolbar_"
+                 ClosedIconClass="bi-sliders"
+                 MenuButtonLabel="Open Controls"
+                 MenuLabel="Controls"
+                 Side="Toolbar.ToolbarSide.Left">
+            <ToolbarElement Text="Edit"
+                            IconClass="bi-gear-fill">
+                <ChildContent>
+                    <div class="record-track-page__settings">
 
-            <label>
-                Pan
-                <select @bind="panType_">
-                    @foreach (var pan in AvailablePans)
-                    {
-                        <option value="@pan.Type">@pan.Type.ToSpacedPascal()</option>
-                    }
-                </select>
-            </label>
+                        <div class="record-track-page__settings-control">
+                            <label>
+                                <span>Pan</span>
+                                <select @bind="panType_">
+                                    @foreach (var pan in AvailablePans)
+                                    {
+                                        <option value="@pan.Type">@pan.Type.ToSpacedPascal()</option>
+                                    }
+                                </select>
+                            </label>
 
-            <label>
-                BPM
-                <NumericInput Min=" 1"
-                              Max="200"
-                              @bind-Value="tempoBpm_" />
-            </label>
+                            <label>
+                                <span>Mode</span>
+                                <select @bind="recordingMode_">
+                                    @foreach (var option in Enum.GetValues<RecordingMode>())
+                                    {
+                                        <option value="@option">@option.ToString()</option>
+                                    }
+                                </select>
+                            </label>
 
-            <label>
-                Time Signature
-                <span class="record-track-page__signature">
-                    <NumericInput Min=" 1"
-                                  Max="32"
-                                  @bind-Value="beatsPerBar_" />
-                    <span>/</span>
-                    <NoteDivisionDropdown @bind-Value="beatUnit_"
-                                          NoteDivisions="@([2, 4, 8, 16])" />
-                </span>
-            </label>
+                            <label>
+                                <span>Snapping</span>
+                                <select @bind="noteSnapDivision_">
+                                    @foreach (var option in Enum.GetValues<NoteSnapDivision>())
+                                    {
+                                        <option value="@option">@option.ToSpacedPascal()</option>
+                                    }
+                                </select>
+                            </label>
+                        </div>
+                        <div class="record-track-page__settings-beat">
+                            <label>
+                                <span>Bars</span>
+                                <NumericInput Min="1"
+                                              Max="1800"
+                                              CanRepeat="true"
+                                              @bind-Value="durationBars_" />
+                            </label>
 
-            <label>
-                Total Bars
-                <NumericInput Min=" 1"
-                              Max="1800" 
-                              @bind-Value="durationBars_" />
-            </label>
+                            <label>
+                                <span>Tempo</span>
+                                <NumericInput Min="1"
+                                              Max="200"
+                                              CanRepeat="true"
+                                              @bind-Value="tempoBpm_" />
+                            </label>
 
-            <label>
-                Default Note Length
-                <NoteDivisionDropdown @bind-Value="defaultNoteDivision_"
-                                      NoteDivisions="@([1, 2, 4, 8, 16])" />
-            </label>
+                            <label>
+                                <span>Time Signature</span>
+                                <span class="record-track-page__signature">
+                                    <NumericInput Min=" 1"
+                                                  Max="32"
+                                                  @bind-Value="beatsPerBar_" />
+                                    <span>/</span>
+                                    <NoteDivisionDropdown @bind-Value="beatUnit_"
+                                                          NoteDivisions="@([2, 4, 8, 16])" />
+                                </span>
+                            </label>
 
-            <label>
-                Note Snapping
-                <select @bind="noteSnapDivision_">
-                    @foreach (var option in Enum.GetValues<NoteSnapDivision>())
-                    {
-                        <option value="@option">@option.ToSpacedPascal()</option>
-                    }
-                </select>
-            </label>
-        </div>
+                            <label>
+                                <span>Note Length</span>
+                                <NoteDivisionDropdown @bind-Value="defaultNoteDivision_"
+                                                      NoteDivisions="@([1, 2, 4, 8, 16])" />
+                            </label>
+                        </div>
+                    </div>
+                </ChildContent>
+            </ToolbarElement>
+        </Toolbar>
+
+        <input @bind="trackName_" placeholder="@trackNamePlaceholder_" />
 
         <div class="record-track-page__controls">
-            <div>
-                <strong>@StatusText</strong>
-                <p>@(overwriteOnRecord_ ? "Fresh recording mode replaces the current notes when recording starts." : "Additive recording mode keeps existing notes and layers new notes on top.")</p>
-            </div>
-            <label class="record-track-page__toggle">
-                <input type="checkbox" @bind="overwriteOnRecord_" disabled="@(isRecording_ || isCountingIn_ || isPlayingBack_)" />
-                Record a fresh track
-            </label>
-            <button type="button" class="sp-app-button" @onclick="StartRecordingWithCountInAsync" disabled="@(isRecording_ || isCountingIn_ || isPlayingBack_)">Record</button>
-            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="TogglePlaybackAsync" disabled="@(isRecording_ || isCountingIn_ || notes_.Count == 0)">@(isPlayingBack_ ? "Stop" : "Play")</button>
-            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="ClearNotes" disabled="@(isRecording_ || isCountingIn_ || isPlayingBack_)">Clear notes</button>
-            <button type="button" class="sp-app-button" @onclick="SaveTrack" disabled="@(isRecording_ || isCountingIn_ || isPlayingBack_)">Add track to file draft</button>
+            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="ClearNotesAsync" disabled="@(DisableButtons(requireNotes: true))">Reset</button>
+            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="TogglePlaybackAsync" disabled="@(DisableButtons(requireNotes: true))">@(isPlayingBack_ ? "Stop" : "Play")</button>
+            <button type="button" class="sp-app-button" @onclick="StartRecordingWithCountInAsync" disabled="@(DisableButtons(requireNotes: false))">Record</button>
+            <button type="button" class="sp-app-button sp-app-button--primary" @onclick="SaveTrack" disabled="@(DisableButtons(requireNotes: true))">Save</button>
         </div>
     </div>
 
@@ -174,10 +193,17 @@
 }
 
 @code {
+    [Parameter]
+    public Guid? TrackId { get; set; }
+
+    private Toolbar? toolbar_;
+
     private string? error_;
+    private Guid? editingTrackId_;
+    private bool loadedExistingTrack_;
 
     private string trackName_ = string.Empty;
-    private const string trackNamePlaceholder_ = "New track..";
+    private const string trackNamePlaceholder_ = "Track Name...";
 
     private PanType panType_ = PanType.None;
 
@@ -194,7 +220,13 @@
     private int defaultNoteDivision_ = 4;
     private NoteSnapDivision noteSnapDivision_;
 
-    private bool overwriteOnRecord_ = true;
+    private enum RecordingMode
+    {
+        Overwrite,
+        Overdub,
+    }
+
+    private RecordingMode recordingMode_ = RecordingMode.Overwrite;
     private bool isRecordOverlayOpen_;
     private bool isCountingIn_;
     private bool isRecording_;
@@ -218,11 +250,52 @@
     private int? SelectedPanMinSemitone => SelectedPan?.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Min();
     private int? SelectedPanMaxSemitone => SelectedPan?.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Max();
     private string StatusText => isCountingIn_ ? "Count in" : isRecording_ ? "Recording" : isPlayingBack_ ? "Playing" : "Ready";
+    private string PageTitleText => editingTrackId_ is null ? "Create Track" : "Edit Track";
 
-    protected override void OnInitialized()
+    private bool DisableButtons(bool requireNotes) => isRecording_ || isCountingIn_ || isPlayingBack_ || (requireNotes && !notes_.Any());
+
+    protected override void OnParametersSet()
     {
-        if (AvailablePans.Count > 0)
+        if (TrackId is Guid trackId && (!loadedExistingTrack_ || editingTrackId_ != trackId))
+        {
+            LoadDraftTrack(trackId);
+            return;
+        }
+
+        if (AvailablePans.Count > 0 && panType_ == PanType.None)
             panType_ = AvailablePans[0].Type;
+    }
+
+    private void LoadDraftTrack(Guid trackId)
+    {
+        loadedExistingTrack_ = true;
+        editingTrackId_ = trackId;
+
+        var track = Draft.Tracks.FirstOrDefault(x => x.Id == trackId);
+        if (track is null)
+        {
+            error_ = "That draft track could not be found.";
+            if (AvailablePans.Count > 0 && panType_ == PanType.None)
+                panType_ = AvailablePans[0].Type;
+            return;
+        }
+
+        trackName_ = track.Name;
+        panType_ = track.PanType;
+        tempoBpm_ = track.TempoBpm;
+        beatsPerBar_ = track.BeatsPerBar;
+        beatUnit_ = track.BeatUnit;
+        durationBars_ = Math.Max(1, (int)Math.Ceiling(track.DurationSeconds / Math.Max(0.001, beatsPerBar_ * beatsPerSecond_ * beatRatio_)));
+        notes_.Clear();
+        notes_.AddRange(track.Notes.Select(x => new RecordNoteDraft
+        {
+            Id = x.Id,
+            Note = x.Note,
+            StartSeconds = x.StartSeconds,
+            DurationSeconds = x.DurationSeconds
+        }));
+        selectedNoteId_ = null;
+        recordingPositionSeconds_ = 0;
     }
 
     private async Task StartRecordingWithCountInAsync()
@@ -233,12 +306,14 @@
 
         await StopPlaybackAsync();
 
-        if (overwriteOnRecord_)
+        if (recordingMode_ == RecordingMode.Overwrite)
         {
             notes_.Clear();
             selectedNoteId_ = null;
             recordingPositionSeconds_ = 0;
         }
+
+        await toolbar_!.RequestCloseAsync();
 
         recordingPositionSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
         isRecordOverlayOpen_ = true;
@@ -406,11 +481,20 @@
             selectedNoteId_ = null;
     }
 
-    private void ClearNotes()
+    private async Task ClearNotesAsync()
     {
-        notes_.Clear();
-        selectedNoteId_ = null;
-        recordingPositionSeconds_ = 0;
+        var options = new ModalOptions
+        {
+            OnComplete = () =>
+            {
+                notes_.Clear();
+                selectedNoteId_ = null;
+                recordingPositionSeconds_ = 0;
+                return Task.CompletedTask;
+            }
+        };
+
+        await Modals.OpenAsync("ClearNotes", options);
     }
 
 
@@ -655,9 +739,16 @@
             return;
         }
 
+        if (string.IsNullOrWhiteSpace(trackName_))
+        {
+            error_ = "Please give your track a name.";
+            return;
+        }
+
         Draft.AddOrReplaceTrack(new RecordTrackDraft
         {
-            Name = string.IsNullOrWhiteSpace(trackName_) ? "Recorded track" : trackName_.Trim(),
+            Id = editingTrackId_ ?? Guid.NewGuid(),
+            Name = trackName_.Trim(),
             PanType = panType_,
             TempoBpm = Math.Clamp(tempoBpm_, 1, 300),
             BeatsPerBar = Math.Clamp(beatsPerBar_, 1, 32),

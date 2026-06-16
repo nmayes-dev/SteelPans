@@ -314,14 +314,8 @@ public partial class Metronome
             await InvokeAsync(StateHasChanged);
     }
 
-    private async Task OnBeatUnitChanged(ChangeEventArgs e)
+    private async Task OnBeatUnitChanged(int beatUnit)
     {
-        if (!int.TryParse(e.Value?.ToString(), out var beatUnit))
-            return;
-
-        if (beatUnit is not (1 or 2 or 4 or 8 or 16 or 32))
-            return;
-
         if (BeatUnit == beatUnit)
             return;
 

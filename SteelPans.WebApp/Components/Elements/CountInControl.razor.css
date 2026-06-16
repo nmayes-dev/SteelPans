@@ -14,7 +14,9 @@
 }
 
 .count-in-control__control {
-    display: inline-flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    width: clamp(2rem, 3rem + 2.4vw, 8.8rem);
     align-items: center;
     gap: clamp(0.3rem, 0.4vw, 0.5rem);
 }
@@ -24,126 +26,6 @@
     font-size: clamp(0.4rem, 0.38rem + 0.18vw, 0.9rem);
     font-weight: 700;
 }
-
-.count-in-control__number-input {
-    position: relative;
-    display: inline-flex;
-    align-items: stretch;
-    min-width: 0;
-}
-
-::deep .count-in-control__number-input-control {
-    -moz-appearance: textfield;
-}
-
-    ::deep .count-in-control__number-input-control::-webkit-outer-spin-button,
-    ::deep .count-in-control__number-input-control::-webkit-inner-spin-button {
-        -webkit-appearance: none;
-        margin: 0;
-    }
-
-.count-in-control__number-buttons {
-    position: absolute;
-    top: 1px;
-    right: 1px;
-    bottom: 1px;
-    width: clamp(1rem, 0.6rem + 0.45vw, 1.8rem);
-    display: grid;
-    grid-template-rows: 1fr 1fr;
-    pointer-events: none;
-    border-left: 1px solid rgba(148, 163, 184, 0.18);
-    border-radius: 0 0.8rem 0.8rem 0;
-    overflow: hidden;
-}
-
-.count-in-control__number-button {
-    pointer-events: auto;
-    position: relative;
-    display: grid;
-    place-items: center;
-    margin: 0;
-    padding: 0;
-    min-height: 0;
-    width: 100%;
-    border: 0;
-    border-radius: 0;
-    background: linear-gradient(180deg, #ffffff, #f8fafc);
-    color: #0f172a;
-    appearance: none;
-    -webkit-appearance: none;
-    box-shadow: none;
-    cursor: pointer;
-    transition: background-color 160ms ease, color 160ms ease, filter 160ms ease, opacity 160ms ease;
-}
-
-    .count-in-control__number-button::before {
-        content: "";
-        display: block;
-        width: var(--control-number-button-size);
-        height: var(--control-number-button-size);
-        border-right: 2px solid currentColor;
-        border-bottom: 2px solid currentColor;
-    }
-
-.count-in-control__number-button--up::before {
-    transform: translateY(1px) rotate(-135deg);
-}
-
-.count-in-control__number-button--up::after {
-    content: "";
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 1px;
-    background: rgba(148, 163, 184, 0.14);
-    pointer-events: none;
-}
-
-.count-in-control__number-button--down::before {
-    transform: translateY(-0.5px) rotate(45deg);
-}
-
-.count-in-control__number-button:hover:not(:disabled) {
-    color: #f8fafc;
-    background: linear-gradient(180deg, rgba(37, 99, 235, 0.96) 0%, rgba(29, 78, 216, 0.96) 100%);
-}
-
-.count-in-control__number-button:active:not(:disabled) {
-    filter: brightness(0.96);
-}
-
-.count-in-control__number-button:focus-visible {
-    outline: none;
-}
-
-.count-in-control__number-button:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-::deep .count-in-control__input {
-    width: clamp(2.2rem, 1.5rem + 1vw, 4.4rem);
-    height: var(--control-height);
-    padding-left: clamp(0.25rem, 0.5vw, 0.65rem);
-    padding-right: clamp(0.65rem, 0.65rem + 0.5vw, 2rem);
-    border: 1px solid rgba(148, 163, 184, 0.4);
-    border-radius: 0.8rem;
-    background: rgba(255, 255, 255, 0.95);
-    color: #0f172a;
-    font-size: clamp(0.5rem, 0.44rem + 0.35vw, 1rem);
-    font-weight: 800;
-    text-align: left;
-}
-
-    ::deep .count-in-control__input:focus-visible {
-        outline: 0.16rem solid rgba(37, 99, 235, 0.22);
-        outline-offset: 0.1rem;
-    }
-
-    ::deep .count-in-control__input:disabled {
-        opacity: 0.65;
-    }
 
 @media (max-width: 540px) {
     .count-in-control__control {

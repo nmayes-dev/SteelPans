@@ -12,17 +12,16 @@ public partial class Toolbar : OverlayComponentBase
         Left,
         Right
     }
+    private enum ToolbarState
+    {
+        Closed,
+        Menu,
+        Content,
+    }
 
     private readonly List<ToolbarElement> contentElements_ = [];
     private readonly List<ToolbarElement> rootElements_ = [];
-
-    private bool menuOpen_;
-
-    private bool anyOpen_ => menuOpen_ || ActiveElement is not null;
-
-    internal bool IsMenuOpen => menuOpen_;
-    internal bool IsPanelOpen => ActiveElement is not null;
-    internal bool IsAnyOpen => IsMenuOpen || IsPanelOpen;
+    private bool singleElement_ => rootElements_.Count == 1;
 
     internal IReadOnlyList<ToolbarElement> Elements => rootElements_.OrderBy(x => x.Order).ToArray();
 
@@ -41,16 +40,30 @@ public partial class Toolbar : OverlayComponentBase
 
     [Parameter] public ToolbarSide Side { get; set; } = ToolbarSide.Left;
 
-    private string ToolbarClass => string.Join(
-    " ",
-    new[]
+    private ToolbarState state_ = ToolbarState.Closed;
+
+
+    private string SideClass => Side switch
     {
-        "toolbar",
-        Side == ToolbarSide.Left ? "toolbar--left" : "toolbar--right",
-        IsAnyOpen ?  "toolbar--open" : null,
-        IsMenuOpen ? "toolbar--menu-open" : null,
-        IsPanelOpen ? "toolbar--panel-open" : null,
-    }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        ToolbarSide.Left => " toolbar--left",
+        ToolbarSide.Right => " toolbar--right",
+        _ => string.Empty,
+    };
+
+    private string StateClass => state_ switch
+    {
+        ToolbarState.Menu => " toolbar--open toolbar--menu-open",
+        ToolbarState.Content => " toolbar--open toolbar--panel-open",
+        _ => string.Empty,
+    };
+
+    private string ButtonClass => "bi " + state_ switch
+    {
+        ToolbarState.Closed => ClosedIconClass,
+        _ => OpenIconClass,
+    };
+
+    private string ToolbarClass => $"toolbar{SideClass}{StateClass}";
 
 
     internal void RegisterElement(ToolbarElement element, bool root)
@@ -78,17 +91,21 @@ public partial class Toolbar : OverlayComponentBase
         StateHasChanged();
     }
 
+    private async Task OpenMenuAsync()
+    {
+        state_ = ToolbarState.Menu;
+        await NotifyOpenedAsync();
+    }
+
     internal async Task OpenElementAsync(ToolbarElement element)
     {   
-        Console.WriteLine($"Fired @onclick for \"{element.Text}\"");
-
         if (element.Disabled || element.HasSubMenu)
             return;
 
         if (element.HasBody)
         {
             ActiveElement = element;
-            menuOpen_ = false;
+            state_ = ToolbarState.Content;
             await NotifyOpenedAsync();
             await InvokeAsync(StateHasChanged);
             return;
@@ -98,27 +115,52 @@ public partial class Toolbar : OverlayComponentBase
             await element.OnClick.InvokeAsync();
 
         if (element.CloseOnAction)
-            menuOpen_ = false;
+            state_ = ToolbarState.Closed;
 
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task ToggleMenuAsync()
+    private async Task OpenMenuOrContentAsync()
     {
-        if (ActiveElement is not null)
+        if (!singleElement_)
         {
-            ActiveElement = null;
-            menuOpen_ = true;
-            await NotifyOpenedAsync();
-            await InvokeAsync(StateHasChanged);
+            await OpenMenuAsync();
             return;
         }
 
-        menuOpen_ = !menuOpen_;
-        if (menuOpen_)
-            await NotifyOpenedAsync();
-        else
-            await RequestCloseAsync();
+        var onlyElement = rootElements_.First();
+        if (!onlyElement.Disabled && onlyElement.HasBody && !onlyElement.HasSubMenu)
+        {
+            await OpenElementAsync(onlyElement);
+            return;
+        }
+
+        await OpenMenuAsync();
+    }
+
+    private async Task CloseCurrentElementAsync()
+    {
+        ActiveElement = null;
+        state_ = singleElement_ ? ToolbarState.Closed : ToolbarState.Menu;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+
+    private async Task ChangeStateAsync()
+    {
+        switch (state_)
+        {
+            case ToolbarState.Closed:
+                await OpenMenuOrContentAsync();
+                return;
+            case ToolbarState.Menu:
+                await RequestCloseAsync();
+                return;
+            case ToolbarState.Content:
+                await CloseCurrentElementAsync();
+                return;
+        }
     }
 
     private async Task OpenModalElement()
@@ -128,13 +170,13 @@ public partial class Toolbar : OverlayComponentBase
 
         ModalElement = ActiveElement;
         ActiveElement = null;
-        menuOpen_ = false;
+        state_ = ToolbarState.Closed;
         await Modals.OpenAsync("ToolbarContent");
     }
 
     protected override async Task OnCloseAsync()
     {
-        menuOpen_ = false;
+        state_ = ToolbarState.Closed;
         ActiveElement = null;
     }
 

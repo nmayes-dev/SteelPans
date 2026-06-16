@@ -1,23 +1,63 @@
 ﻿@implements IAsyncDisposable
 @inject IJSRuntime JS
 
-<input @ref="inputRef_"
-       id="@Id"
-       class="@Class"
-       type="number"
-       inputmode="numeric"
-       value="@currentValue_"
-       @onchange="HandleInput"
-       disabled="@Disabled" />
+<div class="number-input">
+    <input @ref="inputRef_"
+           id="@Id"
+           class="number-input-control"
+           type="number"
+           inputmode="numeric"
+           value="@currentValue_"
+           step="@step_"
+           @onchange="HandleInput"
+           disabled="@Disabled" />
+
+    @if (UseButtons)
+    {
+        <div class="number-buttons">
+            <button class="number-button number-button--up"
+                    type="button"
+                    @onpointerdown="@(() => BeginRepeatAsync(1))"
+                    @onpointerup="EndRepeatAsync"
+                    @onpointercancel="EndRepeatAsync"
+                    @onpointerleave="EndRepeatAsync"
+                    tabindex="-1"
+                    aria-label="Increment"></button>
+
+            <button class="number-button number-button--down"
+                    type="button"
+                    @onpointerdown="@(() => BeginRepeatAsync(-1))"
+                    @onpointerup="EndRepeatAsync"
+                    @onpointercancel="EndRepeatAsync"
+                    @onpointerleave="EndRepeatAsync"
+                    tabindex="-1"
+                    aria-label="Decrement"></button>
+        </div>
+    }
+</div>
 
 @code {
+    private const int RepeatInitialDelayMs = 350;
+    private const int RepeatIntervalMs = 50;
+
     [Parameter] public string? Id { get; set; }
-    [Parameter] public string? Class { get; set; }
+
     [Parameter] public int Value { get; set; }
     [Parameter] public EventCallback<int> ValueChanged { get; set; }
+
     [Parameter] public int? Min { get; set; }
     [Parameter] public int? Max { get; set; }
+    [Parameter] public int? Step { get; set; }
+
+    [Parameter] public bool UseButtons { get; set; } = true;
+
+    [Parameter] public bool CanRepeat { get; set; }
+    [Parameter] public int InitialRepeatDelay { get; set; } = RepeatInitialDelayMs;
+    [Parameter] public int RepeatInterval { get; set; } = RepeatIntervalMs;
+
     [Parameter] public bool Disabled { get; set; }
+
+    private int step_ => Step ?? 1;
 
     private ElementReference inputRef_;
     private string currentValue_ = string.Empty;
@@ -51,12 +91,62 @@
             return;
         }
 
-        if (Min.HasValue)
-            value = Math.Max(Min.Value, value);
+        value = Clamp(value);
+        await UpdateValueAsync(value);
+    }
 
-        if (Max.HasValue)
-            value = Math.Min(Max.Value, value);
+    private async Task BeginRepeatAsync(int direction)
+    {
+        if (!CanRepeat)
+            return;
 
+        await EndRepeatAsync();
+    }
+
+    private async Task EndRepeatAsync()
+    {
+        if (!CanRepeat)
+            return;
+    }
+
+    private async Task DoRepeatAsync(int direction)
+    {
+        if (!int.TryParse(currentValue_, out var value))
+        {
+            await EndRepeatAsync();
+            return;
+        }
+
+        var nextValue = Clamp(value + (direction * step_));
+        if (value == nextValue)
+        {
+            await EndRepeatAsync();
+            return;
+        }
+
+        await UpdateValueAsync(nextValue);
+    }
+
+
+    private async Task RepeatChangeAsync(int direction, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(RepeatInterval, cancellationToken);
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await DoRepeatAsync(direction);
+                await Task.Delay(RepeatInterval, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task UpdateValueAsync(int value)
+    {
         currentValue_ = value.ToString();
 
         if (value != Value)
@@ -64,6 +154,17 @@
 
         // ensure DOM reflects clamped value
         await JS.InvokeVoidAsync("filters.setValue", inputRef_, currentValue_);
+    }
+
+    private int Clamp(int value)
+    {
+        if (Min.HasValue)
+            value = Math.Max(Min.Value, value);
+
+        if (Max.HasValue)
+            value = Math.Min(Max.Value, value);
+
+        return value;
     }
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
