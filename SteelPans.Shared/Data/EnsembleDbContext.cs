@@ -119,6 +119,9 @@ public sealed class EnsembleDbContext
 
             entity.Property(x => x.ContentType)
                 .HasMaxLength(100);
+
+            entity.Property(x => x.IsIncomplete)
+                .HasDefaultValue(false);
         });
 
         builder.Entity<EnsembleMidiTrack>(entity =>
@@ -145,12 +148,19 @@ public sealed class EnsembleDbContext
         {
             entity.HasKey(x => x.Id);
 
-            entity.HasIndex(x => new { x.MidiFileId, x.TrackIndex })
+            entity.HasIndex(x => new { x.MidiFileId, x.TrackIndex });
+
+            entity.HasIndex(x => new { x.MidiFileId, x.TrackId })
                 .IsUnique();
 
             entity.HasOne(x => x.MidiFile)
                 .WithMany(x => x.Assignments)
                 .HasForeignKey(x => x.MidiFileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.Track)
+                .WithMany()
+                .HasForeignKey(x => x.TrackId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.Property(x => x.PanType)

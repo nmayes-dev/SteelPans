@@ -1,7 +1,7 @@
 @using SteelPans.WebApp.Services
 @inject MidiPlaybackService Playback
 
-<ModalPopup TPayload="int?"
+<ModalPopup TPayload="Guid?"
             Id="AddPan"
             Title="Add Pan"
             OnOpen="OnOpen"
@@ -16,7 +16,7 @@
                 <select id="midi-track-select-modal"
                         class="form-select"
                         disabled="@(UnassignedTracks.Count == 0)"
-                        @bind="selectedTrackIndexString_">
+                        @bind="selectedTrackIdString_">
                     @if (UnassignedTracks.Count == 0)
                     {
                         <option value="">All tracks already assigned</option>
@@ -25,7 +25,7 @@
                     {
                         @foreach (var track in UnassignedTracks)
                         {
-                            <option value="@track.Index.ToString()">@track.DisplayInfo</option>
+                            <option value="@track.Id.ToString()">@track.DisplayInfo</option>
                         }
                     }
                 </select>
@@ -61,7 +61,7 @@
     }
 
     private AddModalType addModalType_;
-    private string? selectedTrackIndexString_;
+    private string? selectedTrackIdString_;
     private string? selectedPanTypeString_;
 
     private bool HasTracks => Playback.Tracks.Count > 0;
@@ -70,10 +70,10 @@
     {
         get
         {
-            if (!int.TryParse(selectedTrackIndexString_, out var trackIndex))
+            if (!Guid.TryParse(selectedTrackIdString_, out var trackId))
                 return string.Empty;
 
-            var track = Playback.Tracks.FirstOrDefault(x => x.Index == trackIndex);
+            var track = Playback.Tracks.FirstOrDefault(x => x.Id == trackId);
             if (track is null)
                 return string.Empty;
 
@@ -83,7 +83,7 @@
 
     private List<MidiTrackInfo> UnassignedTracks =>
         Playback.Tracks
-            .Where(t => Playback.Assignments.All(a => a.Track?.Index != t.Index))
+            .Where(t => Playback.Assignments.All(a => a.Track?.Id != t.Id))
             .OrderBy(t => t.Index)
             .ToList();
 
@@ -91,15 +91,15 @@
         HasTracks &&
         AvailablePanTypes.Count > 0 &&
         UnassignedTracks.Count > 0 &&
-        int.TryParse(selectedTrackIndexString_, out _);
+        Guid.TryParse(selectedTrackIdString_, out _);
 
     private bool CanOpenPanAddModal =>
         AvailablePanTypes.Count > 0;
 
     private bool CanConfirmAddTrack =>
         addModalType_ == AddModalType.Track &&
-        int.TryParse(selectedTrackIndexString_, out var trackIndex) &&
-        UnassignedTracks.Any(x => x.Index == trackIndex) &&
+        Guid.TryParse(selectedTrackIdString_, out var trackId) &&
+        UnassignedTracks.Any(x => x.Id == trackId) &&
         Enum.TryParse<PanType>(selectedPanTypeString_, out var panType) &&
         AvailablePanTypes.Contains(panType);
 
@@ -111,23 +111,23 @@
     private bool CanOpen => CanOpenTrackAddModal || CanOpenPanAddModal;
     private bool CanConfirmAdd => CanConfirmAddPan || CanConfirmAddTrack;
 
-    private void GetInitialParameters(int? initialTrack = null)
+    private void GetInitialParameters(Guid? initialTrack = null)
     {
         selectedPanTypeString_ = AvailablePanTypes.FirstOrDefault().ToString();
 
         if (UnassignedTracks.Count == 0)
         {
-            selectedTrackIndexString_ = string.Empty;
+            selectedTrackIdString_ = string.Empty;
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(selectedTrackIndexString_) || initialTrack is not null)
-            selectedTrackIndexString_ = initialTrack.ToString() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(selectedTrackIdString_) || initialTrack is not null)
+            selectedTrackIdString_ = initialTrack?.ToString() ?? string.Empty;
 
-        if (!int.TryParse(selectedTrackIndexString_, out var selectedTrackIndex) ||
-            UnassignedTracks.All(x => x.Index != selectedTrackIndex))
+        if (!Guid.TryParse(selectedTrackIdString_, out var selectedTrackId) ||
+            UnassignedTracks.All(x => x.Id != selectedTrackId))
         {
-            selectedTrackIndexString_ = UnassignedTracks[0].Index.ToString();
+            selectedTrackIdString_ = UnassignedTracks[0].Id.ToString();
         }
     }
 
@@ -136,7 +136,7 @@
         GetInitialParameters(initialTrack: null);
     }
 
-    public void OnOpen(int? initialTrack)
+    public void OnOpen(Guid? initialTrack)
     {
         if (!(CanOpenTrackAddModal || CanOpenPanAddModal))
             return;
@@ -148,7 +148,7 @@
             addModalType_ = AddModalType.Pan;
     }
 
-    private void OnClose(int? _)
+    private void OnClose(Guid? _)
     {
         addModalType_ = AddModalType.None;
     }
@@ -185,10 +185,10 @@
 
     private async Task ConfirmAddTrackAsync(PanType panType)
     {
-        if (!int.TryParse(selectedTrackIndexString_, out var trackIndex))
+        if (!Guid.TryParse(selectedTrackIdString_, out var trackId))
             return;
 
-        var track = Playback.Tracks.FirstOrDefault(x => x.Index == trackIndex);
+        var track = Playback.Tracks.FirstOrDefault(x => x.Id == trackId);
         if (track is null)
             return;
 

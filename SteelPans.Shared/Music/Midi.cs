@@ -1,5 +1,4 @@
-﻿namespace SteelPans.Shared.Music;
-
+namespace SteelPans.Shared.Music;
 
 public static class Midi
 {
@@ -11,11 +10,17 @@ public static class Midi
     ];
 }
 
-public sealed class MidiTrackInfo
+public class MidiTrackSummary
 {
+    public Guid Id { get; init; } = Guid.NewGuid();
     public required int Index { get; init; }
     public string? Name { get; init; }
     public int NoteCount { get; init; }
+    public PanType PanType { get; init; } = PanType.None;
+    public int TempoBpm { get; init; } = 120;
+    public int BeatsPerBar { get; init; } = 4;
+    public int BeatUnit { get; init; } = 4;
+    public double DurationSeconds { get; init; }
 
     public string DisplayInfo
     {
@@ -32,6 +37,12 @@ public sealed class MidiTrackInfo
 
     public string TrackLabel => Name ?? $"Track {Index}";
 }
+
+public sealed class MidiTrackInfo : MidiTrackSummary
+{
+    public List<MidiPanEvent> Events { get; init; } = [];
+}
+
 public sealed class MidiPanPlaybackAction
 {
     public required Note Note { get; init; }
@@ -78,7 +89,6 @@ public sealed class MidiPlaybackInfo
     public List<MidiTempoChange> TempoChanges { get; init; } = [];
     public List<MidiTimeSignatureChange> TimeSignatureChanges { get; init; } = [];
 }
-
 
 public sealed class MetronomeAction
 {

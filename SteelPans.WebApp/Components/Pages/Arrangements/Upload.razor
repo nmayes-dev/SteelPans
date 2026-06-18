@@ -2,7 +2,7 @@
 @attribute [Authorize]
 @inject DbService Db
 @inject TaskRunnerService Tasks
-@inject MidiInspectionService MidiInspection
+@inject MidiFileService MidiInspection
 @inject UserStateService UserState
 @inject NavigationManager Nav
 
@@ -80,7 +80,7 @@
             selectedFileBytes_ = buffer.ToArray();
 
             buffer.Position = 0;
-            var midiFile = await MidiInspection.ReadAsync(buffer);
+            var midiFile = await MidiInspection.OpenMidiFileAsync(buffer);
             localPreview_ = MidiInspection.GetTrackInfos(midiFile);
         });
     }

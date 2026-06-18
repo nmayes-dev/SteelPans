@@ -1,9 +1,15 @@
 @page "/arrangements/tracks/create"
 @page "/arrangements/tracks/edit/{TrackId:guid}"
 @attribute [Authorize]
-@inject RecordDraftService Draft
+@inject MidiEditingService Draft
+@inject DbService Db
+@inject MidiFileService MidiFiles
 @inject SteelPanLoaderService PanLoader
 @inject MidiPlaybackService Playback
+@inject UserStateService UserState
+@inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
+@inject IJSRuntime JS
+@inject Microsoft.Extensions.Logging.ILogger<EditTrack> Logger
 @inject NavigationManager Nav
 @inject ModalPopupService Modals
 @implements IAsyncDisposable
@@ -60,6 +66,13 @@
                                     }
                                 </select>
                             </label>
+
+                            <label class="record-track-page__settings-toggle">
+                                <span>Click Track</span>
+                                <ToggleSwitch Value="@clickTrackDuringRecording_"
+                                              ValueChanged="value => clickTrackDuringRecording_ = value"
+                                              AriaLabel="Enable click track while recording" />
+                            </label>
                         </div>
                         <div class="record-track-page__settings-beat">
                             <label>
@@ -104,8 +117,9 @@
         <input @bind="trackName_" placeholder="Track Name..." />
 
         <div class="record-track-page__controls">
+            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="ExitPage" disabled="@(DisableButtons(requireNotes: false))">Back</button>
             <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="ClearNotesAsync" disabled="@(DisableButtons(requireNotes: true))">Reset</button>
-            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="TogglePlaybackAsync" disabled="@(DisableButtons(requireNotes: true))">@(isPlayingBack_ ? "Stop" : "Play")</button>
+            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="TogglePlaybackAsync" disabled="@(!notes_.Any())">@(isPlayingBack_ ? "Stop" : "Play")</button>
             <button type="button" class="sp-app-button" @onclick="StartRecordingWithCountInAsync" disabled="@(DisableButtons(requireNotes: false))">Record</button>
             <button type="button" class="sp-app-button sp-app-button--primary" @onclick="SaveTrack" disabled="@(DisableButtons(requireNotes: true))">Save</button>
         </div>
@@ -114,7 +128,7 @@
     <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.Edit"
                          PanLabel="@panType_.ToSpacedPascal()"
                          TrackLabel="@trackName_"
-                         RecordNotes="notes_"
+                         Notes="notes_"
                          SelectedNoteId="selectedNoteId_"
                          DurationSeconds="durationSeconds_"
                          ShowPlayhead="true"
@@ -146,10 +160,11 @@
 
         <div class="record-track-page__overlay-shell">
             <div class="record-track-page__overlay-visualiser">
-                <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.Record"
+                <MidiTrackVisualiser @ref="recordVisualiser_"
+                                     Mode="MidiTrackVisualiserMode.Record"
                                      PanLabel="@panType_.ToSpacedPascal()"
                                      TrackLabel="@trackName_"
-                                     RecordNotes="notes_"
+                                     Notes="CurrentOverlayNotes"
                                      SelectedNoteId="selectedNoteId_"
                                      DurationSeconds="durationSeconds_"
                                      ShowPlayhead="true"
@@ -179,7 +194,10 @@
                               OnNotePlayed="OnPanNotePlayedAsync"
                               Disabled="@isCountingIn_" />
 
-                <button type="button" class="sp-app-button sp-app-button--danger" @onclick="StopRecordingOverlay">@(isCountingIn_ ? "Cancel" : "Stop")</button>
+                <div class="record-track-page__overlay-actions">
+                    <button type="button" class="sp-app-button sp-app-button--danger" @onclick="CancelRecordingOverlay">Cancel</button>
+                    <button type="button" class="sp-app-button sp-app-button--primary" @onclick="SaveRecordingOverlay" disabled="@isCountingIn_">Save</button>
+                </div>
 
                 <div class="@($"record-track-page__count-in{(isCountingIn_ ? " record-track-page__count-in--show" : " record-track-page__count-in--hide")}")"
                      style="--count-in-progress:@countInProgress_.ToString(System.Globalization.CultureInfo.InvariantCulture)">
@@ -195,6 +213,12 @@
 @code {
     [Parameter]
     public Guid? TrackId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "file")]
+    public Guid? SourceFileId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "returnTo")]
+    public string? ReturnTo { get; set; }
 
     private Toolbar? toolbar_;
 
@@ -218,14 +242,15 @@
 
     private int defaultNoteDivision_ = 4;
     private NoteSnapDivision noteSnapDivision_;
+    private bool clickTrackDuringRecording_ = true;
 
     private enum RecordingMode
     {
-        Overwrite,
         Overdub,
+        Overwrite,
     }
 
-    private RecordingMode recordingMode_ = RecordingMode.Overwrite;
+    private RecordingMode recordingMode_ = RecordingMode.Overdub;
     private bool isRecordOverlayOpen_;
     private bool isCountingIn_;
     private bool isRecording_;
@@ -240,9 +265,15 @@
     private CancellationTokenSource? playbackCts_;
     private CancellationTokenSource? countInCts_;
     private CancellationTokenSource? metronomeCts_;
+    private CancellationTokenSource? overdubPlaybackCts_;
     private Guid? selectedNoteId_;
     private SteelPanView? overlayPan_;
+    private MidiTrackVisualiser? recordVisualiser_;
     private readonly List<MidiPanEvent> notes_ = [];
+    private List<MidiPanEvent>? recordingNotes_;
+    private IReadOnlyList<MidiPanEvent> CurrentOverlayNotes => recordingNotes_ ?? notes_;
+    private bool hasUnsavedTrackChanges_;
+    private bool DiagnosticsEnabled => string.Equals(Env.EnvironmentName, "Development", StringComparison.OrdinalIgnoreCase);
 
     private IReadOnlyList<SteelPan> AvailablePans => PanLoader.Pans.Where(x => x.Type != PanType.None).ToList();
     private SteelPan? SelectedPan => AvailablePans.FirstOrDefault(x => x.Type == panType_) ?? AvailablePans.FirstOrDefault();
@@ -253,48 +284,150 @@
 
     private bool DisableButtons(bool requireNotes) => isRecording_ || isCountingIn_ || isPlayingBack_ || (requireNotes && !notes_.Any());
 
-    protected override void OnParametersSet()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("panPlayback.setDiagnosticsEnabled", DiagnosticsEnabled);
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
     {
         if (TrackId is Guid trackId && (!loadedExistingTrack_ || editingTrackId_ != trackId))
         {
-            LoadDraftTrack(trackId);
+            await LoadTrackAsync(trackId);
             return;
         }
 
         if (AvailablePans.Count > 0 && panType_ == PanType.None)
             panType_ = AvailablePans[0].Type;
+
+        if (TrackId is null)
+            Draft.BeginCreateFile();
     }
 
-    private void LoadDraftTrack(Guid trackId)
+    private async Task LoadTrackAsync(Guid trackId)
     {
-        loadedExistingTrack_ = true;
-        editingTrackId_ = trackId;
+        var track = Draft.GetTrack(trackId);
 
-        var track = Draft.Tracks.FirstOrDefault(x => x.Id == trackId);
+        if (track is null && SourceFileId is Guid fileId)
+            track = await LoadFileTrackAsync(fileId, trackId);
+
         if (track is null)
         {
-            error_ = "That draft track could not be found.";
+            error_ = "That track could not be found.";
             if (AvailablePans.Count > 0 && panType_ == PanType.None)
                 panType_ = AvailablePans[0].Type;
             return;
         }
 
-        trackName_ = track.Name;
+        loadedExistingTrack_ = true;
+        editingTrackId_ = trackId;
+
+        LoadTrack(track);
+    }
+
+    private async Task<MidiTrackInfo?> LoadFileTrackAsync(Guid fileId, Guid trackId)
+    {
+        var details = await Db.MidiFiles.GetMidiFileDetailsAsync(fileId);
+        var trackDetails = details?.Tracks.FirstOrDefault(x => x.Id == trackId);
+        if (details is null || trackDetails is null || details.OwnerId != UserState.Id)
+            return null;
+
+        var download = await Db.MidiFiles.OpenMidiFileAsync(fileId);
+        if (download is null)
+            return null;
+
+        await using var stream = download.Stream;
+        var midiFile = await MidiFiles.OpenMidiFileAsync(stream);
+        var playbackInfo = MidiFiles.GetPlaybackInfo(midiFile);
+        var assignment = details.Assignments.FirstOrDefault(x => x.TrackId == trackDetails.Id);
+        var playableTracks = MidiFiles.LoadPlayableTracks(
+            midiFile,
+            details.Tracks
+                .OrderBy(x => x.TrackIndex)
+                .Select(x => new MidiTrackSummary
+                {
+                    Id = x.Id,
+                    Index = x.TrackIndex - 1,
+                    Name = details.Assignments.FirstOrDefault(a => a.TrackId == x.Id)?.Label
+                        ?? x.TrackName
+                        ?? $"Track {x.TrackIndex}",
+                    PanType = details.Assignments.FirstOrDefault(a => a.TrackId == x.Id)?.PanType
+                        ?? x.SuggestedPanType
+                        ?? PanType.None
+                })
+                .ToList());
+        var track = playableTracks.FirstOrDefault(x => x.Id == trackDetails.Id);
+        if (track is null)
+            return null;
+
+        var initialTempo = Math.Clamp(playbackInfo.InitialBpm, 1, 300);
+        var initialBeatsPerBar = Math.Clamp(playbackInfo.InitialBeatsPerBar, 1, 32);
+        var initialBeatUnit = Math.Clamp(playbackInfo.InitialBeatUnit, 1, 64);
+
+        return new MidiTrackInfo
+        {
+            Id = trackDetails.Id,
+            Index = track.Index,
+            Name = assignment?.Label ?? trackDetails.TrackName ?? track.Name ?? $"Track {trackDetails.TrackIndex}",
+            PanType = assignment?.PanType ?? trackDetails.SuggestedPanType ?? track.PanType,
+            TempoBpm = initialTempo,
+            BeatsPerBar = initialBeatsPerBar,
+            BeatUnit = initialBeatUnit,
+            DurationSeconds = Math.Max(track.DurationSeconds, track.Events.Count == 0 ? 0 : track.Events.Max(x => x.End).TotalSeconds),
+            NoteCount = track.Events.Count,
+            Events = track.Events.Select(CloneEvent).ToList()
+        };
+    }
+
+    private void LoadTrack(MidiTrackInfo track)
+    {
+        trackName_ = track.Name ?? $"Track {track.Index + 1}";
         panType_ = track.PanType;
         tempoBpm_ = track.TempoBpm;
         beatsPerBar_ = track.BeatsPerBar;
         beatUnit_ = track.BeatUnit;
         durationBars_ = Math.Max(1, (int)Math.Ceiling(track.DurationSeconds / Math.Max(0.001, beatsPerBar_ * beatsPerSecond_ * beatRatio_)));
         notes_.Clear();
-        notes_.AddRange(track.Events.Select(x => new MidiPanEvent
-        {
-            Id = x.Id == Guid.Empty ? Guid.NewGuid() : x.Id,
-            Note = x.Note,
-            Start = x.Start,
-            Duration = x.Duration
-        }));
+        notes_.AddRange(track.Events.Select(CloneEvent));
         selectedNoteId_ = null;
         recordingPositionSeconds_ = 0;
+        hasUnsavedTrackChanges_ = false;
+    }
+
+    private static MidiPanEvent CloneEvent(MidiPanEvent source)
+    {
+        return new MidiPanEvent
+        {
+            Id = source.Id == Guid.Empty ? Guid.NewGuid() : source.Id,
+            Note = source.Note,
+            Start = source.Start,
+            Duration = source.Duration
+        };
+    }
+
+    private void LogRecordingDiagnostic(string message, params object?[] args)
+    {
+        if (!DiagnosticsEnabled)
+            return;
+
+        Logger.LogInformation("[RecordDiagnostics] " + message, args);
+    }
+
+    private void LogRecordingSlowDiagnostic(long elapsedMilliseconds, string message, params object?[] args)
+    {
+        if (!DiagnosticsEnabled || elapsedMilliseconds < 16)
+            return;
+
+        Logger.LogWarning("[RecordDiagnostics] {ElapsedMilliseconds} ms - " + message, new[] { (object?)elapsedMilliseconds }.Concat(args).ToArray());
     }
 
     private async Task StartRecordingWithCountInAsync()
@@ -307,7 +440,24 @@
 
         if (recordingMode_ == RecordingMode.Overwrite)
         {
-            notes_.Clear();
+            var opts = new ModalOptions
+            {
+                OnSuccess = StartRecordingAsync
+            };
+            await Modals.OpenAsync("OverwriteWarning", opts);
+            return;
+        }
+
+        await StartRecordingAsync();
+    }
+
+    private async Task StartRecordingAsync()
+    {
+        recordingNotes_ = notes_.Select(CloneEvent).ToList();
+
+        if (recordingMode_ == RecordingMode.Overwrite)
+        {
+            recordingNotes_.Clear();
             selectedNoteId_ = null;
             recordingPositionSeconds_ = 0;
         }
@@ -371,9 +521,23 @@
         recordingStartSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
         recordStartedAt_ = DateTimeOffset.UtcNow;
         recordStartedAtAudioTimeSeconds_ = await TryGetAudioTimeAsync();
+        LogRecordingDiagnostic(
+            "Begin recording mode={RecordingMode}, startSeconds={StartSeconds:F3}, audioStart={AudioStart}, existingNotes={ExistingNoteCount}, overlayNotes={OverlayNoteCount}, clickTrack={ClickTrack}",
+            recordingMode_,
+            recordingStartSeconds_,
+            recordStartedAtAudioTimeSeconds_,
+            notes_.Count,
+            recordingNotes_?.Count ?? 0,
+            clickTrackDuringRecording_);
         isRecording_ = true;
+        await StartRecordingVisualiserPlayheadAsync();
         StartRecordingPositionLoop();
-        StartMetronomeClickLoop();
+
+        if (clickTrackDuringRecording_)
+            StartMetronomeClickLoop();
+
+        if (recordingMode_ == RecordingMode.Overdub)
+            StartOverdubPlaybackLoop();
     }
 
     private Task OnPanNotePlayedAsync(SteelPanView.PlayedNote playedNote)
@@ -381,18 +545,42 @@
         if (!isRecording_)
             return Task.CompletedTask;
 
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var targetNotes = recordingNotes_ ?? notes_;
+        var countBefore = targetNotes.Count;
         var start = GetCurrentRecordingPositionSeconds(playedNote.AudioTimeSeconds);
         var defaultDuration = GetDefaultNoteDurationSeconds();
         var draft = new MidiPanEvent
         {
+            Id = Guid.NewGuid(),
             Note = playedNote.Note,
             Start = TimeSpan.FromSeconds(start),
             Duration = TimeSpan.FromSeconds(Math.Min(defaultDuration, Math.Max(0.05, durationSeconds_ - start)))
         };
 
-        notes_.Add(draft);
+        targetNotes.Add(draft);
         selectedNoteId_ = draft.Id;
-        StateHasChanged();
+
+        if (recordVisualiser_ is not null)
+            _ = recordVisualiser_.AddOrUpdateNoteAsync(draft, select: true);
+
+        stopwatch.Stop();
+
+        LogRecordingDiagnostic(
+            "Note input note={Note}, audioTime={AudioTime}, recordedStart={RecordedStart:F3}, position={Position:F3}, targetCountBefore={TargetCountBefore}, targetCountAfter={TargetCountAfter}, elapsedMs={ElapsedMs}",
+            playedNote.Note,
+            playedNote.AudioTimeSeconds,
+            start,
+            recordingPositionSeconds_,
+            countBefore,
+            targetNotes.Count,
+            stopwatch.ElapsedMilliseconds);
+        LogRecordingSlowDiagnostic(
+            stopwatch.ElapsedMilliseconds,
+            "Slow note input handling for note={Note}, targetCount={TargetCount}",
+            playedNote.Note,
+            targetNotes.Count);
+
         return Task.CompletedTask;
     }
 
@@ -407,7 +595,16 @@
         if (overlayPan_ is null)
             return;
 
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         await overlayPan_.PlayNoteAsync(note);
+        stopwatch.Stop();
+
+        LogRecordingSlowDiagnostic(
+            stopwatch.ElapsedMilliseconds,
+            "Slow preview note playback note={Note}, overlayNoteCount={OverlayNoteCount}, isRecording={IsRecording}",
+            note,
+            CurrentOverlayNotes.Count,
+            isRecording_);
     }
 
     private void SetPlayheadPosition(double seconds)
@@ -418,17 +615,25 @@
         recordingPositionSeconds_ = Math.Clamp(seconds, 0, Math.Max(0, durationSeconds_));
     }
 
+    private List<MidiPanEvent> GetEditNotes() => recordingNotes_ ?? notes_;
+
+    private void MarkTrackChanged()
+    {
+        hasUnsavedTrackChanges_ = true;
+    }
+
     private void MoveSelected(double delta)
     {
-        var note = notes_.FirstOrDefault(x => x.Id == selectedNoteId_);
+        var note = GetEditNotes().FirstOrDefault(x => x.Id == selectedNoteId_);
         if (note is null)
             return;
 
         note.Start = TimeSpan.FromSeconds(Math.Clamp(note.Start.TotalSeconds + delta, 0, Math.Max(0, durationSeconds_ - note.Duration.TotalSeconds)));
+        MarkTrackChanged();
     }
     private void MoveAndPitchNote(MidiTrackVisualiser.RecordNoteMovePitchChange change)
     {
-        var note = notes_.FirstOrDefault(x => x.Id == change.Id);
+        var note = GetEditNotes().FirstOrDefault(x => x.Id == change.Id);
         if (note is null)
             return;
 
@@ -441,21 +646,23 @@
         var min = SelectedPanMinSemitone ?? change.Semitone;
         var max = SelectedPanMaxSemitone ?? change.Semitone;
         note.Note = Note.FromSemitoneNumber(Math.Clamp(change.Semitone, Math.Min(min, max), Math.Max(min, max)));
+        MarkTrackChanged();
     }
 
 
     private void ResizeSelected(double delta)
     {
-        var note = notes_.FirstOrDefault(x => x.Id == selectedNoteId_);
+        var note = GetEditNotes().FirstOrDefault(x => x.Id == selectedNoteId_);
         if (note is null)
             return;
 
         note.Duration = TimeSpan.FromSeconds(Math.Clamp(note.Duration.TotalSeconds + delta, 0.05, Math.Max(0.05, durationSeconds_ - note.Start.TotalSeconds)));
+        MarkTrackChanged();
     }
 
     private void ChangeSelectedPitch(int semitoneDelta)
     {
-        var note = notes_.FirstOrDefault(x => x.Id == selectedNoteId_);
+        var note = GetEditNotes().FirstOrDefault(x => x.Id == selectedNoteId_);
         if (note is null || semitoneDelta == 0)
             return;
 
@@ -464,18 +671,20 @@
 
     private void SetSelectedPitch(int semitone)
     {
-        var note = notes_.FirstOrDefault(x => x.Id == selectedNoteId_);
+        var note = GetEditNotes().FirstOrDefault(x => x.Id == selectedNoteId_);
         if (note is null)
             return;
 
         var min = SelectedPanMinSemitone ?? semitone;
         var max = SelectedPanMaxSemitone ?? semitone;
         note.Note = Note.FromSemitoneNumber(Math.Clamp(semitone, Math.Min(min, max), Math.Max(min, max)));
+        MarkTrackChanged();
     }
 
     private void DeleteNote(Guid id)
     {
-        notes_.RemoveAll(x => x.Id == id);
+        if (GetEditNotes().RemoveAll(x => x.Id == id) > 0)
+            hasUnsavedTrackChanges_ = true;
         if (selectedNoteId_ == id)
             selectedNoteId_ = null;
     }
@@ -484,11 +693,13 @@
     {
         var options = new ModalOptions
         {
-            OnComplete = async () =>
+            OnComplete = () =>
             {
                 notes_.Clear();
                 selectedNoteId_ = null;
                 recordingPositionSeconds_ = 0;
+                MarkTrackChanged();
+                return InvokeAsync(StateHasChanged);
             }
         };
 
@@ -524,6 +735,28 @@
         }
     }
 
+    private async Task StartRecordingVisualiserPlayheadAsync()
+    {
+        if (recordVisualiser_ is null)
+            return;
+
+        await recordVisualiser_.StartPlayheadAsync(recordingStartSeconds_, recordStartedAtAudioTimeSeconds_);
+    }
+
+    private async Task StopRecordingVisualiserPlayheadAsync(double positionSeconds, bool resetViewport)
+    {
+        if (recordVisualiser_ is null)
+            return;
+
+        try
+        {
+            await recordVisualiser_.StopPlayheadAsync(positionSeconds, resetViewport);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
     private void StartRecordingPositionLoop()
     {
         recordingPositionCts_?.Cancel();
@@ -547,10 +780,8 @@
 
                 if (recordingPositionSeconds_ >= durationSeconds_)
                 {
-                    StopRecording();
+                    StopRecording(keepOverlayOpen: true, resetPosition: false);
                 }
-
-                await InvokeAsync(StateHasChanged);
             }
         }
         catch (OperationCanceledException)
@@ -558,15 +789,30 @@
         }
     }
 
-    private void StopRecordingOverlay()
+    private void CancelRecordingOverlay()
     {
         countInCts_?.Cancel();
-        StopRecording();
+        StopRecording(keepOverlayOpen: false, resetPosition: true);
         isCountingIn_ = false;
-        isRecordOverlayOpen_ = false;
+        recordingNotes_ = null;
     }
 
-    private void StopRecording()
+    private void SaveRecordingOverlay()
+    {
+        countInCts_?.Cancel();
+        StopRecording(keepOverlayOpen: false, resetPosition: true);
+        isCountingIn_ = false;
+
+        if (recordingNotes_ is not null)
+        {
+            notes_.Clear();
+            notes_.AddRange(recordingNotes_.Select(CloneEvent));
+            recordingNotes_ = null;
+            MarkTrackChanged();
+        }
+    }
+
+    private void StopRecording(bool keepOverlayOpen = false, bool resetPosition = true)
     {
         if (isRecording_)
         {
@@ -574,10 +820,15 @@
         }
 
         isRecording_ = false;
-        isRecordOverlayOpen_ = false;
+        isRecordOverlayOpen_ = keepOverlayOpen;
         recordingPositionCts_?.Cancel();
         metronomeCts_?.Cancel();
-        recordingPositionSeconds_ = 0;
+        overdubPlaybackCts_?.Cancel();
+
+        if (resetPosition)
+            recordingPositionSeconds_ = 0;
+
+        _ = StopRecordingVisualiserPlayheadAsync(recordingPositionSeconds_, resetPosition);
     }
 
     private void StartMetronomeClickLoop()
@@ -623,6 +874,80 @@
             await Playback.PlayMetronomeTickAsync(isAccent, cancellationToken);
         }
         catch (JSException)
+        {
+        }
+    }
+
+    private void StartOverdubPlaybackLoop()
+    {
+        overdubPlaybackCts_?.Cancel();
+        overdubPlaybackCts_?.Dispose();
+        overdubPlaybackCts_ = new CancellationTokenSource();
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var start = recordingStartSeconds_;
+        var notesToPlay = notes_
+            .Where(x => x.Start.TotalSeconds >= start && x.Start.TotalSeconds < durationSeconds_)
+            .OrderBy(x => x.Start.TotalSeconds)
+            .ThenBy(x => x.Note.SemitoneNumber)
+            .Select(CloneEvent)
+            .ToList();
+        stopwatch.Stop();
+
+        LogRecordingDiagnostic(
+            "Prepared overdub playback start={Start:F3}, sourceNotes={SourceNoteCount}, notesToPlay={NotesToPlay}, elapsedMs={ElapsedMs}",
+            start,
+            notes_.Count,
+            notesToPlay.Count,
+            stopwatch.ElapsedMilliseconds);
+        LogRecordingSlowDiagnostic(
+            stopwatch.ElapsedMilliseconds,
+            "Slow overdub note preparation sourceNotes={SourceNoteCount}, notesToPlay={NotesToPlay}",
+            notes_.Count,
+            notesToPlay.Count);
+
+        _ = PlayOverdubNotesAsync(start, notesToPlay, overdubPlaybackCts_.Token);
+    }
+
+    private async Task PlayOverdubNotesAsync(double startSeconds, IReadOnlyList<MidiPanEvent> notesToPlay, CancellationToken cancellationToken)
+    {
+        if (notesToPlay.Count == 0)
+            return;
+
+        LogRecordingDiagnostic(
+            "Started overdub playback loop start={Start:F3}, notesToPlay={NotesToPlay}",
+            startSeconds,
+            notesToPlay.Count);
+
+        try
+        {
+            foreach (var note in notesToPlay)
+            {
+                var delaySeconds = note.Start.TotalSeconds - GetCurrentRecordingPositionSeconds();
+
+                if (delaySeconds > 0)
+                    await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
+
+                if (!isRecording_ || cancellationToken.IsCancellationRequested)
+                    return;
+
+                if (GetCurrentRecordingPositionSeconds() + 0.05 < note.Start.TotalSeconds)
+                    continue;
+
+                var previewStopwatch = System.Diagnostics.Stopwatch.StartNew();
+                await PreviewNoteAsync(note.Note);
+                previewStopwatch.Stop();
+
+                LogRecordingSlowDiagnostic(
+                    previewStopwatch.ElapsedMilliseconds,
+                    "Slow overdub preview note={Note}, noteStart={NoteStart:F3}, position={Position:F3}, notesToPlay={NotesToPlay}",
+                    note.Note,
+                    note.Start.TotalSeconds,
+                    recordingPositionSeconds_,
+                    notesToPlay.Count);
+            }
+        }
+        catch (OperationCanceledException)
         {
         }
     }
@@ -724,10 +1049,13 @@
         metronomeCts_?.Cancel();
         metronomeCts_?.Dispose();
         metronomeCts_ = null;
+        overdubPlaybackCts_?.Cancel();
+        overdubPlaybackCts_?.Dispose();
+        overdubPlaybackCts_ = null;
         await Task.CompletedTask;
     }
 
-    private void SaveTrack()
+    private async Task SaveTrack()
     {
         StopRecording();
         error_ = null;
@@ -743,15 +1071,17 @@
             return;
         }
 
-        var track = new RecordTrackDraft
+        var track = new MidiTrackInfo
         {
             Id = editingTrackId_ ?? Guid.NewGuid(),
+            Index = editingTrackId_ is Guid existingId && Draft.GetTrack(existingId) is { } existingTrack ? existingTrack.Index : Draft.Tracks.Count,
             Name = trackName_.Trim(),
             PanType = panType_,
             TempoBpm = Math.Clamp(tempoBpm_, 1, 300),
             BeatsPerBar = Math.Clamp(beatsPerBar_, 1, 32),
             BeatUnit = Math.Clamp(beatUnit_, 1, 64),
             DurationSeconds = Math.Clamp(durationSeconds_, 1, 1800),
+            NoteCount = notes_.Count,
             Events = notes_.Select(x => new MidiPanEvent
             {
                 Id = x.Id == Guid.Empty ? Guid.NewGuid() : x.Id,
@@ -761,11 +1091,34 @@
             }).ToList()
         };
 
-        if (editingTrackId_ is Guid existingTrackId)
-            Draft.UpdateTrack(existingTrackId, track);
-        else
-            Draft.CreateTrack(track);
+        Draft.CommitEditableTrack(track);
+        hasUnsavedTrackChanges_ = false;
 
-        Nav.NavigateTo("/record/files/create");
+        await ExitPage();
+    }
+
+    private async Task ExitPage()
+    {
+        if (!hasUnsavedTrackChanges_)
+        {
+            Nav.NavigateTo(GetSaveReturnUrl());
+            return;
+        }
+
+        await Modals.OpenAsync("UnsavedChanges", new ModalOptions
+        {
+            OnSuccess = () =>
+            {
+                Nav.NavigateTo(GetSaveReturnUrl());
+                return Task.CompletedTask;
+            }
+        });
+    }
+
+    private string GetSaveReturnUrl()
+    {
+        return string.Equals(ReturnTo, "manage", StringComparison.OrdinalIgnoreCase) && SourceFileId is Guid fileId
+            ? $"/arrangements/{fileId}"
+            : "/arrangements/create";
     }
 }

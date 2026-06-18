@@ -1,16 +1,16 @@
-﻿using Melanchall.DryWetMidi.Core;
+using Melanchall.DryWetMidi.Core;
 using Melanchall.DryWetMidi.Interaction;
 using SteelPans.Shared.Music;
 
-namespace SteelPans.WebApp.Services;
+namespace SteelPans.Shared.Services;
 
-public sealed class MidiLoaderService
+public sealed class MidiFileService
 {
-    public async Task<MidiFile> OpenMidiFileAsync(Stream midiStream)
+    public async Task<MidiFile> OpenMidiFileAsync(Stream midiStream, CancellationToken token = default)
     {
         await using MemoryStream buffer = new MemoryStream();
 
-        await midiStream.CopyToAsync(buffer);
+        await midiStream.CopyToAsync(buffer, token);
         buffer.Position = 0;
 
         return MidiFile.Read(buffer);
@@ -27,6 +27,7 @@ public sealed class MidiLoaderService
                     .FirstOrDefault()?.Text,
                 NoteCount = track.GetNotes().Count()
             })
+            .Where(x => x.NoteCount > 0)
             .ToList();
     }
 
@@ -178,12 +179,17 @@ public sealed class MidiLoaderService
         return events.Where(x => x.Duration > TimeSpan.Zero).ToList();
     }
 
-    public List<(MidiTrackInfo Track, List<MidiPanEvent> Events)> LoadPlayableTracks(MidiFile midiFile)
+    public List<MidiTrackInfo> LoadPlayableTracks(
+        MidiFile midiFile,
+        IReadOnlyList<MidiTrackSummary>? persistedTracks = null)
     {
         var tempoMap = midiFile.GetTempoMap();
         var trackChunks = midiFile.GetTrackChunks().ToList();
+        var persistedTracksByDisplayOrder = persistedTracks?
+            .OrderBy(x => x.Index)
+            .ToList();
 
-        var result = new List<(MidiTrackInfo Track, List<MidiPanEvent> Events)>();
+        var result = new List<MidiTrackInfo>();
 
         for (var i = 0; i < trackChunks.Count; i++)
         {
@@ -215,14 +221,23 @@ public sealed class MidiLoaderService
             if (events.Count == 0)
                 continue;
 
-            result.Add((
-                new MidiTrackInfo
-                {
-                    Index = i,
-                    Name = track.Events.OfType<SequenceTrackNameEvent>().FirstOrDefault()?.Text,
-                    NoteCount = events.Count,
-                },
-                events));
+            var persistedTrack = persistedTracksByDisplayOrder is not null && result.Count < persistedTracksByDisplayOrder.Count
+                ? persistedTracksByDisplayOrder[result.Count]
+                : null;
+
+            result.Add(new MidiTrackInfo
+            {
+                Id = persistedTrack?.Id is { } id && id != Guid.Empty ? id : Guid.NewGuid(),
+                Index = persistedTrack?.Index ?? i,
+                Name = persistedTrack?.Name ?? track.Events.OfType<SequenceTrackNameEvent>().FirstOrDefault()?.Text,
+                NoteCount = events.Count,
+                PanType = persistedTrack?.PanType ?? PanType.None,
+                TempoBpm = persistedTrack?.TempoBpm ?? 120,
+                BeatsPerBar = persistedTrack?.BeatsPerBar ?? 4,
+                BeatUnit = persistedTrack?.BeatUnit ?? 4,
+                DurationSeconds = events.Count == 0 ? 0 : events.Max(x => x.End).TotalSeconds,
+                Events = events
+            });
         }
 
         return result;

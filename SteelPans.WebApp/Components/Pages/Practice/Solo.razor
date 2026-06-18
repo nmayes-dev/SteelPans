@@ -59,10 +59,10 @@ else
                             <span>Solo</span>
                         </label>
                     </div>
-                    <select class="sp-min-content" value="@SelectedTrackIndex" @onchange="OnSelectedTrackChangedAsync">
+                    <select class="sp-min-content" value="@SelectedTrackId" @onchange="OnSelectedTrackChangedAsync">
                         @foreach (var track in Playback.Tracks)
                         {
-                            <option value="@track.Index">@track.DisplayInfo</option>
+                            <option value="@track.Id">@track.DisplayInfo</option>
                         }
                     </select>
                 </div>
@@ -73,7 +73,7 @@ else
         
         @if (SelectedAssignedPan is not null)
         {
-            <MidiTrackVisualiser TrackIndex="@SelectedTrackIndex"
+            <MidiTrackVisualiser TrackIndex="@(SelectedTrack?.Index ?? 0)"
                                  PanLabel="@AssignedPanLabel"
                                  TrackLabel="@SelectedTrackLabel"
                                  Notes="@SelectedTrackEvents"
@@ -96,20 +96,20 @@ else
     public Guid? FileId { get; set; }
 
     [SupplyParameterFromQuery(Name = "track")]
-    public int? Track { get; set; }
+    public Guid? Track { get; set; }
 
     private bool loadedFileFromQuery_;
     private bool soloTrack_ = true;
-    private int? selectedTrackIndex_;
+    private Guid? selectedTrackId_;
 
-    private int SelectedTrackIndex => selectedTrackIndex_ ?? Track ?? Playback.Tracks.FirstOrDefault()?.Index ?? -1;
-    private MidiTrackInfo? SelectedTrack => Playback.Tracks.FirstOrDefault(x => x.Index == SelectedTrackIndex);
-    private MidiAssignedPan? SelectedAssignedPan => Playback.GetAssignedPanForTrack(SelectedTrackIndex);
+    private Guid? SelectedTrackId => selectedTrackId_ ?? Track ?? Playback.Tracks.FirstOrDefault()?.Id;
+    private MidiTrackInfo? SelectedTrack => SelectedTrackId is Guid trackId ? Playback.Tracks.FirstOrDefault(x => x.Id == trackId) : null;
+    private MidiAssignedPan? SelectedAssignedPan => SelectedTrackId is Guid trackId ? Playback.GetAssignedPanForTrack(trackId) : null;
     private IReadOnlyList<MidiAssignedPan> SelectedPanList => SelectedAssignedPan is null ? [] : [SelectedAssignedPan];
     private int? SelectedPanMinSemitone => SelectedAssignedPan?.Pan.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Min();
     private int? SelectedPanMaxSemitone => SelectedAssignedPan?.Pan.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Max();
 
-    private IReadOnlyList<MidiPanEvent> SelectedTrackEvents => Playback.GetMidiTrackEvents(SelectedTrackIndex)
+    private IReadOnlyList<MidiPanEvent> SelectedTrackEvents => (SelectedTrackId is Guid trackId ? Playback.GetMidiTrackEvents(trackId) : [])
         .OrderBy(x => x.Start)
         .ThenBy(x => x.Note.SemitoneNumber)
         .ToList();
@@ -153,8 +153,8 @@ else
 
     private async Task OnSelectedTrackChangedAsync(ChangeEventArgs args)
     {
-        if (int.TryParse(args.Value?.ToString(), out var trackIndex))
-            selectedTrackIndex_ = trackIndex;
+        if (Guid.TryParse(args.Value?.ToString(), out var trackId))
+            selectedTrackId_ = trackId;
 
         await ApplySelectedTrackSoloAsync();
         await InvokeAsync(StateHasChanged);
@@ -185,18 +185,18 @@ else
     {
         if (Playback.Tracks.Count == 0)
         {
-            selectedTrackIndex_ = null;
+            selectedTrackId_ = null;
             return;
         }
 
-        if (selectedTrackIndex_ is null && Track is not null && Playback.Tracks.Any(x => x.Index == Track.Value))
+        if (selectedTrackId_ is null && Track is not null && Playback.Tracks.Any(x => x.Id == Track.Value))
         {
-            selectedTrackIndex_ = Track.Value;
+            selectedTrackId_ = Track.Value;
             return;
         }
 
-        if (selectedTrackIndex_ is null || Playback.Tracks.All(x => x.Index != selectedTrackIndex_))
-            selectedTrackIndex_ = Playback.Tracks[0].Index;
+        if (selectedTrackId_ is null || Playback.Tracks.All(x => x.Id != selectedTrackId_))
+            selectedTrackId_ = Playback.Tracks[0].Id;
     }
 
     private static string FormatTime(TimeSpan time)

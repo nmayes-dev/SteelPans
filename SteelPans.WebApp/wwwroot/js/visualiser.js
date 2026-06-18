@@ -50,6 +50,7 @@ window.visualiser = {
             dragScrollAnimationFrame: 0,
             dragLastPointerEvent: null,
             noteElements: [],
+            noteElementsById: new Map(),
             activeNoteElements: new Set(),
             barLabels: [],
             pendingPlaybackSeek: false,
@@ -169,6 +170,7 @@ window.visualiser = {
         state.tracks.replaceChildren();
         state.playhead = null;
         state.noteElements = [];
+        state.noteElementsById = new Map();
         state.activeNoteElements = new Set();
         state.barLabels = [];
 
@@ -221,64 +223,8 @@ window.visualiser = {
         const range = Math.max(1, maxSemitone - minSemitone);
         const availableHeight = state.laneHeight - state.noteHeight - 22;
 
-        for (const note of notes) {
-            const start = Math.max(0, Number(note.startSeconds) || 0);
-            const duration = Math.max(Number(note.durationSeconds) || 0, 0.001);
-            const semitone = this._clamp(
-                Number.isFinite(Number(note.semitone)) ? Number(note.semitone) : minSemitone,
-                minSemitone,
-                maxSemitone);
-            const normalized = (semitone - minSemitone) / range;
-            const top = 11 + ((1.0 - normalized) * availableHeight);
-
-            const id = note.id ? String(note.id) : "";
-            const isSelected = note.isSelected === true;
-            const element = this._createScopedElement(
-                state,
-                isEditMode ? "button" : "div",
-                `midi-track-visualiser__note midi-track-visualiser__note--track${isEditMode ? " midi-track-visualiser__note--editable" : ""}${isSelected ? " midi-track-visualiser__note--selected" : ""}`);
-
-            if (isEditMode) {
-                element.type = "button";
-                element.addEventListener("pointerdown", event => this._beginRecordNoteDrag(state, event, id, start, duration, semitone));
-                element.addEventListener("click", async event => {
-                    event.preventDefault();
-                    event.stopPropagation();
-
-                    if (state.suppressNextNoteClick) {
-                        state.suppressNextNoteClick = false;
-                        return;
-                    }
-
-                    if (!id)
-                        return;
-
-                    try {
-                        await state.dotNetRef?.invokeMethodAsync("SelectRecordNote", id);
-                    } catch (error) {
-                        console.warn("Failed to select record visualiser note", error);
-                    }
-                });
-            }
-            const width = this._getNoteWidth(state, duration, note.note || "");
-            const end = start + duration;
-
-            element.style.left = `${start * state.pixelsPerSecond}px`;
-            element.style.top = `${top}px`;
-            element.style.width = `${width}px`;
-            element.dataset.startSeconds = String(start);
-            element.dataset.endSeconds = String(end);
-            element.dataset.noteId = id;
-            element.title = `${data.panLabel || "Unassigned"} · ${note.note || "Note"} · ${this._formatTime(start)} - ${this._formatTime(end)}`;
-
-            const label = this._createScopedElement(state, "span");
-            label.textContent = note.note || "";
-            this._fitNoteLabel(label, width, note.note || "");
-            element.appendChild(label);
-
-            state.noteElements.push({ element, start, end });
-            state.tracks.appendChild(element);
-        }
+        for (const note of notes)
+            this._addOrUpdateNoteElement(state, note, data.panLabel || "Unassigned");
 
         state.root.querySelector(".midi-track-visualiser__playhead")?.remove();
 
@@ -303,7 +249,7 @@ window.visualiser = {
         }
     },
 
-    setPosition(root, positionSeconds) {
+    setPosition(root, positionSeconds, follow = true) {
         const state = this._states.get(root);
         if (!state)
             return;
@@ -318,7 +264,110 @@ window.visualiser = {
             this._setViewportScrollLeft(state, 0);
         }
 
+        this._setPlayheadPosition(state, position, follow === true);
+    },
+
+    startPlayhead(root, positionSeconds, audioAnchorTimeSeconds) {
+        const state = this._states.get(root);
+        if (!state)
+            return;
+
+        const position = this._clamp(Number(positionSeconds) || 0, 0, state.durationSeconds || 0);
+        const audioAnchor = Number(audioAnchorTimeSeconds);
+        state.isPlaying = true;
+        state.pendingPlaybackSeek = false;
+        state.positionSeconds = position;
+        state.positionAnchorSeconds = position;
+        state.audioAnchorTime = Number.isFinite(audioAnchor) ? audioAnchor : this._getAudioTimeOrNull();
         this._setPlayheadPosition(state, position, true);
+        this._updateAnimation(state);
+    },
+
+    stopPlayhead(root, positionSeconds, resetViewport = false) {
+        const state = this._states.get(root);
+        if (!state)
+            return;
+
+        const position = this._clamp(Number(positionSeconds) || 0, 0, state.durationSeconds || 0);
+        state.isPlaying = false;
+        state.pendingPlaybackSeek = false;
+        state.positionSeconds = position;
+        state.positionAnchorSeconds = position;
+        state.audioAnchorTime = this._getAudioTimeOrNull();
+
+        if (state.animationFrame) {
+            cancelAnimationFrame(state.animationFrame);
+            state.animationFrame = 0;
+        }
+
+        if (resetViewport) {
+            state.dragPlayheadViewportX = null;
+            this._setViewportScrollLeft(state, 0);
+        }
+
+        this._setPlayheadPosition(state, position, false);
+    },
+
+    syncNotes(root, notes, selectedNoteId, panLabel) {
+        const state = this._states.get(root);
+        if (!state || !state.tracks)
+            return;
+
+        const incoming = Array.isArray(notes) ? notes : [];
+        const keep = new Set();
+        state.selectedNoteId = selectedNoteId ? String(selectedNoteId) : null;
+
+        for (const note of incoming) {
+            const id = note?.id ? String(note.id) : "";
+            if (id)
+                keep.add(id);
+            this._addOrUpdateNoteElement(state, note, panLabel || state.lastData?.panLabel || "Unassigned");
+        }
+
+        for (const entry of [...state.noteElements]) {
+            const id = entry.id || entry.element?.dataset?.noteId || "";
+            if (!id || keep.has(id))
+                continue;
+
+            entry.element?.remove();
+            state.noteElementsById?.delete(id);
+            state.activeNoteElements?.delete(entry.element);
+        }
+
+        state.noteElements = state.noteElements.filter(entry => {
+            const id = entry.id || entry.element?.dataset?.noteId || "";
+            return !id || keep.has(id);
+        });
+
+        if (state.lastData)
+            state.lastData.notes = incoming;
+
+        this._applySelectedNote(state);
+        this._updateActiveNotes(state, state.positionSeconds);
+    },
+
+    addOrUpdateNote(root, note, selectedNoteId, panLabel) {
+        const state = this._states.get(root);
+        if (!state || !state.tracks || !note)
+            return;
+
+        state.selectedNoteId = selectedNoteId ? String(selectedNoteId) : state.selectedNoteId;
+        this._addOrUpdateNoteElement(state, note, panLabel || state.lastData?.panLabel || "Unassigned");
+
+        if (state.lastData) {
+            const id = note?.id ? String(note.id) : "";
+            const notes = Array.isArray(state.lastData.notes) ? state.lastData.notes : [];
+            const index = id ? notes.findIndex(existing => String(existing?.id || "") === id) : -1;
+            if (index >= 0)
+                notes[index] = note;
+            else
+                notes.push(note);
+            state.lastData.notes = notes;
+            state.lastData.selectedNoteId = selectedNoteId ?? state.lastData.selectedNoteId;
+        }
+
+        this._applySelectedNote(state);
+        this._updateActiveNotes(state, state.positionSeconds);
     },
 
     setPlaybackState(root, playbackState) {
@@ -747,6 +796,102 @@ window.visualiser = {
         window.addEventListener("pointercancel", up);
     },
 
+    _addOrUpdateNoteElement(state, note, panLabel) {
+        if (!state || !state.tracks || !note)
+            return null;
+
+        const id = note.id ? String(note.id) : "";
+        const start = Math.max(0, Number(note.startSeconds) || 0);
+        const duration = Math.max(Number(note.durationSeconds) || 0, 0.001);
+        const semitone = this._clamp(
+            Number.isFinite(Number(note.semitone)) ? Number(note.semitone) : state.minSemitone,
+            state.minSemitone,
+            state.maxSemitone);
+        const noteLabel = note.note || this._formatNoteFromSemitone(semitone);
+        const width = this._getNoteWidth(state, duration, noteLabel);
+        const end = start + duration;
+        const isEditMode = state.mode === "Edit";
+        const isSelected = id && state.selectedNoteId === id;
+        let entry = id ? state.noteElementsById?.get(id) : null;
+        let element = entry?.element ?? null;
+        let label = element?.querySelector("span") ?? null;
+
+        if (!element) {
+            element = this._createScopedElement(
+                state,
+                isEditMode ? "button" : "div",
+                `midi-track-visualiser__note midi-track-visualiser__note--track${isEditMode ? " midi-track-visualiser__note--editable" : ""}`);
+
+            if (isEditMode) {
+                element.type = "button";
+                element.addEventListener("pointerdown", event => {
+                    const currentStart = Number(element.dataset.startSeconds) || 0;
+                    const currentEnd = Number(element.dataset.endSeconds) || currentStart;
+                    const currentDuration = Math.max(0.001, currentEnd - currentStart);
+                    const currentSemitone = Number(element.dataset.semitone) || state.minSemitone;
+                    this._beginRecordNoteDrag(state, event, element.dataset.noteId || "", currentStart, currentDuration, currentSemitone);
+                });
+                element.addEventListener("click", async event => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    if (state.suppressNextNoteClick) {
+                        state.suppressNextNoteClick = false;
+                        return;
+                    }
+
+                    const currentId = element.dataset.noteId || "";
+                    if (!currentId)
+                        return;
+
+                    try {
+                        await state.dotNetRef?.invokeMethodAsync("SelectRecordNote", currentId);
+                    } catch (error) {
+                        console.warn("Failed to select record visualiser note", error);
+                    }
+                });
+            }
+
+            label = this._createScopedElement(state, "span");
+            element.appendChild(label);
+            state.tracks.appendChild(element);
+
+            entry = { id, element, start, end };
+            state.noteElements.push(entry);
+            if (id)
+                state.noteElementsById.set(id, entry);
+        }
+
+        element.className = `midi-track-visualiser__note midi-track-visualiser__note--track${isEditMode ? " midi-track-visualiser__note--editable" : ""}${isSelected ? " midi-track-visualiser__note--selected" : ""}`;
+        element.style.left = `${start * state.pixelsPerSecond}px`;
+        element.style.top = `${this._getNoteTop(state, semitone)}px`;
+        element.style.width = `${width}px`;
+        element.dataset.startSeconds = String(start);
+        element.dataset.endSeconds = String(end);
+        element.dataset.noteId = id;
+        element.dataset.semitone = String(semitone);
+        element.title = `${panLabel || "Unassigned"} · ${noteLabel} · ${this._formatTime(start)} - ${this._formatTime(end)}`;
+
+        if (label) {
+            label.textContent = noteLabel;
+            this._fitNoteLabel(label, width, noteLabel);
+        }
+
+        entry.id = id;
+        entry.start = start;
+        entry.end = end;
+        entry.element = element;
+        return entry;
+    },
+
+    _applySelectedNote(state) {
+        const selectedId = state.selectedNoteId ? String(state.selectedNoteId) : null;
+        for (const entry of state.noteElements || []) {
+            const id = entry.id || entry.element?.dataset?.noteId || "";
+            entry.element?.classList.toggle("midi-track-visualiser__note--selected", !!selectedId && id === selectedId);
+        }
+    },
+
     _getNoteTop(state, semitone) {
         const minSemitone = Number.isFinite(Number(state.minSemitone)) ? Number(state.minSemitone) : 0;
         const maxSemitone = Number.isFinite(Number(state.maxSemitone)) ? Number(state.maxSemitone) : minSemitone;
@@ -968,8 +1113,7 @@ window.visualiser = {
 
             const audioTime = this._getAudioTimeOrNull();
             if (audioTime !== null && state.audioAnchorTime !== null) {
-                const ratio = state.tempoBpm / state.initialMidiBpm;
-                const elapsed = Math.max(0, audioTime - state.audioAnchorTime) * ratio;
+                const elapsed = Math.max(0, audioTime - state.audioAnchorTime);
                 const position = this._clamp(state.positionAnchorSeconds + elapsed, 0, state.durationSeconds);
                 state.positionSeconds = position;
                 this._setPlayheadPosition(state, position, true);

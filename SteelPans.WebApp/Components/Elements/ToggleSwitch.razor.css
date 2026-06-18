@@ -1,6 +1,11 @@
 ﻿.toggle-switch {
     --switch-base-size: 1.8rem;
     --switch-track-width: clamp(2rem, var(--switch-base-size) + 0.8vw, 3rem);
+    --switch-track-padding: calc(var(--switch-track-width) * 0.1);
+    --switch-track-thumb-size: calc(var(--switch-track-width) * 0.35);
+    --switch-track-height: calc(var(--switch-track-thumb-size) + 2 * var(--switch-track-padding));
+    --switch-track-thumb-start: var(--switch-track-padding);
+    --switch-track-thumb-end: calc(var(--switch-track-width) - var(--switch-track-thumb-size) - var(--switch-track-padding));
     position: relative;
     z-index: 3;
     display: inline-flex;
@@ -30,21 +35,20 @@
     position: relative;
     display: inline-flex;
     align-items: center;
-    inline-size: 2.75rem;
-    block-size: 1.5rem;
+    width: var(--switch-track-width);
+    height: var(--switch-track-height);
     background: linear-gradient(135deg, #64748b, #475569);
     border-radius: 999px;
     transition: background-color 0.15s ease;
 }
 
 .toggle-switch__thumb {
-    --track-padding: clamp(0.28rem, 0.28rem + 0.16vw, 0.4rem);
-    width: calc(var(--switch-base-size) * 0.46);
-    height: calc(var(--switch-base-size) * 0.46);
+    width: var(--switch-track-thumb-size);
+    height: var(--switch-track-thumb-size);
     border-radius: 50%;
     background: linear-gradient(180deg, #ffffff, #e2e8f0);
     box-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
-    transform: translateX(var(--track-padding));
+    transform: translateX(var(--switch-track-thumb-start));
     transition: transform 160ms ease;
 }
 
@@ -55,7 +59,7 @@
 }
 
     .toggle-switch__input:checked + .toggle-switch__track .toggle-switch__thumb {
-        transform: translateX(calc(var(--switch-track-width) - calc(var(--switch-base-size) * 0.46) - var(--track-padding)));
+        transform: translateX(var(--switch-track-thumb-end));
     }
 
 .metronome-shell__status-switch:hover .toggle-switch__track {

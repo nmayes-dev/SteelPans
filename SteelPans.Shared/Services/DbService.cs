@@ -15,15 +15,15 @@ namespace SteelPans.Shared.Services;
 
 public sealed class DbService
 {
-    public readonly GroupService Groups;
-    public readonly MidiFileService MidiFiles;
+    public readonly GroupDbService Groups;
+    public readonly MidiDbService MidiFiles;
 
     private ICurrentUserAccessor currentUser_;
 
     public DbService(IDbContextFactory<EnsembleDbContext> dbFactory,
         ICurrentUserAccessor currentUser,
         IEnsembleFileStore fileStore,
-        MidiInspectionService midiInspection,
+        MidiFileService midiInspection,
         IRealtimeUpdateDispatcher updates)
     {
         currentUser_ = currentUser;
@@ -33,7 +33,7 @@ public sealed class DbService
 
     public async Task<Guid> GetUserIdAsync() => await currentUser_.GetUserIdAsync();
 
-    public sealed class GroupService(IDbContextFactory<EnsembleDbContext> dbFactory, ICurrentUserAccessor currentUser, IRealtimeUpdateDispatcher updates)
+    public sealed class GroupDbService(IDbContextFactory<EnsembleDbContext> dbFactory, ICurrentUserAccessor currentUser, IRealtimeUpdateDispatcher updates)
     {
         public async Task<IReadOnlyList<GroupSummaryDto>> GetMyGroupsAsync(
             CancellationToken cancellationToken = default)
@@ -208,7 +208,7 @@ public sealed class DbService
 
             return await db.GroupMidiFiles
                 .AsNoTracking()
-                .Where(x => x.GroupId == groupId && x.MidiFile.ArchivedAt == null)
+                .Where(x => x.GroupId == groupId && x.MidiFile.ArchivedAt == null && !x.MidiFile.IsIncomplete)
                 .OrderByDescending(x => x.MidiFile.UploadedAt)
                 .Select(x => new GroupFileDto(
                     x.MidiFile.Id,
@@ -438,12 +438,13 @@ public sealed class DbService
         Stream Stream,
         string ContentType,
         string FileName);
-    public sealed class MidiFileService(
+
+    public sealed class MidiDbService(
         IDbContextFactory<EnsembleDbContext> dbFactory,
         ICurrentUserAccessor currentUser,
-        GroupService groups,
+        GroupDbService groups,
         IEnsembleFileStore fileStore,
-        MidiInspectionService midiInspection,
+        MidiFileService midiInspection,
         IRealtimeUpdateDispatcher updates)
     {
         public async Task<GroupFileDto> UploadMidiFileAsync(
@@ -470,7 +471,7 @@ public sealed class DbService
             await content.CopyToAsync(buffer, cancellationToken);
             buffer.Position = 0;
 
-            var parsedMidiFile = await midiInspection.ReadAsync(buffer, cancellationToken);
+            var parsedMidiFile = await midiInspection.OpenMidiFileAsync(buffer, cancellationToken);
             var tracks = midiInspection.GetTrackInfos(parsedMidiFile);
 
             var fileId = Guid.NewGuid();
@@ -499,21 +500,24 @@ public sealed class DbService
 
             foreach (var (index, track) in tracks.Enumerate())
             {
-                midiFile.Tracks.Add(new EnsembleMidiTrack
+                var persistedTrack = new EnsembleMidiTrack
                 {
-                    Id = Guid.NewGuid(),
+                    Id = track.Id == Guid.Empty ? Guid.NewGuid() : track.Id,
                     MidiFileId = fileId,
                     TrackIndex = index + 1,
                     TrackName = track.Name
-                });
+                };
+
+                midiFile.Tracks.Add(persistedTrack);
 
                 midiFile.Assignments.Add(new EnsembleMidiTrackAssignment
                 {
                     Id = Guid.NewGuid(),
                     MidiFileId = fileId,
-                    TrackIndex = index + 1,
-                    PanType = Music.PanType.None,
-                    Label = track.Name ?? $"Track {index + 1}",
+                    TrackId = persistedTrack.Id,
+                    TrackIndex = persistedTrack.TrackIndex,
+                    PanType = PanType.None,
+                    Label = track.Name ?? $"Track {persistedTrack.TrackIndex}",
                 });
             }
 
@@ -527,6 +531,7 @@ public sealed class DbService
                 new SaveMidiAssignmentsRequest(midiFile.Assignments
                     .OrderBy(x => x.TrackIndex)
                     .Select(x => new MidiTrackAssignmentDto(
+                            x.TrackId,
                             x.TrackIndex,
                             x.PanType,
                             x.Label))
@@ -554,6 +559,7 @@ public sealed class DbService
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var file = await db.MidiFiles
                 .AsNoTracking()
+                .AsSplitQuery()
                 .Include(x => x.Tracks)
                 .Include(x => x.Assignments)
                 .Include(x => x.SharedGroups)
@@ -575,6 +581,7 @@ public sealed class DbService
                 file.Tracks
                     .OrderBy(x => x.TrackIndex)
                     .Select(x => new MidiTrackDto(
+                        x.Id == Guid.Empty ? Guid.NewGuid() : x.Id,
                         x.TrackIndex,
                         x.TrackName,
                         x.SuggestedPanType))
@@ -582,6 +589,7 @@ public sealed class DbService
                 file.Assignments
                     .OrderBy(x => x.TrackIndex)
                     .Select(x => new MidiTrackAssignmentDto(
+                        x.TrackId,
                         x.TrackIndex,
                         x.PanType,
                         x.Label))
@@ -622,6 +630,7 @@ public sealed class DbService
         {
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
             var file = await db.MidiFiles
+                .Include(x => x.Tracks)
                 .Include(x => x.Assignments)
                 .Include(x => x.SharedGroups)
                 .FirstOrDefaultAsync(x => x.Id == fileId, cancellationToken);
@@ -636,13 +645,19 @@ public sealed class DbService
 
             db.MidiTrackAssignments.RemoveRange(file.Assignments);
 
+            var tracksById = file.Tracks.ToDictionary(x => x.Id);
+
             foreach (var assignment in request.Assignments)
             {
+                if (!tracksById.TryGetValue(assignment.TrackId, out var track))
+                    continue;
+
                 db.MidiTrackAssignments.Add(new EnsembleMidiTrackAssignment
                 {
                     Id = Guid.NewGuid(),
                     MidiFileId = fileId,
-                    TrackIndex = assignment.TrackIndex,
+                    TrackId = track.Id,
+                    TrackIndex = track.TrackIndex,
                     PanType = assignment.PanType,
                     Label = assignment.Label.Trim()
                 });
@@ -667,7 +682,8 @@ public sealed class DbService
             int TempoBpm,
             int BeatsPerBar,
             int BeatUnit,
-            IReadOnlyList<CreateRecordedMidiTrackRequest> Tracks);
+            IReadOnlyList<CreateRecordedMidiTrackRequest> Tracks,
+            bool IsIncomplete = false);
 
         public sealed record CreateRecordedMidiTrackRequest(
             string Name,
@@ -714,7 +730,8 @@ public sealed class DbService
                 ContentType = "audio/midi",
                 SizeBytes = midiContent.Length,
                 StorageKey = storageKey,
-                UploadedAt = now
+                UploadedAt = now,
+                IsIncomplete = request.IsIncomplete
             };
 
             foreach (var (index, track) in request.Tracks.Enumerate())
@@ -724,20 +741,23 @@ public sealed class DbService
                     ? $"Track {trackIndex}"
                     : track.Name.Trim();
 
-                midiFile.Tracks.Add(new EnsembleMidiTrack
+                var persistedTrack = new EnsembleMidiTrack
                 {
                     Id = Guid.NewGuid(),
                     MidiFileId = fileId,
                     TrackIndex = trackIndex,
                     TrackName = trackName,
                     SuggestedPanType = track.PanType
-                });
+                };
+
+                midiFile.Tracks.Add(persistedTrack);
 
                 midiFile.Assignments.Add(new EnsembleMidiTrackAssignment
                 {
                     Id = Guid.NewGuid(),
                     MidiFileId = fileId,
-                    TrackIndex = trackIndex,
+                    TrackId = persistedTrack.Id,
+                    TrackIndex = persistedTrack.TrackIndex,
                     PanType = track.PanType,
                     Label = trackName
                 });
@@ -928,7 +948,8 @@ public sealed class DbService
             return await db.MidiFiles
                 .AsNoTracking()
                 .Where(x => x.UploadedByUserId == userId &&
-                            x.ArchivedAt == null)
+                            x.ArchivedAt == null &&
+                            !x.IsIncomplete)
                 .OrderByDescending(x => x.UploadedAt)
                 .Select(x => new GroupFileDto(
                     x.Id,

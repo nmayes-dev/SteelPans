@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SteelPans.Shared.Data;
@@ -11,9 +12,11 @@ using SteelPans.Shared.Data;
 namespace SteelPans.Shared.Migrations
 {
     [DbContext(typeof(EnsembleDbContext))]
-    partial class EnsembleDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260618230056_IncompleteMidiFiles")]
+    partial class IncompleteMidiFiles
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -429,20 +432,13 @@ namespace SteelPans.Shared.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
 
-                    b.Property<Guid>("TrackId")
-                        .HasColumnType("uuid");
-
                     b.Property<int>("TrackIndex")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TrackId");
-
-                    b.HasIndex("MidiFileId", "TrackId")
+                    b.HasIndex("MidiFileId", "TrackIndex")
                         .IsUnique();
-
-                    b.HasIndex("MidiFileId", "TrackIndex");
 
                     b.ToTable("MidiTrackAssignments");
                 });
@@ -584,15 +580,7 @@ namespace SteelPans.Shared.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("SteelPans.Shared.Data.EnsembleMidiTrack", "Track")
-                        .WithMany()
-                        .HasForeignKey("TrackId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
                     b.Navigation("MidiFile");
-
-                    b.Navigation("Track");
                 });
 
             modelBuilder.Entity("SteelPans.Shared.Data.EnsembleGroup", b =>

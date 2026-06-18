@@ -38,6 +38,7 @@ public sealed record UpdateGroupMemberRoleRequest(
 
 
 public sealed record MidiTrackDto(
+    Guid Id,
     int TrackIndex,
     string? TrackName,
     PanType? SuggestedPanType);
@@ -51,6 +52,7 @@ public sealed record MidiFileDetailsDto(
     IReadOnlyList<MidiTrackAssignmentDto> Assignments);
 
 public sealed record MidiTrackAssignmentDto(
+    Guid TrackId,
     int TrackIndex,
     PanType PanType,
     string Label);

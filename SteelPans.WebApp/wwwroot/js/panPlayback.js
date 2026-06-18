@@ -14,6 +14,7 @@ window.panPlayback = {
     _metronomeGeneration: 0,
     _metronomeScheduleState: null,
     _midiScheduleStateByComponent: {},
+    _diagnosticsEnabled: false,
     _midiPlaybackState: {
         isPlaying: false,
         positionSeconds: 0,
@@ -22,6 +23,30 @@ window.panPlayback = {
         audioAnchorTime: null,
         initialMidiBpm: 120,
         tempoBpm: 120
+    },
+
+    setDiagnosticsEnabled: function (enabled) {
+        this._diagnosticsEnabled = enabled === true;
+        if (this._diagnosticsEnabled)
+            console.info("[panPlayback diagnostics] enabled");
+    },
+
+    _diag: function (...args) {
+        if (this._diagnosticsEnabled)
+            console.info("[panPlayback diagnostics]", ...args);
+    },
+
+    _diagSlow: function (startedAt, label, data, thresholdMs = 16) {
+        if (!this._diagnosticsEnabled)
+            return;
+
+        const elapsedMs = performance.now() - startedAt;
+        const payload = Object.assign({ elapsedMs: Math.round(elapsedMs * 100) / 100 }, data || {});
+
+        if (elapsedMs >= thresholdMs)
+            console.warn("[panPlayback diagnostics] slow " + label, payload);
+        else
+            console.info("[panPlayback diagnostics] " + label, payload);
     },
 
     setMidiPlaybackState: function (state) {
@@ -272,8 +297,12 @@ window.panPlayback = {
     },
 
     playNote: async function (componentId, noteKey) {
+        const startedAt = performance.now();
         const ctx = await this._resumeAudioContext();
+
+        const loadStartedAt = performance.now();
         const buffer = await this._loadBuffer(noteKey);
+        this._diagSlow(loadStartedAt, "playNote load buffer", { componentId, noteKey }, 8);
 
         const source = ctx.createBufferSource();
         source.buffer = buffer;
@@ -281,8 +310,10 @@ window.panPlayback = {
         const componentGain = this._getOrCreateComponentGain(componentId);
         source.connect(componentGain);
 
+        const audioStartAt = ctx.currentTime;
         source.start();
 
+        this._diagSlow(startedAt, "playNote", { componentId, noteKey, audioStartAt }, 8);
         return true;
     },
 
@@ -547,6 +578,7 @@ window.panPlayback = {
     },
 
     notePointerDown: async function (noteElement, labelElement, componentId, noteKey, event) {
+        const pointerStartedAt = performance.now();
         if (event.pointerType === "mouse" && event.button !== 0)
             return;
 
@@ -559,30 +591,40 @@ window.panPlayback = {
 
         let noteAudioTime = null;
         try {
+            const audioStartedAt = performance.now();
             const ctx = await this._resumeAudioContext();
             noteAudioTime = ctx.currentTime;
+            this._diagSlow(audioStartedAt, "notePointerDown resume audio", { componentId, noteKey, noteAudioTime }, 8);
         } catch {
             noteAudioTime = null;
         }
 
+        const playNoteStartedAt = performance.now();
         const playNotePromise = this.playNote(componentId, noteKey);
 
-        try {
-            await ref.invokeMethodAsync("OnNotePointerDown", noteKey, noteAudioTime);
-        } catch (error) {
-            console.warn("Note callback failed", error);
-        }
+        // Do not await the Blazor callback before allowing audio playback to complete.
+        // On dense overdub tracks the callback can trigger a large visualiser render,
+        // which otherwise blocks the pointer-down path and makes live note playback feel late.
+        const callbackStartedAt = performance.now();
+        ref.invokeMethodAsync("OnNotePointerDown", noteKey, noteAudioTime)
+            .then(() => this._diagSlow(callbackStartedAt, "notePointerDown Blazor callback", { componentId, noteKey, noteAudioTime }, 16))
+            .catch(error => console.warn("Note callback failed", error));
 
-        await playNotePromise;
+        playNotePromise
+            .then(() => {
+                this._diagSlow(playNoteStartedAt, "notePointerDown playNote promise", { componentId, noteKey }, 8);
+                this._setNotePlaying(componentId, noteKey, true);
 
-        this._setNotePlaying(componentId, noteKey, true);
+                const timeoutId = window.setTimeout(() => {
+                    this._setNotePlaying(componentId, noteKey, false);
+                }, 120);
 
-        const timeoutId = window.setTimeout(() => {
-            this._setNotePlaying(componentId, noteKey, false);
-        }, 120);
+                this._ensureComponentScheduleState(componentId);
+                this._scheduledVisualTimersByComponent[componentId].push(timeoutId);
+            })
+            .catch(error => console.warn("Note playback failed", error));
 
-        this._ensureComponentScheduleState(componentId);
-        this._scheduledVisualTimersByComponent[componentId].push(timeoutId);
+        this._diagSlow(pointerStartedAt, "notePointerDown sync path", { componentId, noteKey, noteAudioTime }, 8);
     },
 
     playMidiSchedule: async function (componentId, scheduledActions, baseBpm, currentBpm, startAt) {
@@ -699,6 +741,8 @@ window.panPlayback = {
     },
 
     _scheduleMidiWindow: async function (componentId, windowStart, windowEnd) {
+        const scheduleStartedAt = performance.now();
+        let scheduledActionCount = 0;
         const state = this._midiScheduleStateByComponent[componentId];
         if (!state || !state.isRunning)
             return;
@@ -719,7 +763,9 @@ window.panPlayback = {
 
             if (when >= windowStart - 0.005) {
                 if (action.isNoteOn) {
+                    const loadStartedAt = performance.now();
                     const buffer = await this._loadBuffer(action.noteKey);
+                    this._diagSlow(loadStartedAt, "schedule load buffer", { componentId, noteKey: action.noteKey }, 8);
                     const source = ctx.createBufferSource();
                     const noteGain = ctx.createGain();
 
@@ -778,6 +824,7 @@ window.panPlayback = {
                     }
                 }
 
+                scheduledActionCount++;
                 const delayMs = Math.max(0, (when - ctx.currentTime) * 1000.0);
                 const timeoutId = window.setTimeout(() => {
                     this._setNotePlaying(componentId, action.noteKey, action.isNoteOn);
@@ -788,6 +835,19 @@ window.panPlayback = {
 
             state.nextActionIndex++;
         }
+
+        this._diagSlow(
+            scheduleStartedAt,
+            "schedule MIDI window",
+            {
+                componentId,
+                windowStart,
+                windowEnd,
+                scheduledActionCount,
+                nextActionIndex: state.nextActionIndex,
+                totalActions: state.actions.length
+            },
+            16);
     },
 
     updateMidiTempo: async function (componentId, bpm) {

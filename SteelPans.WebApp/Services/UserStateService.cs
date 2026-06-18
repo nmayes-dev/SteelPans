@@ -29,6 +29,75 @@ public sealed class UserStateService : IAsyncDisposable
     public IReadOnlyList<GroupData> Groups { get; private set; } = [];
     public IReadOnlyList<GroupFileDto> Files { get; private set; } = [];
 
+    public string ActiveMidiFileName { get; private set; } = string.Empty;
+    public IReadOnlyList<MidiTrackInfo> ActiveMidiTracks { get; private set; } = [];
+    public MidiPlaybackInfo? ActiveMidiPlaybackInfo { get; private set; }
+
+    public void SetActiveMidiFile(
+        string fileName,
+        IReadOnlyList<MidiTrackInfo> tracks,
+        MidiPlaybackInfo? playbackInfo)
+    {
+        ActiveMidiFileName = fileName;
+        ActiveMidiTracks = tracks
+            .Select(CloneTrack)
+            .ToList();
+        ActiveMidiPlaybackInfo = playbackInfo;
+    }
+
+    public void ClearActiveMidiFile()
+    {
+        ActiveMidiFileName = string.Empty;
+        ActiveMidiTracks = [];
+        ActiveMidiPlaybackInfo = null;
+    }
+
+    public IReadOnlyList<MidiPanEvent> GetActiveMidiTrackEvents(Guid trackId)
+    {
+        return ActiveMidiTracks.FirstOrDefault(x => x.Id == trackId)?.Events ?? [];
+    }
+
+    public void UpsertActiveMidiTrack(MidiTrackInfo track)
+    {
+        var tracks = ActiveMidiTracks.ToList();
+        var index = tracks.FindIndex(x => x.Id == track.Id);
+        var copy = CloneTrack(track);
+
+        if (index >= 0)
+            tracks[index] = copy;
+        else
+            tracks.Add(copy);
+
+        ActiveMidiTracks = tracks.OrderBy(x => x.Index).ToList();
+    }
+
+    private static MidiTrackInfo CloneTrack(MidiTrackInfo track)
+    {
+        return new MidiTrackInfo
+        {
+            Id = track.Id == Guid.Empty ? Guid.NewGuid() : track.Id,
+            Index = track.Index,
+            Name = track.Name,
+            NoteCount = track.Events.Count > 0 ? track.Events.Count : track.NoteCount,
+            PanType = track.PanType,
+            TempoBpm = track.TempoBpm,
+            BeatsPerBar = track.BeatsPerBar,
+            BeatUnit = track.BeatUnit,
+            DurationSeconds = track.DurationSeconds,
+            Events = track.Events
+                .OrderBy(x => x.Start)
+                .ThenBy(x => x.Note.SemitoneNumber)
+                .Select(x => new MidiPanEvent
+                {
+                    Id = x.Id == Guid.Empty ? Guid.NewGuid() : x.Id,
+                    Note = x.Note,
+                    Start = x.Start,
+                    Duration = x.Duration
+                })
+                .ToList()
+        };
+    }
+
     private readonly DbService db_;
     private readonly TaskRunnerService task_;
     private readonly AppUpdatesService updates_;
@@ -96,7 +165,7 @@ public sealed class UserStateService : IAsyncDisposable
 
     private async Task RunRefreshAsync()
     {
-        var id = await db_.GetUserIdAsync();
+        Id = await db_.GetUserIdAsync();
 
         var groups = await db_.Groups.GetMyGroupsAsync();
         var files = await db_.MidiFiles.GetMyMidiFilesAsync();
@@ -107,7 +176,6 @@ public sealed class UserStateService : IAsyncDisposable
             Files = await db_.Groups.GetGroupFilesAsync(group.Id)
         }));
 
-        Id = id;
         Groups = groupData;
         Files = files;
 
@@ -133,7 +201,7 @@ public sealed class UserStateService : IAsyncDisposable
     private Task OnRealtimeGroupChangedAsync(Guid groupId)
     {
         if (Groups?.Any(x => x.Summary.Id == groupId) != true)
-            return System.Threading.Tasks.Task.CompletedTask;
+            return Task.CompletedTask;
 
         return RefreshAsync().AsTask();
     }

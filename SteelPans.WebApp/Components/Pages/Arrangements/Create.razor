@@ -1,11 +1,12 @@
 @page "/arrangements/create"
 @attribute [Authorize]
 @inject TaskRunnerService Tasks
-@inject RecordDraftService Draft
+@inject MidiEditingService Draft
 @inject SteelPanLoaderService PanLoader
 @inject DbService Db
 @inject NavigationManager Nav
 @inject UserStateService UserState
+@inject ModalPopupService Modals
 
 <PageTitle>Create Recorded File</PageTitle>
 
@@ -21,11 +22,13 @@
     <div class="sp-app-card record-file-page__form">
         <label>
             Title
-            <input @bind="title_" placeholder="Title..." />
+            <input @bind="title_" @bind:after="OnTitleChanged" placeholder="Enter arrangement name here..." />
         </label>
 
         <div class="record-file-page__actions">
+            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="BackAsync">Back</button>
             <a class="sp-app-button sp-app-button--secondary" href="/arrangements/tracks/create">Add Track</a>
+            <button type="button" class="sp-app-button sp-app-button--secondary" disabled="@(Tasks.Busy || Draft.Tracks.Count == 0)" @onclick="SaveDraftAsync">Save Draft</button>
             <button type="button" class="sp-app-button" disabled="@(Tasks.Busy || Draft.Tracks.Count == 0)" @onclick="SaveFileAsync">Save</button>
         </div>
     </div>
@@ -44,7 +47,7 @@
             {
                 <article class="sp-app-card record-file-page__track">
                     <div>
-                        <h2>@track.Name</h2>
+                        <h2>@(track.Name ?? $"Track {track.Index + 1}")</h2>
                         <p>@track.PanType · @track.TempoBpm BPM · @track.BeatsPerBar/@track.BeatUnit · @track.DurationSeconds.ToString("0.#")s</p>
                         <small>@track.Events.Count note@(track.Events.Count == 1 ? "" : "s")</small>
                     </div>
@@ -55,8 +58,8 @@
                     <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.Edit"
                                          ShowEditTools="false"
                                          PanLabel="@track.PanType.ToSpacedPascal()"
-                                         TrackLabel="@track.Name"
-                                         RecordNotes="track.Events"
+                                         TrackLabel="@(track.Name ?? $"Track {track.Index + 1}")"
+                                         Notes="track.Events"
                                          DurationSeconds="track.DurationSeconds"
                                          MinSemitone="GetPanMinSemitone(track.PanType)"
                                          MaxSemitone="GetPanMaxSemitone(track.PanType)"
@@ -72,11 +75,78 @@
 @code {
     private string title_ = string.Empty;
 
+    protected override void OnInitialized()
+    {
+        Draft.BeginCreateFile();
+        title_ = Draft.Title;
+    }
+
+    private void OnTitleChanged() => Draft.SetTitle(title_);
+
     private void RemoveTrack(Guid id) => Draft.RemoveTrack(id);
 
     private SteelPan? GetPan(PanType panType) => PanLoader.Pans.FirstOrDefault(x => x.Type == panType);
     private int? GetPanMinSemitone(PanType panType) => GetPan(panType)?.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Min();
     private int? GetPanMaxSemitone(PanType panType) => GetPan(panType)?.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Max();
+
+    private async Task SaveDraftAsync()
+    {
+        GroupFileDto? newFile = null;
+
+        var success = await Tasks.RunSafe(async () =>
+        {
+            if (string.IsNullOrWhiteSpace(title_))
+                throw new Exception("Please enter a title for the draft");
+
+            if (Draft.Tracks.Count == 0)
+                throw new Exception("Add at least one track before saving a draft.");
+
+            newFile = await SaveCurrentFileAsync(isIncomplete: true);
+            Draft.MarkSaved();
+            await UserState.RefreshAsync();
+            return $"Saved draft {newFile.Title}.";
+        });
+    }
+
+    private async Task<GroupFileDto> SaveCurrentFileAsync(bool isIncomplete)
+    {
+        Draft.SetTitle(title_);
+        var first = Draft.Tracks[0];
+        return await Db.MidiFiles.CreateRecordedMidiFileAsync(
+            new DbService.MidiDbService.CreateRecordedMidiFileRequest(
+                title_,
+                first.TempoBpm,
+                first.BeatsPerBar,
+                first.BeatUnit,
+                Draft.Tracks.Select(track => new DbService.MidiDbService.CreateRecordedMidiTrackRequest(
+                    (track.Name ?? $"Track {track.Index + 1}"),
+                    track.PanType,
+                    track.DurationSeconds,
+                    track.Events.Select(note => new DbService.MidiDbService.CreateRecordedMidiNoteRequest(
+                        note.Note,
+                        note.Start.TotalSeconds,
+                        note.Duration.TotalSeconds)).ToList())).ToList(),
+                isIncomplete));
+    }
+
+    private async Task BackAsync()
+    {
+        if (!Draft.HasUnsavedChanges)
+        {
+            Nav.NavigateTo("/arrangements");
+            return;
+        }
+
+        await Modals.OpenAsync("UnsavedChanges", new ModalOptions
+        {
+            OnSuccess = () =>
+            {
+                Draft.Clear();
+                Nav.NavigateTo("/arrangements");
+                return Task.CompletedTask;
+            }
+        });
+    }
 
     private async Task SaveFileAsync()
     {
@@ -90,21 +160,7 @@
             if (Draft.Tracks.Count == 0)
                 throw new Exception("Add at least one track before saving.");
 
-            var first = Draft.Tracks[0];
-            newFile = await Db.MidiFiles.CreateRecordedMidiFileAsync(
-                new DbService.MidiFileService.CreateRecordedMidiFileRequest(
-                    title_,
-                    first.TempoBpm,
-                    first.BeatsPerBar,
-                    first.BeatUnit,
-                    Draft.Tracks.Select(track => new DbService.MidiFileService.CreateRecordedMidiTrackRequest(
-                        track.Name,
-                        track.PanType,
-                        track.DurationSeconds,
-                        track.Events.Select(note => new DbService.MidiFileService.CreateRecordedMidiNoteRequest(
-                            note.Note,
-                            note.Start.TotalSeconds,
-                            note.Duration.TotalSeconds)).ToList())).ToList()));
+            newFile = await SaveCurrentFileAsync(isIncomplete: false);
 
             Draft.Clear();
             await UserState.RefreshAsync();

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SteelPans.Shared.Data;
@@ -10,10 +11,10 @@ using SteelPans.Shared.Data;
 
 namespace SteelPans.Shared.Migrations
 {
-    [DbContext(typeof(EnsembleDbContext))]
-    partial class EnsembleDbContextModelSnapshot : ModelSnapshot
+    partial class AddTrackIdToMidiTrackAssignments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

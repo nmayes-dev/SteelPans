@@ -188,12 +188,12 @@
     overflow: hidden;
 }
 
-    .record-track-page__overlay-pan-card button {
-        position: absolute;
-        inset-block-start: clamp(0.5rem, 1.5vw, 0.8rem);
-        inset-inline-start: clamp(0.5rem, 1.5vw, 0.8rem);
-        z-index: 5;
-    }
+.record-track-page__overlay-actions {
+    position: absolute;
+    inset-block-start: clamp(0.5rem, 1.5vw, 0.8rem);
+    inset-inline-start: clamp(0.5rem, 1.5vw, 0.8rem);
+    z-index: 5;
+}
 
 .record-track-page__overlay-pan {
     width: min(100%, clamp(18rem, 70vmin, 34rem));
@@ -233,4 +233,11 @@
         line-height: 1;
         color: #0f172a;
         font-variant-numeric: tabular-nums;
+    }
+
+.record-track-page__settings-toggle {
+}
+
+    .record-track-page__settings-toggle ::deep .toggle-switch {
+        margin-left: 0.15rem;
     }

@@ -2,6 +2,7 @@
 @inject UserStateService UserState
 @inject DbService Db
 @inject AppUpdatesService Updates
+@inject NavigationManager Nav
 @implements IAsyncDisposable
 
 <div class="sp-app-card sp-app-card--wide midi-file-preview @(isPreviewOpen_ ? "" : "midi-file-preview--closed")">
@@ -14,7 +15,7 @@
     </div>
     <p class="midi-file-preview__meta"><strong>@file_?.OriginalFileName</strong></p>
 
-    <div class="midi-files-preview-files">
+    <div class="midi-file-preview-files">
         <div class="sp-app-table-wrap">
             <table class="sp-app-table">
                 <thead>
@@ -29,7 +30,7 @@
                 <tbody>
                     @foreach (var track in file_?.Tracks ?? [])
                     {
-                        var assignment = assignments_.GetValueOrDefault(track.TrackIndex);
+                        var assignment = assignments_.GetValueOrDefault(track.Id);
 
                         <tr>
                             <td>@(track.TrackIndex)</td>
@@ -37,7 +38,7 @@
                             <td>
                                 <select value="@(assignment?.PanType ?? PanType.LeadTenor)"
                                         disabled="@disabled_"
-                                        @onchange="e => SetPanType(track.TrackIndex, e.Value?.ToString())">
+                                        @onchange="e => SetPanType(track.Id, e.Value?.ToString())">
                                     @foreach (var panType in panTypes_)
                                     {
                                         <option value="@panType">@panType.ToSpacedPascal()</option>
@@ -47,13 +48,17 @@
                             <td>
                                 <input value="@(assignment?.Label ?? track.TrackName ?? $"Track {track.TrackIndex}")"
                                        disabled="@disabled_"
-                                       @onchange="e => SetLabel(track.TrackIndex, e.Value?.ToString())" />
+                                       @onchange="e => SetLabel(track.Id, e.Value?.ToString())" />
                             </td>
                             <td>
                                 @if (file_ is not null)
                                 {
-                                    <div class="mifi-files-preview--actions">
-                                        <a class="sp-app-button sp-app-button--small" href="/play/solo?file=@file_.Id&track=@track.TrackIndex">Practice</a>
+                                    <div class="midi-file-preview--actions">
+                                        <a class="sp-app-button sp-app-button--small" href="/play/solo?file=@file_.Id&track=@track.Id">Practice</a>
+                                        @if (CanEditTrack)
+                                        {
+                                            <a class="sp-app-button sp-app-button--small" href="@GetEditTrackHref(track.Id)">Edit</a>
+                                        }
                                     </div>
                                 }
                             </td>
@@ -91,6 +96,10 @@
 
 
     private bool disabled_ => file_?.OwnerId != UserState.Id && !AllowEdit;
+    private bool CanEditTrack => file_?.OwnerId == UserState.Id;
+
+    [Parameter]
+    public string EditReturnTo { get; set; } = "create";
 
     private bool isPreviewOpen_;
     private CancellationTokenSource? closeCts_;
@@ -98,7 +107,7 @@
     public bool IsPreviewOpen => isPreviewOpen_;
 
     private MidiFileDetailsDto? file_;
-    private Dictionary<int, MidiTrackAssignmentDto> assignments_ = [];
+    private Dictionary<Guid, MidiTrackAssignmentDto> assignments_ = [];
 
     public async Task TogglePreviewAsync(Guid fileId)
     {
@@ -132,22 +141,32 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private void SetPanType(int trackIndex, string? value)
+
+    private string GetEditTrackHref(Guid trackId)
+    {
+        if (file_ is null)
+            return $"/arrangements/tracks/edit/{trackId}";
+
+        var returnTo = Uri.EscapeDataString(EditReturnTo);
+        return $"/arrangements/tracks/edit/{trackId}?file={file_.Id}&returnTo={returnTo}";
+    }
+
+    private void SetPanType(Guid trackId, string? value)
     {
         if (!Enum.TryParse<PanType>(value, out var panType))
             return;
 
-        var current = assignments_[trackIndex];
-        assignments_[trackIndex] = current with { PanType = panType };
+        var current = assignments_[trackId];
+        assignments_[trackId] = current with { PanType = panType };
     }
 
-    private void SetLabel(int trackIndex, string? value)
+    private void SetLabel(Guid trackId, string? value)
     {
-        var current = assignments_[trackIndex];
-        assignments_[trackIndex] = current with
+        var current = assignments_[trackId];
+        assignments_[trackId] = current with
         {
             Label = string.IsNullOrWhiteSpace(value)
-                ? $"Track {trackIndex + 1}"
+                ? $"Track {current.TrackIndex}"
                 : value.Trim()
         };
     }
@@ -181,12 +200,13 @@
 
         file_ = preview;
         assignments_ = preview.Tracks.ToDictionary(
-            x => x.TrackIndex,
-            x => preview.Assignments.FirstOrDefault(a => a.TrackIndex == x.TrackIndex)
+            x => x.Id,
+            x => preview.Assignments.FirstOrDefault(a => a.TrackId == x.Id)
                 ?? new MidiTrackAssignmentDto(
+                    x.Id,
                     x.TrackIndex,
                     x.SuggestedPanType ?? PanType.None,
-                    x.TrackName ?? $"Track {x.TrackIndex + 1}"));
+                    x.TrackName ?? $"Track {x.TrackIndex}"));
 
         closeCts_?.Cancel();
         isPreviewOpen_ = true;

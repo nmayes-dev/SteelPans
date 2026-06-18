@@ -75,6 +75,7 @@ public sealed class EnsembleMidiFile
 
     public DateTimeOffset UploadedAt { get; set; }
     public DateTimeOffset? ArchivedAt { get; set; }
+    public bool IsIncomplete { get; set; }
 
     public List<EnsembleGroupMidiFile> SharedGroups { get; set; } = [];
     public List<EnsembleMidiTrack> Tracks { get; set; } = [];
@@ -96,9 +97,11 @@ public sealed class EnsembleMidiTrackAssignment
 {
     public Guid Id { get; set; }
     public Guid MidiFileId { get; set; }
+    public Guid TrackId { get; set; }
     public int TrackIndex { get; set; }
     public PanType PanType { get; set; }
     public string Label { get; set; } = "";
 
     public EnsembleMidiFile MidiFile { get; set; } = null!;
+    public EnsembleMidiTrack Track { get; set; } = null!;
 }

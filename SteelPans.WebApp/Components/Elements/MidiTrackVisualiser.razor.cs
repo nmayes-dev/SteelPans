@@ -111,6 +111,7 @@ public partial class MidiTrackVisualiser
     private DotNetObjectReference<MidiTrackVisualiser>? dotNetRef_;
     private bool rendered_;
     private int? lastDataHash_;
+    private int? lastLayoutHash_;
 
     private bool IsEditMode => Mode == MidiTrackVisualiserMode.Edit;
     private bool IsRecordMode => Mode == MidiTrackVisualiserMode.Record;
@@ -173,7 +174,6 @@ public partial class MidiTrackVisualiser
         await JS.InvokeVoidAsync("visualiser.initialize", root_, dotNetRef_);
         rendered_ = true;
         await RenderVisualiserIfChangedAsync(force: true);
-        await UpdatePlayheadPositionAsync();
     }
 
     protected override async Task OnParametersSetAsync()
@@ -182,7 +182,6 @@ public partial class MidiTrackVisualiser
             return;
 
         await RenderVisualiserIfChangedAsync();
-        await UpdatePlayheadPositionAsync();
     }
 
 
@@ -228,27 +227,27 @@ public partial class MidiTrackVisualiser
 
     private async Task RenderVisualiserIfChangedAsync(bool force = false)
     {
+        var layoutHash = GetLayoutHash();
         var dataHash = GetDataHash();
+
         if (!force && lastDataHash_ == dataHash)
             return;
 
+        if (force || lastLayoutHash_ != layoutHash)
+        {
+            lastLayoutHash_ = layoutHash;
+            lastDataHash_ = dataHash;
+            await RenderVisualiserAsync();
+            return;
+        }
+
         lastDataHash_ = dataHash;
-        await RenderVisualiserAsync();
+        await SyncVisualiserNotesAsync();
     }
 
     private async Task RenderVisualiserAsync()
     {
-        var orderedNotes = Notes
-                .OrderBy(x => x.Start)
-                .ThenBy(x => x.Note.SemitoneNumber)
-                .Select(x => new MidiTrackVisualiserNote(
-                    x.Id,
-                    x.Note.ToString(),
-                    x.Note.SemitoneNumber,
-                    x.Start.TotalSeconds,
-                    x.Duration.TotalSeconds,
-                    false))
-                .ToList();
+        var orderedNotes = BuildVisualiserNotes();
 
         await JS.InvokeVoidAsync(
             "visualiser.setData",
@@ -271,19 +270,109 @@ public partial class MidiTrackVisualiser
                 ShouldShowPlayhead));
     }
 
-    private async Task UpdatePlayheadPositionAsync()
+    private async Task SyncVisualiserNotesAsync()
     {
-        if (!ShouldUseExternalPosition)
+        await JS.InvokeVoidAsync(
+            "visualiser.syncNotes",
+            root_,
+            BuildVisualiserNotes(),
+            SelectedNoteId,
+            PanLabel);
+    }
+
+    public async Task AddOrUpdateNoteAsync(MidiPanEvent note, bool select = false)
+    {
+        if (!rendered_)
+            return;
+
+        if (select)
+            SelectedNoteId = note.Id;
+
+        await JS.InvokeVoidAsync(
+            "visualiser.addOrUpdateNote",
+            root_,
+            BuildVisualiserNote(note),
+            select ? note.Id : SelectedNoteId,
+            PanLabel);
+    }
+
+    public async Task StartPlayheadAsync(double positionSeconds, double? audioAnchorTimeSeconds = null)
+    {
+        if (!rendered_ || !ShouldShowPlayhead)
+            return;
+
+        await JS.InvokeVoidAsync(
+            "visualiser.startPlayhead",
+            root_,
+            Math.Clamp(positionSeconds, 0.0, VisualDurationSeconds),
+            audioAnchorTimeSeconds);
+    }
+
+    public async Task StopPlayheadAsync(double positionSeconds, bool resetViewport = false)
+    {
+        if (!rendered_ || !ShouldShowPlayhead)
+            return;
+
+        await JS.InvokeVoidAsync(
+            "visualiser.stopPlayhead",
+            root_,
+            Math.Clamp(positionSeconds, 0.0, VisualDurationSeconds),
+            resetViewport);
+    }
+
+    public async Task SetPlayheadPositionAsync(double positionSeconds, bool follow = true)
+    {
+        if (!rendered_ || !ShouldShowPlayhead)
             return;
 
         await JS.InvokeVoidAsync(
             "visualiser.setPosition",
             root_,
-            Math.Clamp(PositionSeconds, 0.0, VisualDurationSeconds));
+            Math.Clamp(positionSeconds, 0.0, VisualDurationSeconds),
+            follow);
     }
 
     private bool ShouldShowPlayhead => Mode == MidiTrackVisualiserMode.Playback || ShowPlayhead;
-    private bool ShouldUseExternalPosition => IsRecordNoteMode && ShowPlayhead;
+
+    private IReadOnlyList<MidiTrackVisualiserNote> BuildVisualiserNotes()
+    {
+        return Notes
+            .OrderBy(x => x.Start)
+            .ThenBy(x => x.Note.SemitoneNumber)
+            .Select(BuildVisualiserNote)
+            .ToList();
+    }
+
+    private MidiTrackVisualiserNote BuildVisualiserNote(MidiPanEvent note)
+    {
+        return new MidiTrackVisualiserNote(
+            note.Id,
+            note.Note.ToString(),
+            note.Note.SemitoneNumber,
+            note.Start.TotalSeconds,
+            note.Duration.TotalSeconds,
+            note.Id == SelectedNoteId);
+    }
+
+    private int GetLayoutHash()
+    {
+        var hash = new HashCode();
+        hash.Add(Mode);
+        hash.Add(TrackIndex);
+        hash.Add(PanLabel);
+        hash.Add(TrackLabel);
+        hash.Add(VisualDurationSeconds);
+        hash.Add(TempoBpm);
+        hash.Add(InitialMidiBpm);
+        hash.Add(BeatsPerBar);
+        hash.Add(BeatUnit);
+        hash.Add(NoteSnapDivision);
+        hash.Add(VisualMinSemitone);
+        hash.Add(VisualMaxSemitone);
+        hash.Add(ShowEditTools);
+        hash.Add(ShouldShowPlayhead);
+        return hash.ToHashCode();
+    }
 
     private int GetDataHash()
     {

@@ -1,5 +1,5 @@
 ﻿@inject MidiPlaybackService Playback
-@inject MidiLoaderService MidiService
+@inject MidiFileService MidiService
 @inject NavigationManager Nav
 @inject ModalPopupService Modals
 @inject DbService Db
@@ -205,7 +205,7 @@
 
     private async Task OpenRemovePanAsync(MidiTrackInfo track)
     {
-        var pan = Playback.ActivePans.First(a => a.Assignment.Track?.Index == track.Index);
+        var pan = Playback.ActivePans.First(a => a.Assignment.Track?.Id == track.Id);
         await Modals.OpenAsync("RemovePan", pan);
     }
 
@@ -279,7 +279,7 @@
     }
     private bool IsTrackAssigned(MidiTrackInfo track)
     {
-        return Playback.Assignments.Any(a => a.Track?.Index == track.Index);
+        return Playback.Assignments.Any(a => a.Track?.Id == track.Id);
     }
 
 
