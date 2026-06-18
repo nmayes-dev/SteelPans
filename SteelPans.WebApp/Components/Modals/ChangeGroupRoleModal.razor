@@ -1,5 +1,6 @@
 ﻿@inject DbService Db
-@inject InstanceStateService State
+@inject TaskRunnerService Tasks
+@inject UserStateService UserState
 
 <ModalPopup TPayload="Payload"
             Id="ChangeRole"
@@ -53,11 +54,11 @@
         {
             case GroupRole.Admin:
                 await Db.Groups.SetMemberRoleAsync(payload.Group.Id, new UpdateGroupMemberRoleRequest(payload.Member.UserId, payload.NewRole));
-                await State.User.RefreshAsync();
+                await UserState.RefreshAsync();
                 return $"{DisplayName(payload.Member)} is now an admin.";
             case GroupRole.Leader:
                 await Db.Groups.TransferLeadershipAsync(payload.Group.Id, payload.Member.UserId);
-                await State.User.RefreshAsync();
+                await UserState.RefreshAsync();
                 return "Leadership transferred.";
             default:
                 throw new InvalidOperationException("Confirmation not required for setting member role");
@@ -66,7 +67,7 @@
 
     private async Task<bool> OnConfirmAsync(Payload payload)
     {
-        await State.Task.RunSafe(() => UpdateRoleAsync(payload));
+        await Tasks.RunSafe(() => UpdateRoleAsync(payload));
         return true;
     }
 

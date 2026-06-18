@@ -1,4 +1,5 @@
-﻿@inject InstanceStateService State
+﻿@inject TaskRunnerService Tasks
+@inject UserStateService UserState
 @inject DbService Db
 @inject NavigationManager Nav
 
@@ -47,7 +48,7 @@
 
     private async Task DeleteAccountAsync(GroupSummaryDto group)
     {
-        await State.Task.RunSafe(async () =>
+        await Tasks.RunSafe(async () =>
         {
             await Db.Groups.DeleteGroupAsync(group.Id);
 

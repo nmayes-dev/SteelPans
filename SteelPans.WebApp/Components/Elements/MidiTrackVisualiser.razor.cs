@@ -8,6 +8,7 @@ namespace SteelPans.WebApp.Components.Elements;
 
 public enum MidiTrackVisualiserMode
 {
+    Display,
     Playback,
     Edit,
     Record
@@ -15,7 +16,7 @@ public enum MidiTrackVisualiserMode
 public enum NoteSnapDivision
 {
     None,
-    Barline,
+    Bar,
     Beat,
     HalfBeat,
     QuarterBeat,
@@ -39,9 +40,6 @@ public partial class MidiTrackVisualiser
 
     [Parameter]
     public IReadOnlyList<MidiPanEvent> Notes { get; set; } = [];
-
-    [Parameter]
-    public IReadOnlyList<RecordNoteDraft> RecordNotes { get; set; } = [];
 
     [Parameter]
     public Guid? SelectedNoteId { get; set; }
@@ -118,15 +116,11 @@ public partial class MidiTrackVisualiser
     private bool IsRecordMode => Mode == MidiTrackVisualiserMode.Record;
     private bool IsRecordNoteMode => IsEditMode || IsRecordMode;
 
-    private int VisualNoteCount => IsRecordNoteMode
-        ? RecordNotes.Count
-        : Notes.Count;
-
     private double VisualDurationSeconds => Math.Max(
         Duration.TotalSeconds > 0 ? Duration.TotalSeconds : DurationSeconds,
         0.01);
 
-    private RecordNoteDraft? SelectedRecordNote => RecordNotes.FirstOrDefault(x => x.Id == SelectedNoteId);
+    private MidiPanEvent? SelectedRecordNote => Notes.FirstOrDefault(x => x.Id == SelectedNoteId);
     private bool ShouldPreventKeyDefault => IsEditMode && SelectedRecordNote is not null;
     private double StepSeconds => 60.0 / Math.Max(1, TempoBpm) / 4.0;
 
@@ -134,16 +128,15 @@ public partial class MidiTrackVisualiser
     {
         get
         {
-            double beat = 1.0 / BeatUnit;
             return NoteSnapDivision switch
             {
                 NoteSnapDivision.None => 0,
-                NoteSnapDivision.Barline => BeatsPerBar,
-                NoteSnapDivision.Beat => beat,
-                NoteSnapDivision.HalfBeat => 0.5 * beat,
-                NoteSnapDivision.QuarterBeat => 0.25 * beat,
-                NoteSnapDivision.EighthBeat => 0.125 * beat,
-                NoteSnapDivision.SixteenthBeat => 0.0625 * beat,
+                NoteSnapDivision.Bar => 1,
+                NoteSnapDivision.Beat => BeatUnit,
+                NoteSnapDivision.HalfBeat => 2 * BeatUnit,
+                NoteSnapDivision.QuarterBeat => 4 * BeatUnit,
+                NoteSnapDivision.EighthBeat => 8 * BeatUnit,
+                NoteSnapDivision.SixteenthBeat => 16 * BeatUnit,
                 _ => 0.0
             };
         }
@@ -156,11 +149,7 @@ public partial class MidiTrackVisualiser
             if (MinSemitone is int min)
                 return min;
 
-            var source = IsRecordNoteMode
-                ? RecordNotes.Select(x => x.Note.SemitoneNumber)
-                : Notes.Select(x => x.Note.SemitoneNumber);
-
-            return source.DefaultIfEmpty(0).Min();
+            return Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty(0).Min();
         }
     }
 
@@ -171,11 +160,7 @@ public partial class MidiTrackVisualiser
             if (MaxSemitone is int max)
                 return max;
 
-            var source = IsRecordNoteMode
-                ? RecordNotes.Select(x => x.Note.SemitoneNumber)
-                : Notes.Select(x => x.Note.SemitoneNumber);
-
-            return source.DefaultIfEmpty(VisualMinSemitone).Max();
+            return Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty(VisualMinSemitone).Max();
         }
     }
 
@@ -253,23 +238,11 @@ public partial class MidiTrackVisualiser
 
     private async Task RenderVisualiserAsync()
     {
-        var orderedNotes = IsRecordNoteMode
-            ? RecordNotes
-                .OrderBy(x => x.StartSeconds)
-                .ThenBy(x => x.Note.SemitoneNumber)
-                .Select(x => new MidiTrackVisualiserNote(
-                    x.Id,
-                    x.Note.ToString(),
-                    x.Note.SemitoneNumber,
-                    x.StartSeconds,
-                    x.DurationSeconds,
-                    x.Id == SelectedNoteId))
-                .ToList()
-            : Notes
+        var orderedNotes = Notes
                 .OrderBy(x => x.Start)
                 .ThenBy(x => x.Note.SemitoneNumber)
                 .Select(x => new MidiTrackVisualiserNote(
-                    null,
+                    x.Id,
                     x.Note.ToString(),
                     x.Note.SemitoneNumber,
                     x.Start.TotalSeconds,
@@ -331,26 +304,13 @@ public partial class MidiTrackVisualiser
         hash.Add(ShowEditTools);
         hash.Add(ShouldShowPlayhead);
 
-        if (IsRecordNoteMode)
+        hash.Add(Notes.Count);
+        foreach (var note in Notes)
         {
-            hash.Add(RecordNotes.Count);
-            foreach (var note in RecordNotes)
-            {
-                hash.Add(note.Id);
-                hash.Add(note.Note.SemitoneNumber);
-                hash.Add(note.StartSeconds);
-                hash.Add(note.DurationSeconds);
-            }
-        }
-        else
-        {
-            hash.Add(Notes.Count);
-            foreach (var note in Notes)
-            {
-                hash.Add(note.Note.SemitoneNumber);
-                hash.Add(note.Start.Ticks);
-                hash.Add(note.Duration.Ticks);
-            }
+            hash.Add(note.Id);
+            hash.Add(note.Note.SemitoneNumber);
+            hash.Add(note.Start.Ticks);
+            hash.Add(note.Duration.Ticks);
         }
 
         return hash.ToHashCode();
@@ -392,7 +352,7 @@ public partial class MidiTrackVisualiser
 
         await SelectNote.InvokeAsync(noteId);
 
-        var note = RecordNotes.FirstOrDefault(x => x.Id == noteId);
+        var note = Notes.FirstOrDefault(x => x.Id == noteId);
         if (note is not null)
             await PreviewNote.InvokeAsync(note.Note);
     }
@@ -430,8 +390,6 @@ public partial class MidiTrackVisualiser
 
             await SetSelectedPitch.InvokeAsync(clampedSemitone);
         }
-
-        await PreviewNote.InvokeAsync(Note.FromSemitoneNumber(clampedSemitone));
     }
 
     [JSInvokable]

@@ -1,11 +1,12 @@
 @page "/account"
 
 @attribute [Authorize]
+@inject TaskRunnerService Tasks
 @inject NavigationManager Nav
 @inject UserManager<ApplicationUser> UserManager
 @inject AuthenticationStateProvider AuthStateProvider
 @inject DbService Db
-@inject InstanceStateService State
+@inject UserStateService UserState
 @inject ModalPopupService Modals
 
 <PageTitle>Account</PageTitle>
@@ -33,9 +34,9 @@
                     </div>
                 </div>
 
-                @if (!string.IsNullOrWhiteSpace(State.Task.Error))
+                @if (!string.IsNullOrWhiteSpace(Tasks.Error))
                 {
-                    <p class="account-error">@State.Task.Error</p>
+                    <p class="account-error">@Tasks.Error</p>
                 }
 
                 <div class="account-profile-grid">
@@ -72,7 +73,7 @@
                         {
                             <p class="account-empty">Loading groups…</p>
                         }
-                        else if (groups_.Count == 0)
+                        else if (UserState.Groups.Count == 0)
                         {
                             <p class="account-empty">You are not currently a member of any groups.</p>
                         }
@@ -80,17 +81,17 @@
                         {
                             <div class="account-group-list-wrap">
                                 <div class="account-group-list">
-                                    @foreach (var group in groups_)
+                                    @foreach (var group in UserState.Groups)
                                     {
                                         <article class="account-group-card">
                                             <div class="account-group-card__main">
-                                                <h3>@group.Name</h3>
-                                                <p>@group.Role</p>
+                                                <h3>@group.Summary.Name</h3>
+                                                <p>@group.Summary.Role</p>
                                             </div>
 
                                             <div class="account-group-card__meta">
-                                                <span>@GetMemberCountText(group)</span>
-                                                <span>@GetSharedFileCountText(group)</span>
+                                                <span>@GetMemberCountText(group.Summary)</span>
+                                                <span>@GetSharedFileCountText(group.Summary)</span>
                                             </div>
                                         </article>
                                     }
@@ -148,7 +149,6 @@
 @code {
     private readonly Dictionary<Guid, int> memberCounts_ = [];
     private readonly Dictionary<Guid, int> sharedFileCounts_ = [];
-    private IReadOnlyList<GroupSummaryDto> groups_ = [];
     private ApplicationUser? user_;
     private bool loading_ = true;
     private bool displayDelete_;
@@ -172,19 +172,15 @@
             return;
         }
 
-        await State.Task.RunSafe(async () =>
+        await Tasks.RunSafe(async () =>
         {
-            groups_ = State.User.Groups ?? [];
-
             memberCounts_.Clear();
             sharedFileCounts_.Clear();
 
-            foreach (var group in groups_)
+            foreach (var group in UserState.Groups)
             {
-                memberCounts_[group.Id] = (await Db.Groups.GetGroupMembersAsync(group.Id)).Count;
-                sharedFileCounts_[group.Id] = State.User.GroupFiles.TryGetValue(group.Id, out var files)
-                    ? files.Count
-                    : 0;
+                memberCounts_[group.Summary.Id] = (await Db.Groups.GetGroupMembersAsync(group.Summary.Id)).Count;
+                sharedFileCounts_[group.Summary.Id] = group.Files.Count;
             }
         });
 

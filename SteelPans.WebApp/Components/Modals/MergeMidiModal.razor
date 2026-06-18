@@ -1,6 +1,6 @@
 ﻿@inject MidiLoaderService MidiService
 @inject MidiPlaybackService Playback
-@inject InstanceStateService State
+@inject UserStateService UserState
 
 <ModalPopup TPayload="IReadOnlyList<IBrowserFile>"
             Id="MergeMidiFiles"
@@ -41,7 +41,7 @@
             {
                 foreach (var file in files)
                 {
-                    var stream = file.OpenReadStream(State.MaxMidiFileSize);
+                    var stream = file.OpenReadStream(UserState.MaxMidiFileSize);
                     streamFiles.Add((file.Name, stream));
                 }
 

@@ -1,4 +1,5 @@
-﻿@inject InstanceStateService State
+﻿@inject TaskRunnerService Tasks
+@inject UserStateService UserState
 @inject DbService Db
 @inject NavigationManager Nav
 
@@ -29,7 +30,7 @@
 
     private async Task<bool> OnConfirmAsync(GroupSummaryDto payload)
     {
-        bool success = await State.Task.RunSafe(async () =>
+        bool success = await Tasks.RunSafe(async () =>
         {
             await Db.Groups.LeaveGroupAsync(payload.Id);
             return "Left group.";

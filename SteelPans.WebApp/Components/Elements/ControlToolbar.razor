@@ -3,7 +3,7 @@
 @inject NavigationManager Nav
 @inject ModalPopupService Modals
 @inject DbService Db
-@inject InstanceStateService State
+@inject UserStateService UserState
 @inject IJSRuntime JS
 @implements IDisposable
 
@@ -18,25 +18,25 @@
         <SubMenu>
             <AuthorizeView>
                 <Authorized>
-                    @if (groups_ is not null && groups_.Any(x => x.Value.Count > 0))
+                    @if (UserState.Groups.Any(x => x.Files.Any()))
                     {
                         <ToolbarElement Order="1"
                                         Text="From Group"
                                         IconClass="bi-collection">
                             <SubMenu>
-                                @foreach (var (group, files) in groups_.Where(x => x.Value.Count > 0))
+                                @foreach (var group in UserState.Groups.Where(x => x.Files.Any()))
                                 {
-                                    <ToolbarElement Text="@group.Name"
+                                    <ToolbarElement Text="@group.Summary.Name"
                                                     IconClass="bi-people">
                                         <ChildContent>
                                             <div class="pans-page__track-panel">
                                                 <div class="pans-page__track-panel-header">
                                                     <span class="pans-page__track-panel-title">Ensemble Files</span>
-                                                    <span class="pans-page__track-panel-count">@files.Count file@(files.Count == 1 ? "" : "s")</span>
+                                                    <span class="pans-page__track-panel-count">@group.Files.Count file@(group.Files.Count == 1 ? "" : "s")</span>
                                                 </div>
 
                                                 <div class="pans-page__track-list">
-                                                    @foreach (var file in files)
+                                                    @foreach (var file in group.Files)
                                                     {
                                                         <div class="pans-page__track-item">
                                                             <div class="pans-page__track-details">
@@ -168,24 +168,10 @@
 
     private bool anyPans_;
 
-    private IReadOnlyDictionary<GroupSummaryDto, IReadOnlyList<GroupFileDto>>? groups_;
-
     protected override async Task OnInitializedAsync()
     {
-        State.User.OnRefresh += OnUserRefreshAsync;
         Playback.AssignmentsChanged += OnAssignmentsChangedAsync;
-
         anyPans_ = Playback.ActivePans.Any();
-        await OnUserRefreshAsync();
-    }
-
-    private async Task OnUserRefreshAsync()
-    {
-        groups_ = State.User.Groups?.ToDictionary(
-            group => group,
-            group => State.User.GroupFiles.TryGetValue(group.Id, out var files)
-                ? files
-                : []);
     }
 
     private async Task OnAssignmentsChangedAsync(PlaybackAssignmentsChangedEventArgs args)
@@ -263,7 +249,7 @@
     {
         await Playback.OnLoadMidiAsync(async () =>
         {
-            await using var stream = file.OpenReadStream(State.MaxMidiFileSize);
+            await using var stream = file.OpenReadStream(UserState.MaxMidiFileSize);
             return (file.Name, await MidiService.OpenMidiFileAsync(stream));
         });
     }
@@ -299,7 +285,6 @@
 
     public void Dispose()
     {
-        State.User.OnRefresh -= OnUserRefreshAsync;
         Playback.AssignmentsChanged -= OnAssignmentsChangedAsync;
     }
 }

@@ -1,5 +1,5 @@
-@page "/record/tracks/create"
-@page "/record/tracks/edit/{TrackId:guid}"
+@page "/arrangements/tracks/create"
+@page "/arrangements/tracks/edit/{TrackId:guid}"
 @attribute [Authorize]
 @inject RecordDraftService Draft
 @inject SteelPanLoaderService PanLoader
@@ -101,7 +101,7 @@
             </ToolbarElement>
         </Toolbar>
 
-        <input @bind="trackName_" placeholder="@trackNamePlaceholder_" />
+        <input @bind="trackName_" placeholder="Track Name..." />
 
         <div class="record-track-page__controls">
             <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="ClearNotesAsync" disabled="@(DisableButtons(requireNotes: true))">Reset</button>
@@ -203,7 +203,6 @@
     private bool loadedExistingTrack_;
 
     private string trackName_ = string.Empty;
-    private const string trackNamePlaceholder_ = "Track Name...";
 
     private PanType panType_ = PanType.None;
 
@@ -243,7 +242,7 @@
     private CancellationTokenSource? metronomeCts_;
     private Guid? selectedNoteId_;
     private SteelPanView? overlayPan_;
-    private readonly List<RecordNoteDraft> notes_ = [];
+    private readonly List<MidiPanEvent> notes_ = [];
 
     private IReadOnlyList<SteelPan> AvailablePans => PanLoader.Pans.Where(x => x.Type != PanType.None).ToList();
     private SteelPan? SelectedPan => AvailablePans.FirstOrDefault(x => x.Type == panType_) ?? AvailablePans.FirstOrDefault();
@@ -287,12 +286,12 @@
         beatUnit_ = track.BeatUnit;
         durationBars_ = Math.Max(1, (int)Math.Ceiling(track.DurationSeconds / Math.Max(0.001, beatsPerBar_ * beatsPerSecond_ * beatRatio_)));
         notes_.Clear();
-        notes_.AddRange(track.Notes.Select(x => new RecordNoteDraft
+        notes_.AddRange(track.Events.Select(x => new MidiPanEvent
         {
-            Id = x.Id,
+            Id = x.Id == Guid.Empty ? Guid.NewGuid() : x.Id,
             Note = x.Note,
-            StartSeconds = x.StartSeconds,
-            DurationSeconds = x.DurationSeconds
+            Start = x.Start,
+            Duration = x.Duration
         }));
         selectedNoteId_ = null;
         recordingPositionSeconds_ = 0;
@@ -384,11 +383,11 @@
 
         var start = GetCurrentRecordingPositionSeconds(playedNote.AudioTimeSeconds);
         var defaultDuration = GetDefaultNoteDurationSeconds();
-        var draft = new RecordNoteDraft
+        var draft = new MidiPanEvent
         {
             Note = playedNote.Note,
-            StartSeconds = start,
-            DurationSeconds = Math.Min(defaultDuration, Math.Max(0.05, durationSeconds_ - start))
+            Start = TimeSpan.FromSeconds(start),
+            Duration = TimeSpan.FromSeconds(Math.Min(defaultDuration, Math.Max(0.05, durationSeconds_ - start)))
         };
 
         notes_.Add(draft);
@@ -425,7 +424,7 @@
         if (note is null)
             return;
 
-        note.StartSeconds = Math.Clamp(note.StartSeconds + delta, 0, Math.Max(0, durationSeconds_ - note.DurationSeconds));
+        note.Start = TimeSpan.FromSeconds(Math.Clamp(note.Start.TotalSeconds + delta, 0, Math.Max(0, durationSeconds_ - note.Duration.TotalSeconds)));
     }
     private void MoveAndPitchNote(MidiTrackVisualiser.RecordNoteMovePitchChange change)
     {
@@ -434,10 +433,10 @@
             return;
 
         selectedNoteId_ = change.Id;
-        note.StartSeconds = Math.Clamp(
-            note.StartSeconds + change.DeltaSeconds,
+        note.Start = TimeSpan.FromSeconds(Math.Clamp(
+            note.Start.TotalSeconds + change.DeltaSeconds,
             0,
-            Math.Max(0, durationSeconds_ - note.DurationSeconds));
+            Math.Max(0, durationSeconds_ - note.Duration.TotalSeconds)));
 
         var min = SelectedPanMinSemitone ?? change.Semitone;
         var max = SelectedPanMaxSemitone ?? change.Semitone;
@@ -451,7 +450,7 @@
         if (note is null)
             return;
 
-        note.DurationSeconds = Math.Clamp(note.DurationSeconds + delta, 0.05, Math.Max(0.05, durationSeconds_ - note.StartSeconds));
+        note.Duration = TimeSpan.FromSeconds(Math.Clamp(note.Duration.TotalSeconds + delta, 0.05, Math.Max(0.05, durationSeconds_ - note.Start.TotalSeconds)));
     }
 
     private void ChangeSelectedPitch(int semitoneDelta)
@@ -485,12 +484,11 @@
     {
         var options = new ModalOptions
         {
-            OnComplete = () =>
+            OnComplete = async () =>
             {
                 notes_.Clear();
                 selectedNoteId_ = null;
                 recordingPositionSeconds_ = 0;
-                return Task.CompletedTask;
             }
         };
 
@@ -663,8 +661,8 @@
         var start = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
         var startedAt = DateTimeOffset.UtcNow;
         var pending = notes_
-            .Where(x => x.StartSeconds + x.DurationSeconds >= start)
-            .OrderBy(x => x.StartSeconds)
+            .Where(x => x.Start.TotalSeconds + x.Duration.TotalSeconds >= start)
+            .OrderBy(x => x.Start.TotalSeconds)
             .ThenBy(x => x.Note.SemitoneNumber)
             .ToList();
         var index = 0;
@@ -677,7 +675,7 @@
                 var position = Math.Clamp(start + (DateTimeOffset.UtcNow - startedAt).TotalSeconds, 0, Math.Max(0, durationSeconds_));
                 recordingPositionSeconds_ = position;
 
-                while (index < pending.Count && pending[index].StartSeconds <= position + 0.01)
+                while (index < pending.Count && pending[index].Start.TotalSeconds <= position + 0.01)
                 {
                     await PreviewNoteAsync(pending[index].Note);
                     index++;
@@ -745,7 +743,7 @@
             return;
         }
 
-        Draft.AddOrReplaceTrack(new RecordTrackDraft
+        var track = new RecordTrackDraft
         {
             Id = editingTrackId_ ?? Guid.NewGuid(),
             Name = trackName_.Trim(),
@@ -754,14 +752,19 @@
             BeatsPerBar = Math.Clamp(beatsPerBar_, 1, 32),
             BeatUnit = Math.Clamp(beatUnit_, 1, 64),
             DurationSeconds = Math.Clamp(durationSeconds_, 1, 1800),
-            Notes = notes_.Select(x => new RecordNoteDraft
+            Events = notes_.Select(x => new MidiPanEvent
             {
-                Id = x.Id,
+                Id = x.Id == Guid.Empty ? Guid.NewGuid() : x.Id,
                 Note = x.Note,
-                StartSeconds = x.StartSeconds,
-                DurationSeconds = x.DurationSeconds
+                Start = x.Start,
+                Duration = x.Duration
             }).ToList()
-        });
+        };
+
+        if (editingTrackId_ is Guid existingTrackId)
+            Draft.UpdateTrack(existingTrackId, track);
+        else
+            Draft.CreateTrack(track);
 
         Nav.NavigateTo("/record/files/create");
     }

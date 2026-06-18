@@ -1,6 +1,7 @@
 @page "/play"
 @attribute [Authorize]
-@inject InstanceStateService State
+@inject TaskRunnerService Tasks
+@inject UserStateService UserState
 @implements IDisposable
 
 <PageTitle>Play</PageTitle>
@@ -11,8 +12,8 @@
         <h1>Play</h1>
         <p>Play full ensemble demos, or practise an individual assigned track.</p>
 
-        <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--hidden" : "")">@State.Task.Error</p>
-        <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--hidden" : "")">@State.Task.Message</p>
+        <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--hidden" : "")">@Tasks.Error</p>
+        <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(Tasks.Message) ? "sp-app-alert--hidden" : "")">@Tasks.Message</p>
         <a class="sp-app-button" href="/">Back</a>
     </div>
 
@@ -25,7 +26,7 @@
             </div>
         </a>
 
-        <a class="sp-app-card practice-home-page__card" href="/play/practice">
+        <a class="sp-app-card practice-home-page__card" href="/play/solo">
             <span class="practice-home-page__icon bi bi-vinyl" aria-hidden="true"></span>
             <div class="practice-home-page__copy">
                 <h2>Practice</h2>
@@ -38,7 +39,7 @@
 @code {
     protected override void OnInitialized()
     {
-        State.User.OnRefresh += OnRefreshAsync;
+        UserState.OnRefresh += OnRefreshAsync;
     }
 
     private Task OnRefreshAsync()
@@ -48,6 +49,6 @@
 
     public void Dispose()
     {
-        State.User.OnRefresh -= OnRefreshAsync;
+        UserState.OnRefresh -= OnRefreshAsync;
     }
 }

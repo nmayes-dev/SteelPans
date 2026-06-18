@@ -4,7 +4,7 @@
 @inject MidiPlaybackService Playback
 @inject DbService Db
 @inject NavigationManager Nav
-@inject InstanceStateService State
+@inject TaskRunnerService Tasks
 @inject IJSRuntime JS
 
 <PageTitle>Band</PageTitle>
@@ -14,7 +14,7 @@
     {
         <PracticeHeader />
 
-        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Error</p>
+        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
 
         <section class="band-page__content">
             <PansLayout Pans="@Playback.ActivePans" />

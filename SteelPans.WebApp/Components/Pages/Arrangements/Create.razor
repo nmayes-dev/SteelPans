@@ -1,10 +1,11 @@
-@page "/record/files/create"
+@page "/arrangements/create"
 @attribute [Authorize]
+@inject TaskRunnerService Tasks
 @inject RecordDraftService Draft
 @inject SteelPanLoaderService PanLoader
 @inject DbService Db
 @inject NavigationManager Nav
-@inject InstanceStateService State
+@inject UserStateService UserState
 
 <PageTitle>Create Recorded File</PageTitle>
 
@@ -13,19 +14,19 @@
         <p class="sp-app-page__eyebrow">Record</p>
         <h1>Create File</h1>
         <p>Review your recorded tracks and save them as a MIDI file.</p>
-        <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(error_) ? "sp-app-alert--hidden" : "")">@error_</p>
-        <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(message_) ? "sp-app-alert--hidden" : "")">@message_</p>
+        <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--hidden" : "")">@Tasks.Error</p>
+        <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(Tasks.Message) ? "sp-app-alert--hidden" : "")">@Tasks.Message</p>
     </div>
 
     <div class="sp-app-card record-file-page__form">
         <label>
-            File title
-            <input @bind="title_" />
+            Title
+            <input @bind="title_" placeholder="Title..." />
         </label>
 
         <div class="record-file-page__actions">
-            <a class="sp-app-button sp-app-button--secondary" href="/record/tracks/create">Add another track</a>
-            <button type="button" class="sp-app-button" disabled="@(isSaving_ || Draft.Tracks.Count == 0)" @onclick="SaveFileAsync">Save MIDI file</button>
+            <a class="sp-app-button sp-app-button--secondary" href="/arrangements/tracks/create">Add Track</a>
+            <button type="button" class="sp-app-button" disabled="@(Tasks.Busy || Draft.Tracks.Count == 0)" @onclick="SaveFileAsync">Save</button>
         </div>
     </div>
 
@@ -33,8 +34,7 @@
     {
         <div class="sp-app-card record-file-page__empty">
             <h2>No recorded tracks</h2>
-            <p>Create a track before saving a file.</p>
-            <a class="sp-app-button" href="/record/tracks/create">Create Track</a>
+            <p>Add at least one track.</p>
         </div>
     }
     else
@@ -46,17 +46,17 @@
                     <div>
                         <h2>@track.Name</h2>
                         <p>@track.PanType · @track.TempoBpm BPM · @track.BeatsPerBar/@track.BeatUnit · @track.DurationSeconds.ToString("0.#")s</p>
-                        <small>@track.Notes.Count note@(track.Notes.Count == 1 ? "" : "s")</small>
+                        <small>@track.Events.Count note@(track.Events.Count == 1 ? "" : "s")</small>
                     </div>
                     <div class="record-file-page__track-actions">
-                        <a class="sp-app-button sp-app-button--secondary" href="/record/tracks/edit/@track.Id">Edit</a>
+                        <a class="sp-app-button sp-app-button--secondary" href="/arrangements/tracks/edit/@track.Id">Edit</a>
                         <button type="button" class="sp-app-button sp-app-button--danger" @onclick="() => RemoveTrack(track.Id)">Remove</button>
                     </div>
                     <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.Edit"
                                          ShowEditTools="false"
                                          PanLabel="@track.PanType.ToSpacedPascal()"
                                          TrackLabel="@track.Name"
-                                         RecordNotes="track.Notes"
+                                         RecordNotes="track.Events"
                                          DurationSeconds="track.DurationSeconds"
                                          MinSemitone="GetPanMinSemitone(track.PanType)"
                                          MaxSemitone="GetPanMaxSemitone(track.PanType)"
@@ -70,10 +70,7 @@
 </section>
 
 @code {
-    private string title_ = "Recorded MIDI";
-    private string? error_;
-    private string? message_;
-    private bool isSaving_;
+    private string title_ = string.Empty;
 
     private void RemoveTrack(Guid id) => Draft.RemoveTrack(id);
 
@@ -83,20 +80,18 @@
 
     private async Task SaveFileAsync()
     {
-        error_ = null;
-        message_ = null;
+        GroupFileDto? newFile = null;
 
-        if (Draft.Tracks.Count == 0)
+        var success = await Tasks.RunSafe(async () =>
         {
-            error_ = "Add at least one track before saving.";
-            return;
-        }
+            if (string.IsNullOrWhiteSpace(title_))
+                throw new Exception("Please enter a title for the file");
 
-        isSaving_ = true;
-        try
-        {
+            if (Draft.Tracks.Count == 0)
+                throw new Exception("Add at least one track before saving.");
+
             var first = Draft.Tracks[0];
-            var file = await Db.MidiFiles.CreateRecordedMidiFileAsync(
+            newFile = await Db.MidiFiles.CreateRecordedMidiFileAsync(
                 new DbService.MidiFileService.CreateRecordedMidiFileRequest(
                     title_,
                     first.TempoBpm,
@@ -106,23 +101,19 @@
                         track.Name,
                         track.PanType,
                         track.DurationSeconds,
-                        track.Notes.Select(note => new DbService.MidiFileService.CreateRecordedMidiNoteRequest(
+                        track.Events.Select(note => new DbService.MidiFileService.CreateRecordedMidiNoteRequest(
                             note.Note,
-                            note.StartSeconds,
-                            note.DurationSeconds)).ToList())).ToList()));
+                            note.Start.TotalSeconds,
+                            note.Duration.TotalSeconds)).ToList())).ToList()));
 
             Draft.Clear();
-            await State.User.RefreshAsync();
-            message_ = $"Saved {file.Title}.";
-            Nav.NavigateTo($"/manage/midi/{file.Id}");
-        }
-        catch (Exception ex)
+            await UserState.RefreshAsync();
+            return $"Saved {newFile.Title}. Redirecting...";
+        });
+
+        if (success && newFile is not null)
         {
-            error_ = ex.Message;
-        }
-        finally
-        {
-            isSaving_ = false;
+            _ = Task.Delay(1500).ContinueWith(_ => Nav.NavigateTo($"/arrangements/{newFile.Id}"));
         }
     }
 }

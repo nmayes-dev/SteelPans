@@ -1,8 +1,9 @@
-@page "/manage/groups/join/{Token}"
+@page "/groups/join/{Token}"
 @attribute [Authorize]
 @inject DbService Db
+@inject TaskRunnerService Tasks
 @inject NavigationManager Nav
-@inject InstanceStateService State
+@inject UserStateService UserState
 
 <PageTitle>Join Group</PageTitle>
 
@@ -10,18 +11,18 @@
     <div class="sp-app-card sp-app-card--centered">
         <p class="sp-app-page__eyebrow">Group Invite</p>
 
-        @if (State.Task.Busy)
+        @if (Tasks.Busy)
         {
             <p>Checking invite link...</p>
         }
-        else if (!string.IsNullOrWhiteSpace(State.Task.Error))
+        else if (!string.IsNullOrWhiteSpace(Tasks.Error))
         {
-            <p class="sp-app-alert sp-app-alert--error">@State.Task.Error</p>
-            <a class="sp-app-button" href="/manage/groups">Go to groups</a>
+            <p class="sp-app-alert sp-app-alert--error">@Tasks.Error</p>
+            <a class="sp-app-button" href="/groups">Go to groups</a>
         }
         else
         {
-            <p>@State.Task.Message</p>
+            <p>@Tasks.Message</p>
         }
     </div>
 </section>
@@ -36,7 +37,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var findSuccess = await State.Task.RunSafe(GetGroupAsync);
+        var findSuccess = await Tasks.RunSafe(GetGroupAsync);
         await InvokeAsync(StateHasChanged);
 
         if (!findSuccess)
@@ -44,11 +45,11 @@
 
         await Task.Delay(DelayMilliseconds);
 
-        var joinSuccess = await State.Task.RunSafe(JoinGroupAsync);
+        var joinSuccess = await Tasks.RunSafe(JoinGroupAsync);
         await InvokeAsync(StateHasChanged);
 
         if (joinSuccess)
-            _ = Task.Delay(DelayMilliseconds).ContinueWith(_ => Nav.NavigateTo($"/manage/groups/{joinedGroup_!.Id}"));
+            _ = Task.Delay(DelayMilliseconds).ContinueWith(_ => Nav.NavigateTo($"/groups/{joinedGroup_!.Id}"));
     }
 
     private async Task<string> GetGroupAsync()

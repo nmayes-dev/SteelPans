@@ -1,8 +1,9 @@
-@page "/manage/groups/{GroupId:guid}"
+@page "/groups/{GroupId:guid}"
 @attribute [Authorize]
 @implements IDisposable
 @inject DbService Db
-@inject InstanceStateService State
+@inject TaskRunnerService Tasks
+@inject UserStateService UserState
 @inject ModalPopupService Modals
 @inject NavigationManager Nav
 @inject IJSRuntime JS
@@ -16,8 +17,8 @@
             <h1>@(group_?.Name ?? "Manage Group")</h1>
             <p>@(group_ is null ? "Loading group..." : $"Your role: {group_.Role}")</p>
 
-            <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Error</p>
-            <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Message</p>
+            <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
+            <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(Tasks.Message) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Message</p>
         </div>
 
         @if (group_ is not null)
@@ -35,13 +36,13 @@
                 }
 
                 <div class="manage-group-page__header-actions">
-                    <a class="sp-app-button" href="/manage/groups">Back</a>
+                    <a class="sp-app-button" href="/groups">Back</a>
 
                     @if (CanManageFiles)
                     {
                         <button class="sp-app-button sp-app-button--primary"
                                 type="button"
-                                disabled="@State.Task.Busy"
+                                disabled="@Tasks.Busy"
                                 @onclick="CreateInviteAsync">
                             Create Invite
                         </button>
@@ -49,7 +50,7 @@
 
                     <button class="sp-app-button sp-app-button--danger"
                             type="button"
-                            disabled="@State.Task.Busy"
+                            disabled="@Tasks.Busy"
                             @onclick="OpenLeaveGroupModalAsync">
                         Leave
                     </button>
@@ -58,7 +59,7 @@
                     {
                         <button class="sp-app-button sp-app-button--danger"
                                 type="button"
-                                disabled="@State.Task.Busy"
+                                disabled="@Tasks.Busy"
                                 @onclick="OpenDeleteGroupModalAsync">
                             Delete
                         </button>
@@ -91,7 +92,7 @@
                             </div>
 
                             <div class="sp-app-list-item__actions">
-                                @if (IsLeader && member.UserId != State.User.Id)
+                                @if (IsLeader && member.UserId != UserState.Id)
                                 {
                                     <select class="sp-app-button sp-app-select"
                                             @bind="roles_[member.UserId]"
@@ -105,7 +106,7 @@
 
                                 @if (CanRemove(member))
                                 {
-                                    <button class="sp-app-button sp-app-button--danger" type="button" disabled="@State.Task.Busy" @onclick="() => OpenRemoveMemberModalAsync(member)">Remove</button>
+                                    <button class="sp-app-button sp-app-button--danger" type="button" disabled="@Tasks.Busy" @onclick="() => OpenRemoveMemberModalAsync(member)">Remove</button>
                                 }
                             </div>
                         </article>
@@ -119,7 +120,7 @@
                         <h2>MIDI Files</h2>
                         <small>@files_.Count file@(files_.Count == 1 ? "" : "s")</small>
                     </div>
-                    <a class="sp-app-button" href="/manage/midi">Manage MIDI Files</a>
+                    <a class="sp-app-button" href="/arrangements">Manage MIDI Files</a>
                 </div>
 
                 @if (files_.Count == 0)
@@ -137,14 +138,14 @@
                                     <small>@file.OriginalFileName · @FormatSize(file.SizeBytes)</small>
                                 </div>
                                 <div class="sp-app-list-item__actions">
-                                    @if (IsLeader || file.OwnerId == State.User.Id)
+                                    @if (IsLeader || file.OwnerId == UserState.Id)
                                     {
-                                        <button class="sp-app-button sp-app-button--danger" type="button" disabled="@State.Task.Busy" @onclick="() => UnshareFileAsync(file.Id)">Unshare</button>
+                                        <button class="sp-app-button sp-app-button--danger" type="button" disabled="@Tasks.Busy" @onclick="() => UnshareFileAsync(file.Id)">Unshare</button>
                                     }
                                     <button class="sp-app-button" type="button" @onclick="() => filePreview_!.TogglePreviewAsync(file.Id)">@(CanManageFiles ? "Edit" : "View")</button>
                                     <button class="sp-app-button"
                                             type="button"
-                                            disabled="@State.Task.Busy"
+                                            disabled="@Tasks.Busy"
                                             @onclick="() => OpenInPans(file.Id)">
                                         Ensemble
                                     </button>
@@ -184,12 +185,12 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadAsync(refresh: false);
-        State.User.OnRefresh += OnUserStateRefreshAsync;
+        UserState.OnRefresh += OnUserStateRefreshAsync;
     }
 
     public void Dispose()
     {
-        State.User.OnRefresh -= OnUserStateRefreshAsync;
+        UserState.OnRefresh -= OnUserStateRefreshAsync;
     }
 
     private async Task OnUserStateRefreshAsync()
@@ -200,7 +201,7 @@
 
     private async Task LoadAsync(bool refresh)
     {
-        var success = await State.Task.RunUnsafe(async () =>
+        var success = await Tasks.RunUnsafe(async () =>
         {
             group_ = await Db.Groups.GetGroupAsync(GroupId);
             if (group_ is null)
@@ -214,7 +215,7 @@
         if (!success)
         {
             // If we failed to load the group, navigate back to the groups page (maybe they were removed from the group?)
-            Nav.NavigateTo("/manage/groups");
+            Nav.NavigateTo("/groups");
             return;
         }
 
@@ -224,10 +225,10 @@
 
     private async Task CreateInviteAsync()
     {
-        await State.Task.RunSafe(async () =>
+        await Tasks.RunSafe(async () =>
         {
             var invite = await Db.Groups.CreateInviteAsync(GroupId);
-            inviteLink_ = Nav.ToAbsoluteUri($"/manage/groups/join/{Uri.EscapeDataString(invite.Token)}").ToString();
+            inviteLink_ = Nav.ToAbsoluteUri($"/groups/join/{Uri.EscapeDataString(invite.Token)}").ToString();
             inviteExpiresAt_ = invite.ExpiresAt;
             return "Invite link created.";
         });
@@ -238,7 +239,7 @@
         if (inviteLink_ is null)
             return;
 
-        await State.Task.RunUnsafe(async () =>
+        await Tasks.RunUnsafe(async () =>
         {
             await JS.InvokeVoidAsync("navigator.clipboard.writeText", inviteLink_);
             return "Invite link copied to clipboard";
@@ -247,7 +248,7 @@
 
     private async Task UnshareFileAsync(Guid fileId)
     {
-        await State.Task.RunSafe(async () =>
+        await Tasks.RunSafe(async () =>
         {
             await Db.MidiFiles.UnshareMidiFileWithGroupAsync(fileId, GroupId);
             await LoadAsync(refresh: false);
@@ -286,7 +287,7 @@
 
     private async Task SetRoleAsync(GroupMemberSummaryDto member, GroupRole role)
     {
-        await State.Task.RunSafe(async () =>
+        await Tasks.RunSafe(async () =>
         {
             await Db.Groups.SetMemberRoleAsync(GroupId, new UpdateGroupMemberRoleRequest(member.UserId, role));
             roles_[member.UserId] = role;
@@ -305,16 +306,10 @@
         if (group_ is null)
             return;
 
-        var resetRole = () =>
-        {
-            roles_[member.UserId] = member.Role;
-            return Task.CompletedTask;
-        };
-
         await Modals.OpenAsync("ChangeRole",
             new ChangeGroupRoleModal.Payload(group_, member, newRole),
             new ModalOptions { 
-                OnFailure = resetRole,
+                OnFailure = async () => roles_[member.UserId] = member.Role,
                 OnComplete = () => InvokeAsync(StateHasChanged)
             }
         );
@@ -349,7 +344,7 @@
         if (group_ is null)
             return false;
 
-        return member.UserId != State.User.Id &&
+        return member.UserId != UserState.Id &&
                (IsLeader && member.Role != GroupRole.Leader || IsAdmin && member.Role == GroupRole.Member);
     }
 

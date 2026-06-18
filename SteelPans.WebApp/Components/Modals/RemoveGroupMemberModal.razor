@@ -1,5 +1,6 @@
 ﻿@inject DbService Db
-@inject InstanceStateService State
+@inject TaskRunnerService Tasks
+@inject UserStateService UserState
 
 <ModalPopup TPayload="Payload"
             Id="RemoveGroupMember"
@@ -32,7 +33,7 @@
 
     private async Task<bool> OnConfirmAsync(Payload payload)
     {
-        await State.Task.RunSafe(async () =>
+        await Tasks.RunSafe(async () =>
         {
             await Db.Groups.RemoveMemberAsync(payload.Group.Id, payload.Member.UserId);
             return $"{DisplayName(payload.Member)} removed from group.";

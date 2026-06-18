@@ -1,0 +1,75 @@
+@page "/groups"
+@attribute [Authorize]
+@inject TaskRunnerService Tasks
+@inject UserStateService UserState
+@implements IDisposable
+
+<PageTitle>Groups</PageTitle>
+
+<section class="sp-app-page groups-page groups-home">
+    <div class="sp-app-page__header groups-home__header">
+        <p class="sp-app-page__eyebrow">Steel Pans</p>
+        <h1>Groups</h1>
+        <p>Manage ensemble groups, invite members, and control shared MIDI access.</p>
+
+        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
+        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(Tasks.Message) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Message</p>
+    </div>
+
+    <div class="groups-home__actions">
+        <a class="sp-app-button" href="/">Home</a>
+        <a class="sp-app-button sp-app-button--primary" href="/groups/create">Create Group</a>
+        <a class="sp-app-button" href="/arrangements">My Arrangements</a>
+    </div>
+
+    <div class="sp-app-card groups-home__card">
+        <div class="groups-home__card-header">
+            <h2>Your Groups</h2>
+            <small>@(UserState.Groups?.Count ?? 0) group@((UserState.Groups?.Count ?? 0) == 1 ? "" : "s")</small>
+        </div>
+
+        @if (UserState.Groups is null)
+        {
+            <p>Loading groups...</p>
+        }
+        else if (UserState.Groups.Count == 0)
+        {
+            <p>No groups yet. Create a group to start sharing arrangements with members.</p>
+        }
+        else
+        {
+            <div class="sp-app-list groups-home__list">
+                @foreach (var group in UserState.Groups)
+                {
+                    <article class="sp-app-list-item groups-home__group">
+                        <div class="groups-home__copy">
+                            <strong>@group.Summary.Name</strong>
+                            <small>@group.Summary.Role</small>
+                        </div>
+
+                        <div class="sp-app-list-item__actions">
+                            <a class="sp-app-button sp-app-button--primary" href="/groups/@group.Summary.Id">@(group.CanManage() ? "Manage" : "View")</a>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    </div>
+</section>
+
+@code {
+    private Task OnRefreshAsync()
+    {
+        return InvokeAsync(StateHasChanged);
+    }
+
+    protected override void OnInitialized()
+    {
+        UserState.OnRefresh += OnRefreshAsync;
+    }
+
+    public void Dispose()
+    {
+        UserState.OnRefresh -= OnRefreshAsync;
+    }
+}

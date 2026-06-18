@@ -48,9 +48,10 @@ public sealed class MidiPanScheduledAction
 
 public sealed class MidiPanEvent
 {
-    public required Note Note { get; init; }
-    public required TimeSpan Start { get; init; }
-    public required TimeSpan Duration { get; init; }
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public required Note Note { get; set; }
+    public required TimeSpan Start { get; set; }
+    public required TimeSpan Duration { get; set; }
 
     public TimeSpan End => Start + Duration;
 }

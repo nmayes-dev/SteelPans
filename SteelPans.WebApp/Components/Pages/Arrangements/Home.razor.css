@@ -87,7 +87,6 @@
 
 .midi-files-home__list,
 .midi-file-page__shares {
-    max-height: min(34rem, 52vh);
 }
 
 .midi-track-list {

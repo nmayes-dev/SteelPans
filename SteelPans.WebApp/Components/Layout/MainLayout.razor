@@ -1,7 +1,7 @@
 ﻿@inherits LayoutComponentBase
 @inject SafeJSInteropService SafeJS
 @inject KeyboardManagerService KeyboardManager
-@inject InstanceStateService State
+@inject UserStateService UserState
 @implements IDisposable
 
 <div class="page">
@@ -29,7 +29,7 @@
 @code {
     protected override async Task OnInitializedAsync()
     {
-        await State.User.RefreshAsync();
+        await UserState.RefreshAsync();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

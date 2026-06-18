@@ -1,8 +1,9 @@
-@page "/manage/midi/upload"
+@page "/arrangements/upload"
 @attribute [Authorize]
 @inject DbService Db
+@inject TaskRunnerService Tasks
 @inject MidiInspectionService MidiInspection
-@inject InstanceStateService State
+@inject UserStateService UserState
 @inject NavigationManager Nav
 
 <PageTitle>Upload MIDI File</PageTitle>
@@ -13,12 +14,12 @@
         <h1>Upload MIDI File</h1>
         <p>Preview a MIDI file locally before uploading it to your account.</p>
 
-        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Error</p>
-        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(State.Task.Message) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Message</p>
+        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
+        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(Tasks.Message) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Message</p>
     </div>
 
     <div class="midi-upload-page__actions">
-        <a class="sp-app-button" href="/manage/midi">Back</a>
+        <a class="sp-app-button" href="/arrangements">Back</a>
     </div>
 
     <div class="sp-app-card sp-app-form midi-upload-page__card">
@@ -43,7 +44,7 @@
                 <button class="sp-app-button sp-app-button--primary"
                         type="button"
                         @onclick="UploadAsync"
-                        disabled="@(selectedFile_ is null || State.Task.Busy)">
+                        disabled="@(selectedFile_ is null || Tasks.Busy)">
                     Upload
                 </button>
             </div>
@@ -70,7 +71,7 @@
         selectedFile_ = args.File;
         localFileName_ = selectedFile_.Name;
 
-        await State.Task.RunUnsafe(async () =>
+        await Tasks.RunUnsafe(async () =>
         {
             await using var input = selectedFile_.OpenReadStream(maxAllowedSize: 25 * 1024 * 1024);
             using var buffer = new MemoryStream();
@@ -91,7 +92,7 @@
 
         Guid? uploadedId = null;
 
-        await State.Task.RunSafe(async () =>
+        await Tasks.RunSafe(async () =>
         {
             await using var stream = new MemoryStream(selectedFileBytes_);
 
@@ -102,13 +103,15 @@
                 stream);
 
             uploadedId = uploaded.Id;
-            await State.User.RefreshAsync();
+            await UserState.RefreshAsync();
 
-            return "MIDI file uploaded.";
+            return "MIDI file uploaded. Redirecting...";
         });
 
         if (uploadedId is not null)
-            Nav.NavigateTo($"/manage/midi/{uploadedId}");
+        {
+            _ = Task.Delay(1500).ContinueWith(_ => Nav.NavigateTo($"/arrangements/{uploadedId}"));
+        }
     }
 
     private RenderFragment RenderTracks(IReadOnlyList<MidiTrackInfo> tracks) => @<div class="midi-track-list">

@@ -1,8 +1,9 @@
-@page "/manage/groups/create"
+@page "/groups/create"
 @attribute [Authorize]
 @inject DbService Db
+@inject TaskRunnerService Tasks
 @inject NavigationManager Nav
-@inject InstanceStateService State
+@inject UserStateService UserState
 
 <PageTitle>Create Group</PageTitle>
 
@@ -12,7 +13,7 @@
         <h1>Create Group</h1>
         <p>Create a new ensemble group, then generate expiring invite links from its management page.</p>
 
-        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(State.Task.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@State.Task.Error</p>
+        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
     </div>
 
     <form class="sp-app-card sp-app-form create-group-page__card" @onsubmit="CreateGroupAsync">
@@ -22,8 +23,8 @@
         </div>
 
         <div class="create-group-page__actions">
-            <button class="sp-app-button sp-app-button--primary" type="submit" disabled="@State.Task.Busy">Create group</button>
-            <a class="sp-app-button" href="/manage/groups">Cancel</a>
+            <button class="sp-app-button sp-app-button--primary" type="submit" disabled="@Tasks.Busy">Create</button>
+            <a class="sp-app-button" href="/groups">Cancel</a>
         </div>
     </form>
 </section>
@@ -35,7 +36,7 @@
     {
         GroupSummaryDto? created = null;
 
-        var success = await State.Task.RunSafe(async () =>
+        var success = await Tasks.RunSafe(async () =>
         {
             created = await Db.Groups.CreateGroupAsync(new CreateGroupRequest(newGroupName_.Trim()));
             return "Group created.";
@@ -43,7 +44,7 @@
 
         if (success && created is not null)
         {
-            Nav.NavigateTo($"/manage/groups/{created.Id}");
+            _ = Task.Delay(1500).ContinueWith(_ => Nav.NavigateTo($"/groups/{created.Id}"));
         }
     }
 }

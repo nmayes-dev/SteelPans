@@ -94,6 +94,7 @@ public static class Program
 
     private static WebApplicationBuilder AddCoreServices(WebApplicationBuilder builder)
     {
+        builder.Services.AddScoped<TaskRunnerService>();
         builder.Services.AddScoped<SafeJSInteropService>();
 
         builder.Services.AddDbContextFactory<EnsembleDbContext>(options =>
@@ -124,7 +125,7 @@ public static class Program
         builder.Services.AddScoped<IRealtimeUpdateDispatcher, SignalRRealtimeUpdateDispatcher>();
         builder.Services.AddScoped<AppUpdatesService>();
 
-        builder.Services.AddScoped<InstanceStateService>();
+        builder.Services.AddScoped<UserStateService>();
 
         builder.Services.AddScoped<MidiLoaderService>();
         builder.Services.AddScoped<MidiPlaybackService>();

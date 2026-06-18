@@ -93,7 +93,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     private readonly MidiLoaderService midiLoader_;
     private readonly DbService db_;
-    private readonly InstanceStateService state_;
+    private readonly TaskRunnerService tasks_;
+    private readonly UserStateService state_;
     private readonly SafeJSInteropService js_;
 
     private IDisposable navCallback_;
@@ -114,10 +115,11 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     private TimeSpan playbackScoreAnchorOffset_ = TimeSpan.Zero;
     private int playbackTempoAnchorBpm_ = 120;
 
-    public MidiPlaybackService(MidiLoaderService midiLoader, DbService db, InstanceStateService state, SteelPanLoaderService panLoader, NavigationManager nav, SafeJSInteropService js)
+    public MidiPlaybackService(MidiLoaderService midiLoader, DbService db, TaskRunnerService tasks, UserStateService state, SteelPanLoaderService panLoader, NavigationManager nav, SafeJSInteropService js)
     {
         midiLoader_ = midiLoader;
         db_ = db;
+        tasks_ = tasks;
         state_ = state;
         js_ = js;
 
@@ -301,7 +303,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     public async Task LoadGroupMidiFile(Guid fileId)
     {
-        await state_.Task.RunUnsafe(async () =>
+        await tasks_.RunUnsafe(async () =>
         {
             var details = await db_.MidiFiles.GetMidiFileDetailsAsync(fileId);
             var download = await db_.MidiFiles.OpenMidiFileAsync(fileId);

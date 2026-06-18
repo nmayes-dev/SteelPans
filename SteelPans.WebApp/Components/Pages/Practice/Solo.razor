@@ -1,7 +1,7 @@
-@page "/play/practice"
+@page "/play/solo"
 @attribute [Authorize]
 @inject MidiPlaybackService Playback
-@inject InstanceStateService State
+@inject UserStateService UserState
 @implements IAsyncDisposable
 
 <PageTitle>Practice</PageTitle>
@@ -11,13 +11,13 @@
     <section class="sp-app-page">
         <div class="practice-page__actions">
             <a class="sp-app-button" href="/play/ensemble@(FileId is null ? string.Empty : $"?file={FileId}")">Band</a>
-            <a class="sp-app-button" href="/manage/midi">MIDI Files</a>
+            <a class="sp-app-button" href="/arrangements">MIDI Files</a>
         </div>
 
         <div class="sp-app-card practice-page__empty-card">
             <h2>No MIDI file loaded</h2>
             <p>Open a saved MIDI file from the MIDI file manager, or use a practice link from an assigned file.</p>
-            <a class="sp-app-button sp-app-button--primary" href="/manage/midi">Choose MIDI File</a>
+            <a class="sp-app-button sp-app-button--primary" href="/arrangements">Choose MIDI File</a>
         </div>
     </section>
 }
@@ -27,7 +27,7 @@ else if (Playback.Tracks.Count == 0)
         <div class="sp-app-card practice-page__empty-card">
             <h2>No Playable MIDI tracks</h2>
             <p>@Playback.MidiFileName is loaded, but no tracks with note events were found.</p>
-            <a class="sp-app-button sp-app-button--primary" href="/manage/midi@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
+            <a class="sp-app-button sp-app-button--primary" href="/arrangements@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
         </div>
     </section>
 }
@@ -37,7 +37,7 @@ else if (Playback.Assignments.Count == 0)
         <div class="sp-app-card practice-page__empty-card">
             <h2>No Assigned Tracks</h2>
             <p>@Playback.MidiFileName is loaded, but no pans were assigned to the tracks.</p>
-            <a class="sp-app-button sp-app-button--primary" href="/manage/midi@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
+            <a class="sp-app-button sp-app-button--primary" href="/arrangements@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
         </div>
     </section>
 }
