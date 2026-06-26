@@ -40,7 +40,7 @@ public abstract class OverlayComponentBase : ComponentBase, IDisposable
         await InvokeAsync(StateHasChanged);
     }
 
-    protected abstract Task OnCloseAsync();
+    protected virtual Task OnCloseAsync() => Task.CompletedTask;
 }
 
 public class OverlayManagerService

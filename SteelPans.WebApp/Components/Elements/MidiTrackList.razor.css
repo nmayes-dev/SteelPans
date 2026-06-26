@@ -1,4 +1,4 @@
-﻿.pans-page__track-panel {
+﻿.track-list__panel {
     --track-panel-base-padding: clamp(0.55rem, 0.8vw, 0.65rem);
     --track-panel-gap: clamp(0.25rem, 0.6vw, 0.45rem);
     --track-button-size: clamp(1.5rem, 4vw, 2rem);
@@ -8,7 +8,7 @@
     height: 100%;
 }
 
-.pans-page__track-panel-header {
+.track-list__panel-header {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
@@ -18,7 +18,7 @@
     border-bottom: 1px solid rgba(148, 163, 184, 0.28);
 }
 
-.pans-page__track-panel-title {
+.track-list__panel-title {
     min-width: 0;
     overflow: hidden;
     color: #0f172a;
@@ -29,7 +29,7 @@
     text-overflow: ellipsis;
 }
 
-.pans-page__track-panel-count {
+.track-list__panel-count {
     flex: 0 0 auto;
     color: #64748b;
     font-size: clamp(0.62rem, 1.5vw, 0.75rem);
@@ -38,7 +38,7 @@
     white-space: nowrap;
 }
 
-.pans-page__track-list {
+.track-list__list {
     display: flex;
     flex-direction: column;
     gap: calc(var(--track-panel-gap) * 0.6);
@@ -47,7 +47,7 @@
     overflow: auto;
 }
 
-.pans-page__track-item {
+.track-list__item {
     display: flex;
     align-items: center;
     gap: var(--track-panel-gap);
@@ -57,11 +57,11 @@
     transition: background 120ms ease;
 }
 
-    .pans-page__track-item:hover:not(:has(.pans-page__track-button:hover)) {
+    .track-list__item:hover:not(:has(.track-list__button:hover)) {
         background: #f8fafc;
     }
 
-.pans-page__track-details {
+.track-list__details {
     display: flex;
     flex: 1 1 auto;
     flex-direction: column;
@@ -69,7 +69,7 @@
     min-width: 0;
 }
 
-.pans-page__track-name {
+.track-list__name {
     min-width: 0;
     overflow: hidden;
     color: #0f172a;
@@ -80,13 +80,13 @@
     text-overflow: ellipsis;
 }
 
-.pans-page__track-meta {
+.track-list__meta {
     color: #64748b;
     font-size: clamp(0.6rem, 1.45vw, 0.75rem);
     line-height: 1.1;
 }
 
-.pans-page__track-button {
+.track-list__button {
     flex: 0 0 auto;
     display: inline-grid;
     place-items: center;
@@ -100,18 +100,18 @@
     transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
 }
 
-    .pans-page__track-button:hover {
+    .track-list__button:hover {
         transform: translateY(-1px);
         border-color: rgba(37, 99, 235, 0.28);
         box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
     }
 
-    .pans-page__track-button .bi {
+    .track-list__button .bi {
         font-size: clamp(0.72rem, 2vw, 0.95rem);
         line-height: 1;
     }
 
-.pans-page__track-button--assigned {
+.track-list__button--assigned {
     background: rgba(236, 226, 202, 0.96);
     color: #b45309;
 }

@@ -1,0 +1,59 @@
+﻿@inject MidiPlaybackService Playback
+@inject ModalPopupService Modals
+
+<div class="track-list__panel">
+
+    <div class="track-list__panel-header">
+        @if (Tracks is not null)
+        {
+            <span class="track-list__panel-title">@Playback.MidiFileName</span>
+            <span class="track-list__panel-count">@Playback.Tracks.Count track@(Playback.Tracks.Count == 1 ? "" : "s")</span>
+        }
+        else if (Files is not null)
+        {
+            <span class="pans-page__track-panel-title">Ensemble Files</span>
+            <span class="pans-page__track-panel-count">@Files.Count file@(Files.Count == 1 ? "" : "s")</span>
+        }
+    </div>
+
+    <div class="track-list__list">
+        @if (Tracks is not null)
+        {
+            foreach (var track in Playback.Tracks)
+            {
+                <div class="track-list__item">
+                    <div class="track-list__details">
+                        <div class="track-list__name">@track.Index) @track.DisplayInfo</div>
+                        <div class="track-list__meta">@GetMetaInfo(track)</div>
+                    </div>
+
+                    <button type="button"
+                            class="track-list__button @(IsTrackAssigned(track) ? "track-list__button--assigned" : null)"
+                            aria-label="@(IsTrackAssigned(track) ? "Remove Track" : "Add Track")"
+                            @onclick="() => OnTrackButtonPressedAsync(track)">
+                        <span class="bi @(IsTrackAssigned(track) ? "bi-dash-lg" : "bi-plus-lg")" aria-hidden="true"></span>
+                    </button>
+                </div>
+            }
+        }
+        else if (Files is not null)
+        {
+            @foreach (var file in Files)
+            {
+                <div class="pans-page__track-item">
+                    <div class="pans-page__track-details">
+                        <div class="pans-page__track-name">@file.Title</div>
+                        <div class="pans-page__track-meta">@file.OriginalFileName</div>
+                    </div>
+
+                    <button type="button"
+                            class="pans-page__track-button"
+                            aria-label="Load File"
+                            @onclick="() => LoadGroupMidiFileAsync(file)">
+                        <span class="bi bi-download" aria-hidden="true"></span>
+                    </button>
+                </div>
+            }
+        }
+    </div>
+</div>

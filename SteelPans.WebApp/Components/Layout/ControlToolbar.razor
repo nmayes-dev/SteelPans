@@ -11,7 +11,7 @@
          ClosedIconClass="bi-gear-fill"
          MenuButtonLabel="Open Tools"
          MenuLabel="Pan Tools"
-         Side="Toolbar.ToolbarSide.Left">
+         ToolbarSide="Toolbar.Side.Left">
 
     <ToolbarElement Order="1"
                     Text="Import">
@@ -29,31 +29,7 @@
                                     <ToolbarElement Text="@group.Summary.Name"
                                                     IconClass="bi-people">
                                         <ChildContent>
-                                            <div class="pans-page__track-panel">
-                                                <div class="pans-page__track-panel-header">
-                                                    <span class="pans-page__track-panel-title">Ensemble Files</span>
-                                                    <span class="pans-page__track-panel-count">@group.Files.Count file@(group.Files.Count == 1 ? "" : "s")</span>
-                                                </div>
-
-                                                <div class="pans-page__track-list">
-                                                    @foreach (var file in group.Files)
-                                                    {
-                                                        <div class="pans-page__track-item">
-                                                            <div class="pans-page__track-details">
-                                                                <div class="pans-page__track-name">@file.Title</div>
-                                                                <div class="pans-page__track-meta">@file.OriginalFileName</div>
-                                                            </div>
-
-                                                            <button type="button"
-                                                                    class="pans-page__track-button"
-                                                                    aria-label="Load File"
-                                                                    @onclick="() => LoadGroupMidiFileAsync(file)">
-                                                                <span class="bi bi-download" aria-hidden="true"></span>
-                                                            </button>
-                                                        </div>
-                                                    }
-                                                </div>
-                                            </div>
+                                            <MidiTrackList Files="@group.Files" />
                                         </ChildContent>
                                     </ToolbarElement>
                                 }
@@ -81,7 +57,7 @@
             <ToolbarElement Order="1"
                             Text="Add"
                             IconClass="bi-plus-lg"
-                            OnClick="() => OpenAddPanAsync(closeOthers: true)" />
+                            OnClick="OpenAddPanAsync" />
 
                             
             @if (Playback.IsMidiLoaded)
@@ -92,31 +68,7 @@
                                 Disabled="@(!Playback.Tracks.Any())"
                                 CanExpand="true">
                     <ChildContent>
-                        <div class="pans-page__track-panel">
-                            <div class="pans-page__track-panel-header">
-                                <span class="pans-page__track-panel-title">@Playback.IsMidiLoaded</span>
-                                <span class="pans-page__track-panel-count">@Playback.Tracks.Count track@(Playback.Tracks.Count == 1 ? "" : "s")</span>
-                            </div>
-
-                            <div class="pans-page__track-list">
-                                @foreach (var track in Playback.Tracks)
-                                {
-                                    <div class="pans-page__track-item">
-                                        <div class="pans-page__track-details">
-                                            <div class="pans-page__track-name">@track.Index) @track.DisplayInfo</div>
-                                            <div class="pans-page__track-meta">@GetMetaInfo(track)</div>
-                                        </div>
-
-                                        <button type="button"
-                                                class="pans-page__track-button @(IsTrackAssigned(track) ? "pans-page__track-button--assigned" : null)"
-                                                aria-label="@(IsTrackAssigned(track) ? "Remove Track" : "Add Track")"
-                                                @onclick="() => OnTrackButtonPressedAsync(track)">
-                                            <span class="bi @(IsTrackAssigned(track) ? "bi-dash-lg" : "bi-plus-lg")" aria-hidden="true"></span>
-                                        </button>
-                                    </div>
-                                }
-                            </div>
-                        </div>
+                        <MidiTrackList Tracks="@Playback.Tracks"/>
                     </ChildContent>
                 </ToolbarElement>
             }
@@ -193,20 +145,14 @@
         await Modals.OpenAsync("Logout");
     }
 
-    private async Task OpenAddPanAsync(bool closeOthers)
+    private async Task OpenAddPanAsync()
     {
-        await Modals.OpenAsync("AddPan", new ModalOptions { CloseOthers = closeOthers });
+        await Modals.OpenAsync("AddPan");
     }
 
     private async Task OpenSaveLayoutAsync()
     {
         await Modals.OpenAsync("SaveLayout");
-    }
-
-    private async Task OpenRemovePanAsync(MidiTrackInfo track)
-    {
-        var pan = Playback.ActivePans.First(a => a.Assignment.Track?.Id == track.Id);
-        await Modals.OpenAsync("RemovePan", pan);
     }
 
 
@@ -227,18 +173,6 @@
 
 
 
-    private async Task OnTrackButtonPressedAsync(MidiTrackInfo track)
-    {
-        if (IsTrackAssigned(track))
-        {
-            await OpenRemovePanAsync(track);
-            return;
-
-        }
-
-        await OpenAddPanAsync(closeOthers: false);
-    }
-
 
     private async Task OnMultipleMidiSelectedAsync(IReadOnlyList<IBrowserFile> files)
     {
@@ -254,14 +188,6 @@
         });
     }
 
-    private async Task LoadGroupMidiFileAsync(GroupFileDto file)
-    {
-        await toolbar_!.RequestCloseAsync();
-        await Task.Delay(250); // Wait for toolbar to close
-
-        await Playback.LoadGroupMidiFile(file.Id);
-    }
-
 
 
     private async Task OnClickTrackEnabledShellChangedAsync(bool enabled)
@@ -272,15 +198,6 @@
         await Playback.SetClickTrackEnabledAsync(enabled);
     }
 
-
-    private string GetMetaInfo(MidiTrackInfo track)
-    {
-        return $"{track.NoteCount} note{(track.NoteCount == 1 ? "" : "s")}{(IsTrackAssigned(track) ? " - Assigned" : "")}";
-    }
-    private bool IsTrackAssigned(MidiTrackInfo track)
-    {
-        return Playback.Assignments.Any(a => a.Track?.Id == track.Id);
-    }
 
 
     public void Dispose()

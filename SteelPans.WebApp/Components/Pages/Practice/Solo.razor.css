@@ -4,7 +4,6 @@
 }
 
 .practice-page--no-midi {
-
 }
 
 .practice-page__header {
@@ -27,6 +26,7 @@
     display: grid;
     gap: 0.85rem;
     max-width: 48rem;
+    overflow: visible;
 }
 
     .practice-page__empty-card h2,
@@ -39,6 +39,20 @@
         margin: 0;
         color: #64748b;
     }
+
+.practice-page__load {
+    display: flex;
+    gap: 0.35rem;
+}
+
+    .practice-page__load label:hover:not(:disabled) {
+        cursor: pointer;
+    }
+
+    .practice-page__load label:active:not(:disabled) {
+        transform: translateY(1px);
+    }
+
 
 .practice-page__playback {
     padding: 0 clamp(0.5rem, 0.8vw, 0.8rem);

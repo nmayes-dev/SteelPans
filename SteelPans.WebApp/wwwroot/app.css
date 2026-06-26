@@ -10,6 +10,7 @@ body {
     --long-transition: calc(var(--med-long-transition) * 2);
     --med-short-transition: calc(var(--med-transition) * 0.5);
     --short-transition: calc(var(--med-short-transition) * 0.5);
+    --ultra-short-transition: calc(var(--short-transition) * 0.5);
     font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
     width: 100%;
     height: 100%;

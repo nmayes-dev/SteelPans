@@ -1,6 +1,8 @@
 @page "/play/solo"
 @inject MidiPlaybackService Playback
 @inject UserStateService UserState
+@inject ModalPopupService Modals
+@inject MidiFileService MidiService
 @implements IAsyncDisposable
 
 <PageTitle>Practice</PageTitle>
@@ -8,15 +10,27 @@
 @if (!Playback.IsMidiLoaded)
 {
     <section class="sp-app-page">
-        <div class="practice-page__actions">
-            <a class="sp-app-button" href="/play/ensemble@(FileId is null ? string.Empty : $"?file={FileId}")">Band</a>
-            <a class="sp-app-button" href="/arrangements">MIDI Files</a>
-        </div>
-
         <div class="sp-app-card practice-page__empty-card">
             <h2>No MIDI file loaded</h2>
-            <p>Open a saved MIDI file from the MIDI file manager, or use a practice link from an assigned file.</p>
-            <a class="sp-app-button sp-app-button--primary" href="/arrangements">Choose MIDI File</a>
+            <p>Open a MIDI file, or use a practice link from an assigned file.</p>
+            <AuthorizeView>
+                <Authorized Context="auth">
+                    <div class="practice-page__actions">
+                        <a class="sp-app-button" href="/play/ensemble@(FileId is null ? string.Empty : $"?file={FileId}")">Band</a>
+                        <a class="sp-app-button" href="/arrangements">MIDI Files</a>
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <div class="practice-page__load">
+                        <a class="sp-app-button sp-app-button--secondary" href="/play">Back</a>
+                        <label for="practice-page-file-input" class="sp-app-button sp-app-button--primary">Load</label>
+                        <FileInput Id="practice-page-file-input"
+                                   OnSingleFileLoad="OnSingleMidiSelectedAsync"
+                                   OnMultipleFileLoad="OnMultipleMidiSelectedAsync"
+                                   Extensions="Midi.Extensions" />
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
     </section>
 }
@@ -26,7 +40,21 @@ else if (Playback.Tracks.Count == 0)
         <div class="sp-app-card practice-page__empty-card">
             <h2>No Playable MIDI tracks</h2>
             <p>@Playback.MidiFileName is loaded, but no tracks containing notes were found.</p>
-            <a class="sp-app-button sp-app-button--primary" href="/arrangements@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
+            <AuthorizeView>
+                <Authorized Context="auth">
+                    <a class="sp-app-button sp-app-button--primary" href="/arrangements@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
+                </Authorized>
+                <NotAuthorized>
+                    <div class="practice-page__load">
+                        <a class="sp-app-button sp-app-button--secondary" href="/play">Back</a>
+                        <label for="practice-page-file-input" class="sp-app-button sp-app-button--primary">Load</label>
+                        <FileInput Id="practice-page-file-input"
+                                   OnSingleFileLoad="OnSingleMidiSelectedAsync"
+                                   OnMultipleFileLoad="OnMultipleMidiSelectedAsync"
+                                   Extensions="Midi.Extensions" />
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
     </section>
 }
@@ -36,7 +64,19 @@ else if (Playback.Assignments.Count == 0)
         <div class="sp-app-card practice-page__empty-card">
             <h2>No Assigned Tracks</h2>
             <p>@Playback.MidiFileName is loaded, but no pans were assigned to any tracks.</p>
-            <a class="sp-app-button sp-app-button--primary" href="/arrangements@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
+            <AuthorizeView>
+                <Authorized Context="auth">
+                    <a class="sp-app-button sp-app-button--primary" href="/arrangements@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
+                </Authorized>
+                <NotAuthorized>
+                    <div class="practice-page__load">
+                        <a class="sp-app-button sp-app-button--secondary" href="/play">Back</a>
+                        <ExpandingOverlay Title="Add Pans" Text="Tracks" OverlaySide="ExpandingOverlay.Side.Right" ClosedIconClass="x-lg">
+                            <MidiTrackList Tracks="Playback.Tracks" />
+                         </ExpandingOverlay>
+                    </div>
+                </NotAuthorized>
+            </AuthorizeView>
         </div>
     </section>
 }
@@ -48,9 +88,9 @@ else
                 <div class="practice-page__field">
                     <span>Track</span>
                     <select class="sp-min-content" value="@SelectedTrackId" @onchange="OnSelectedTrackChangedAsync">
-                        @foreach (var assignment in Playback.Assignments)
+                        @foreach (var assignment in Playback.Assignments.Where(x => x.Track is not null))
                         {
-                            <option value="@assignment.Track.Id">@assignment.Track.DisplayInfo</option>
+                            <option value="@assignment.Track!.Id">@assignment.Track.DisplayInfo</option>
                         }
                     </select>
                 </div>
@@ -94,7 +134,7 @@ else
     private bool soloTrack_ = true;
     private Guid? selectedTrackId_;
 
-    private Guid? SelectedTrackId => selectedTrackId_ ?? Track ?? Playback.Assignments.FirstOrDefault()?.Track.Id;
+    private Guid? SelectedTrackId => selectedTrackId_ ?? Track ?? Playback.Assignments.FirstOrDefault()?.Track?.Id;
     private MidiTrackInfo? SelectedTrack => SelectedTrackId is Guid trackId ? Playback.Tracks.FirstOrDefault(x => x.Id == trackId) : null;
     private MidiAssignedPan? SelectedAssignedPan => SelectedTrackId is Guid trackId ? Playback.GetAssignedPanForTrack(trackId) : null;
     private IReadOnlyList<MidiAssignedPan> SelectedPanList => SelectedAssignedPan is null ? [] : [SelectedAssignedPan];
@@ -171,6 +211,20 @@ else
         EnsureSelectedTrack();
         await ApplySelectedTrackSoloAsync();
         await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnMultipleMidiSelectedAsync(IReadOnlyList<IBrowserFile> files)
+    {
+        await Modals.OpenAsync("MergeMidiFiles", files);
+    }
+
+    private async Task OnSingleMidiSelectedAsync(IBrowserFile file)
+    {
+        await Playback.OnLoadMidiAsync(async () =>
+        {
+            await using var stream = file.OpenReadStream(UserState.MaxMidiFileSize);
+            return (file.Name, await MidiService.OpenMidiFileAsync(stream));
+        });
     }
 
     private void EnsureSelectedTrack()
