@@ -18,23 +18,27 @@
                 <small>Ensemble playback and individual track practice.</small>
             </a>
 
-            <a class="home-action-card" href="/arrangements">
-                <span class="home-action-card__icon bi bi-sliders"></span>
-                <strong>Arrangements</strong>
-                <small>Upload, record, and manage steel pan arragements.</small>
-            </a>
+            <AuthorizeView>
+                <Authorized Context="auth">
+                    <a class="home-action-card" href="/arrangements">
+                        <span class="home-action-card__icon bi bi-sliders"></span>
+                        <strong>Arrangements</strong>
+                        <small>Upload, record, and manage steel pan arragements.</small>
+                    </a>
 
-            <a class="home-action-card" href="/groups">
-                <span class="home-action-card__icon bi bi-people"></span>
-                <strong>Groups</strong>
-                <small>Manage steel pan ensembles.</small>
-            </a>
+                    <a class="home-action-card" href="/groups">
+                        <span class="home-action-card__icon bi bi-people"></span>
+                        <strong>Groups</strong>
+                        <small>Manage steel pan ensembles.</small>
+                    </a>
 
-            <a class="home-action-card" href="/account">
-                <span class="home-action-card__icon bi bi-person-circle"></span>
-                <strong>Account</strong>
-                <small>View your account details.</small>
-            </a>
+                    <a class="home-action-card" href="/account">
+                        <span class="home-action-card__icon bi bi-person-circle"></span>
+                        <strong>Account</strong>
+                        <small>View your account details.</small>
+                    </a>
+                </Authorized>
+            </AuthorizeView>
         </div>
     </div>
 </section>

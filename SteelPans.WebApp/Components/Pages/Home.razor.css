@@ -7,7 +7,7 @@
 .home-page__shell {
     display: grid;
     grid-template-columns: minmax(0, 1.05fr) minmax(min(100%, 24rem), 0.95fr);
-    align-items: center;
+    align-items: start;
     gap: clamp(0.5rem, 2vw, 2rem);
     width: min(100%, 78rem);
     margin-inline: auto;

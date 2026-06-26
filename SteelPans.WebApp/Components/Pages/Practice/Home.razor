@@ -1,5 +1,4 @@
 @page "/play"
-@attribute [Authorize]
 @inject TaskRunnerService Tasks
 @inject UserStateService UserState
 @implements IDisposable
@@ -18,6 +17,7 @@
     </div>
 
     <div class="sp-app-grid sp-app-grid--two practice-home-page__grid">
+
         <a class="sp-app-card practice-home-page__card" href="/play/ensemble">
             <span class="practice-home-page__icon bi bi-soundwave" aria-hidden="true"></span>
             <div class="practice-home-page__copy">
