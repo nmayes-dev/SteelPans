@@ -40,27 +40,25 @@
         color: #64748b;
     }
 
-.practice-page__transport,
 .practice-page__playback {
     padding: 0 clamp(0.5rem, 0.8vw, 0.8rem);
 }
 
-.practice-page__transport,
 .practice-page__selector-card {
     display: grid;
     gap: clamp(1rem, 2vw, 1.5rem);
     align-items: center;
 }
 
-.practice-page__transport {
-    grid-template-columns: auto auto;
-}
-
 .practice-page__selector-card {
     grid-template-columns: minmax(16rem, 28rem) minmax(0, 1fr);
 }
 
-.practice-page__transport-copy,
+.practice-page__track {
+    display: flex;
+    flex-direction: row;
+}
+
 .practice-page__field,
 .practice-page__track-summary {
     display: grid;
@@ -69,7 +67,6 @@
 }
 
 .practice-page__field {
-    width: min-content;
 }
 
     .practice-page__field span {
@@ -82,28 +79,11 @@
         width: max-content;
     }
 
-.practice-page__field-header {
-    display: flex;
-    justify-content: space-between;
-}
-
 .practice-page__track-summary {
     align-content: center;
     gap: 0.35rem;
     color: #475569;
     font-size: 0.95rem;
-}
-
-    .practice-page__transport-copy strong,
-    .practice-page__transport-copy small,
-    .practice-page__track-summary span {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
-
-.practice-page__transport-copy small {
-    color: #64748b;
 }
 
 .practice-page__card {
@@ -321,17 +301,13 @@
 
 .practice-page__checkbox {
     display: inline-flex;
-    align-items: center;
+    align-items: end;
     gap: 0.3rem;
     color: #475569;
     font-size: 0.95rem;
     font-weight: 700;
+    padding-bottom: 0.05rem;
 }
-
-    .practice-page__checkbox input {
-        height: 85%;
-        aspect-ratio: 1/1;
-    }
 
     .practice-page__checkbox span {
         display: flex;

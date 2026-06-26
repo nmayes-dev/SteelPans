@@ -26,7 +26,7 @@ else if (Playback.Tracks.Count == 0)
     <section class="sp-app-page">
         <div class="sp-app-card practice-page__empty-card">
             <h2>No Playable MIDI tracks</h2>
-            <p>@Playback.MidiFileName is loaded, but no tracks with note events were found.</p>
+            <p>@Playback.MidiFileName is loaded, but no tracks containing notes were found.</p>
             <a class="sp-app-button sp-app-button--primary" href="/arrangements@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
         </div>
     </section>
@@ -36,7 +36,7 @@ else if (Playback.Assignments.Count == 0)
     <section class="sp-app-page">
         <div class="sp-app-card practice-page__empty-card">
             <h2>No Assigned Tracks</h2>
-            <p>@Playback.MidiFileName is loaded, but no pans were assigned to the tracks.</p>
+            <p>@Playback.MidiFileName is loaded, but no pans were assigned to any tracks.</p>
             <a class="sp-app-button sp-app-button--primary" href="/arrangements@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
         </div>
     </section>
@@ -45,27 +45,20 @@ else
 {
     <section class="sp-app-page practice-page">
         <div class="practice-page__control">
-            <div class="sp-app-card practice-page__transport">
-                <div class="practice-page__transport-copy">
-                    <strong>@Playback.MidiFileName</strong>
-                </div>
+            <div class="sp-app-card practice-page__track">
                 <div class="practice-page__field">
-                    <div class="practice-page__field-header">
-                        <span>Track</span>
-                        <label class="practice-page__checkbox">
-                            <input type="checkbox"
-                                   checked="@soloTrack_"
-                                   @onchange="OnAllowOtherTrackAudioChangedAsync" />
-                            <span>Solo</span>
-                        </label>
-                    </div>
+                    <span>Track</span>
                     <select class="sp-min-content" value="@SelectedTrackId" @onchange="OnSelectedTrackChangedAsync">
-                        @foreach (var track in Playback.Tracks)
+                        @foreach (var assignment in Playback.Assignments)
                         {
-                            <option value="@track.Id">@track.DisplayInfo</option>
+                            <option value="@assignment.Track.Id">@assignment.Track.DisplayInfo</option>
                         }
                     </select>
                 </div>
+                <label class="practice-page__checkbox">
+                    <span>Solo</span>
+                    <ToggleSwitch Value="@soloTrack_" ValueChanged="OnAllowOtherTrackAudioChangedAsync" />
+                </label>
             </div>
             <PracticeHeader />
         </div>
@@ -102,7 +95,7 @@ else
     private bool soloTrack_ = true;
     private Guid? selectedTrackId_;
 
-    private Guid? SelectedTrackId => selectedTrackId_ ?? Track ?? Playback.Tracks.FirstOrDefault()?.Id;
+    private Guid? SelectedTrackId => selectedTrackId_ ?? Track ?? Playback.Assignments.FirstOrDefault()?.Track.Id;
     private MidiTrackInfo? SelectedTrack => SelectedTrackId is Guid trackId ? Playback.Tracks.FirstOrDefault(x => x.Id == trackId) : null;
     private MidiAssignedPan? SelectedAssignedPan => SelectedTrackId is Guid trackId ? Playback.GetAssignedPanForTrack(trackId) : null;
     private IReadOnlyList<MidiAssignedPan> SelectedPanList => SelectedAssignedPan is null ? [] : [SelectedAssignedPan];
@@ -160,9 +153,9 @@ else
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task OnAllowOtherTrackAudioChangedAsync(ChangeEventArgs args)
+    private async Task OnAllowOtherTrackAudioChangedAsync(bool solo)
     {
-        soloTrack_ = args.Value is bool value && value;
+        soloTrack_ = solo;
         await ApplySelectedTrackSoloAsync();
     }
 
