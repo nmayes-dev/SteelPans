@@ -1,7 +1,5 @@
 @page "/play"
 @inject TaskRunnerService Tasks
-@inject UserStateService UserState
-@implements IDisposable
 
 <PageTitle>Play</PageTitle>
 
@@ -36,19 +34,3 @@
     </div>
 </section>
 
-@code {
-    protected override void OnInitialized()
-    {
-        UserState.OnRefresh += OnRefreshAsync;
-    }
-
-    private Task OnRefreshAsync()
-    {
-        return InvokeAsync(StateHasChanged);
-    }
-
-    public void Dispose()
-    {
-        UserState.OnRefresh -= OnRefreshAsync;
-    }
-}

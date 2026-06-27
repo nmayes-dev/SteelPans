@@ -83,7 +83,7 @@
 
     private List<MidiTrackInfo> UnassignedTracks =>
         Playback.Tracks
-            .Where(t => Playback.Assignments.All(a => a.Track?.Id != t.Id))
+            .Where(t => Playback.Assignments.All(a => a.TrackId != t.Id))
             .OrderBy(t => t.Index)
             .ToList();
 
@@ -177,7 +177,6 @@
         var assignment = new MidiTrackAssignment
         {
             AssignedPanType = panType,
-            Track = null,
         };
 
         await Playback.OnAddAssignmentAsync(assignment);
@@ -195,7 +194,7 @@
         var assignment = new MidiTrackAssignment
         {
             AssignedPanType = panType,
-            Track = track,
+            TrackId = track.Id,
         };
 
         await Playback.OnAddAssignmentAsync(assignment);

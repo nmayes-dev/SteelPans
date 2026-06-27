@@ -4,13 +4,13 @@ namespace SteelPans.WebApp.Components.Layout;
 
 public partial class ExpandingOverlay
 {
-    public enum Side
+    public enum Direction
     {
         Left,
         Right,
     }
 
-    [Parameter] public required Side OverlaySide { get; set; }
+    [Parameter] public required Direction ExpandDirection { get; set; }
 
     [Parameter] public string Text { get; set; } = string.Empty;
     [Parameter] public string Title { get; set; } = string.Empty;
@@ -34,16 +34,16 @@ public partial class ExpandingOverlay
     private string IconClass => (IsOpen ? OpenFullIconClass : ClosedFullIconClass) + (ShowButtonText ? " hide" : string.Empty);
     private string TextClass => "overlay__header-button-text " + (ShowButtonText ? "overlay__header-button-text--show" : "overlay__header-button-text--hide");
 
-    private string OverlaySideClass => OverlaySide switch
+    private string DirectionClass => ExpandDirection switch
     {
-        Side.Left => " overlay--left",
-        Side.Right => " overlay--right",
+        Direction.Left => " overlay--left",
+        Direction.Right => " overlay--right",
         _ => string.Empty,
     };
 
     private string StateClass => IsOpen ? " overlay--open" : " overlay--closed";
 
-    private string OverlayClass => $"overlay{StateClass}{OverlaySideClass}";
+    private string OverlayClass => $"overlay{StateClass}{DirectionClass}";
 
 
     private async Task ToggleStateAsync()

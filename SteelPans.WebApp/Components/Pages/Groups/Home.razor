@@ -57,8 +57,11 @@
 </section>
 
 @code {
-    private Task OnRefreshAsync()
+    private Task OnRefreshAsync(StateUpdate updateFlag)
     {
+        if (!updateFlag.HasAny(StateUpdate.Groups))
+            return Task.CompletedTask;
+
         return InvokeAsync(StateHasChanged);
     }
 

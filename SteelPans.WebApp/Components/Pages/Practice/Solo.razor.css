@@ -69,28 +69,39 @@
 }
 
 .practice-page__track {
-    display: flex;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    overflow: visible;
+    padding: 0 clamp(0.35rem, 0.5vw, 0.6rem) clamp(0.15rem, 0.3vw, 0.3rem);
 }
 
 .practice-page__field,
 .practice-page__track-summary {
     display: grid;
-    gap: 0.25rem;
     min-width: 0;
 }
 
 .practice-page__field {
+
 }
 
     .practice-page__field span {
+        display: flex;
         color: #475569;
         font-size: 0.85rem;
         font-weight: 700;
+        align-items: end;
     }
 
     .practice-page__field select {
         width: max-content;
+    }
+
+.practice-page__field-controls {
+}
+
+    .practice-page__field-controls ::deep {
+        --overlay__button-override-size: calc(0.75 * var(--ui-icon-button-size));
     }
 
 .practice-page__track-summary {
@@ -313,19 +324,37 @@
     font-size: 0.85rem;
 }
 
+.practice-page__assign,
 .practice-page__checkbox {
+    width: 100%;
     display: inline-flex;
-    align-items: end;
-    gap: 0.3rem;
+    justify-content: space-between;
+    gap: 0.4rem;
     color: #475569;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     font-weight: 700;
-    padding-bottom: 0.05rem;
 }
 
+.practice-page__assign {
+    align-items: center;
+}
+
+.practice-page__checkbox {
+    --switch-override-size: 1.5rem;
+}
+
+    .practice-page__assign span,
     .practice-page__checkbox span {
         display: flex;
         align-items: center;
+        cursor: pointer;
+    }
+
+    .practice-page__assign span,
+    .practice-page__checkbox span {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
     }
 
 .practice-page__pan-card {

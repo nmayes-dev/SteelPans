@@ -18,48 +18,70 @@ public sealed class GroupData
     }
 }
 
+public sealed class ActiveMidiFile
+{
+    public required Guid Id { get; set; }
+    public required string FileName { get; set; }
+    public IReadOnlyList<MidiTrackInfo> Tracks { get; set; } = [];
+    public IReadOnlyList<MidiTrackAssignment> Assignments { get; set; } = [];
+    public MidiPlaybackInfo? PlaybackInfo { get; set; }
+
+}
+
+[Flags]
+public enum StateUpdate
+{
+    None = 0b0000,
+    Id = 0b0001,
+    Groups = 0b0010,
+    Files = 0b0100,
+    ActiveFile = 0b1000,
+}
+
 public sealed class UserStateService : IAsyncDisposable
 {
     public readonly long MaxMidiFileSize = 64L * 1024L * 1024L;
 
-    public event Func<Task>? OnRefresh;
+    public event Func<StateUpdate, Task>? OnRefresh;
 
     public Guid Id { get; private set; } = Guid.Empty;
 
     public IReadOnlyList<GroupData> Groups { get; private set; } = [];
     public IReadOnlyList<GroupFileDto> Files { get; private set; } = [];
 
-    public string ActiveMidiFileName { get; private set; } = string.Empty;
-    public IReadOnlyList<MidiTrackInfo> ActiveMidiTracks { get; private set; } = [];
-    public MidiPlaybackInfo? ActiveMidiPlaybackInfo { get; private set; }
+    public ActiveMidiFile? ActiveMidi { get; private set; }
 
     public void SetActiveMidiFile(
+        Guid id,
         string fileName,
         IReadOnlyList<MidiTrackInfo> tracks,
         MidiPlaybackInfo? playbackInfo)
     {
-        ActiveMidiFileName = fileName;
-        ActiveMidiTracks = tracks
-            .Select(CloneTrack)
-            .ToList();
-        ActiveMidiPlaybackInfo = playbackInfo;
+        ActiveMidi = new ActiveMidiFile
+        {
+            Id = id,
+            FileName = fileName,
+            Tracks = tracks.Select(CloneTrack).ToList(),
+            PlaybackInfo = playbackInfo,
+        };
     }
 
     public void ClearActiveMidiFile()
     {
-        ActiveMidiFileName = string.Empty;
-        ActiveMidiTracks = [];
-        ActiveMidiPlaybackInfo = null;
+        ActiveMidi = null;
     }
 
     public IReadOnlyList<MidiPanEvent> GetActiveMidiTrackEvents(Guid trackId)
     {
-        return ActiveMidiTracks.FirstOrDefault(x => x.Id == trackId)?.Events ?? [];
+        return ActiveMidi?.Tracks.FirstOrDefault(x => x.Id == trackId)?.Events ?? [];
     }
 
     public void UpsertActiveMidiTrack(MidiTrackInfo track)
     {
-        var tracks = ActiveMidiTracks.ToList();
+        if (ActiveMidi is null)
+            throw new InvalidOperationException("Trying to insert track when there is no midi file active");
+
+        var tracks = ActiveMidi.Tracks.ToList();
         var index = tracks.FindIndex(x => x.Id == track.Id);
         var copy = CloneTrack(track);
 
@@ -68,7 +90,7 @@ public sealed class UserStateService : IAsyncDisposable
         else
             tracks.Add(copy);
 
-        ActiveMidiTracks = tracks.OrderBy(x => x.Index).ToList();
+        ActiveMidi.Tracks = tracks.OrderBy(x => x.Index).ToList();
     }
 
     private static MidiTrackInfo CloneTrack(MidiTrackInfo track)
@@ -163,9 +185,46 @@ public sealed class UserStateService : IAsyncDisposable
         }
     }
 
+    private static bool HasChanged<T>(IEnumerable<T> current, IEnumerable<T> update)
+    {
+        var firstNotSecond = current.Except(update);
+        var secondNotFirst = update.Except(current);
+
+        return firstNotSecond.Any() || secondNotFirst.Any();
+    }
+
+    private class AssignmentCheck
+    {
+        public PanType Pan { get; set; }
+        public Guid? Track { get; set; }
+    }
+
+    private static bool HasActiveFileChanged(ActiveMidiFile? current, MidiFileDetailsDto? update)
+    {
+        if (current is null || update is null)
+            return false;
+
+        if (current.Id != update.Id)
+            return true;
+
+        var currentTracks = current.Tracks.Select(x => x.Id);
+        var updateTracks = update.Tracks.Select(x => x.Id);
+        if (HasChanged(currentTracks, updateTracks))
+            return true;
+
+
+        var currentAssignments = current.Assignments.Select(x => new AssignmentCheck { Pan = x.AssignedPanType, Track = x.TrackId });
+        var updateAssignments = update.Assignments.Select(x => new AssignmentCheck { Pan = x.PanType, Track = x.TrackId });
+
+        if (HasChanged(currentAssignments, updateAssignments))
+            return true;
+
+        return false;
+    }
+
     private async Task RunRefreshAsync()
     {
-        Id = await db_.GetUserIdAsync();
+        var id = await db_.GetUserIdAsync();
 
         var groups = await db_.Groups.GetMyGroupsAsync();
         var files = await db_.MidiFiles.GetMyMidiFilesAsync();
@@ -176,6 +235,15 @@ public sealed class UserStateService : IAsyncDisposable
             Files = await db_.Groups.GetGroupFilesAsync(group.Id)
         }));
 
+        var activeFile = ActiveMidi is not null ? await db_.MidiFiles.GetMidiFileDetailsAsync(ActiveMidi.Id) : null;
+
+        var updateFlag = StateUpdate.None;
+        updateFlag = Id != id ? StateUpdate.Id : StateUpdate.None;
+        updateFlag |= HasChanged(Groups, groupData) ? StateUpdate.Groups : StateUpdate.None;
+        updateFlag |= HasChanged(Files, files) ? StateUpdate.Files : StateUpdate.None;
+        updateFlag |= HasActiveFileChanged(ActiveMidi, activeFile) ? StateUpdate.ActiveFile : StateUpdate.None;
+
+        Id = id;
         Groups = groupData;
         Files = files;
 
@@ -190,7 +258,7 @@ public sealed class UserStateService : IAsyncDisposable
             Console.WriteLine($"SignalR update client failed to start: {ex.Message}");
         }
 
-        await RaiseOnRefreshAsync();
+        await RaiseOnRefreshAsync(updateFlag);
     }
 
     private Task OnRealtimeUserStateChangedAsync()
@@ -206,7 +274,7 @@ public sealed class UserStateService : IAsyncDisposable
         return RefreshAsync().AsTask();
     }
 
-    private async Task RaiseOnRefreshAsync()
+    private async Task RaiseOnRefreshAsync(StateUpdate flag)
     {
         var handlers = OnRefresh;
 
@@ -215,9 +283,9 @@ public sealed class UserStateService : IAsyncDisposable
 
         foreach (var handler in handlers
                      .GetInvocationList()
-                     .Cast<Func<Task>>())
+                     .Cast<Func<StateUpdate, Task>>())
         {
-            await handler();
+            await handler(flag);
         }
     }
 }

@@ -184,7 +184,7 @@
         await Playback.OnLoadMidiAsync(async () =>
         {
             await using var stream = file.OpenReadStream(UserState.MaxMidiFileSize);
-            return (file.Name, await MidiService.OpenMidiFileAsync(stream));
+            return (Guid.NewGuid(), file.Name, await MidiService.OpenMidiFileAsync(stream));
         });
     }
 

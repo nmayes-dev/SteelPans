@@ -114,6 +114,7 @@
         var first = Draft.Tracks[0];
         return await Db.MidiFiles.CreateRecordedMidiFileAsync(
             new DbService.MidiDbService.CreateRecordedMidiFileRequest(
+                Draft.FileId,
                 title_,
                 first.TempoBpm,
                 first.BeatsPerBar,

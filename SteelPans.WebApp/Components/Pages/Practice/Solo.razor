@@ -66,12 +66,20 @@ else if (Playback.Assignments.Count == 0)
             <p>@Playback.MidiFileName is loaded, but no pans were assigned to any tracks.</p>
             <AuthorizeView>
                 <Authorized Context="auth">
-                    <a class="sp-app-button sp-app-button--primary" href="/arrangements@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
+                    @if (FileId is not null)
+                    {
+                        <button class="sp-app-button sp-app-button--primary" @onclick="() => TogglePreviewAsync(FileId.Value)">Tracks</button>
+                        <MidiFilePreview @ref="filePreview_"/>
+                    }
+                    else
+                    {
+                        <a class="sp-app-button sp-app-button--primary" href="/arrangements@(FileId is null ? string.Empty : $"/{FileId}")">Arrangements</a>
+                    }
                 </Authorized>
                 <NotAuthorized>
                     <div class="practice-page__load">
                         <a class="sp-app-button sp-app-button--secondary" href="/play">Back</a>
-                        <ExpandingOverlay Title="Add Pans" Text="Tracks" OverlaySide="ExpandingOverlay.Side.Right" ClosedIconClass="x-lg">
+                        <ExpandingOverlay Title="Add Pans" Text="Tracks" ExpandDirection="ExpandingOverlay.Direction.Right" ClosedIconClass="x-lg">
                             <MidiTrackList Tracks="Playback.Tracks" />
                          </ExpandingOverlay>
                     </div>
@@ -88,16 +96,25 @@ else
                 <div class="practice-page__field">
                     <span>Track</span>
                     <select class="sp-min-content" value="@SelectedTrackId" @onchange="OnSelectedTrackChangedAsync">
-                        @foreach (var assignment in Playback.Assignments.Where(x => x.Track is not null))
+                        @foreach (var assignment in Playback.Assignments.Where(x => x.TrackId is not null))
                         {
-                            <option value="@assignment.Track!.Id">@assignment.Track.DisplayInfo</option>
+                            var track = Playback.GetTrackForAssignment(assignment);
+                            <option value="@assignment.TrackId">@track?.DisplayInfo</option>
                         }
                     </select>
                 </div>
-                <label class="practice-page__checkbox">
-                    <span>Solo</span>
-                    <ToggleSwitch Value="@soloTrack_" ValueChanged="OnAllowOtherTrackAudioChangedAsync" />
-                </label>
+                <div class="practice-page__field practice-page__field-controls">
+                    <label class="practice-page__assign">
+                        <span>Assign</span>
+                        <ExpandingOverlay Title="Add Assignments" ExpandDirection="ExpandingOverlay.Direction.Right" ClosedIconClass="plus-lg">
+                            <MidiTrackList Tracks="Playback.Tracks" />
+                        </ExpandingOverlay>
+                    </label>
+                    <label class="practice-page__checkbox">
+                        <span>Solo</span>
+                        <ToggleSwitch Value="@soloTrack_" ValueChanged="OnAllowOtherTrackAudioChangedAsync" />
+                    </label>
+                </div>
             </div>
             <PracticeHeader />
         </div>
@@ -130,11 +147,13 @@ else
     [SupplyParameterFromQuery(Name = "track")]
     public Guid? Track { get; set; }
 
+    private MidiFilePreview? filePreview_;
+
     private bool loadedFileFromQuery_;
     private bool soloTrack_ = true;
     private Guid? selectedTrackId_;
 
-    private Guid? SelectedTrackId => selectedTrackId_ ?? Track ?? Playback.Assignments.FirstOrDefault()?.Track?.Id;
+    private Guid? SelectedTrackId => selectedTrackId_ ?? Track ?? Playback.Assignments.FirstOrDefault()?.TrackId;
     private MidiTrackInfo? SelectedTrack => SelectedTrackId is Guid trackId ? Playback.Tracks.FirstOrDefault(x => x.Id == trackId) : null;
     private MidiAssignedPan? SelectedAssignedPan => SelectedTrackId is Guid trackId ? Playback.GetAssignedPanForTrack(trackId) : null;
     private IReadOnlyList<MidiAssignedPan> SelectedPanList => SelectedAssignedPan is null ? [] : [SelectedAssignedPan];
@@ -148,7 +167,7 @@ else
 
     private int AssignedTrackCount => Playback.ActivePans.Count;
     private string AssignedPanLabel => SelectedAssignedPan?.Pan.Type.ToSpacedPascal() ?? "Unassigned";
-    private string? SelectedTrackLabel => SelectedAssignedPan?.Assignment?.Track?.TrackLabel ?? SelectedTrack?.Name;
+    private string? SelectedTrackLabel => SelectedTrack?.TrackLabel ?? SelectedTrack?.Name;
 
     private TimeSpan VisualDuration
     {
@@ -181,6 +200,15 @@ else
             return;
 
         await ApplySelectedTrackSoloAsync();
+    }
+
+    private async Task TogglePreviewAsync(Guid file)
+    {
+        if (filePreview_ is null)
+            return;
+
+        await filePreview_.TogglePreviewAsync(file);
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task OnSelectedTrackChangedAsync(ChangeEventArgs args)
@@ -223,7 +251,7 @@ else
         await Playback.OnLoadMidiAsync(async () =>
         {
             await using var stream = file.OpenReadStream(UserState.MaxMidiFileSize);
-            return (file.Name, await MidiService.OpenMidiFileAsync(stream));
+            return (Guid.NewGuid(), file.Name, await MidiService.OpenMidiFileAsync(stream));
         });
     }
 

@@ -193,8 +193,11 @@
         UserState.OnRefresh -= OnUserStateRefreshAsync;
     }
 
-    private async Task OnUserStateRefreshAsync()
+    private async Task OnUserStateRefreshAsync(StateUpdate updateFlag)
     {
+        if (!updateFlag.HasAny(StateUpdate.Id | StateUpdate.Groups))
+            return;
+
         // If the user's groups have changed we may need to update the current group info or navigate away if they lost access
         await LoadAsync(refresh: true);
     }

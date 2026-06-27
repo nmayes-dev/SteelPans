@@ -678,6 +678,7 @@ public sealed class DbService
         }
 
         public sealed record CreateRecordedMidiFileRequest(
+            Guid Id,
             string Title,
             int TempoBpm,
             int BeatsPerBar,
@@ -707,7 +708,7 @@ public sealed class DbService
             if (request.Tracks.Count == 0)
                 throw new InvalidOperationException("Add at least one recorded track before saving the file.");
 
-            var fileId = Guid.NewGuid();
+            var fileId = request.Id;
             var originalFileName = $"{SanitizeFileName(title)}.mid";
             await using var midiContent = new MemoryStream();
             WriteRecordedMidiFile(midiContent, request);

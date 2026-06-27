@@ -45,7 +45,7 @@
                     streamFiles.Add((file.Name, stream));
                 }
 
-                return (midiFileName, await MidiService.MergeMidiTracksAsync(midiFileName, streamFiles));
+                return (Guid.NewGuid(), midiFileName, await MidiService.MergeMidiTracksAsync(midiFileName, streamFiles));
             }
             finally
             {

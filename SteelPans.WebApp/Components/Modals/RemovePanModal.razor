@@ -20,10 +20,10 @@
 
     private async Task<bool> OnConfirmAsync(MidiAssignedPan payload)
     {
-        if (payload.Assignment.Track is null)
+        if (payload.Assignment.TrackId is null)
             return false;
 
-        await Playback.OnRemoveAssignmentAsync(payload.Assignment.Track.Id);
+        await Playback.OnRemoveAssignmentAsync(payload.Assignment.TrackId.Value);
         return true;
     }
 }

@@ -31,7 +31,7 @@
                         <div class="pans-display__item-copy-group pans-display__item-copy-group--right">
                             <div class="pans-display__item-copy-label">Track</div>
                             <div class="pans-display__item-track">
-                                @assignedPan.Assignment.Track?.Name
+                                @Playback.GetTrackForAssignment(assignedPan.Assignment)?.Name
                             </div>
                         </div>
                     </div>

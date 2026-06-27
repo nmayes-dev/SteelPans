@@ -33,18 +33,6 @@ public partial class Band : IAsyncDisposable
         }
     }
 
-    private async Task LoadStartupFileAsync(string filePath)
-    {
-        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
-            return;
-
-        var fileInfo = new FileInfo(filePath);
-        await Playback.OnLoadMidiAsync(async () =>
-        {
-            await using var stream = File.OpenRead(filePath);
-            return (fileInfo.Name, await MidiService.OpenMidiFileAsync(stream));
-        });
-    }
 
     private async Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)
     {

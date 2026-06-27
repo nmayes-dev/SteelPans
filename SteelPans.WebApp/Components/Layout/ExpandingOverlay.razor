@@ -3,30 +3,32 @@
 
 
 <div class="@OverlayClass">
-    <div class="overlay__surface">
-        <button class="overlay__header"
-                role="button"
-                aria-label="@MenuButtonLabel"
-                @onclick="ToggleStateAsync">
-            <div class="overlay__header-content">
-                <div class="overlay__header-button-content">
-                    <span class="overlay__header-button-icon">
-                        <span class="@IconClass" aria-hidden="true" />
-                        <span class="@TextClass" aria-hidden="true">@Text</span>
-                    </span>
-                </div>
+    <div class="overlay__wrap">
+        <div class="overlay__surface">
+            <button class="overlay__header"
+                    type="button"
+                    aria-label="@MenuButtonLabel"
+                    @onclick="ToggleStateAsync">
+                <div class="overlay__header-content">
+                    <div class="overlay__header-button-content">
+                        <span class="overlay__header-button-icon">
+                            <span class="@IconClass" aria-hidden="true" />
+                            <span class="@TextClass" aria-hidden="true">@Text</span>
+                        </span>
+                    </div>
 
-                <div class="overlay__header-container">
-                    <div class="overlay__header-title-wrap">
-                        <span class="overlay__header-title">@Title</span>
+                    <div class="overlay__header-container">
+                        <div class="overlay__header-title-wrap">
+                            <span class="overlay__header-title">@Title</span>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </button>
+            </button>
 
-        <div class="overlay__panel">
-            <div class="overlay__content">
-                @ChildContent
+            <div class="overlay__panel">
+                <div class="overlay__content">
+                    @ChildContent
+                </div>
             </div>
         </div>
     </div>

@@ -13,6 +13,8 @@ public sealed class MidiEditingService
 
     public List<MidiTrackInfo> Tracks { get; } = [];
 
+    public Guid FileId { get; private set; } = Guid.Empty;
+
     public string Title { get; private set; } = string.Empty;
     public bool HasOpenFile { get; private set; }
     public bool HasUnsavedChanges { get; private set; }
@@ -26,6 +28,7 @@ public sealed class MidiEditingService
             HasUnsavedChanges = false;
         }
 
+        FileId = Guid.NewGuid();
         HasOpenFile = true;
         SyncActiveState();
     }
@@ -76,7 +79,7 @@ public sealed class MidiEditingService
     public MidiTrackInfo? GetTrack(Guid id)
     {
         return Tracks.FirstOrDefault(x => x.Id == id)
-            ?? state_.ActiveMidiTracks.FirstOrDefault(x => x.Id == id);
+            ?? state_.ActiveMidi?.Tracks.FirstOrDefault(x => x.Id == id);
     }
 
     public MidiTrackInfo CreateTrack(MidiTrackInfo track)
@@ -154,14 +157,16 @@ public sealed class MidiEditingService
 
     private void SyncActiveState()
     {
-        state_.SetActiveMidiFile(Title, Tracks, Tracks.FirstOrDefault() is { } first
+        var playbackInfo = Tracks.FirstOrDefault() is { } first
             ? new MidiPlaybackInfo
             {
                 InitialBpm = first.TempoBpm,
                 InitialBeatsPerBar = first.BeatsPerBar,
                 InitialBeatUnit = first.BeatUnit
             }
-            : null);
+            : null;
+
+        state_.SetActiveMidiFile(FileId, Title, Tracks, playbackInfo);
     }
 
     private int GetNextTrackIndex()

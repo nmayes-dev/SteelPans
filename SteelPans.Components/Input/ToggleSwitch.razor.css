@@ -1,5 +1,5 @@
 ﻿.toggle-switch {
-    --switch-base-size: 1.8rem;
+    --switch-base-size: var(--switch-override-size, 1.8rem);
     --switch-track-width: clamp(2rem, var(--switch-base-size) + 0.8vw, 3rem);
     --switch-track-padding: calc(var(--switch-track-width) * 0.1);
     --switch-track-thumb-size: calc(var(--switch-track-width) * 0.35);

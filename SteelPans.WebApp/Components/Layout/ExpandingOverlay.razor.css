@@ -1,8 +1,9 @@
 ﻿.overlay {
+    /* General */
     --overlay__background-color: rgba(255, 255, 255, 0.98);
     --overlay__hover-color: rgb(208, 218, 249);
     --overlay__border-color: rgba(148, 163, 184, 0.75);
-    --overlay__border-radius: min(1rem, 2vw);
+    --overlay__border-radius: min(0.8rem, 2vw);
     /* Button */
     --overlay__button-size: var(--overlay__button-override-size, var(--ui-icon-button-size));
     --overlay__button-icon-size: calc(var(--overlay__button-size) * 0.5);
@@ -11,8 +12,11 @@
     --overlay__panel-max-width: min(24rem, 55.5vw);
     --overlay__panel-min-height: clamp(1.5rem, 2vw, 4rem);
     --overlay__panel-max-height: min(40rem, 88vh);
+    /* Styles */
     position: relative;
-    z-index: 400;
+    display: inline-block;
+    inline-size: var(--overlay__button-size);
+    block-size: var(--overlay__button-size);
     overflow: visible;
 }
 
@@ -30,10 +34,16 @@
 
 
 
-
 /* =========================================
    Shared Styling
 ========================================= */
+
+.overlay__wrap {
+    position: relative;
+    z-index: 401;
+    inline-size: 100%;
+    block-size: 100%;
+}
 
 .overlay__surface {
     position: absolute;
@@ -47,12 +57,12 @@
     height: max-content;
     min-width: 0;
     min-height: 0;
-    max-width: var(--overlay__panel-min-width);
+    max-width: var(--overlay__button-size);
     max-height: var(--overlay__panel-min-height);
     display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: var(--overlay__button-size) 1fr;
-    transition: min-width var(--med-transition) ease, max-width var(--med-transition) ease, min-height var(--med-transition) ease, max-height var(--med-transition) ease;
+    transition: min-width calc(0.75 * var(--med-transition)) ease, max-width calc(0.75 * var(--med-transition)) ease, min-height var(--med-transition) ease, max-height var(--med-transition) ease;
 }
 
 .overlay--open .overlay__surface {
@@ -76,8 +86,6 @@
 
 
 
-
-
 /* =========================================
    Top overlay Header/Button
 ========================================= */
@@ -86,22 +94,16 @@
     grid-row: 1;
     grid-column: 1;
     display: flex;
-    align-items: center;
-    padding: 0;
-    width: 100%;
-    height: var(--overlay__button-size);
-    box-shadow: none;
     cursor: pointer;
     user-select: none;
-    pointer-events: auto;
     background: var(--overlay__background-color);
     border: 1px solid var(--overlay__border-color);
     border-radius: clamp(0.45rem, 0.3rem + 0.4cqw, 0.65rem);
-    transition: padding var(--med-short-transition) ease, width var(--short-transition) ease-in, height var(--short-transition) ease-in, border-top-right-radius var(--med-transition) ease, border-top-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-long-transition) ease-out, border-bottom-left-radius var(--med-long-transition) ease-out;
+    transition: padding var(--med-short-transition) ease, width var(--short-transition) ease-in, height var(--short-transition) ease-in, border-top-right-radius var(--med-transition) ease, border-top-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-short-transition) ease-out, border-bottom-left-radius var(--med-short-transition) ease-out;
 }
 
 @media (hover: hover) and (pointer: fine) {
-    .overlay__header:hover:not(:has(:is(button, input, select, textarea, label, a, [role="button"]):hover)) {
+    .overlay__surface:has(> .overlay__header:hover):not(:has(> .overlay__panel:hover)) > .overlay__header {
         background: var(--overlay__hover-color);
         color: #1d4ed8;
         border-color: rgba(96, 165, 250, 0.4);
@@ -109,27 +111,30 @@
 }
 
 .overlay--open .overlay__header {
-    padding: 0 clamp(0.4rem, 0.6vw, 0.75rem);
+    width: 100%;
     border-radius: var(--overlay__border-radius) var(--overlay__border-radius) 0 0;
     transition: padding var(--short-transition) ease, width var(--med-short-transition) ease, height var(--med-short-transition) ease, border-radius 50ms ease;
 }
 
 .overlay__header-content {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
     align-items: center;
+    grid-template-columns: auto minmax(0, 1fr);
     width: 100%;
     min-width: 0;
 }
 
-.overlay__header-button-content {
-    display: flex;
-    justify-content: center;
-    width: 100%;
+.overlay--open .overlay__header-content {
+    min-width: var(--overlay__button-size);
 }
 
-.overlay--open .overlay__header-content {
+
+.overlay__header-button-content {
 }
+
+.overlay--open .overlay__header-button-content {
+}
+
 
 .overlay__header-button-icon {
     display: grid;
@@ -148,6 +153,7 @@
     display: grid;
     grid-column: 1;
     grid-row: 1;
+    padding-left: 1px;
     place-items: start;
     opacity: 1;
     font-size: var(--overlay__button-icon-size);
@@ -155,18 +161,18 @@
     line-height: 1;
     width: 100%;
     transition-duration: var(--med-transition), var(--short-transition);
-    transition-delay: 0s, var(--med-short-transition);
-    transition-timing-function: ease, linear;
+    transition-delay: 0s, var(--med-transition);
+    transition-timing-function: ease-in, linear;
     transition-property: opacity, width;
 }
 
     .overlay__header-button-icon .bi.hide {
         opacity: 0;
         width: 0;
+        transition-property: opacity, width;
         transition-duration: var(--short-transition), var(--short-transition);
         transition-delay: 0s, var(--short-transition);
-        transition-timing-function: ease, linear;
-        transition-property: opacity, width;
+        transition-timing-function: ease-out, linear;
     }
 
 
@@ -184,54 +190,44 @@
 .overlay__header-button-text--show {
     opacity: 1;
     width: 100%;
-    min-height: clamp(1.8rem, 1.45rem + 0.75cqw, 2.25rem);
-    transition-duration: var(--med-transition), calc(1.2 * var(--med-transition));
-    transition-delay: 0s, 0s;
-    transition-timing-function: ease, ease-out;
-    transition-property: opacity, width;
+    padding: 0 clamp(0.5rem, 0.3rem + 0.7cqw, 0.9rem);
+    min-height: clamp(1.25rem, 1rem + 0.9cqw, 2.25rem);
+    transition-duration: var(--med-transition), calc(1.2 * var(--med-transition)), var(--med-transition);
+    transition-delay: 0s, 0s, 0s;
+    transition-timing-function: ease-in, ease-out, ease;
+    transition-property: opacity, width, padding;
 }
 
 .overlay__header-button-text--hide {
     opacity: 0;
     width: 0;
-    transition-duration: var(--short-transition), var(--short-transition);
-    transition-delay: 0s, var(--short-transition);
-    transition-timing-function: ease, ease;
-    transition-property: opacity, width;
+    padding: 0;
+    transition-duration: var(--short-transition), var(--short-transition), var(--short-transition);
+    transition-delay: 0s, var(--short-transition), 0s;
+    transition-timing-function: ease-out, ease, ease;
+    transition-property: opacity, width, padding;
 }
 
 .overlay__header-container {
-    grid-column: 1;
-    grid-row: 1;
     display: flex;
     align-items: center;
-    width: 0;
     min-width: 0;
+    width: 0;
     min-height: 0;
-    gap: 1.25rem;
-    background: transparent;
     opacity: 0;
-    transform: scaleX(0);
-    transition: transform var(--med-short-transition) ease, opacity var(--med-short-transition) ease, padding var(--med-short-transition) ease;
+    transition: width var(--med-transition) ease-out, opacity var(--med-short-transition) calc(-1 * var(--short-transition)) ease-out, padding var(--med-short-transition) ease;
 }
 
 .overlay--open .overlay__header-container {
-    opacity: 1;
     width: 100%;
-    transform: scaleX(1);
-}
-
-.overlay__header-actions {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.65rem;
+    opacity: 1;
+    transition: opacity var(--med-short-transition) var(--short-transition) ease, padding var(--med-short-transition) ease;
 }
 
 .overlay__header-title-wrap {
     display: inline-flex;
     align-items: center;
     min-width: 0;
-    gap: 0.6rem;
 }
 
 .overlay__header-title {
@@ -242,7 +238,6 @@
     font-weight: 900;
     letter-spacing: 0.08em;
     line-height: 1;
-    text-overflow: ellipsis;
     text-transform: uppercase;
     white-space: nowrap;
 }
@@ -269,7 +264,12 @@
     pointer-events: none;
     overflow: hidden;
     background: var(--overlay__background-color);
-    transition: height var(--med-transition) ease, border-color var(--med-transition) ease, border-width var(--med-short-transition) ease, border-bottom-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-transition) ease;
+    border-radius: inherit;
+    border-bottom-left-radius: var(--overlay__border-radius);
+    border-bottom-right-radius: var(--overlay__border-radius);
+    transform: translateY(-0.25rem);
+    z-index: -1;
+    transition: transform var(--med-transition) ease, height var(--med-transition) ease, border-color var(--med-transition) ease, border-width var(--med-short-transition) ease, border-bottom-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-transition) ease;
 }
 
 
@@ -278,8 +278,7 @@
     border-color: var(--overlay__border-color);
     height: 100%;
     pointer-events: auto;
-    border-bottom-left-radius: var(--overlay__border-radius);
-    border-bottom-right-radius: var(--overlay__border-radius);
+    transform: translateY(0);
     transition: none;
 }
 
@@ -288,12 +287,14 @@
 
 .overlay__content {
     grid-area: 1 / 1;
-    transition: padding var(--med-transition) ease;
+    opacity: 0;
+    transition: padding var(--med-transition) ease, opacity var(--med-short-transition) ease-out;
 }
 
 .overlay--open .overlay__content {
     padding: clamp(0.25rem, 0.3vw, 0.45rem) clamp(0.1rem, 0.25vw, 0.4rem);
-    transition: none;
+    opacity: 1;
+    transition: opacity var(--med-short-transition) ease-in;
 }
 
 
@@ -326,11 +327,14 @@
 
 .overlay--left {
     transform-origin: right;
-    justify-items: end;
 }
 
     .overlay--left .overlay__surface {
         right: 0;
+    }
+
+    .overlay--left.overlay--open .overlay__header {
+        padding-left: clamp(0.4rem, 0.6vw, 0.75rem);
     }
 
     .overlay--left .overlay__header-content {
@@ -376,11 +380,14 @@
 
 .overlay--right {
     transform-origin: left;
-    justify-items: start;
 }
 
     .overlay--right .overlay__surface {
         left: 0;
+    }
+
+    .overlay--right.overlay--open .overlay__header {
+        padding-right: clamp(0.4rem, 0.6vw, 0.75rem);
     }
 
     .overlay--right .overlay__header-button-icon {

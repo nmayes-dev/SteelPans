@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure;
 using Microsoft.JSInterop;
 using SteelPans.Shared.Ensembles;
+using SteelPans.Shared.Extensions;
 using SteelPans.Shared.Music;
 using SteelPans.Shared.Services;
 using SteelPans.WebApp.Components.Elements;
@@ -22,6 +23,7 @@ public sealed record MidiPlaybackPausedEventArgs(TimeSpan Position);
 public sealed record MidiPlaybackStoppedEventArgs(bool ResetPosition, TimeSpan Position);
 
 public sealed record MidiFileLoadedEventArgs(
+    Guid FileId,
     string FileName,
     IReadOnlyList<MidiTrackInfo> Tracks,
     int InitialBpm,
@@ -99,13 +101,12 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     private IDisposable navCallback_;
 
-        private readonly Dictionary<Guid, SteelPanView> steelPanViews_ = [];
+    private readonly Dictionary<Guid, SteelPanView> steelPanViews_ = [];
     private readonly HashSet<string> playingComponentIds_ = [];
 
     private CancellationTokenSource? midiPlaybackCts_;
     private CancellationTokenSource? playbackProgressCts_;
 
-    private MidiPlaybackInfo? midiPlaybackInfo_;
     private int? midiBpmOverride_;
     private double? midiStartAt_;
 
@@ -124,6 +125,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         AvailablePans = panLoader.Pans;
 
+        state_.OnRefresh += OnRefreshAsync;
         navCallback_ = nav.RegisterLocationChangingHandler(OnNavigationAsync);
     }
 
@@ -143,9 +145,11 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     public List<MidiTrackAssignment> Assignments { get; } = [];
     public List<MidiAssignedPan> ActivePans { get; private set; } = [];
     public List<MidiTrackInfo> Tracks { get; } = [];
-    public string MidiFileName { get; private set; } = string.Empty;
 
-    public bool IsMidiLoaded => midiPlaybackInfo_ is not null;
+    public bool IsMidiLoaded => state_.ActiveMidi is not null;
+    public MidiPlaybackInfo? MidiPlaybackInfo => state_.ActiveMidi?.PlaybackInfo;
+    public Guid MidiFileId => state_.ActiveMidi?.Id ?? Guid.Empty;
+    public string MidiFileName => state_.ActiveMidi?.FileName ?? string.Empty;
 
     public bool IsPlaying { get; private set; }
     public TimeSpan Position { get; private set; }
@@ -159,8 +163,20 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     public int CountInBeats { get; private set; }
     public int CountInNoteDivision { get; private set; } = 4;
 
-    public int InitialMidiBpm => midiPlaybackInfo_?.InitialBpm ?? TempoBpm;
-    public int EffectiveMidiBpm => midiBpmOverride_ ?? midiPlaybackInfo_?.InitialBpm ?? TempoBpm;
+    public int InitialMidiBpm => MidiPlaybackInfo?.InitialBpm ?? TempoBpm;
+    public int EffectiveMidiBpm => midiBpmOverride_ ?? MidiPlaybackInfo?.InitialBpm ?? TempoBpm;
+
+
+    private async Task OnRefreshAsync(StateUpdate updateFlag)
+    {
+        if (state_.ActiveMidi is null || state_.ActiveMidi.Id == Guid.Empty)
+            return;
+
+        if (!updateFlag.HasAny(StateUpdate.ActiveFile))
+            return;
+
+        await ReloadGroupMidiFile(state_.ActiveMidi.Id);
+    }
 
     public IReadOnlyList<MidiPanEvent> GetMidiTrackEvents(Guid trackId)
     {
@@ -169,8 +185,10 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     public MidiAssignedPan? GetAssignedPanForTrack(Guid trackId)
     {
-        return ActivePans.FirstOrDefault(x => x.Assignment.Track?.Id == trackId);
+        return ActivePans.FirstOrDefault(x => x.Assignment.TrackId == trackId);
     }
+
+    public MidiTrackInfo? GetTrackForAssignment(MidiTrackAssignment assignment) => Tracks.FirstOrDefault(x => x.Id == assignment.TrackId);
 
     private static string GetHeadlessPlaybackComponentId(Guid instanceId)
     {
@@ -228,7 +246,6 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         steelPanViews_.Clear();
         playingComponentIds_.Clear();
 
-                midiPlaybackInfo_ = null;
         midiBpmOverride_ = null;
         midiStartAt_ = null;
 
@@ -250,7 +267,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     }
 
     public async Task OnLoadMidiAsync(
-        Func<Task<(string, MidiFile)>> getMidiFile,
+        Func<Task<(Guid, string, MidiFile)>> getMidiFile,
         IReadOnlyList<MidiTrackDto>? persistedTracks = null)
     {
         await StopAsync(resetPosition: true);
@@ -261,10 +278,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         steelPanViews_.Clear();
         playingComponentIds_.Clear();
-        
-        var (fileName, midiFile) = await getMidiFile();
 
-        MidiFileName = fileName;
+        var (fileId, fileName, midiFile) = await getMidiFile();
 
         var playbackInfo = midiFile_.GetPlaybackInfo(midiFile);
         var playableTracks = midiFile_.LoadPlayableTracks(
@@ -285,9 +300,8 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         foreach (var track in playableTracks)
             Tracks.Add(track);
 
-        state_.SetActiveMidiFile(fileName, Tracks, playbackInfo);
+        state_.SetActiveMidiFile(fileId, fileName, Tracks, playbackInfo);
 
-        midiPlaybackInfo_ = playbackInfo;
         midiBpmOverride_ = null;
         midiStartAt_ = null;
         playbackSessionStartOffset_ = TimeSpan.Zero;
@@ -297,11 +311,11 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         Position = TimeSpan.Zero;
         Duration = TimeSpan.Zero;
 
-        if (midiPlaybackInfo_ is not null)
+        if (MidiPlaybackInfo is not null)
         {
-            TempoBpm = midiPlaybackInfo_.InitialBpm;
-            BeatsPerBar = midiPlaybackInfo_.InitialBeatsPerBar;
-            BeatUnit = midiPlaybackInfo_.InitialBeatUnit;
+            TempoBpm = MidiPlaybackInfo.InitialBpm;
+            BeatsPerBar = MidiPlaybackInfo.InitialBeatsPerBar;
+            BeatUnit = MidiPlaybackInfo.InitialBeatUnit;
         }
 
         await NotifyMidiFileLoadedAsync();
@@ -311,6 +325,14 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     }
 
     public async Task LoadGroupMidiFile(Guid fileId)
+    {
+        if (MidiFileId == fileId)
+            return;
+
+        await ReloadGroupMidiFile(fileId);
+    }
+
+    private async Task ReloadGroupMidiFile(Guid fileId)
     {
         await tasks_.RunUnsafe(async () =>
         {
@@ -324,7 +346,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                 async () =>
                 {
                     await using var stream = download.Stream;
-                    return (download.FileName, await midiFile_.OpenMidiFileAsync(stream));
+                    return (fileId, download.FileName, await midiFile_.OpenMidiFileAsync(stream));
                 },
                 details.Tracks);
 
@@ -346,7 +368,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             var assignment = new MidiTrackAssignment
             {
                 AssignedPanType = savedAssignment.PanType,
-                Track = track
+                TrackId = track.Id
             };
 
             await OnAddAssignmentAsync(assignment);
@@ -378,8 +400,11 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     public async Task OnAddAssignmentAsync(MidiTrackAssignment assignment)
     {
-        Assignments.RemoveAll(x => x.Track?.Id == assignment.Track?.Id);
-        ActivePans.RemoveAll(x => x.Assignment.Track?.Id == assignment.Track?.Id);
+        if (assignment.TrackId is not null )
+        {
+            Assignments.RemoveAll(x => x.TrackId == assignment.TrackId);
+            ActivePans.RemoveAll(x => x.Assignment.TrackId == assignment.TrackId);
+        }
 
         var assignedPan = BuildAssignedPan(assignment, AvailablePans);
         if (assignedPan is null)
@@ -395,12 +420,12 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     public async Task OnRemoveAssignmentAsync(Guid trackId)
     {
-        Assignments.RemoveAll(x => x.Track?.Id == trackId);
+        Assignments.RemoveAll(x => x.TrackId == trackId);
 
         if (!Assignments.Any())
             await StopAsync();
 
-        var toRemove = ActivePans.Where(x => x.Assignment.Track?.Id == trackId).ToList();
+        var toRemove = ActivePans.Where(x => x.Assignment.TrackId == trackId).ToList();
         foreach (var removedPan in toRemove)
             steelPanViews_.Remove(removedPan.InstanceId);
 
@@ -609,11 +634,11 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         await ApplyPlaybackVolumesAsync();
 
-        if (midiPlaybackInfo_ is not null)
+        if (MidiPlaybackInfo is not null)
         {
             TempoBpm = EffectiveMidiBpm;
-            BeatsPerBar = midiPlaybackInfo_.InitialBeatsPerBar;
-            BeatUnit = midiPlaybackInfo_.InitialBeatUnit;
+            BeatsPerBar = MidiPlaybackInfo.InitialBeatsPerBar;
+            BeatUnit = MidiPlaybackInfo.InitialBeatUnit;
         }
 
         try
@@ -752,7 +777,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
         TempoBpm = bpm;
 
-        if (midiPlaybackInfo_ is not null)
+        if (MidiPlaybackInfo is not null)
             midiBpmOverride_ = bpm;
 
         if (IsPlaying)
@@ -1148,9 +1173,12 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (sourcePan is null)
             return null;
 
-        var rawEvents = assignment.Track?.Events ?? [];
+        var track = Tracks.FirstOrDefault(x => x.Id == assignment.TrackId);
+        if (track is null) 
+            return null;
+
         var panInstance = ClonePan(sourcePan);
-        var filteredEvents = PanMidiMapper.FilterToPan(panInstance, rawEvents);
+        var filteredEvents = PanMidiMapper.FilterToPan(panInstance, track.Events);
 
         return new MidiAssignedPan
         {
@@ -1163,7 +1191,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     private double GetPlaybackTempoRatio(int bpm)
     {
-        var sourceBpm = midiPlaybackInfo_?.InitialBpm ?? bpm;
+        var sourceBpm = MidiPlaybackInfo?.InitialBpm ?? bpm;
         if (sourceBpm <= 0 || bpm <= 0)
             return 1.0;
 
@@ -1421,6 +1449,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             return;
 
         var args = new MidiFileLoadedEventArgs(
+            MidiFileId,
             MidiFileName,
             Tracks.ToList(),
             InitialMidiBpm,
@@ -1534,5 +1563,6 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         playbackProgressCts_?.Dispose();
 
         navCallback_?.Dispose();
+        state_.OnRefresh -= OnRefreshAsync;
     }
 }

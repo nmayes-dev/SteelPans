@@ -65,8 +65,11 @@
         UserState.OnRefresh += OnRefreshAsync;
     }
 
-    private Task OnRefreshAsync()
+    private Task OnRefreshAsync(StateUpdate updateFlag)
     {
+        if (!updateFlag.HasAny(StateUpdate.Files))
+            return Task.CompletedTask;
+
         return InvokeAsync(StateHasChanged);
     }
 

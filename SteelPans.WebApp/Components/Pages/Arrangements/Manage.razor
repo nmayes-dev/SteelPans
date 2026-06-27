@@ -136,8 +136,8 @@
 
         <MidiFilePreview @ref="filePreview_"
                          AllowEdit="true"
-                         EditReturnTo="manage"
-                         OnSave="OnAssignmentsSavedAsync" />
+                         AllowPractice="true"
+                         EditReturnTo="manage" />
     }
 </section>
 
@@ -185,8 +185,11 @@
         await UpdateNotFoundSubtitleAsync();
     }
 
-    private Task OnRefreshAsync()
+    private Task OnRefreshAsync(StateUpdate updateFlag)
     {
+        if (!updateFlag.HasAny(StateUpdate.Groups | StateUpdate.Files))
+            return Task.CompletedTask;
+
         return InvokeAsync(StateHasChanged);
     }
 
@@ -203,11 +206,6 @@
 
         await filePreview_.TogglePreviewAsync(FileId);
         await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task OnAssignmentsSavedAsync()
-    {
-        await UserState.RefreshAsync();
     }
 
     private async Task OpenDeleteFileModal(GroupFileDto file)

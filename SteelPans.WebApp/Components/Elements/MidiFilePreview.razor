@@ -54,7 +54,10 @@
                                 @if (file_ is not null)
                                 {
                                     <div class="midi-file-preview--actions">
-                                        <a class="sp-app-button sp-app-button--small" href="/play/solo?file=@file_.Id&track=@track.Id">Practice</a>
+                                        @if (AllowPractice)
+                                        {
+                                            <a class="sp-app-button sp-app-button--small" href="/play/solo?file=@file_.Id&track=@track.Id">Practice</a>
+                                        }
                                         @if (CanEditTrack)
                                         {
                                             <a class="sp-app-button sp-app-button--small" href="@GetEditTrackHref(track.Id)">Edit</a>
@@ -92,11 +95,14 @@
     public EventCallback OnSave { get; set; }
 
     [Parameter]
+    public bool AllowPractice { get; set; }
+
+    [Parameter]
     public bool AllowEdit { get; set; }
 
 
     private bool disabled_ => file_?.OwnerId != UserState.Id && !AllowEdit;
-    private bool CanEditTrack => file_?.OwnerId == UserState.Id;
+    private bool CanEditTrack => file_?.OwnerId == UserState.Id && AllowEdit;
 
     [Parameter]
     public string EditReturnTo { get; set; } = "create";
@@ -184,6 +190,8 @@
                     assignments_.Values
                         .OrderBy(x => x.TrackIndex)
                         .ToList()));
+
+            await UserState.RefreshAsync();
 
             return "Assignments saved.";
         });

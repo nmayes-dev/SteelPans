@@ -45,7 +45,7 @@ public partial class MidiTrackList
 
     private async Task OpenRemovePanAsync(MidiTrackInfo track)
     {
-        var pan = Playback.ActivePans.First(a => a.Assignment.Track?.Id == track.Id);
+        var pan = Playback.ActivePans.First(a => a.Assignment.TrackId == track.Id);
         await Modals.OpenAsync("RemovePan", pan);
     }
 
@@ -55,6 +55,6 @@ public partial class MidiTrackList
     }
     private bool IsTrackAssigned(MidiTrackInfo track)
     {
-        return Playback.Assignments.Any(a => a.Track?.Id == track.Id);
+        return Playback.Assignments.Any(a => a.TrackId == track.Id);
     }
 }
