@@ -5,7 +5,7 @@
 @inject NavigationManager Nav
 @implements IAsyncDisposable
 
-<div class="sp-app-card sp-app-card--wide midi-file-preview @(isPreviewOpen_ ? "" : "midi-file-preview--closed")">
+<div class="sp-app-card sp-app-card--wide midi-file-preview @(IsPreviewOpen ? "" : "midi-file-preview--closed")">
     <div class="midi-file-preview-header">
         <h2>Track Assignments</h2>
         <button class="midi-file-preview-close"
@@ -95,6 +95,9 @@
     public EventCallback OnSave { get; set; }
 
     [Parameter]
+    public bool CloseOnSave { get; set; }
+
+    [Parameter]
     public bool AllowPractice { get; set; }
 
     [Parameter]
@@ -107,17 +110,14 @@
     [Parameter]
     public string EditReturnTo { get; set; } = "create";
 
-    private bool isPreviewOpen_;
-    private CancellationTokenSource? closeCts_;
-
-    public bool IsPreviewOpen => isPreviewOpen_;
+    public bool IsPreviewOpen { get; private set; }
 
     private MidiFileDetailsDto? file_;
     private Dictionary<Guid, MidiTrackAssignmentDto> assignments_ = [];
 
     public async Task TogglePreviewAsync(Guid fileId)
     {
-        if (isPreviewOpen_ && file_?.Id == fileId)
+        if (IsPreviewOpen && file_?.Id == fileId)
             await ClosePreviewIfAsync(fileId);
         else
             await OpenPreviewAsync(fileId);
@@ -139,11 +139,7 @@
 
     public async Task ClosePreviewAsync()
     {
-        isPreviewOpen_ = false;
-
-        closeCts_?.Cancel();
-        closeCts_ = new();
-
+        IsPreviewOpen = false;
         await InvokeAsync(StateHasChanged);
     }
 
@@ -188,15 +184,18 @@
                 file_.Id,
                 new SaveMidiAssignmentsRequest(
                     assignments_.Values
+                        .Where(x => x.PanType != PanType.None)
                         .OrderBy(x => x.TrackIndex)
                         .ToList()));
-
-            await UserState.RefreshAsync();
 
             return "Assignments saved.";
         });
 
         await OnSave.InvokeAsync();
+
+        if (CloseOnSave)
+            await ClosePreviewAsync();
+
     }
 
     private async Task LoadFileDetailsAsync(Guid fileId)
@@ -216,13 +215,12 @@
                     x.SuggestedPanType ?? PanType.None,
                     x.TrackName ?? $"Track {x.TrackIndex}"));
 
-        closeCts_?.Cancel();
-        isPreviewOpen_ = true;
+        IsPreviewOpen = true;
     }
 
     private async Task OnRealtimeMidiAssignmentsChangedAsync(Guid fileId)
     {
-        if (!isPreviewOpen_ || file_?.Id != fileId)
+        if (!IsPreviewOpen || file_?.Id != fileId)
             return;
 
         await LoadFileDetailsAsync(fileId);

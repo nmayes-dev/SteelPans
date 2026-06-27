@@ -35,7 +35,9 @@ public sealed record MidiFileUnloadedEventArgs();
 
 public enum PlaybackAssignmentChangeOperation
 {
-    Add, Remove
+    Add, 
+    Remove,
+    Reload,
 }
 
 public sealed record PlaybackAssignmentsChangedEventArgs(
@@ -166,16 +168,15 @@ public sealed class MidiPlaybackService : IAsyncDisposable
     public int InitialMidiBpm => MidiPlaybackInfo?.InitialBpm ?? TempoBpm;
     public int EffectiveMidiBpm => midiBpmOverride_ ?? MidiPlaybackInfo?.InitialBpm ?? TempoBpm;
 
-
     private async Task OnRefreshAsync(StateUpdate updateFlag)
     {
         if (state_.ActiveMidi is null || state_.ActiveMidi.Id == Guid.Empty)
             return;
 
-        if (!updateFlag.HasAny(StateUpdate.ActiveFile))
+        if (!updateFlag.HasFlag(StateUpdate.ActiveAssignments))
             return;
 
-        await ReloadGroupMidiFile(state_.ActiveMidi.Id);
+        await ReloadMidiAssignments(state_.ActiveMidi.Id);
     }
 
     public IReadOnlyList<MidiPanEvent> GetMidiTrackEvents(Guid trackId)
@@ -288,7 +289,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                 .Select(x => new MidiTrackSummary
                 {
                     Id = x.Id,
-                    Index = x.TrackIndex - 1,
+                    Index = x.TrackIndex,
                     Name = x.TrackName,
                     PanType = x.SuggestedPanType ?? PanType.None,
                     TempoBpm = playbackInfo.InitialBpm,
@@ -329,11 +330,6 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         if (MidiFileId == fileId)
             return;
 
-        await ReloadGroupMidiFile(fileId);
-    }
-
-    private async Task ReloadGroupMidiFile(Guid fileId)
-    {
         await tasks_.RunUnsafe(async () =>
         {
             var details = await db_.MidiFiles.GetMidiFileDetailsAsync(fileId);
@@ -356,7 +352,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
 
     private async Task LoadGroupMidiAssignments(IReadOnlyList<MidiTrackAssignmentDto> assignments)
     {
-        await OnClearAssignmentsAsync();
+        await OnClearAssignmentsAsync(notify: true);
 
         foreach (var savedAssignment in assignments.Where(x => x.PanType != PanType.None))
         {
@@ -371,11 +367,40 @@ public sealed class MidiPlaybackService : IAsyncDisposable
                 TrackId = track.Id
             };
 
-            await OnAddAssignmentAsync(assignment);
+            await OnAddAssignmentAsync(assignment, newAssignment: false, notify: true);
         }
     }
 
-    public async Task OnClearAssignmentsAsync()
+    private async Task ReloadMidiAssignments(Guid fileId)
+    {
+        var details = await db_.MidiFiles.GetMidiFileDetailsAsync(fileId);
+        if (details is null)
+            return;
+
+        await OnClearAssignmentsAsync(notify: false);
+
+        foreach (var savedAssignment in details.Assignments.Where(x => x.PanType != PanType.None))
+        {
+            var track = Tracks.FirstOrDefault(x => x.Id == savedAssignment.TrackId);
+
+            if (track is null)
+                continue;
+
+            var assignment = new MidiTrackAssignment
+            {
+                AssignedPanType = savedAssignment.PanType,
+                TrackId = track.Id
+            };
+
+            await OnAddAssignmentAsync(assignment, newAssignment: false, notify: false);
+        }
+
+        await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Reload);
+        await NotifyPositionChangedAsync(jump: true);
+        await PushPlaybackStateToJsAsync();
+    }
+
+    public async Task OnClearAssignmentsAsync(bool notify)
     {
         await StopAsync(resetPosition: true);
 
@@ -393,14 +418,17 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         Position = TimeSpan.Zero;
         Duration = TimeSpan.Zero;
 
-        await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Remove);
-        await NotifyPositionChangedAsync(jump: true);
-        await PushPlaybackStateToJsAsync();
+        if (notify)
+        {
+            await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Remove);
+            await NotifyPositionChangedAsync(jump: true);
+            await PushPlaybackStateToJsAsync();
+        }
     }
 
-    public async Task OnAddAssignmentAsync(MidiTrackAssignment assignment)
+    public async Task OnAddAssignmentAsync(MidiTrackAssignment assignment, bool newAssignment, bool notify)
     {
-        if (assignment.TrackId is not null )
+        if (assignment.TrackId is not null)
         {
             Assignments.RemoveAll(x => x.TrackId == assignment.TrackId);
             ActivePans.RemoveAll(x => x.Assignment.TrackId == assignment.TrackId);
@@ -414,13 +442,23 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         ActivePans.Add(assignedPan);
         RecalculateDuration();
 
-        await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Add);
-        await PushPlaybackStateToJsAsync();
+        if (newAssignment && TryCreateDtoAssignment(assignment, out var dto))
+        {
+            await db_.MidiFiles.AddMidiAssignmentsAsync(MidiFileId, dto!);
+        }
+
+        if (notify)
+        {
+            await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Add);
+            await PushPlaybackStateToJsAsync();
+        }
     }
 
     public async Task OnRemoveAssignmentAsync(Guid trackId)
     {
-        Assignments.RemoveAll(x => x.TrackId == trackId);
+        var assignmentsToRemove = Assignments.Where(x => x.TrackId == trackId).ToList();
+        foreach (var remove in assignmentsToRemove)
+            Assignments.Remove(remove);
 
         if (!Assignments.Any())
             await StopAsync();
@@ -435,9 +473,39 @@ public sealed class MidiPlaybackService : IAsyncDisposable
         Position = TimeSpan.Zero;
         playbackSessionStartOffset_ = TimeSpan.Zero;
 
+        var dto = Assignments
+                    .Select(CreateDtoAssignment)
+                    .Where(x => x is not null)
+                    .OfType<MidiTrackAssignmentDto>()
+                    .OrderBy(x => x.TrackIndex)
+                    .ToList();
+
+        await db_.MidiFiles.SaveMidiAssignmentsAsync(MidiFileId, new SaveMidiAssignmentsRequest(dto));
+
         await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Remove);
         await NotifyPositionChangedAsync(jump: true);
         await PushPlaybackStateToJsAsync();
+    }
+
+    public MidiTrackAssignmentDto? CreateDtoAssignment(MidiTrackAssignment assignment)
+    {
+        var track = GetTrackForAssignment(assignment);
+        if (track is null)
+            return null;
+
+        return new MidiTrackAssignmentDto
+        (
+            track.Id,
+            track.Index,
+            assignment.AssignedPanType,
+            track.TrackLabel
+        );
+    }
+
+    public bool TryCreateDtoAssignment(MidiTrackAssignment assignment, out MidiTrackAssignmentDto? result)
+    {
+        result = CreateDtoAssignment(assignment);
+        return result is not null;
     }
 
     public void UnregisterSteelPanView(Guid instanceId)
@@ -1174,7 +1242,7 @@ public sealed class MidiPlaybackService : IAsyncDisposable
             return null;
 
         var track = Tracks.FirstOrDefault(x => x.Id == assignment.TrackId);
-        if (track is null) 
+        if (track is null)
             return null;
 
         var panInstance = ClonePan(sourcePan);

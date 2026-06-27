@@ -7,7 +7,9 @@
                 <label class="toolbar__menu-item"
                        role="menuitem"
                        disabled="@element.Disabled"
-                       for="@element.LabelFor">
+                       for="@element.LabelFor"
+                       @onclick="() => Owner.OpenElementAsync(element)"
+                       @onclick:stopPropagation="true">
                     <span class="toolbar__menu-item-text">
                         <span>@element.Text</span>
                     </span>

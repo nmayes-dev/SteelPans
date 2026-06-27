@@ -61,6 +61,7 @@
 
     private ElementReference inputRef_;
     private string currentValue_ = string.Empty;
+    private CancellationTokenSource? repeatCts_;
 
     protected override void OnParametersSet()
     {
@@ -95,21 +96,24 @@
         await UpdateValueAsync(value);
     }
 
-    private async Task BeginRepeatAsync(int direction)
+    private async Task BeginRepeatAsync(int delta)
     {
-        if (!CanRepeat)
-            return;
-
         await EndRepeatAsync();
+        await ChangeValueAsync(delta);
+        _ = RepeatChangeAsync(delta);
     }
 
     private async Task EndRepeatAsync()
     {
-        if (!CanRepeat)
+        if (repeatCts_ is null || !CanRepeat)
             return;
+
+        repeatCts_.Cancel();
+        repeatCts_.Dispose();
+        repeatCts_ = null;
     }
 
-    private async Task DoRepeatAsync(int direction)
+    private async Task ChangeValueAsync(int delta)
     {
         if (!int.TryParse(currentValue_, out var value))
         {
@@ -117,7 +121,7 @@
             return;
         }
 
-        var nextValue = Clamp(value + (direction * step_));
+        var nextValue = Clamp(value + (delta * step_));
         if (value == nextValue)
         {
             await EndRepeatAsync();
@@ -128,16 +132,22 @@
     }
 
 
-    private async Task RepeatChangeAsync(int direction, CancellationToken cancellationToken)
+    private async Task RepeatChangeAsync(int direction)
     {
+        if (!CanRepeat)
+            return;
+
         try
         {
-            await Task.Delay(RepeatInterval, cancellationToken);
+            repeatCts_ = new CancellationTokenSource();
+            var token = repeatCts_.Token;
 
-            while (!cancellationToken.IsCancellationRequested)
+            await Task.Delay(RepeatInterval, token);
+
+            while (!token.IsCancellationRequested)
             {
-                await DoRepeatAsync(direction);
-                await Task.Delay(RepeatInterval, cancellationToken);
+                await ChangeValueAsync(direction);
+                await Task.Delay(RepeatInterval, token);
             }
         }
         catch (OperationCanceledException)

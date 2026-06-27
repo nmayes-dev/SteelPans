@@ -53,7 +53,7 @@
     </div>
 </div>
 
-@code {   
+@code {
     [Parameter, EditorRequired]
     public IReadOnlyList<MidiAssignedPan> Pans { get; set; } = [];
 
@@ -73,7 +73,8 @@
         if (!firstRender)
             return;
 
-        Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
+        dotNetReference_ = DotNetObjectReference.Create(this);
+        Playback.AssignmentsChanged += OnAssignmentsChangedAsync;
         await InitialiseLayoutAsync();
     }
 
@@ -84,12 +85,10 @@
 
     private async Task InitialiseLayoutAsync()
     {
-        if (startingUp_ || !Playback.ActivePans.Any())
+        if (startingUp_ || panLayoutObserved_ || !Playback.ActivePans.Any())
             return;
 
         startingUp_ = true;
-        dotNetReference_?.Dispose();
-        dotNetReference_ = DotNetObjectReference.Create(this);
 
         await JS.InvokeVoidAsync(
             "panLayout.observe",
@@ -98,6 +97,15 @@
             Environment.IsDevelopment());
 
         panLayoutObserved_ = true;
+    }
+
+    private async Task RemoveLayoutAsync()
+    {
+        if (startingUp_ || !panLayoutObserved_ || Playback.ActivePans.Any())
+            return;
+
+        await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
+        panLayoutObserved_ = false;
     }
 
     [JSInvokable]
@@ -122,9 +130,15 @@
         startingUp_ = false;
     }
 
-    private async Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)
+    private async Task OnAssignmentsChangedAsync(PlaybackAssignmentsChangedEventArgs args)
     {
-        await InitialiseLayoutAsync();
+        switch (args.Operation)
+        {
+            case PlaybackAssignmentChangeOperation.Add:
+                await InitialiseLayoutAsync();
+                break;
+
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -132,8 +146,7 @@
         if (panLayoutObserved_)
             await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
         
-        Playback.MidiFileLoaded -= OnPlaybackStateChangedAsync;
-        Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
+        Playback.AssignmentsChanged -= OnAssignmentsChangedAsync;
         dotNetReference_?.Dispose();
     }
 }

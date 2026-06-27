@@ -69,7 +69,7 @@ else if (Playback.Assignments.Count == 0)
                     @if (FileId is not null)
                     {
                         <button class="sp-app-button sp-app-button--primary" @onclick="() => TogglePreviewAsync(FileId.Value)">Tracks</button>
-                        <MidiFilePreview @ref="filePreview_"/>
+                        <MidiFilePreview @ref="filePreview_" CloseOnSave="true"/>
                     }
                     else
                     {
@@ -93,13 +93,20 @@ else
     <section class="sp-app-page practice-page">
         <div class="practice-page__control">
             <div class="sp-app-card practice-page__track">
-                <div class="practice-page__field">
+                <div class="practice-page__field practice-page__field-pan">
                     <span>Track</span>
-                    <select class="sp-min-content" value="@SelectedTrackId" @onchange="OnSelectedTrackChangedAsync">
-                        @foreach (var assignment in Playback.Assignments.Where(x => x.TrackId is not null))
+                    <select value="@SelectedTrackId" @onchange="OnSelectedTrackChangedAsync">
+                        @foreach (var track in Playback.Tracks)
                         {
-                            var track = Playback.GetTrackForAssignment(assignment);
-                            <option value="@assignment.TrackId">@track?.DisplayInfo</option>
+                            bool isAssigned = Playback.Assignments.Any(x => x.TrackId == track.Id);
+                            if (isAssigned)
+                            {
+                                <option value="@track.Id">@track.DisplayInfo</option>
+                            }
+                            else
+                            {
+                                <option hidden disabled value="@track.Id">@track.DisplayInfo</option>
+                            }
                         }
                     </select>
                 </div>
@@ -238,6 +245,7 @@ else
     {
         EnsureSelectedTrack();
         await ApplySelectedTrackSoloAsync();
+
         await InvokeAsync(StateHasChanged);
     }
 

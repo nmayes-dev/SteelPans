@@ -2,6 +2,8 @@
 using SteelPans.Components.Toolbar;
 using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Music;
+using SteelPans.Components.Services;
+using SteelPans.WebApp.Services;
 
 namespace SteelPans.WebApp.Components.Elements;
 
@@ -18,6 +20,16 @@ public partial class MidiTrackList
     {
         if (Tracks is null && Files is null)
             throw new InvalidOperationException("Must provide either track list or file list");
+
+        Playback.AssignmentsChanged += OnUpdateAsync;
+    }
+
+    private Task OnUpdateAsync(PlaybackAssignmentsChangedEventArgs args)
+    {
+        if (Tracks is null)
+            return Task.CompletedTask;
+
+        return InvokeAsync(StateHasChanged);
     }
 
     private async Task LoadGroupMidiFileAsync(GroupFileDto file)
@@ -34,19 +46,19 @@ public partial class MidiTrackList
 
         }
 
-        await OpenAddPanAsync();
+        await OpenAddPanAsync(track);
     }
 
 
-    private async Task OpenAddPanAsync()
+    private async Task OpenAddPanAsync(MidiTrackInfo track)
     {
-        await Modals.OpenAsync("AddPan");
+        await Modals.OpenAsync("AddPan", track.Id, new ModalOptions { CloseOthers = false });
     }
 
     private async Task OpenRemovePanAsync(MidiTrackInfo track)
     {
         var pan = Playback.ActivePans.First(a => a.Assignment.TrackId == track.Id);
-        await Modals.OpenAsync("RemovePan", pan);
+        await Modals.OpenAsync("RemovePan", pan, new ModalOptions { CloseOthers = false });
     }
 
     private string GetMetaInfo(MidiTrackInfo track)
@@ -56,5 +68,10 @@ public partial class MidiTrackList
     private bool IsTrackAssigned(MidiTrackInfo track)
     {
         return Playback.Assignments.Any(a => a.TrackId == track.Id);
+    }
+
+    public void Dispose()
+    {
+        Playback.AssignmentsChanged -= OnUpdateAsync;
     }
 }

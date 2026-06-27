@@ -42,6 +42,7 @@
             <ToolbarElement Order="2"
                             Text="MIDI File"
                             IconClass="bi-file-earmark-music"
+                            CloseOnAction="true"
                             LabelFor="midi-file-input" />
 
             <FileInput Id="midi-file-input"
@@ -115,7 +116,7 @@
     }
 </Toolbar>
 
-@code {
+    @code {
     private Toolbar? toolbar_;
 
     private bool anyPans_;
@@ -176,11 +177,13 @@
 
     private async Task OnMultipleMidiSelectedAsync(IReadOnlyList<IBrowserFile> files)
     {
+        await toolbar_!.RequestCloseAsync();
         await Modals.OpenAsync("MergeMidiFiles", files);
     }
 
     private async Task OnSingleMidiSelectedAsync(IBrowserFile file)
     {
+        await toolbar_!.RequestCloseAsync();
         await Playback.OnLoadMidiAsync(async () =>
         {
             await using var stream = file.OpenReadStream(UserState.MaxMidiFileSize);

@@ -112,7 +112,7 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || !focusOnRender_ || popupElement_ is null)
+        if (!focusOnRender_ || popupElement_ is null)
             return;
 
         focusOnRender_ = false;
@@ -132,13 +132,16 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
         keyCallbacks_.Add(
             Keyboard.Register(
                 AcceptEscape,
-                _ => RequestCloseAsync()));
+                _ => RequestCloseAsync(),
+                consume: true));
 
         keyCallbacks_.Add(
             Keyboard.Register(
                 AcceptEnter,
-                _ => ConfirmAsync()));
+                _ => ConfirmAsync(),
+                consume: true));
     }
+
     private void RemoveKeyCallbacks()
     {
         foreach (var registration in keyCallbacks_)

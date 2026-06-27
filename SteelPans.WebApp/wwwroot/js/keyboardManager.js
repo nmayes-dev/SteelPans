@@ -13,21 +13,47 @@
         dotNetRef = null;
     }
 
-    function onKeyDown(event) {
+    function consumeEvent(event) {
+        if (event.cancelable) {
+            event.preventDefault();
+        }
+
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+    }
+
+    function isEditableTarget(target) {
+        const tagName = target?.tagName?.toLowerCase() ?? null;
+
+        return (
+            tagName === "input" ||
+            tagName === "textarea" ||
+            tagName === "select" ||
+            target?.isContentEditable === true
+        );
+    }
+
+    async function onKeyDown(event) {
         if (!dotNetRef) {
             return;
         }
 
         const target = event.target;
         const tagName = target?.tagName?.toLowerCase() ?? null;
+        const editableTarget = isEditableTarget(target);
 
-        const isEditableTarget =
-            tagName === "input" ||
-            tagName === "textarea" ||
-            tagName === "select" ||
-            target?.isContentEditable === true;
+        const modalOpen = document.querySelector(".modal-popup") !== null;
 
-        dotNetRef.invokeMethodAsync("OnKeyDownAsync", {
+        const shouldConsumeSynchronously =
+            modalOpen &&
+            !editableTarget &&
+            (event.key === "Enter" || event.key === "Escape");
+
+        if (shouldConsumeSynchronously) {
+            consumeEvent(event);
+        }
+
+        const consume = await dotNetRef.invokeMethodAsync("OnKeyDownAsync", {
             key: event.key,
             code: event.code,
             ctrlKey: event.ctrlKey,
@@ -36,8 +62,12 @@
             metaKey: event.metaKey,
             repeat: event.repeat,
             targetTagName: tagName,
-            isEditableTarget
+            isEditableTarget: editableTarget
         });
+
+        if (consume === true && !shouldConsumeSynchronously) {
+            consumeEvent(event);
+        }
     }
 
     return {

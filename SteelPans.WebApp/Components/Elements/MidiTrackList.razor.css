@@ -49,6 +49,7 @@
 
 .track-list__item {
     display: flex;
+    justify-content: space-between;
     align-items: center;
     gap: var(--track-panel-gap);
     min-width: 0;
@@ -63,10 +64,10 @@
 
 .track-list__details {
     display: flex;
-    flex: 1 1 auto;
     flex-direction: column;
     gap: clamp(0.08rem, 0.5vw, 0.2rem);
     min-width: 0;
+    width: min-content;
 }
 
 .track-list__name {

@@ -31,11 +31,14 @@ public sealed class ActiveMidiFile
 [Flags]
 public enum StateUpdate
 {
-    None = 0b0000,
-    Id = 0b0001,
-    Groups = 0b0010,
-    Files = 0b0100,
-    ActiveFile = 0b1000,
+    None = 0b00000000,
+    Id = 0b00000001,
+    Groups = 0b00000010,
+    Files = 0b000000100,
+
+    ActiveFile = 0b00001000,
+    ActiveTracks = 0b00010000,
+    ActiveAssignments = 0b00100000,
 }
 
 public sealed class UserStateService : IAsyncDisposable
@@ -199,27 +202,35 @@ public sealed class UserStateService : IAsyncDisposable
         public Guid? Track { get; set; }
     }
 
-    private static bool HasActiveFileChanged(ActiveMidiFile? current, MidiFileDetailsDto? update)
+    private static StateUpdate GetActiveFileUpdateFlag(ActiveMidiFile? currentFile, MidiFileDetailsDto? updateFile)
     {
-        if (current is null || update is null)
-            return false;
+        if (currentFile is null && updateFile is null)
+            return StateUpdate.None;
 
+        if ((currentFile is null && updateFile is not null) || (currentFile is not null && updateFile is null))
+            return StateUpdate.ActiveFile;
+
+        var current = currentFile!;
+        var update = updateFile!;
+
+        var flag = StateUpdate.None;
         if (current.Id != update.Id)
-            return true;
+            flag |= StateUpdate.ActiveFile;
+
 
         var currentTracks = current.Tracks.Select(x => x.Id);
         var updateTracks = update.Tracks.Select(x => x.Id);
         if (HasChanged(currentTracks, updateTracks))
-            return true;
+            flag |= StateUpdate.ActiveTracks;
 
 
         var currentAssignments = current.Assignments.Select(x => new AssignmentCheck { Pan = x.AssignedPanType, Track = x.TrackId });
         var updateAssignments = update.Assignments.Select(x => new AssignmentCheck { Pan = x.PanType, Track = x.TrackId });
 
         if (HasChanged(currentAssignments, updateAssignments))
-            return true;
+            flag |= StateUpdate.ActiveAssignments;
 
-        return false;
+        return flag;
     }
 
     private async Task RunRefreshAsync()
@@ -241,7 +252,7 @@ public sealed class UserStateService : IAsyncDisposable
         updateFlag = Id != id ? StateUpdate.Id : StateUpdate.None;
         updateFlag |= HasChanged(Groups, groupData) ? StateUpdate.Groups : StateUpdate.None;
         updateFlag |= HasChanged(Files, files) ? StateUpdate.Files : StateUpdate.None;
-        updateFlag |= HasActiveFileChanged(ActiveMidi, activeFile) ? StateUpdate.ActiveFile : StateUpdate.None;
+        updateFlag |= GetActiveFileUpdateFlag(ActiveMidi, activeFile);
 
         Id = id;
         Groups = groupData;

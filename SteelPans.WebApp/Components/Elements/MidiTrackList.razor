@@ -1,6 +1,7 @@
 ﻿@inject MidiPlaybackService Playback
 @inject UserStateService UserState
 @inject ModalPopupService Modals
+@implements IDisposable
 
 <div class="track-list__panel">
 
@@ -22,6 +23,7 @@
         {
             foreach (var track in Playback.Tracks)
             {
+                bool assigned = IsTrackAssigned(track);
                 <div class="track-list__item">
                     <div class="track-list__details">
                         <div class="track-list__name">@track.Index) @track.DisplayInfo</div>
@@ -29,10 +31,10 @@
                     </div>
 
                     <button type="button"
-                            class="track-list__button @(IsTrackAssigned(track) ? "track-list__button--assigned" : null)"
-                            aria-label="@(IsTrackAssigned(track) ? "Remove Track" : "Add Track")"
+                            class="track-list__button @(assigned ? "track-list__button--assigned" : null)"
+                            aria-label="@(assigned ? "Remove Track" : "Add Track")"
                             @onclick="() => OnTrackButtonPressedAsync(track)">
-                        <span class="bi @(IsTrackAssigned(track) ? "bi-dash-lg" : "bi-plus-lg")" aria-hidden="true"></span>
+                        <span class="bi @(assigned ? "bi-dash-lg" : "bi-plus-lg")" aria-hidden="true"></span>
                     </button>
                 </div>
             }

@@ -509,16 +509,6 @@ public sealed class DbService
                 };
 
                 midiFile.Tracks.Add(persistedTrack);
-
-                midiFile.Assignments.Add(new EnsembleMidiTrackAssignment
-                {
-                    Id = Guid.NewGuid(),
-                    MidiFileId = fileId,
-                    TrackId = persistedTrack.Id,
-                    TrackIndex = persistedTrack.TrackIndex,
-                    PanType = PanType.None,
-                    Label = track.Name ?? $"Track {persistedTrack.TrackIndex}",
-                });
             }
 
             await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
@@ -662,6 +652,57 @@ public sealed class DbService
                     Label = assignment.Label.Trim()
                 });
             }
+
+            var sharedGroupIds = file.SharedGroups
+                .Select(x => x.GroupId)
+                .ToList();
+
+            await db.SaveChangesAsync(cancellationToken);
+            await updates.NotifyUserStateChangedAsync(file.UploadedByUserId, cancellationToken);
+            await updates.NotifyGroupsChangedAsync(sharedGroupIds, cancellationToken);
+            await updates.NotifyMidiAssignmentsChangedAsync(
+                file.Id,
+                file.UploadedByUserId,
+                sharedGroupIds,
+                cancellationToken);
+        }
+
+        public async Task AddMidiAssignmentsAsync(
+            Guid fileId,
+            MidiTrackAssignmentDto assignment,
+            CancellationToken cancellationToken = default)
+        {
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            var file = await db.MidiFiles
+                .Include(x => x.Tracks)
+                .Include(x => x.Assignments)
+                .Include(x => x.SharedGroups)
+                .FirstOrDefaultAsync(x => x.Id == fileId, cancellationToken);
+
+            if (file is null)
+            {
+                throw new InvalidOperationException("MIDI file not found.");
+            }
+
+            if (!await CanEditFileAsync(db, file, cancellationToken))
+                throw new UnauthorizedAccessException("You don't have permissions to edit this file.");
+
+            var tracksById = file.Tracks.ToDictionary(x => x.Id);
+            if (!tracksById.TryGetValue(assignment.TrackId, out var track))
+                return;
+
+            var existing = db.MidiTrackAssignments.Where(x => x.TrackId == assignment.TrackId);
+            if (!await existing.AnyAsync())
+
+            db.MidiTrackAssignments.Add(new EnsembleMidiTrackAssignment
+            {
+                Id = Guid.NewGuid(),
+                MidiFileId = fileId,
+                TrackId = track.Id,
+                TrackIndex = track.TrackIndex,
+                PanType = assignment.PanType,
+                Label = assignment.Label.Trim()
+            });
 
             var sharedGroupIds = file.SharedGroups
                 .Select(x => x.GroupId)

@@ -1,5 +1,7 @@
 @using SteelPans.WebApp.Services
 @inject MidiPlaybackService Playback
+@inject MidiPlaybackService Playback
+@inject DbService Db
 
 <ModalPopup TPayload="Guid?"
             Id="AddPan"
@@ -179,7 +181,7 @@
             AssignedPanType = panType,
         };
 
-        await Playback.OnAddAssignmentAsync(assignment);
+        await Playback.OnAddAssignmentAsync(assignment, newAssignment: true, notify: true);
     }
 
     private async Task ConfirmAddTrackAsync(PanType panType)
@@ -197,6 +199,9 @@
             TrackId = track.Id,
         };
 
-        await Playback.OnAddAssignmentAsync(assignment);
+        if (!Playback.TryCreateDtoAssignment(assignment, out var dto))
+            return;
+
+        await Db.MidiFiles.AddMidiAssignmentsAsync(Playback.MidiFileId, dto!);
     }
 }

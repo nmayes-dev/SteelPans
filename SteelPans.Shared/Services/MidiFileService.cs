@@ -19,15 +19,15 @@ public sealed class MidiFileService
     public List<MidiTrackInfo> GetTrackInfos(MidiFile file)
     {
         return file.GetTrackChunks()
+            .Where(x => x.GetNotes().Count > 0)
             .Select((track, i) => new MidiTrackInfo
             {
-                Index = i,
+                Index = i + 1,
                 Name = track.Events
                     .OfType<SequenceTrackNameEvent>()
                     .FirstOrDefault()?.Text,
-                NoteCount = track.GetNotes().Count()
+                NoteCount = track.GetNotes().Count
             })
-            .Where(x => x.NoteCount > 0)
             .ToList();
     }
 
@@ -190,6 +190,7 @@ public sealed class MidiFileService
             .ToList();
 
         var result = new List<MidiTrackInfo>();
+        int trackCount = 0;
 
         for (var i = 0; i < trackChunks.Count; i++)
         {
@@ -221,6 +222,8 @@ public sealed class MidiFileService
             if (events.Count == 0)
                 continue;
 
+            trackCount++;
+
             var persistedTrack = persistedTracksByDisplayOrder is not null && result.Count < persistedTracksByDisplayOrder.Count
                 ? persistedTracksByDisplayOrder[result.Count]
                 : null;
@@ -228,7 +231,7 @@ public sealed class MidiFileService
             result.Add(new MidiTrackInfo
             {
                 Id = persistedTrack?.Id is { } id && id != Guid.Empty ? id : Guid.NewGuid(),
-                Index = persistedTrack?.Index ?? i,
+                Index = persistedTrack?.Index ?? trackCount,
                 Name = persistedTrack?.Name ?? track.Events.OfType<SequenceTrackNameEvent>().FirstOrDefault()?.Text,
                 NoteCount = events.Count,
                 PanType = persistedTrack?.PanType ?? PanType.None,

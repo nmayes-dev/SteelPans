@@ -90,27 +90,24 @@
         if (selectedFile_ is null || selectedFileBytes_ is null)
             return;
 
-        Guid? uploadedId = null;
+        GroupFileDto? uploaded = null;
 
         await Tasks.RunSafe(async () =>
         {
             await using var stream = new MemoryStream(selectedFileBytes_);
 
-            var uploaded = await Db.MidiFiles.UploadMidiFileAsync(
+            uploaded = await Db.MidiFiles.UploadMidiFileAsync(
                 selectedFile_.Name,
                 selectedFile_.ContentType,
                 stream.Length,
                 stream);
 
-            uploadedId = uploaded.Id;
-            await UserState.RefreshAsync();
-
             return "MIDI file uploaded. Redirecting...";
         });
 
-        if (uploadedId is not null)
+        if (uploaded is not null)
         {
-            _ = Task.Delay(1500).ContinueWith(_ => Nav.NavigateTo($"/arrangements/{uploadedId}"));
+            _ = Task.Delay(1500).ContinueWith(_ => Nav.NavigateTo($"/arrangements/{uploaded.Id}"));
         }
     }
 

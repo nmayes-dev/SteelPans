@@ -25,11 +25,13 @@ public sealed class KeyboardManagerService : IAsyncDisposable
 
     public IDisposable Register(
         Func<KeyboardEventData, bool> predicate,
-        Func<KeyboardEventData, Task> callback)
+        Func<KeyboardEventData, Task> callback,
+        bool consume = false)
     {
         var registration = new KeyboardCallbackRegistration(
             predicate,
             callback,
+            ConsumeEvent: consume,
             OneShot: false);
 
         callbacks_.Add(registration);
@@ -39,11 +41,13 @@ public sealed class KeyboardManagerService : IAsyncDisposable
 
     public IDisposable RegisterOneShot(
         Func<KeyboardEventData, bool> predicate,
-        Func<KeyboardEventData, Task> callback)
+        Func<KeyboardEventData, Task> callback,
+        bool consume = false)
     {
         var registration = new KeyboardCallbackRegistration(
             predicate,
             callback,
+            ConsumeEvent: consume,
             OneShot: true);
 
         callbacks_.Add(registration);
@@ -57,7 +61,7 @@ public sealed class KeyboardManagerService : IAsyncDisposable
     }
 
     [JSInvokable]
-    public async Task OnKeyDownAsync(KeyboardEventData eventData)
+    public async Task<bool> OnKeyDownAsync(KeyboardEventData eventData)
     {
         foreach (var registration in callbacks_.ToArray())
         {
@@ -71,7 +75,12 @@ public sealed class KeyboardManagerService : IAsyncDisposable
 
             if (registration.OneShot)
                 callbacks_.Remove(registration);
+
+            if (registration.ConsumeEvent)
+                return true;
         }
+
+        return false;
     }
 
     public async ValueTask DisposeAsync()
@@ -116,6 +125,7 @@ public sealed class KeyboardManagerService : IAsyncDisposable
     private sealed record KeyboardCallbackRegistration(
         Func<KeyboardEventData, bool> Predicate,
         Func<KeyboardEventData, Task> Callback,
+        bool ConsumeEvent,
         bool OneShot);
 }
 

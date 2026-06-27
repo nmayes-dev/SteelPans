@@ -34,8 +34,6 @@
             var deletedFileId = payload.Id;
             await Db.MidiFiles.DeleteMidiFileAsync(deletedFileId);
 
-            await UserState.RefreshAsync();
-
             return "MIDI file deleted.";
         });
 
