@@ -1,4 +1,4 @@
-﻿@inject MidiPlaybackService Playback
+﻿@inject MidiManagerService MidiService
 @inject UserStateService UserState
 @inject ModalPopupService Modals
 @implements IDisposable
@@ -8,8 +8,8 @@
     <div class="track-list__panel-header">
         @if (Tracks is not null)
         {
-            <span class="track-list__panel-title">@Playback.MidiFileName</span>
-            <span class="track-list__panel-count">@Playback.Tracks.Count track@(Playback.Tracks.Count == 1 ? "" : "s")</span>
+            <span class="track-list__panel-title">@MidiService.Playback.MidiFileName</span>
+            <span class="track-list__panel-count">@MidiService.Playback.Tracks.Count track@(MidiService.Playback.Tracks.Count == 1 ? "" : "s")</span>
         }
         else if (Files is not null)
         {
@@ -21,7 +21,7 @@
     <div class="track-list__list">
         @if (Tracks is not null)
         {
-            foreach (var track in Playback.Tracks)
+            foreach (var track in MidiService.Playback.Tracks)
             {
                 bool assigned = IsTrackAssigned(track);
                 <div class="track-list__item">

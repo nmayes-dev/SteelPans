@@ -2,7 +2,7 @@
 @attribute [Authorize]
 @inject DbService Db
 @inject TaskRunnerService Tasks
-@inject MidiFileService MidiInspection
+@inject MidiManagerService MidiService
 @inject UserStateService UserState
 @inject NavigationManager Nav
 
@@ -80,8 +80,8 @@
             selectedFileBytes_ = buffer.ToArray();
 
             buffer.Position = 0;
-            var midiFile = await MidiInspection.OpenMidiFileAsync(buffer);
-            localPreview_ = MidiInspection.GetTrackInfos(midiFile);
+            using var fileBuffer = await MidiService.Files.OpenMidiFileAsync(buffer);
+            localPreview_ = MidiService.Files.GetTrackInfos(fileBuffer);
         });
     }
 
@@ -95,12 +95,15 @@
         await Tasks.RunSafe(async () =>
         {
             await using var stream = new MemoryStream(selectedFileBytes_);
+            using var fileBuffer = await MidiService.Files.OpenMidiFileAsync(stream);
+            var tracks = MidiService.Files.GetTrackInfos(fileBuffer);
 
             uploaded = await Db.MidiFiles.UploadMidiFileAsync(
                 selectedFile_.Name,
-                selectedFile_.ContentType,
                 stream.Length,
-                stream);
+                fileBuffer,
+                tracks
+            );
 
             return "MIDI file uploaded. Redirecting...";
         });

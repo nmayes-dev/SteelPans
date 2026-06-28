@@ -7,14 +7,14 @@ namespace SteelPans.WebApp.Components.Elements;
 
 public partial class Metronome
 {
-    [Inject] private MidiPlaybackService Playback { get; set; } = default!;
+    [Inject] private MidiManagerService MidiService { get; set; } = default!;
 
-    private bool MidiLoaded => Playback.ActivePans.Count > 0;
-    private double? MidiStartAt => midiStartAt_ ?? Playback.MidiStartAt;
-    private int Bpm => Playback.TempoBpm;
-    private int BeatsPerBar => Playback.BeatsPerBar;
-    private int BeatUnit => Playback.BeatUnit;
-    private bool Enabled => Playback.ClickTrackEnabled;
+    private bool MidiLoaded => MidiService.Playback.ActivePans.Count > 0;
+    private double? MidiStartAt => midiStartAt_ ?? MidiService.Playback.MidiStartAt;
+    private int Bpm => MidiService.Playback.TempoBpm;
+    private int BeatsPerBar => MidiService.Playback.BeatsPerBar;
+    private int BeatUnit => MidiService.Playback.BeatUnit;
+    private bool Enabled => MidiService.Playback.ClickTrackEnabled;
 
     private const int MinBpm = 20;
     private const int MaxBpm = 200;
@@ -85,34 +85,34 @@ public partial class Metronome
 
     protected override void OnInitialized()
     {
-        Playback.ClickTrackSettingsChanged += OnClickTrackSettingsChangedAsync;
-        Playback.PlaybackStarted += OnPlaybackStartedAsync;
-        Playback.PlaybackPaused += OnPlaybackPausedAsync;
-        Playback.PlaybackStopped += OnPlaybackStoppedAsync;
-        Playback.TempoChanged += OnTempoChangedAsync;
-        Playback.PositionChanged += OnPlaybackPositionChangedAsync;
+        MidiService.Playback.ClickTrackSettingsChanged += OnClickTrackSettingsChangedAsync;
+        MidiService.Playback.PlaybackStarted += OnPlaybackStartedAsync;
+        MidiService.Playback.PlaybackPaused += OnPlaybackPausedAsync;
+        MidiService.Playback.PlaybackStopped += OnPlaybackStoppedAsync;
+        MidiService.Playback.TempoChanged += OnTempoChangedAsync;
+        MidiService.Playback.PositionChanged += OnPlaybackPositionChangedAsync;
 
         selfRef_ = DotNetObjectReference.Create(this);
     }
 
 
-    private async Task OnClickTrackSettingsChangedAsync(ClickTrackSettingsChangedEventArgs e)
+    private async Task OnClickTrackSettingsChangedAsync(MidiEventArgs.ClickTrackSettingsChanged e)
     {
         if (!Enabled && IsPlaying)
         {
             await StopAsync();
         }
-        else if (Playback.IsPlaying && playState_ != PlayState.MIDI)
+        else if (MidiService.Playback.IsPlaying && playState_ != PlayState.MIDI)
         {
             await StartMidiVisualSyncAsync(
-                Playback.MidiStartAt ?? await Playback.GetAudioTimeAsync(),
-                Playback.Position.TotalSeconds);
+                MidiService.Playback.MidiStartAt ?? await MidiService.Playback.GetAudioTimeAsync(),
+                MidiService.Playback.Position.TotalSeconds);
         }
 
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task OnPlaybackStartedAsync(MidiPlaybackStartedEventArgs args)
+    private async Task OnPlaybackStartedAsync(MidiEventArgs.PlaybackStarted args)
     {
         await StopAsync(resetVisuals: false);
 
@@ -127,7 +127,7 @@ public partial class Metronome
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task OnPlaybackPausedAsync(MidiPlaybackPausedEventArgs args)
+    private async Task OnPlaybackPausedAsync(MidiEventArgs.PlaybackPaused args)
     {
         if (playState_ == PlayState.MIDI)
             await StopMidiVisualSyncAsync(resetVisuals: false);
@@ -136,7 +136,7 @@ public partial class Metronome
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task OnPlaybackStoppedAsync(MidiPlaybackStoppedEventArgs args)
+    private async Task OnPlaybackStoppedAsync(MidiEventArgs.PlaybackStopped args)
     {
         if (playState_ == PlayState.MIDI)
             await StopMidiVisualSyncAsync(resetVisuals: args.ResetPosition);
@@ -145,13 +145,13 @@ public partial class Metronome
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task OnTempoChangedAsync(PlaybackTempoChangedEventArgs args)
+    private async Task OnTempoChangedAsync(MidiEventArgs.PlaybackTempoChanged args)
     {
         await UpdateMidiVisualTempoAsync(args.Bpm);
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task OnPlaybackPositionChangedAsync(PlaybackPositionChangedEventArgs args)
+    private async Task OnPlaybackPositionChangedAsync(MidiEventArgs.PlaybackPositionChanged args)
     {
         if (!Enabled || args.IsTick)
             return;
@@ -181,7 +181,7 @@ public partial class Metronome
         if (selfRef_ is null || IsPlaying)
             return;
 
-        await Playback.BeginMetronomeWeightDragAsync(weightTrackRef_, selfRef_, e.ClientY);
+        await MidiService.Playback.BeginMetronomeWeightDragAsync(weightTrackRef_, selfRef_, e.ClientY);
     }
 
     [JSInvokable]
@@ -203,7 +203,7 @@ public partial class Metronome
 
     private async Task ToggleManualPlayAsync()
     {
-        if (!Enabled || Playback.IsPlaying || playState_ == PlayState.MIDI)
+        if (!Enabled || MidiService.Playback.IsPlaying || playState_ == PlayState.MIDI)
             return;
 
         if (playState_ == PlayState.Manual)
@@ -276,7 +276,7 @@ public partial class Metronome
         if (Bpm == bpm)
             return;
 
-        await Playback.SetTempoBpmAsync(bpm);
+        await MidiService.Playback.SetTempoBpmAsync(bpm);
 
         if (Enabled && playState_ == PlayState.Manual)
             await RestartLoopAsync();
@@ -301,7 +301,7 @@ public partial class Metronome
         if (BeatsPerBar == beatsPerBar)
             return;
 
-        await Playback.SetBeatsPerBarAsync(beatsPerBar);
+        await MidiService.Playback.SetBeatsPerBarAsync(beatsPerBar);
 
         if (beatIndex_ >= BeatsPerBar)
             beatIndex_ = 0;
@@ -319,7 +319,7 @@ public partial class Metronome
         if (BeatUnit == beatUnit)
             return;
 
-        await Playback.SetBeatUnitAsync(beatUnit);
+        await MidiService.Playback.SetBeatUnitAsync(beatUnit);
 
         if (Enabled && playState_ == PlayState.Manual)
             await RestartLoopAsync();
@@ -335,7 +335,7 @@ public partial class Metronome
 
     private async Task StartLoopAsync()
     {
-        if (!Enabled || Playback.IsPlaying)
+        if (!Enabled || MidiService.Playback.IsPlaying)
             return;
 
         await StopLoopAsync();
@@ -382,7 +382,7 @@ public partial class Metronome
                     accentFlash_ = isAccent;
 
                     await InvokeAsync(StateHasChanged);
-                    await Playback.PlayMetronomeTickAsync(isAccent, cancellationToken);
+                    await MidiService.Playback.PlayMetronomeTickAsync(isAccent, cancellationToken);
 
                     _ = ClearFlashSoonAsync();
 
@@ -447,13 +447,13 @@ public partial class Metronome
 
                 double audioTime;
                 double elapsedSeconds;
-                MidiPlaybackService.MetronomeScheduleState? metronomeState = null;
+                MidiManagerService.PlaybackManager.MetronomeScheduleState? metronomeState = null;
 
                 try
                 {
-                    metronomeState = await Playback.GetMetronomeScheduleStateAsync(cancellationToken);
+                    metronomeState = await MidiService.Playback.GetMetronomeScheduleStateAsync(cancellationToken);
                     audioTime = metronomeState?.AudioTime
-                        ?? await Playback.GetAudioTimeAsync(cancellationToken);
+                        ?? await MidiService.Playback.GetAudioTimeAsync(cancellationToken);
                 }
                 catch
                 {
@@ -572,7 +572,7 @@ public partial class Metronome
 
         try
         {
-            audioTime = await Playback.GetAudioTimeAsync();
+            audioTime = await MidiService.Playback.GetAudioTimeAsync();
         }
         catch
         {
@@ -619,7 +619,7 @@ public partial class Metronome
         }
 
         if (hadLoop)
-            await Playback.StopMetronomeAudioAsync();
+            await MidiService.Playback.StopMetronomeAudioAsync();
 
         isBeating_ = false;
         tickFlash_ = false;
@@ -775,12 +775,12 @@ public partial class Metronome
 
     public async ValueTask DisposeAsync()
     {
-        Playback.ClickTrackSettingsChanged -= OnClickTrackSettingsChangedAsync;
-        Playback.PlaybackStarted -= OnPlaybackStartedAsync;
-        Playback.PlaybackPaused -= OnPlaybackPausedAsync;
-        Playback.PlaybackStopped -= OnPlaybackStoppedAsync;
-        Playback.TempoChanged -= OnTempoChangedAsync;
-        Playback.PositionChanged -= OnPlaybackPositionChangedAsync;
+        MidiService.Playback.ClickTrackSettingsChanged -= OnClickTrackSettingsChangedAsync;
+        MidiService.Playback.PlaybackStarted -= OnPlaybackStartedAsync;
+        MidiService.Playback.PlaybackPaused -= OnPlaybackPausedAsync;
+        MidiService.Playback.PlaybackStopped -= OnPlaybackStoppedAsync;
+        MidiService.Playback.TempoChanged -= OnTempoChangedAsync;
+        MidiService.Playback.PositionChanged -= OnPlaybackPositionChangedAsync;
 
         StopBpmRepeat();
 

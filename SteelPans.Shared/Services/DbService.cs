@@ -23,12 +23,11 @@ public sealed class DbService
     public DbService(IDbContextFactory<EnsembleDbContext> dbFactory,
         ICurrentUserAccessor currentUser,
         IEnsembleFileStore fileStore,
-        MidiFileService midiInspection,
         IRealtimeUpdateDispatcher updates)
     {
         currentUser_ = currentUser;
         Groups = new(dbFactory, currentUser, updates);
-        MidiFiles = new(dbFactory, currentUser, Groups, fileStore, midiInspection, updates);
+        MidiFiles = new(dbFactory, currentUser, Groups, fileStore, updates);
     }
 
     public async Task<Guid> GetUserIdAsync() => await currentUser_.GetUserIdAsync();
@@ -444,14 +443,13 @@ public sealed class DbService
         ICurrentUserAccessor currentUser,
         GroupDbService groups,
         IEnsembleFileStore fileStore,
-        MidiFileService midiInspection,
         IRealtimeUpdateDispatcher updates)
     {
         public async Task<GroupFileDto> UploadMidiFileAsync(
             string originalFileName,
-            string? contentType,
             long sizeBytes,
-            Stream content,
+            MemoryStream buffer,
+            IReadOnlyList<MidiTrackInfo> tracks,
             CancellationToken cancellationToken = default)
         {
             if (sizeBytes <= 0)
@@ -466,13 +464,6 @@ public sealed class DbService
             {
                 throw new InvalidOperationException("Only .mid and .midi files are supported.");
             }
-
-            await using var buffer = new MemoryStream();
-            await content.CopyToAsync(buffer, cancellationToken);
-            buffer.Position = 0;
-
-            var parsedMidiFile = await midiInspection.OpenMidiFileAsync(buffer, cancellationToken);
-            var tracks = midiInspection.GetTrackInfos(parsedMidiFile);
 
             var fileId = Guid.NewGuid();
 
@@ -490,9 +481,7 @@ public sealed class DbService
                 UploadedByUserId = await currentUser.GetUserIdAsync(),
                 Title = Path.GetFileNameWithoutExtension(originalFileName),
                 OriginalFileName = Path.GetFileName(originalFileName),
-                ContentType = string.IsNullOrWhiteSpace(contentType)
-                    ? "audio/midi"
-                    : contentType,
+                ContentType = "audio/midi",
                 SizeBytes = sizeBytes,
                 StorageKey = storageKey,
                 UploadedAt = DateTimeOffset.UtcNow

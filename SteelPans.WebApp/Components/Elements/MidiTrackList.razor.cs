@@ -21,10 +21,10 @@ public partial class MidiTrackList
         if (Tracks is null && Files is null)
             throw new InvalidOperationException("Must provide either track list or file list");
 
-        Playback.AssignmentsChanged += OnUpdateAsync;
+        MidiService.Playback.AssignmentsChanged += OnUpdateAsync;
     }
 
-    private Task OnUpdateAsync(PlaybackAssignmentsChangedEventArgs args)
+    private Task OnUpdateAsync(MidiEventArgs.AssignmentsChanged _)
     {
         if (Tracks is null)
             return Task.CompletedTask;
@@ -34,7 +34,7 @@ public partial class MidiTrackList
 
     private async Task LoadGroupMidiFileAsync(GroupFileDto file)
     {
-        await Playback.LoadGroupMidiFile(file.Id);
+        await MidiService.Playback.LoadGroupMidiFile(file.Id);
     }
 
     private async Task OnTrackButtonPressedAsync(MidiTrackInfo track)
@@ -57,7 +57,7 @@ public partial class MidiTrackList
 
     private async Task OpenRemovePanAsync(MidiTrackInfo track)
     {
-        var pan = Playback.ActivePans.First(a => a.Assignment.TrackId == track.Id);
+        var pan = MidiService.Playback.ActivePans.First(a => a.Assignment.TrackId == track.Id);
         await Modals.OpenAsync("RemovePan", pan, new ModalOptions { CloseOthers = false });
     }
 
@@ -67,11 +67,11 @@ public partial class MidiTrackList
     }
     private bool IsTrackAssigned(MidiTrackInfo track)
     {
-        return Playback.Assignments.Any(a => a.TrackId == track.Id);
+        return MidiService.Playback.Assignments.Any(a => a.TrackId == track.Id);
     }
 
     public void Dispose()
     {
-        Playback.AssignmentsChanged -= OnUpdateAsync;
+        MidiService.Playback.AssignmentsChanged -= OnUpdateAsync;
     }
 }

@@ -1,15 +1,15 @@
-@inject MidiPlaybackService Playback
+@inject MidiManagerService MidiService
 
 <div class="count-in-control" aria-label="Metronome Count In">
     <div class="count-in-control__control">
-        <NumericInput Value="@Playback.CountInBeats"
+        <NumericInput Value="@MidiService.Playback.CountInBeats"
                       ValueChanged="SetCountInBeatsAsync"
                       Min="0"
                       Max="32"
-                      Disabled="@Playback.IsPlaying" />
+                      Disabled="@MidiService.Playback.IsPlaying" />
 
-        <NoteDivisionDropdown Value="@Playback.CountInNoteDivision"
-                              Disabled="@Playback.IsPlaying" 
+        <NoteDivisionDropdown Value="@MidiService.Playback.CountInNoteDivision"
+                              Disabled="@MidiService.Playback.IsPlaying" 
                               ValueChanged="SetCountInNoteDivisionAsync"
                               NoteDivisions="@([2, 4, 8, 16])"/>
     </div>
@@ -18,36 +18,36 @@
 </div>
 
 @code {
-    private bool CanDecrement => !Playback.IsPlaying && Playback.CountInBeats > 0;
-    private bool CanIncrement => !Playback.IsPlaying && Playback.CountInBeats < 32;
+    private bool CanDecrement => !MidiService.Playback.IsPlaying && MidiService.Playback.CountInBeats > 0;
+    private bool CanIncrement => !MidiService.Playback.IsPlaying && MidiService.Playback.CountInBeats < 32;
 
     private async Task IncrementAsync()
     {
         if (CanIncrement)
-            await SetCountInBeatsAsync(Playback.CountInBeats + 1);
+            await SetCountInBeatsAsync(MidiService.Playback.CountInBeats + 1);
     }
 
     private async Task DecrementAsync()
     {
         if (CanDecrement)
-            await SetCountInBeatsAsync(Playback.CountInBeats - 1);
+            await SetCountInBeatsAsync(MidiService.Playback.CountInBeats - 1);
     }
 
     private async Task SetCountInBeatsAsync(int beats)
     {
-        if (!Playback.IsPlaying)
-            await Playback.SetCountInBeatsAsync(beats);
+        if (!MidiService.Playback.IsPlaying)
+            await MidiService.Playback.SetCountInBeatsAsync(beats);
     }
 
     private async Task SetCountInNoteDivisionAsync(int noteDivision)
     {
-        if (Playback.IsPlaying)
+        if (MidiService.Playback.IsPlaying)
             return;
 
-        var scale = (double)noteDivision / Playback.CountInNoteDivision;
-        var newBeats = (int)Math.Ceiling(Playback.CountInBeats * scale);
+        var scale = (double)noteDivision / MidiService.Playback.CountInNoteDivision;
+        var newBeats = (int)Math.Ceiling(MidiService.Playback.CountInBeats * scale);
 
-        await Playback.SetCountInNoteDivisionAsync(noteDivision);
-        await Playback.SetCountInBeatsAsync(newBeats);
+        await MidiService.Playback.SetCountInNoteDivisionAsync(noteDivision);
+        await MidiService.Playback.SetCountInBeatsAsync(newBeats);
     }
 }

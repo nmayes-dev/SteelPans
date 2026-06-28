@@ -1,13 +1,12 @@
 @page "/play/solo"
-@inject MidiPlaybackService Playback
+@inject MidiManagerService MidiService
 @inject UserStateService UserState
 @inject ModalPopupService Modals
-@inject MidiFileService MidiService
 @implements IAsyncDisposable
 
 <PageTitle>Practice</PageTitle>
 
-@if (!Playback.IsMidiLoaded)
+@if (!MidiService.Playback.IsMidiLoaded)
 {
     <section class="sp-app-page">
         <div class="sp-app-card practice-page__empty-card">
@@ -34,12 +33,12 @@
         </div>
     </section>
 }
-else if (Playback.Tracks.Count == 0)
+else if (MidiService.Playback.Tracks.Count == 0)
 {
     <section class="sp-app-page">
         <div class="sp-app-card practice-page__empty-card">
             <h2>No Playable MIDI tracks</h2>
-            <p>@Playback.MidiFileName is loaded, but no tracks containing notes were found.</p>
+            <p>@MidiService.Playback.MidiFileName is loaded, but no tracks containing notes were found.</p>
             <AuthorizeView>
                 <Authorized Context="auth">
                     <a class="sp-app-button sp-app-button--primary" href="/arrangements@(FileId is null ? string.Empty : $"/{FileId}")">View File</a>
@@ -58,12 +57,12 @@ else if (Playback.Tracks.Count == 0)
         </div>
     </section>
 }
-else if (Playback.Assignments.Count == 0)
+else if (MidiService.Playback.Assignments.Count == 0)
 {
     <section class="sp-app-page">
         <div class="sp-app-card practice-page__empty-card">
             <h2>No Assigned Tracks</h2>
-            <p>@Playback.MidiFileName is loaded, but no pans were assigned to any tracks.</p>
+            <p>@MidiService.Playback.MidiFileName is loaded, but no pans were assigned to any tracks.</p>
             <AuthorizeView>
                 <Authorized Context="auth">
                     @if (FileId is not null)
@@ -80,7 +79,7 @@ else if (Playback.Assignments.Count == 0)
                     <div class="practice-page__load">
                         <a class="sp-app-button sp-app-button--secondary" href="/play">Back</a>
                         <ExpandingOverlay Title="Add Pans" Text="Tracks" ExpandDirection="ExpandingOverlay.Direction.Right" ClosedIconClass="x-lg">
-                            <MidiTrackList Tracks="Playback.Tracks" />
+                            <MidiTrackList Tracks="MidiService.Playback.Tracks" />
                          </ExpandingOverlay>
                     </div>
                 </NotAuthorized>
@@ -96,9 +95,9 @@ else
                 <div class="practice-page__field practice-page__field-pan">
                     <span>Track</span>
                     <select value="@SelectedTrackId" @onchange="OnSelectedTrackChangedAsync">
-                        @foreach (var track in Playback.Tracks)
+                        @foreach (var track in MidiService.Playback.Tracks)
                         {
-                            bool isAssigned = Playback.Assignments.Any(x => x.TrackId == track.Id);
+                            bool isAssigned = MidiService.Playback.Assignments.Any(x => x.TrackId == track.Id);
                             if (isAssigned)
                             {
                                 <option value="@track.Id">@track.DisplayInfo</option>
@@ -114,7 +113,7 @@ else
                     <label class="practice-page__assign">
                         <span>Assign</span>
                         <ExpandingOverlay Title="Add Assignments" ExpandDirection="ExpandingOverlay.Direction.Right" ClosedIconClass="plus-lg">
-                            <MidiTrackList Tracks="Playback.Tracks" />
+                            <MidiTrackList Tracks="MidiService.Playback.Tracks" />
                         </ExpandingOverlay>
                     </label>
                     <label class="practice-page__checkbox">
@@ -136,10 +135,10 @@ else
                                  MinSemitone="SelectedPanMinSemitone"
                                  MaxSemitone="SelectedPanMaxSemitone"
                                  Duration="@VisualDuration"
-                                 TempoBpm="@Playback.TempoBpm"
-                                 InitialMidiBpm="@Playback.InitialMidiBpm"
-                                 BeatsPerBar="@Playback.BeatsPerBar"
-                                 BeatUnit="@Playback.BeatUnit" />
+                                 TempoBpm="@MidiService.Playback.TempoBpm"
+                                 InitialMidiBpm="@MidiService.Playback.InitialMidiBpm"
+                                 BeatsPerBar="@MidiService.Playback.BeatsPerBar"
+                                 BeatUnit="@MidiService.Playback.BeatUnit" />
 
             <PansLayout Pans="@SelectedPanList"
                         Locked="true" />
@@ -160,19 +159,19 @@ else
     private bool soloTrack_ = true;
     private Guid? selectedTrackId_;
 
-    private Guid? SelectedTrackId => selectedTrackId_ ?? Track ?? Playback.Assignments.FirstOrDefault()?.TrackId;
-    private MidiTrackInfo? SelectedTrack => SelectedTrackId is Guid trackId ? Playback.Tracks.FirstOrDefault(x => x.Id == trackId) : null;
-    private MidiAssignedPan? SelectedAssignedPan => SelectedTrackId is Guid trackId ? Playback.GetAssignedPanForTrack(trackId) : null;
+    private Guid? SelectedTrackId => selectedTrackId_ ?? Track ?? MidiService.Playback.Assignments.FirstOrDefault()?.TrackId;
+    private MidiTrackInfo? SelectedTrack => SelectedTrackId is Guid trackId ? MidiService.Playback.Tracks.FirstOrDefault(x => x.Id == trackId) : null;
+    private MidiAssignedPan? SelectedAssignedPan => SelectedTrackId is Guid trackId ? MidiService.Playback.GetAssignedPanForTrack(trackId) : null;
     private IReadOnlyList<MidiAssignedPan> SelectedPanList => SelectedAssignedPan is null ? [] : [SelectedAssignedPan];
     private int? SelectedPanMinSemitone => SelectedAssignedPan?.Pan.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Min();
     private int? SelectedPanMaxSemitone => SelectedAssignedPan?.Pan.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Max();
 
-    private IReadOnlyList<MidiPanEvent> SelectedTrackEvents => (SelectedTrackId is Guid trackId ? Playback.GetMidiTrackEvents(trackId) : [])
+    private IReadOnlyList<MidiPanEvent> SelectedTrackEvents => (SelectedTrackId is Guid trackId ? MidiService.Playback.GetMidiTrackEvents(trackId) : [])
         .OrderBy(x => x.Start)
         .ThenBy(x => x.Note.SemitoneNumber)
         .ToList();
 
-    private int AssignedTrackCount => Playback.ActivePans.Count;
+    private int AssignedTrackCount => MidiService.Playback.ActivePans.Count;
     private string AssignedPanLabel => SelectedAssignedPan?.Pan.Type.ToSpacedPascal() ?? "Unassigned";
     private string? SelectedTrackLabel => SelectedTrack?.TrackLabel ?? SelectedTrack?.Name;
 
@@ -184,20 +183,20 @@ else
                 .DefaultIfEmpty()
                 .Max(x => x is null ? TimeSpan.Zero : x.End);
 
-            return selectedEnd > Playback.Duration ? selectedEnd : Playback.Duration;
+            return selectedEnd > MidiService.Playback.Duration ? selectedEnd : MidiService.Playback.Duration;
         }
     }
 
     protected override async Task OnInitializedAsync()
     {
-        Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
-        Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
+        MidiService.Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
+        MidiService.Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
 
         if (loadedFileFromQuery_ || FileId is null)
             return;
 
         loadedFileFromQuery_ = true;
-        await Playback.LoadGroupMidiFile(FileId.Value);
+        await MidiService.Playback.LoadGroupMidiFile(FileId.Value);
         EnsureSelectedTrack();
     }
 
@@ -238,7 +237,7 @@ else
         if (SelectedAssignedPan is null)
             return;
 
-        await Playback.SetPanSoloingAsync(SelectedAssignedPan, soloTrack_);
+        await MidiService.Playback.SetPanSoloingAsync(SelectedAssignedPan, soloTrack_);
     }
 
     private async Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)
@@ -256,29 +255,30 @@ else
 
     private async Task OnSingleMidiSelectedAsync(IBrowserFile file)
     {
-        await Playback.OnLoadMidiAsync(async () =>
+        await MidiService.Playback.OnLoadMidiAsync(async () =>
         {
             await using var stream = file.OpenReadStream(UserState.MaxMidiFileSize);
-            return (Guid.NewGuid(), file.Name, await MidiService.OpenMidiFileAsync(stream));
+            using var midiStream = await MidiService.Files.OpenMidiFileAsync(stream);
+            return (Guid.NewGuid(), file.Name, MidiFile.Read(midiStream));
         });
     }
 
     private void EnsureSelectedTrack()
     {
-        if (Playback.Tracks.Count == 0)
+        if (MidiService.Playback.Tracks.Count == 0)
         {
             selectedTrackId_ = null;
             return;
         }
 
-        if (selectedTrackId_ is null && Track is not null && Playback.Tracks.Any(x => x.Id == Track.Value))
+        if (selectedTrackId_ is null && Track is not null && MidiService.Playback.Tracks.Any(x => x.Id == Track.Value))
         {
             selectedTrackId_ = Track.Value;
             return;
         }
 
-        if (selectedTrackId_ is null || Playback.Tracks.All(x => x.Id != selectedTrackId_))
-            selectedTrackId_ = Playback.Tracks[0].Id;
+        if (selectedTrackId_ is null || MidiService.Playback.Tracks.All(x => x.Id != selectedTrackId_))
+            selectedTrackId_ = MidiService.Playback.Tracks[0].Id;
     }
 
     private static string FormatTime(TimeSpan time)
@@ -292,8 +292,8 @@ else
 
     public ValueTask DisposeAsync()
     {
-        Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
-        Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
+        MidiService.Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
+        MidiService.Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
         return ValueTask.CompletedTask;
     }
 }

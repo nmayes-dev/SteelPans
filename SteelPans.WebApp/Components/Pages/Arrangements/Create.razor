@@ -1,7 +1,7 @@
 @page "/arrangements/create"
 @attribute [Authorize]
 @inject TaskRunnerService Tasks
-@inject MidiEditingService Draft
+@inject MidiManagerService MidiService
 @inject SteelPanLoaderService PanLoader
 @inject DbService Db
 @inject NavigationManager Nav
@@ -28,12 +28,12 @@
         <div class="record-file-page__actions">
             <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="BackAsync">Back</button>
             <a class="sp-app-button sp-app-button--secondary" href="/arrangements/tracks/create">Add Track</a>
-            <button type="button" class="sp-app-button sp-app-button--secondary" disabled="@(Tasks.Busy || Draft.Tracks.Count == 0)" @onclick="SaveDraftAsync">Save Draft</button>
-            <button type="button" class="sp-app-button" disabled="@(Tasks.Busy || Draft.Tracks.Count == 0)" @onclick="SaveFileAsync">Save</button>
+            <button type="button" class="sp-app-button sp-app-button--secondary" disabled="@(Tasks.Busy || MidiService.Edit.Tracks.Count == 0)" @onclick="SaveDraftAsync">Save Draft</button>
+            <button type="button" class="sp-app-button" disabled="@(Tasks.Busy || MidiService.Edit.Tracks.Count == 0)" @onclick="SaveFileAsync">Save</button>
         </div>
     </div>
 
-    @if (Draft.Tracks.Count == 0)
+    @if (MidiService.Edit.Tracks.Count == 0)
     {
         <div class="sp-app-card record-file-page__empty">
             <h2>No recorded tracks</h2>
@@ -43,7 +43,7 @@
     else
     {
         <div class="record-file-page__tracks">
-            @foreach (var track in Draft.Tracks)
+            @foreach (var track in MidiService.Edit.Tracks)
             {
                 <article class="sp-app-card record-file-page__track">
                     <div>
@@ -77,13 +77,13 @@
 
     protected override void OnInitialized()
     {
-        Draft.BeginCreateFile();
-        title_ = Draft.Title;
+        MidiService.Edit.BeginCreateFile();
+        title_ = MidiService.Edit.Title;
     }
 
-    private void OnTitleChanged() => Draft.SetTitle(title_);
+    private void OnTitleChanged() => MidiService.Edit.SetTitle(title_);
 
-    private void RemoveTrack(Guid id) => Draft.RemoveTrack(id);
+    private void RemoveTrack(Guid id) => MidiService.Edit.RemoveTrack(id);
 
     private SteelPan? GetPan(PanType panType) => PanLoader.Pans.FirstOrDefault(x => x.Type == panType);
     private int? GetPanMinSemitone(PanType panType) => GetPan(panType)?.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Min();
@@ -98,11 +98,11 @@
             if (string.IsNullOrWhiteSpace(title_))
                 throw new Exception("Please enter a title for the draft");
 
-            if (Draft.Tracks.Count == 0)
-                throw new Exception("Add at least one track before saving a draft.");
+            if (MidiService.Edit.Tracks.Count == 0)
+                throw new Exception("Add at least one track before saving a MidiService.Edit.");
 
             newFile = await SaveCurrentFileAsync(isIncomplete: true);
-            Draft.MarkSaved();
+            MidiService.Edit.MarkSaved();
             await UserState.RefreshAsync();
             return $"Saved draft {newFile.Title}.";
         });
@@ -110,16 +110,16 @@
 
     private async Task<GroupFileDto> SaveCurrentFileAsync(bool isIncomplete)
     {
-        Draft.SetTitle(title_);
-        var first = Draft.Tracks[0];
+        MidiService.Edit.SetTitle(title_);
+        var first = MidiService.Edit.Tracks[0];
         return await Db.MidiFiles.CreateRecordedMidiFileAsync(
             new DbService.MidiDbService.CreateRecordedMidiFileRequest(
-                Draft.FileId,
+                MidiService.Edit.FileId,
                 title_,
                 first.TempoBpm,
                 first.BeatsPerBar,
                 first.BeatUnit,
-                Draft.Tracks.Select(track => new DbService.MidiDbService.CreateRecordedMidiTrackRequest(
+                MidiService.Edit.Tracks.Select(track => new DbService.MidiDbService.CreateRecordedMidiTrackRequest(
                     (track.Name ?? $"Track {track.Index + 1}"),
                     track.PanType,
                     track.DurationSeconds,
@@ -132,7 +132,7 @@
 
     private async Task BackAsync()
     {
-        if (!Draft.HasUnsavedChanges)
+        if (!MidiService.Edit.HasUnsavedChanges)
         {
             Nav.NavigateTo("/arrangements");
             return;
@@ -142,7 +142,7 @@
         {
             OnSuccess = () =>
             {
-                Draft.Clear();
+                MidiService.Edit.Clear();
                 Nav.NavigateTo("/arrangements");
                 return Task.CompletedTask;
             }
@@ -158,12 +158,12 @@
             if (string.IsNullOrWhiteSpace(title_))
                 throw new Exception("Please enter a title for the file");
 
-            if (Draft.Tracks.Count == 0)
+            if (MidiService.Edit.Tracks.Count == 0)
                 throw new Exception("Add at least one track before saving.");
 
             newFile = await SaveCurrentFileAsync(isIncomplete: false);
 
-            Draft.Clear();
+            MidiService.Edit.Clear();
             await UserState.RefreshAsync();
             return $"Saved {newFile.Title}. Redirecting...";
         });

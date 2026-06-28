@@ -1,9 +1,9 @@
 ﻿@implements IAsyncDisposable
-@inject MidiPlaybackService Playback
+@inject MidiManagerService MidiService
 
 <div class="mixer">
     <div class="mixer__channels">
-        @foreach (var pan in Playback.ActivePans)
+        @foreach (var pan in MidiService.Playback.ActivePans)
         {
             @Channel(pan)
         }
@@ -16,7 +16,7 @@
 
     private RenderFragment<MidiAssignedPan> Channel => pan =>@<section class="mixer__channel" @key="pan.InstanceId">
         <div class="mixer__channel-copy">
-            <div class="mixer__channel-title">@(Playback.GetTrackForAssignment(pan.Assignment)?.Name ?? string.Empty)</div>
+            <div class="mixer__channel-title">@(MidiService.Playback.GetTrackForAssignment(pan.Assignment)?.Name ?? string.Empty)</div>
             <div class="mixer__channel-subtitle">@pan.Assignment.AssignedPanType.ToSpacedPascal()</div>
         </div>
 
@@ -55,8 +55,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Playback.AssignmentsChanged += OnStateChanged;
-        Playback.PanMixChanged += OnStateChanged;
+        MidiService.Playback.AssignmentsChanged += OnStateChanged;
+        MidiService.Playback.PanMixChanged += OnStateChanged;
     }
 
     private async Task OnStateChanged<TArgs>(TArgs _)
@@ -65,7 +65,7 @@
     }
 
     private IEnumerable<MidiAssignedPan> OtherPans(MidiAssignedPan pan) =>
-        Playback.ActivePans.Where(x => x.InstanceId != pan.InstanceId);
+        MidiService.Playback.ActivePans.Where(x => x.InstanceId != pan.InstanceId);
 
     private static double EffectiveVolume(MidiAssignedPan pan) =>
         pan.Muted ? 0.0 : Math.Clamp(pan.Volume, 0.0, 1.0);
@@ -102,26 +102,26 @@
 
         var volume = Math.Clamp(percent / 100.0, 0.0, 1.0);
 
-        await Playback.SetPanVolumeAsync(pan, volume);
+        await MidiService.Playback.SetPanVolumeAsync(pan, volume);
 
         if (volume > 0.0001 && pan.Muted)
-            await Playback.SetPanMutedAsync(pan, false);
+            await MidiService.Playback.SetPanMutedAsync(pan, false);
     }
 
     private async Task ToggleMuteAsync(MidiAssignedPan pan)
     {
-        await Playback.SetPanMutedAsync(pan, !pan.Muted);
+        await MidiService.Playback.SetPanMutedAsync(pan, !pan.Muted);
     }
 
     private async Task ToggleSoloAsync(MidiAssignedPan pan)
     {
-        await Playback.SetPanSoloingAsync(pan, !pan.Soloing);
+        await MidiService.Playback.SetPanSoloingAsync(pan, !pan.Soloing);
     }
 
     public ValueTask DisposeAsync()
     {
-        Playback.AssignmentsChanged -= OnStateChanged;
-        Playback.PanMixChanged -= OnStateChanged;
+        MidiService.Playback.AssignmentsChanged -= OnStateChanged;
+        MidiService.Playback.PanMixChanged -= OnStateChanged;
         return ValueTask.CompletedTask;
     }
 }

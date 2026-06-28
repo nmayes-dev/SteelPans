@@ -17,6 +17,7 @@
     opacity: 1;
     pointer-events: auto;
     transition: opacity 250ms ease, transform 350ms ease, max-height 350ms ease;
+    padding: clamp(0.25rem, 0.55vw, 0.55rem) clamp(0.6rem, 1.2vw, 0.9rem) clamp(0.32rem, 0.75vw, 0.55rem);
 }
 
 .practice-header__midi-controls--empty {

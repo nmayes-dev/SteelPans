@@ -10,18 +10,19 @@
 
 .record-track-page__setup {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
     gap: var(--record-card-gap);
     min-width: 0;
     overflow: visible;
     justify-content: end;
-    align-items: end;
+    align-items: center;
+    padding: clamp(0.15rem, 0.25vw, 0.35rem) clamp(0.3rem, 0.5vw, 0.6rem);
 }
 
     .record-track-page__setup input {
-        height: 100%;
         border-radius: clamp(0.45rem, 0.3rem + 0.4cqw, 0.65rem);
         padding-left: 0.65rem;
+        font-size: 1.2rem;
     }
 
 .record-track-page__settings {
@@ -114,7 +115,6 @@
     }
 
 .record-track-page__controls {
-    height: 100%;
 }
 
     .record-track-page__controls .sp-app-button {

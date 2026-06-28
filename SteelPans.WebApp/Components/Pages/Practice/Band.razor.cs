@@ -15,9 +15,9 @@ public partial class Band : IAsyncDisposable
 
     protected override async Task OnInitializedAsync()
     {
-        Playback.MidiFileLoaded += OnPlaybackStateChangedAsync;
-        Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
-        Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
+        MidiService.Playback.MidiFileLoaded += OnPlaybackStateChangedAsync;
+        MidiService.Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
+        MidiService.Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -28,7 +28,7 @@ public partial class Band : IAsyncDisposable
 
         if (FileId is not null)
         {
-            await Playback.LoadGroupMidiFile(FileId.Value);
+            await MidiService.Playback.LoadGroupMidiFile(FileId.Value);
             await InvokeAsync(StateHasChanged);
         }
     }
@@ -42,9 +42,9 @@ public partial class Band : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        Playback.MidiFileLoaded -= OnPlaybackStateChangedAsync;
-        Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
-        Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
+        MidiService.Playback.MidiFileLoaded -= OnPlaybackStateChangedAsync;
+        MidiService.Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
+        MidiService.Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
         return ValueTask.CompletedTask;
     }
 }

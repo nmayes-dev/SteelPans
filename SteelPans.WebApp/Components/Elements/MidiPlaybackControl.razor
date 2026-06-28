@@ -37,10 +37,10 @@
 
             <button class="midi-playback__button midi-playback__button--primary"
                     type="button"
-                    title="@(Playback.IsPlaying ? "Pause" : "Play")"
-                    aria-label="@(Playback.IsPlaying ? "Pause" : "Play")"
+                    title="@(MidiService.Playback.IsPlaying ? "Pause" : "Play")"
+                    aria-label="@(MidiService.Playback.IsPlaying ? "Pause" : "Play")"
                     @onclick="HandlePlayPauseAsync">
-                <span class="bi @(Playback.IsPlaying ? "bi-pause-fill" : "bi-play-fill")" aria-hidden="true"></span>
+                <span class="bi @(MidiService.Playback.IsPlaying ? "bi-pause-fill" : "bi-play-fill")" aria-hidden="true"></span>
             </button>
 
             <button class="midi-playback__button midi-playback__button--secondary"
@@ -53,15 +53,24 @@
             </button>
         </div>
 
-        <span class="midi-playback__time midi-playback__time--total">@FormatTime(Playback.Duration)</span>
+        <span class="midi-playback__time midi-playback__time--total">@FormatTime(MidiService.Playback.Duration)</span>
     </div>
 </div>
 
 @code {
-    [Inject] private MidiPlaybackService Playback { get; set; } = default!;
+    [Inject] private MidiManagerService MidiService { get; set; } = default!;
 
     [Parameter]
     public bool Enabled { get; set; } = false;
+
+    [Parameter]
+    public EventCallback OnSeekStart { get; set; }
+
+    [Parameter]
+    public EventCallback OnTogglePlayback { get; set; }
+
+    [Parameter]
+    public EventCallback OnSkipToEnd { get; set; }
 
     private readonly List<IDisposable> keyCallbacks_ = [];
 
@@ -70,9 +79,9 @@
 
     private TimeSpan DisplayTime => isSeeking_
         ? TimeSpan.FromSeconds(previewSeconds_)
-        : ClampTime(Playback.Position);
+        : ClampTime(MidiService.Playback.Position);
 
-    private double MaxSeconds => Math.Max(Playback.Duration.TotalSeconds, 0.01);
+    private double MaxSeconds => Math.Max(MidiService.Playback.Duration.TotalSeconds, 0.01);
 
     private string MaxSecondsString => MaxSeconds.ToString(
         "0.##",
@@ -81,12 +90,12 @@
     private string DisplaySecondsString => Math.Clamp(DisplayTime.TotalSeconds, 0, MaxSeconds)
         .ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
 
-    private bool CanGoToStart => Playback.Position > TimeSpan.Zero;
-    private bool CanGoNext => Playback.Position < Playback.Duration;
+    private bool CanGoToStart => MidiService.Playback.Position > TimeSpan.Zero;
+    private bool CanGoNext => MidiService.Playback.Position < MidiService.Playback.Duration;
 
     protected override void OnInitialized()
     {
-        Playback.PositionChanged += HandlePlaybackPositionChangedAsync;
+        MidiService.Playback.PositionChanged += HandlePlaybackPositionChangedAsync;
 
         keyCallbacks_.Add(Keyboard.Register(
             e => Enabled && !Overlays.AnyOpen && e.Code.Equals("Space", StringComparison.OrdinalIgnoreCase),
@@ -97,10 +106,10 @@
     protected override void OnParametersSet()
     {
         if (!isSeeking_)
-            previewSeconds_ = ClampSeconds(Playback.Position.TotalSeconds);
+            previewSeconds_ = ClampSeconds(MidiService.Playback.Position.TotalSeconds);
     }
 
-    private async Task HandlePlaybackPositionChangedAsync(PlaybackPositionChangedEventArgs args)
+    private async Task HandlePlaybackPositionChangedAsync(MidiEventArgs.PlaybackPositionChanged args)
     {
         if (!isSeeking_)
             previewSeconds_ = ClampSeconds(args.Position.TotalSeconds);
@@ -110,7 +119,8 @@
 
     private async Task HandlePlayPauseAsync()
     {
-        await Playback.ToggleAsync();
+        await OnTogglePlayback.InvokeAsync();
+        await MidiService.Playback.ToggleAsync();
     }
 
     private async Task HandleBackToStartAsync()
@@ -118,7 +128,8 @@
         if (!CanGoToStart)
             return;
 
-        await Playback.SeekToStartAsync();
+        await OnSeekStart.InvokeAsync();
+        await MidiService.Playback.SeekToStartAsync();
     }
 
     private async Task HandleNextTrackAsync()
@@ -126,7 +137,8 @@
         if (!CanGoNext)
             return;
 
-        await Playback.GoToEndAsync();
+        await OnSkipToEnd.InvokeAsync();
+        await MidiService.Playback.GoToEndAsync();
     }
 
     private void BeginSeek()
@@ -143,7 +155,7 @@
     {
         isSeeking_ = true;
         previewSeconds_ = ParseSeconds(args.Value);
-        await Playback.PreviewSeekAsync(TimeSpan.FromSeconds(previewSeconds_));
+        await MidiService.Playback.PreviewSeekAsync(TimeSpan.FromSeconds(previewSeconds_));
     }
 
     private async Task HandleSliderChangeAsync(ChangeEventArgs args)
@@ -157,7 +169,7 @@
         previewSeconds_ = ClampSeconds(previewSeconds_);
         isSeeking_ = false;
 
-        await Playback.CommitSeekAsync(TimeSpan.FromSeconds(previewSeconds_));
+        await MidiService.Playback.CommitSeekAsync(TimeSpan.FromSeconds(previewSeconds_));
         await InvokeAsync(StateHasChanged);
     }
 
@@ -190,7 +202,7 @@
 
     public void Dispose()
     {
-        Playback.PositionChanged -= HandlePlaybackPositionChangedAsync;
+        MidiService.Playback.PositionChanged -= HandlePlaybackPositionChangedAsync;
 
         foreach (var registration in keyCallbacks_)
             registration.Dispose();

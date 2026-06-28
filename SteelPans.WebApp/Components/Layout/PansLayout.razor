@@ -1,5 +1,5 @@
 @implements IAsyncDisposable
-@inject MidiPlaybackService Playback
+@inject MidiManagerService MidiService
 @inject ModalPopupService Modals
 @inject UserStateService UserState
 @inject SafeJSInteropService JS
@@ -31,7 +31,7 @@
                         <div class="pans-display__item-copy-group pans-display__item-copy-group--right">
                             <div class="pans-display__item-copy-label">Track</div>
                             <div class="pans-display__item-track">
-                                @Playback.GetTrackForAssignment(assignedPan.Assignment)?.Name
+                                @MidiService.Playback.GetTrackForAssignment(assignedPan.Assignment)?.Name
                             </div>
                         </div>
                     </div>
@@ -74,7 +74,7 @@
             return;
 
         dotNetReference_ = DotNetObjectReference.Create(this);
-        Playback.AssignmentsChanged += OnAssignmentsChangedAsync;
+        MidiService.Playback.AssignmentsChanged += OnAssignmentsChangedAsync;
         await InitialiseLayoutAsync();
     }
 
@@ -85,7 +85,7 @@
 
     private async Task InitialiseLayoutAsync()
     {
-        if (startingUp_ || panLayoutObserved_ || !Playback.ActivePans.Any())
+        if (startingUp_ || panLayoutObserved_ || !MidiService.Playback.ActivePans.Any())
             return;
 
         startingUp_ = true;
@@ -101,7 +101,7 @@
 
     private async Task RemoveLayoutAsync()
     {
-        if (startingUp_ || !panLayoutObserved_ || Playback.ActivePans.Any())
+        if (startingUp_ || !panLayoutObserved_ || MidiService.Playback.ActivePans.Any())
             return;
 
         await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
@@ -130,7 +130,7 @@
         startingUp_ = false;
     }
 
-    private async Task OnAssignmentsChangedAsync(PlaybackAssignmentsChangedEventArgs args)
+    private async Task OnAssignmentsChangedAsync(MidiEventArgs.AssignmentsChanged args)
     {
         switch (args.Operation)
         {
@@ -146,7 +146,7 @@
         if (panLayoutObserved_)
             await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
         
-        Playback.AssignmentsChanged -= OnAssignmentsChangedAsync;
+        MidiService.Playback.AssignmentsChanged -= OnAssignmentsChangedAsync;
         dotNetReference_?.Dispose();
     }
 }

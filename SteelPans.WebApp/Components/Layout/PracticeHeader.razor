@@ -1,31 +1,31 @@
 ﻿@implements IDisposable
-@inject MidiPlaybackService Playback
+@inject MidiManagerService MidiService
 
 <section class="sp-app-section practice-header__controls">
     <ControlToolbar />
 
-    <div class="practice-header__midi-controls @(Playback.IsMidiLoaded ? "practice-header__midi-controls--visible" : "practice-header__midi-controls--empty")">
-        @if (Playback.IsMidiLoaded)
+    <div class="practice-header__midi-controls @(MidiService.Playback.IsMidiLoaded ? "practice-header__midi-controls--visible" : "practice-header__midi-controls--empty")">
+        @if (MidiService.Playback.IsMidiLoaded)
         {
-            var hasMidiControls = Playback.ActivePans.Any(x => x.Events.Count > 0);
+            var hasMidiControls = MidiService.Playback.ActivePans.Any(x => x.Events.Count > 0);
             <MidiPlaybackControl Enabled="@hasMidiControls" />
         }
         else
         {
             <div class="practice-header__midi-message">
-                @if (Playback.ActivePans.Any())
+                @if (MidiService.Playback.ActivePans.Any())
                 {
                     <span>Click the cog to load a MIDI file and enable ensemble playback controls.</span>
                 }
                 else
                 {
-                    <span>Click the cog to load a MIDI file or add pans to begin ensemble playback.</span>
+                    <span>Click the cog to load a MIDI file or add pans to begin ensemble MidiService.Playback.</span>
                 }
             </div>
         }
     </div>
 
-    @if (Playback.IsMidiLoaded)
+    @if (MidiService.Playback.IsMidiLoaded)
     {
         <CountInControl />
     }
@@ -34,14 +34,14 @@
 @code {
     protected override void OnInitialized()
     {
-        Playback.MidiFileLoaded += PlaybackStateUpdate;
-        Playback.MidiFileUnloaded += PlaybackStateUpdate;
+        MidiService.Playback.MidiFileLoaded += PlaybackStateUpdate;
+        MidiService.Playback.MidiFileUnloaded += PlaybackStateUpdate;
     }
 
     public void Dispose()
     {
-        Playback.MidiFileLoaded -= PlaybackStateUpdate;
-        Playback.MidiFileUnloaded -= PlaybackStateUpdate;
+        MidiService.Playback.MidiFileLoaded -= PlaybackStateUpdate;
+        MidiService.Playback.MidiFileUnloaded -= PlaybackStateUpdate;
     }
 
     private Task PlaybackStateUpdate<TArgs>(TArgs _)

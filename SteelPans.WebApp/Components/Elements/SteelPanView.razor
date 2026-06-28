@@ -1,5 +1,5 @@
 @inject SteelPanSvgService SvgService
-@inject MidiPlaybackService Playback
+@inject MidiManagerService MidiService
 @inject IJSRuntime JS
 @inject IWebHostEnvironment Env
 @implements IAsyncDisposable
@@ -60,12 +60,12 @@ else
 
     private MidiAssignedPan? AssignedPan =>
         PlaybackInstanceId is Guid instanceId
-            ? Playback.ActivePans.FirstOrDefault(x => x.InstanceId == instanceId)
+            ? MidiService.Playback.ActivePans.FirstOrDefault(x => x.InstanceId == instanceId)
             : null;
 
     private IEnumerable<MidiAssignedPan> OtherPans =>
         PlaybackInstanceId is Guid instanceId
-            ? Playback.ActivePans.Where(x => x.InstanceId != instanceId)
+            ? MidiService.Playback.ActivePans.Where(x => x.InstanceId != instanceId)
             : Enumerable.Empty<MidiAssignedPan>();
 
     private bool IsMuted => AssignedPan?.Muted == true;
@@ -95,7 +95,7 @@ else
             await JS.InvokeVoidAsync("panPlayback.register", componentId_, selfRef_);
 
         if (firstRender && PlaybackInstanceId is not null)
-            await Playback.RegisterSteelPanViewAsync(PlaybackInstanceId.Value, this);
+            await MidiService.Playback.RegisterSteelPanViewAsync(PlaybackInstanceId.Value, this);
 
         if (firstRender && !string.IsNullOrWhiteSpace(panSvg_))
             await JS.InvokeVoidAsync("panPlayback.bindPanElements", componentId_);
@@ -273,7 +273,7 @@ else
     public async ValueTask DisposeAsync()
     {
         if (PlaybackInstanceId is not null)
-            Playback.UnregisterSteelPanView(PlaybackInstanceId.Value);
+            MidiService.Playback.UnregisterSteelPanView(PlaybackInstanceId.Value);
 
         playSelectedCts_?.Cancel();
         playSelectedCts_?.Dispose();

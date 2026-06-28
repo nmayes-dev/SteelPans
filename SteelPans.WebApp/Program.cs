@@ -103,8 +103,6 @@ public static class Program
                 builder.Configuration.GetConnectionString("EnsembleDb"));
         });
 
-        builder.Services.AddScoped<MidiFileService>();
-
         builder.Services.AddScoped<LocalEnsembleFileStore>();
         builder.Services.AddScoped<IEnsembleFileStore>(sp =>
             sp.GetRequiredService<LocalEnsembleFileStore>());
@@ -126,13 +124,10 @@ public static class Program
         builder.Services.AddScoped<AppUpdatesService>();
 
         builder.Services.AddScoped<UserStateService>();
-
-                builder.Services.AddScoped<MidiPlaybackService>();
-
         builder.Services.AddScoped<OverlayManagerService>();
         builder.Services.AddScoped<ModalPopupService>();
         builder.Services.AddScoped<KeyboardManagerService>();
-        builder.Services.AddScoped<MidiEditingService>();
+        builder.Services.AddScoped<MidiManagerService>();
 
         return builder;
     }

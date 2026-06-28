@@ -4,6 +4,7 @@
     --overlay__hover-color: rgb(208, 218, 249);
     --overlay__border-color: rgba(148, 163, 184, 0.75);
     --overlay__border-radius: min(0.8rem, 2vw);
+    --overlay__width_transition: calc(0.75 * var(--med-transition));
     /* Button */
     --overlay__button-size: var(--overlay__button-override-size, var(--ui-icon-button-size));
     --overlay__button-icon-size: calc(var(--overlay__button-size) * 0.5);
@@ -62,7 +63,7 @@
     display: grid;
     grid-template-columns: 1fr;
     grid-template-rows: var(--overlay__button-size) 1fr;
-    transition: min-width calc(0.75 * var(--med-transition)) ease, max-width calc(0.75 * var(--med-transition)) ease, min-height var(--med-transition) ease, max-height var(--med-transition) ease;
+    transition: min-width var(--overlay__width_transition) ease, max-width var(--overlay__width_transition) ease, min-height var(--med-transition) ease, max-height var(--med-transition) ease;
 }
 
 .overlay--open .overlay__surface {
@@ -99,7 +100,6 @@
     background: var(--overlay__background-color);
     border: 1px solid var(--overlay__border-color);
     border-radius: clamp(0.45rem, 0.3rem + 0.4cqw, 0.65rem);
-    transition: padding var(--med-short-transition) ease, width var(--short-transition) ease-in, height var(--short-transition) ease-in, border-top-right-radius var(--med-transition) ease, border-top-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-short-transition) ease-out, border-bottom-left-radius var(--med-short-transition) ease-out;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -113,19 +113,21 @@
 .overlay--open .overlay__header {
     width: 100%;
     border-radius: var(--overlay__border-radius) var(--overlay__border-radius) 0 0;
-    transition: padding var(--short-transition) ease, width var(--med-short-transition) ease, height var(--med-short-transition) ease, border-radius 50ms ease;
 }
 
 .overlay__header-content {
     display: grid;
     align-items: center;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto 0;
     width: 100%;
     min-width: 0;
+    transition: grid-template-columns 0ms var(--overlay__width_transition);
 }
 
 .overlay--open .overlay__header-content {
     min-width: var(--overlay__button-size);
+    grid-template-columns: auto minmax(0, 1fr);
+    transition: none;
 }
 
 
@@ -153,8 +155,7 @@
     display: grid;
     grid-column: 1;
     grid-row: 1;
-    padding-left: 1px;
-    place-items: start;
+    place-items: center;
     opacity: 1;
     font-size: var(--overlay__button-icon-size);
     color: #2563eb;
@@ -386,8 +387,14 @@
         left: 0;
     }
 
+    .overlay--right .overlay__header {
+        transition: padding-left 0s var(--overlay__width_transition), padding-right var(--med-short-transition) ease, width var(--short-transition) ease-in, height var(--short-transition) ease-in, border-top-right-radius var(--med-transition) ease, border-top-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-short-transition) ease-out, border-bottom-left-radius var(--med-short-transition) ease-out;
+    }
+
     .overlay--right.overlay--open .overlay__header {
+        padding-left: calc(0.45 * var(--overlay__button-icon-size));
         padding-right: clamp(0.4rem, 0.6vw, 0.75rem);
+        transition: padding-right var(--short-transition) ease, width var(--med-short-transition) ease, height var(--med-short-transition) ease, border-radius 50ms ease;
     }
 
     .overlay--right .overlay__header-button-icon {

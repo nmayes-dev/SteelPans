@@ -1,5 +1,4 @@
-﻿@inject MidiFileService MidiService
-@inject MidiPlaybackService Playback
+﻿@inject MidiManagerService MidiService
 @inject UserStateService UserState
 
 <ModalPopup TPayload="IReadOnlyList<IBrowserFile>"
@@ -45,7 +44,7 @@
                     streamFiles.Add((file.Name, stream));
                 }
 
-                return (Guid.NewGuid(), midiFileName, await MidiService.MergeMidiTracksAsync(midiFileName, streamFiles));
+                return (Guid.NewGuid(), midiFileName, await MidiService.Files.MergeMidiTracksAsync(midiFileName, streamFiles));
             }
             finally
             {
@@ -56,7 +55,7 @@
             }
         };
         
-        await Playback.OnLoadMidiAsync(loadTracks);
+        await MidiService.Playback.OnLoadMidiAsync(loadTracks);
         return true;
     }
 }

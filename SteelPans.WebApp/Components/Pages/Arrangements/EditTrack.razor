@@ -1,11 +1,9 @@
 @page "/arrangements/tracks/create"
 @page "/arrangements/tracks/edit/{TrackId:guid}"
 @attribute [Authorize]
-@inject MidiEditingService Draft
 @inject DbService Db
-@inject MidiFileService MidiFiles
 @inject SteelPanLoaderService PanLoader
-@inject MidiPlaybackService Playback
+@inject MidiManagerService MidiService
 @inject UserStateService UserState
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
 @inject IJSRuntime JS
@@ -26,107 +24,101 @@
     </div>
 
     <div class="sp-app-card record-track-page__setup">
-        <Toolbar @ref="toolbar_"
-                 ClosedIconClass="bi-sliders"
-                 MenuButtonLabel="Open Controls"
-                 MenuLabel="Controls"
-                 ToolbarSide="Toolbar.Side.Left">
-            <ToolbarElement Text="Edit"
-                            IconClass="bi-gear-fill">
-                <ChildContent>
-                    <div class="record-track-page__settings">
+        <ExpandingOverlay Title="Settings"
+            ClosedIconClass="sliders"
+                          ExpandDirection="ExpandingOverlay.Direction.Right">
+            <div class="record-track-page__settings">
 
-                        <div class="record-track-page__settings-control">
-                            <label>
-                                <span>Pan</span>
-                                <select @bind="panType_">
-                                    @foreach (var pan in AvailablePans)
-                                    {
-                                        <option value="@pan.Type">@pan.Type.ToSpacedPascal()</option>
-                                    }
-                                </select>
-                            </label>
+                <div class="record-track-page__settings-control">
+                    <label>
+                        <span>Pan</span>
+                        <select @bind="panType_">
+                            @foreach (var pan in AvailablePans)
+                            {
+                                <option value="@pan.Type">@pan.Type.ToSpacedPascal()</option>
+                            }
+                        </select>
+                    </label>
 
-                            <label>
-                                <span>Mode</span>
-                                <select @bind="recordingMode_">
-                                    @foreach (var option in Enum.GetValues<RecordingMode>())
-                                    {
-                                        <option value="@option">@option.ToString()</option>
-                                    }
-                                </select>
-                            </label>
+                    <label>
+                        <span>Mode</span>
+                        <select @bind="recordingMode_">
+                            @foreach (var option in Enum.GetValues<RecordingMode>())
+                            {
+                                <option value="@option">@option.ToString()</option>
+                            }
+                        </select>
+                    </label>
 
-                            <label>
-                                <span>Snapping</span>
-                                <select @bind="noteSnapDivision_">
-                                    @foreach (var option in Enum.GetValues<NoteSnapDivision>())
-                                    {
-                                        <option value="@option">@option.ToSpacedPascal()</option>
-                                    }
-                                </select>
-                            </label>
+                    <label>
+                        <span>Snapping</span>
+                        <select @bind="noteSnapDivision_">
+                            @foreach (var option in Enum.GetValues<NoteSnapDivision>())
+                            {
+                                <option value="@option">@option.ToSpacedPascal()</option>
+                            }
+                        </select>
+                    </label>
 
-                            <label class="record-track-page__settings-toggle">
-                                <span>Click Track</span>
-                                <ToggleSwitch Value="@clickTrackDuringRecording_"
-                                              ValueChanged="value => clickTrackDuringRecording_ = value"
-                                              AriaLabel="Enable click track while recording" />
-                            </label>
-                        </div>
-                        <div class="record-track-page__settings-beat">
-                            <label>
-                                <span>Bars</span>
-                                <NumericInput Min="1"
-                                              Max="1800"
-                                              CanRepeat="true"
-                                              @bind-Value="durationBars_" />
-                            </label>
+                    <label class="record-track-page__settings-toggle">
+                        <span>Click Track</span>
+                        <ToggleSwitch Value="@clickTrackDuringRecording_"
+                                      ValueChanged="value => clickTrackDuringRecording_ = value"
+                                      AriaLabel="Enable click track while recording" />
+                    </label>
+                </div>
+                <div class="record-track-page__settings-beat">
+                    <label>
+                        <span>Bars</span>
+                        <NumericInput Min="1"
+                                      Max="1800"
+                                      CanRepeat="true"
+                                      @bind-Value="durationBars_" />
+                    </label>
 
-                            <label>
-                                <span>Tempo</span>
-                                <NumericInput Min="1"
-                                              Max="200"
-                                              CanRepeat="true"
-                                              @bind-Value="tempoBpm_" />
-                            </label>
+                    <label>
+                        <span>Tempo</span>
+                        <NumericInput Min="1"
+                                      Max="200"
+                                      CanRepeat="true"
+                                      @bind-Value="tempoBpm_" />
+                    </label>
 
-                            <label>
-                                <span>Time Signature</span>
-                                <span class="record-track-page__signature">
-                                    <NumericInput Min=" 1"
-                                                  Max="32"
-                                                  @bind-Value="beatsPerBar_" />
-                                    <span>/</span>
-                                    <NoteDivisionDropdown @bind-Value="beatUnit_"
-                                                          NoteDivisions="@([2, 4, 8, 16])" />
-                                </span>
-                            </label>
+                    <label>
+                        <span>Time Signature</span>
+                        <span class="record-track-page__signature">
+                            <NumericInput Min=" 1"
+                                          Max="32"
+                                          @bind-Value="beatsPerBar_" />
+                            <span>/</span>
+                            <NoteDivisionDropdown @bind-Value="beatUnit_"
+                                                  NoteDivisions="@([2, 4, 8, 16])" />
+                        </span>
+                    </label>
 
-                            <label>
-                                <span>Note Length</span>
-                                <NoteDivisionDropdown @bind-Value="defaultNoteDivision_"
-                                                      NoteDivisions="@([1, 2, 4, 8, 16])" />
-                            </label>
-                        </div>
-                    </div>
-                </ChildContent>
-            </ToolbarElement>
-        </Toolbar>
+                    <label>
+                        <span>Note Length</span>
+                        <NoteDivisionDropdown @bind-Value="defaultNoteDivision_"
+                                              NoteDivisions="@([1, 2, 4, 8, 16])" />
+                    </label>
+                </div>
+            </div>
+        </ExpandingOverlay>
 
         <input @bind="trackName_" placeholder="Track Name..." />
+
+        <MidiPlaybackControl Enabled="@notes_.Any()"
+                             OnTogglePlayback="OnPlaybackToggledAsync" />
 
         <div class="record-track-page__controls">
             <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="ExitPage" disabled="@(DisableButtons(requireNotes: false))">Back</button>
             <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="ClearNotesAsync" disabled="@(DisableButtons(requireNotes: true))">Reset</button>
-            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="TogglePlaybackAsync" disabled="@(!notes_.Any())">@(isPlayingBack_ ? "Stop" : "Play")</button>
             <button type="button" class="sp-app-button" @onclick="StartRecordingWithCountInAsync" disabled="@(DisableButtons(requireNotes: false))">Record</button>
             <button type="button" class="sp-app-button sp-app-button--primary" @onclick="SaveTrack" disabled="@(DisableButtons(requireNotes: true))">Save</button>
         </div>
     </div>
 
-    <MidiTrackVisualiser @ref="editVisualiser_"
-                         Mode="MidiTrackVisualiserMode.Edit"
+    <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.Edit"
                          PanLabel="@panType_.ToSpacedPascal()"
                          TrackLabel="@trackName_"
                          Notes="notes_"
@@ -263,13 +255,12 @@
     private int countInNumber_;
     private double countInProgress_;
     private CancellationTokenSource? recordingPositionCts_;
-    private CancellationTokenSource? playbackCts_;
     private CancellationTokenSource? countInCts_;
     private CancellationTokenSource? metronomeCts_;
     private CancellationTokenSource? overdubPlaybackCts_;
     private Guid? selectedNoteId_;
+    private int? editablePlaybackHash_;
     private SteelPanView? overlayPan_;
-    private MidiTrackVisualiser? editVisualiser_;
     private MidiTrackVisualiser? recordVisualiser_;
     private readonly List<MidiPanEvent> notes_ = [];
     private List<MidiPanEvent>? recordingNotes_;
@@ -285,6 +276,14 @@
     private string PageTitleText => editingTrackId_ is null ? "Create Track" : "Edit Track";
 
     private bool DisableButtons(bool requireNotes) => isRecording_ || isCountingIn_ || isPlayingBack_ || (requireNotes && !notes_.Any());
+
+    protected override void OnInitialized()
+    {
+        MidiService.Playback.PlaybackStarted += OnEditPlaybackStartedAsync;
+        MidiService.Playback.PlaybackPaused += OnEditPlaybackPausedAsync;
+        MidiService.Playback.PlaybackStopped += OnEditPlaybackStoppedAsync;
+        MidiService.Playback.PositionChanged += OnEditPlaybackPositionChangedAsync;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -312,12 +311,12 @@
             panType_ = AvailablePans[0].Type;
 
         if (TrackId is null)
-            Draft.BeginCreateFile();
+            MidiService.Edit.BeginCreateFile();
     }
 
     private async Task LoadTrackAsync(Guid trackId)
     {
-        var track = Draft.GetTrack(trackId);
+        var track = MidiService.Edit.GetTrack(trackId);
 
         if (track is null && SourceFileId is Guid fileId)
             track = await LoadFileTrackAsync(fileId, trackId);
@@ -348,10 +347,11 @@
             return null;
 
         await using var stream = download.Stream;
-        var midiFile = await MidiFiles.OpenMidiFileAsync(stream);
-        var playbackInfo = MidiFiles.GetPlaybackInfo(midiFile);
+        using var midiFileStream = await MidiService.Files.OpenMidiFileAsync(stream);
+        var midiFile = MidiFile.Read(midiFileStream);
+        var playbackInfo = MidiService.Files.GetPlaybackInfo(midiFile);
         var assignment = details.Assignments.FirstOrDefault(x => x.TrackId == trackDetails.Id);
-        var playableTracks = MidiFiles.LoadPlayableTracks(
+        var playableTracks = MidiService.Files.LoadPlayableTracks(
             midiFile,
             details.Tracks
                 .OrderBy(x => x.TrackIndex)
@@ -401,6 +401,7 @@
         notes_.AddRange(track.Events.Select(CloneEvent));
         selectedNoteId_ = null;
         recordingPositionSeconds_ = 0;
+        editablePlaybackHash_ = null;
         hasUnsavedTrackChanges_ = false;
     }
 
@@ -593,11 +594,13 @@
 
     private async Task PreviewNoteAsync(Note note)
     {
-        if (overlayPan_ is null)
-            return;
-
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        await overlayPan_.PlayNoteAsync(note);
+
+        if (overlayPan_ is not null)
+            await overlayPan_.PlayNoteAsync(note);
+        else
+            await MidiService.Playback.PlayPreviewNoteAsync(note, panType_);
+
         stopwatch.Stop();
 
         LogRecordingSlowDiagnostic(
@@ -608,12 +611,18 @@
             isRecording_);
     }
 
-    private void SetPlayheadPosition(double seconds)
+    private async Task SetPlayheadPosition(double seconds)
     {
         if (isRecording_ || isCountingIn_)
             return;
 
         recordingPositionSeconds_ = Math.Clamp(seconds, 0, Math.Max(0, durationSeconds_));
+
+        if (!isPlayingBack_)
+        {
+            await EnsureEditablePlaybackTrackSyncedAsync();
+            await MidiService.Playback.CommitSeekAsync(TimeSpan.FromSeconds(recordingPositionSeconds_));
+        }
     }
 
     private List<MidiPanEvent> GetEditNotes() => recordingNotes_ ?? notes_;
@@ -728,7 +737,7 @@
     {
         try
         {
-            return await Playback.GetAudioTimeAsync();
+            return await MidiService.Playback.GetAudioTimeAsync();
         }
         catch (JSException)
         {
@@ -872,7 +881,7 @@
     {
         try
         {
-            await Playback.PlayMetronomeTickAsync(isAccent, cancellationToken);
+            await MidiService.Playback.PlayMetronomeTickAsync(isAccent, cancellationToken);
         }
         catch (JSException)
         {
@@ -953,89 +962,110 @@
         }
     }
 
-    private async Task TogglePlaybackAsync()
+    private MidiTrackInfo BuildEditablePlaybackTrack()
     {
-        if (isPlayingBack_)
+        return new MidiTrackInfo
         {
-            await StopPlaybackAsync();
-            return;
+            Id = editingTrackId_ ?? Guid.NewGuid(),
+            Index = 0,
+            Name = string.IsNullOrWhiteSpace(trackName_) ? "Edited Track" : trackName_.Trim(),
+            PanType = panType_,
+            TempoBpm = Math.Clamp(tempoBpm_, 1, 300),
+            BeatsPerBar = Math.Clamp(beatsPerBar_, 1, 32),
+            BeatUnit = Math.Clamp(beatUnit_, 1, 64),
+            DurationSeconds = Math.Clamp(durationSeconds_, 0.01, 1800),
+            NoteCount = notes_.Count,
+            Events = notes_.Select(CloneEvent).ToList()
+        };
+    }
+
+    private int GetEditablePlaybackHash()
+    {
+        var hash = new HashCode();
+        hash.Add(editingTrackId_);
+        hash.Add(trackName_);
+        hash.Add(panType_);
+        hash.Add(tempoBpm_);
+        hash.Add(beatsPerBar_);
+        hash.Add(beatUnit_);
+        hash.Add(durationSeconds_);
+        hash.Add(notes_.Count);
+
+        foreach (var note in notes_)
+        {
+            hash.Add(note.Id);
+            hash.Add(note.Note.SemitoneNumber);
+            hash.Add(note.Start.Ticks);
+            hash.Add(note.Duration.Ticks);
         }
 
-        if (notes_.Count == 0 || isRecording_ || isCountingIn_)
-            return;
-
-        playbackCts_?.Cancel();
-        playbackCts_?.Dispose();
-        playbackCts_ = new CancellationTokenSource();
-        isPlayingBack_ = true;
-
-        await Task.Delay(1000);
-
-        var start = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
-        var audioAnchorTimeSeconds = await TryGetAudioTimeAsync();
-        
-        if (editVisualiser_ is not null)
-            await editVisualiser_.StartPlayheadAsync(start, audioAnchorTimeSeconds);
-
-        _ = PlayRecordedNotesAsync(start, playbackCts_.Token);
+        return hash.ToHashCode();
     }
 
     private async Task StopPlaybackAsync()
     {
-        if (!isPlayingBack_)
+        if (!isPlayingBack_ && !MidiService.Playback.IsPlaying)
             return;
 
+        await MidiService.Playback.StopAsync(resetPosition: false);
         isPlayingBack_ = false;
-        playbackCts_?.Cancel();
-
-        if (editVisualiser_ is not null)
-            await editVisualiser_.StopPlayheadAsync(recordingPositionSeconds_);
-
+        recordingPositionSeconds_ = Math.Clamp(MidiService.Playback.Position.TotalSeconds, 0, Math.Max(0, durationSeconds_));
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task PlayRecordedNotesAsync(double start, CancellationToken cancellationToken)
+    private async Task SyncEditablePlaybackTrackAsync()
     {
-        var startedAt = DateTimeOffset.UtcNow;
-        var pending = notes_
-            .Where(x => x.Start.TotalSeconds + x.Duration.TotalSeconds >= start)
-            .OrderBy(x => x.Start.TotalSeconds)
-            .ThenBy(x => x.Note.SemitoneNumber)
-            .ToList();
-        var index = 0;
+        await MidiService.Playback.LoadEditableTrackPlaybackAsync(BuildEditablePlaybackTrack());
+        editablePlaybackHash_ = GetEditablePlaybackHash();
+        recordingPositionSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
 
-        try
-        {
-            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(20));
-            while (await timer.WaitForNextTickAsync(cancellationToken))
-            {
-                var position = Math.Clamp(start + (DateTimeOffset.UtcNow - startedAt).TotalSeconds, 0, Math.Max(0, durationSeconds_));
-                recordingPositionSeconds_ = position;
+        if (recordingPositionSeconds_ > 0)
+            await MidiService.Playback.CommitSeekAsync(TimeSpan.FromSeconds(recordingPositionSeconds_));
+    }
 
-                while (index < pending.Count && pending[index].Start.TotalSeconds <= position + 0.01)
-                {
-                    await PreviewNoteAsync(pending[index].Note);
-                    index++;
-                }
+    private async Task EnsureEditablePlaybackTrackSyncedAsync()
+    {
+        if (editablePlaybackHash_ != GetEditablePlaybackHash())
+            await SyncEditablePlaybackTrackAsync();
+    }
 
-                if (position >= durationSeconds_)
-                    break;
+    private async Task OnPlaybackToggledAsync()
+    {
+        await EnsureEditablePlaybackTrackSyncedAsync();
 
-                await InvokeAsync(StateHasChanged);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        finally
-        {
-            isPlayingBack_ = false;
+        if (!isPlayingBack_)
+            await Task.Delay(500);
+    }
 
-            if (editVisualiser_ is not null)
-                await editVisualiser_.StopPlayheadAsync(recordingPositionSeconds_);
+    private Task OnEditPlaybackStartedAsync(MidiEventArgs.PlaybackStarted args)
+    {
+        isPlayingBack_ = true;
+        recordingPositionSeconds_ = Math.Clamp(args.StartOffset.TotalSeconds, 0, Math.Max(0, durationSeconds_));
+        return InvokeAsync(StateHasChanged);
+    }
 
-            await InvokeAsync(StateHasChanged);
-        }
+    private Task OnEditPlaybackPausedAsync(MidiEventArgs.PlaybackPaused args)
+    {
+        isPlayingBack_ = false;
+        recordingPositionSeconds_ = Math.Clamp(args.Position.TotalSeconds, 0, Math.Max(0, durationSeconds_));
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnEditPlaybackStoppedAsync(MidiEventArgs.PlaybackStopped args)
+    {
+        isPlayingBack_ = false;
+        recordingPositionSeconds_ = Math.Clamp(args.Position.TotalSeconds, 0, Math.Max(0, durationSeconds_));
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnEditPlaybackPositionChangedAsync(MidiEventArgs.PlaybackPositionChanged args)
+    {
+        if (isRecording_ || isCountingIn_)
+            return Task.CompletedTask;
+
+        isPlayingBack_ = args.IsPlaying;
+        recordingPositionSeconds_ = Math.Clamp(args.Position.TotalSeconds, 0, Math.Max(0, durationSeconds_));
+        return InvokeAsync(StateHasChanged);
     }
 
     private double GetDefaultNoteDurationSeconds()
@@ -1053,15 +1083,19 @@
 
     public async ValueTask DisposeAsync()
     {
+        MidiService.Playback.PlaybackStarted -= OnEditPlaybackStartedAsync;
+        MidiService.Playback.PlaybackPaused -= OnEditPlaybackPausedAsync;
+        MidiService.Playback.PlaybackStopped -= OnEditPlaybackStoppedAsync;
+        MidiService.Playback.PositionChanged -= OnEditPlaybackPositionChangedAsync;
+
+        await MidiService.Playback.StopAsync(resetPosition: true);
+
         countInCts_?.Cancel();
         countInCts_?.Dispose();
         countInCts_ = null;
         recordingPositionCts_?.Cancel();
         recordingPositionCts_?.Dispose();
         recordingPositionCts_ = null;
-        playbackCts_?.Cancel();
-        playbackCts_?.Dispose();
-        playbackCts_ = null;
         metronomeCts_?.Cancel();
         metronomeCts_?.Dispose();
         metronomeCts_ = null;
@@ -1073,6 +1107,7 @@
 
     private async Task SaveTrack()
     {
+        await StopPlaybackAsync();
         StopRecording();
         error_ = null;
         if (notes_.Count == 0)
@@ -1090,7 +1125,7 @@
         var track = new MidiTrackInfo
         {
             Id = editingTrackId_ ?? Guid.NewGuid(),
-            Index = editingTrackId_ is Guid existingId && Draft.GetTrack(existingId) is { } existingTrack ? existingTrack.Index : Draft.Tracks.Count,
+            Index = editingTrackId_ is Guid existingId && MidiService.Edit.GetTrack(existingId) is { } existingTrack ? existingTrack.Index : MidiService.Edit.Tracks.Count,
             Name = trackName_.Trim(),
             PanType = panType_,
             TempoBpm = Math.Clamp(tempoBpm_, 1, 300),
@@ -1107,7 +1142,7 @@
             }).ToList()
         };
 
-        Draft.CommitEditableTrack(track);
+        MidiService.Edit.CommitEditableTrack(track);
         hasUnsavedTrackChanges_ = false;
 
         await ExitPage();

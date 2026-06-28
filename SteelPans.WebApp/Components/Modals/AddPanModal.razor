@@ -1,6 +1,5 @@
 @using SteelPans.WebApp.Services
-@inject MidiPlaybackService Playback
-@inject MidiPlaybackService Playback
+@inject MidiManagerService MidiService
 @inject DbService Db
 
 <ModalPopup TPayload="Guid?"
@@ -53,7 +52,7 @@
 </ModalPopup>
 
 @code {
-    private IReadOnlyList<PanType> AvailablePanTypes => Playback.AvailablePans.Select(x => x.Type).ToList();
+    private IReadOnlyList<PanType> AvailablePanTypes => MidiService.Playback.AvailablePans.Select(x => x.Type).ToList();
 
     private enum AddModalType
     {
@@ -66,7 +65,7 @@
     private string? selectedTrackIdString_;
     private string? selectedPanTypeString_;
 
-    private bool HasTracks => Playback.Tracks.Count > 0;
+    private bool HasTracks => MidiService.Playback.Tracks.Count > 0;
 
     private string selectedTrackLabel_
     {
@@ -75,7 +74,7 @@
             if (!Guid.TryParse(selectedTrackIdString_, out var trackId))
                 return string.Empty;
 
-            var track = Playback.Tracks.FirstOrDefault(x => x.Id == trackId);
+            var track = MidiService.Playback.Tracks.FirstOrDefault(x => x.Id == trackId);
             if (track is null)
                 return string.Empty;
 
@@ -84,8 +83,8 @@
     }
 
     private List<MidiTrackInfo> UnassignedTracks =>
-        Playback.Tracks
-            .Where(t => Playback.Assignments.All(a => a.TrackId != t.Id))
+        MidiService.Playback.Tracks
+            .Where(t => MidiService.Playback.Assignments.All(a => a.TrackId != t.Id))
             .OrderBy(t => t.Index)
             .ToList();
 
@@ -181,7 +180,7 @@
             AssignedPanType = panType,
         };
 
-        await Playback.OnAddAssignmentAsync(assignment, newAssignment: true, notify: true);
+        await MidiService.Playback.OnAddAssignmentAsync(assignment, newAssignment: true, notify: true);
     }
 
     private async Task ConfirmAddTrackAsync(PanType panType)
@@ -189,7 +188,7 @@
         if (!Guid.TryParse(selectedTrackIdString_, out var trackId))
             return;
 
-        var track = Playback.Tracks.FirstOrDefault(x => x.Id == trackId);
+        var track = MidiService.Playback.Tracks.FirstOrDefault(x => x.Id == trackId);
         if (track is null)
             return;
 
@@ -199,9 +198,9 @@
             TrackId = track.Id,
         };
 
-        if (!Playback.TryCreateDtoAssignment(assignment, out var dto))
+        if (!MidiService.Playback.TryCreateDtoAssignment(assignment, out var dto))
             return;
 
-        await Db.MidiFiles.AddMidiAssignmentsAsync(Playback.MidiFileId, dto!);
+        await Db.MidiFiles.AddMidiAssignmentsAsync(MidiService.Playback.MidiFileId, dto!);
     }
 }

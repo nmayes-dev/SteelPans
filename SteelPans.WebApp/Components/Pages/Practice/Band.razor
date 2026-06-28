@@ -1,7 +1,6 @@
 @page "/play/ensemble"
 @inject SteelPanLoaderService PanLoader
-@inject MidiFileService MidiService
-@inject MidiPlaybackService Playback
+@inject MidiManagerService MidiService
 @inject DbService Db
 @inject NavigationManager Nav
 @inject TaskRunnerService Tasks
@@ -10,14 +9,14 @@
 <PageTitle>Band</PageTitle>
 
 <div class="band-page">
-    @if (Playback.AvailablePans.Count > 0)
+    @if (MidiService.Playback.AvailablePans.Count > 0)
     {
         <PracticeHeader />
 
         <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
 
         <section class="band-page__content">
-            <PansLayout Pans="@Playback.ActivePans" />
+            <PansLayout Pans="@MidiService.Playback.ActivePans" />
         </section>
     }
 </div>

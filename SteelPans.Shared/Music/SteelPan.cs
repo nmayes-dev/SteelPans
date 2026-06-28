@@ -36,4 +36,9 @@ public class SteelPan
     public PanType Type { get; set; }
 
     public List<PanNote> Notes { get; set; } = new();
+
+    public IEnumerable<MidiPanEvent> Filter(IEnumerable<MidiPanEvent> events)
+    {
+        return events.Where(e => Notes.Any(n => n.Note.IsEnharmonicEquivalentTo(e.Note)));
+    }
 }

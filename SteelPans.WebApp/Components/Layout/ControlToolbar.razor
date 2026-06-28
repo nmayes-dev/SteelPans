@@ -1,5 +1,4 @@
-﻿@inject MidiPlaybackService Playback
-@inject MidiFileService MidiService
+﻿@inject MidiManagerService MidiService
 @inject NavigationManager Nav
 @inject ModalPopupService Modals
 @inject DbService Db
@@ -61,22 +60,22 @@
                             OnClick="OpenAddPanAsync" />
 
                             
-            @if (Playback.IsMidiLoaded)
+            @if (MidiService.Playback.IsMidiLoaded)
             {
                 <ToolbarElement Order="2"
                                 Text="Tracks"
                                 IconClass="bi-music-note-list"
-                                Disabled="@(!Playback.Tracks.Any())"
+                                Disabled="@(!MidiService.Playback.Tracks.Any())"
                                 CanExpand="true">
                     <ChildContent>
-                        <MidiTrackList Tracks="@Playback.Tracks"/>
+                        <MidiTrackList Tracks="@MidiService.Playback.Tracks"/>
                     </ChildContent>
                 </ToolbarElement>
             }
         </SubMenu>
     </ToolbarElement>
 
-    @if (Playback.ActivePans.Any())
+    @if (MidiService.Playback.ActivePans.Any())
     {
         <ToolbarElement Order="3"
                         Text="Music">
@@ -84,7 +83,7 @@
                 <ToolbarElement Order="1"
                                 Text="Mixer"
                                 IconClass="bi-sliders2-vertical"
-                                Disabled="@(!Playback.ActivePans.Any())"
+                                Disabled="@(!MidiService.Playback.ActivePans.Any())"
                                 CanExpand="true"
                                 CanMoveExpanded="true">
                     <ChildContent>
@@ -95,7 +94,7 @@
                                 Text="Metronome"
                                 IconClass="bi-clock">
                     <HeaderActions>
-                        <ToggleSwitch Value="@Playback.ClickTrackEnabled"
+                        <ToggleSwitch Value="@MidiService.Playback.ClickTrackEnabled"
                                       ValueChanged="OnClickTrackEnabledShellChangedAsync"
                                       AriaLabel="Enable Metronome" />
                     </HeaderActions>
@@ -123,18 +122,18 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Playback.AssignmentsChanged += OnAssignmentsChangedAsync;
-        anyPans_ = Playback.ActivePans.Any();
+        MidiService.Playback.AssignmentsChanged += OnAssignmentsChangedAsync;
+        anyPans_ = MidiService.Playback.ActivePans.Any();
     }
 
-    private async Task OnAssignmentsChangedAsync(PlaybackAssignmentsChangedEventArgs args)
+    private async Task OnAssignmentsChangedAsync(MidiEventArgs.AssignmentsChanged args)
     {
-        if (anyPans_ && !Playback.ActivePans.Any())
+        if (anyPans_ && !MidiService.Playback.ActivePans.Any())
         {
             anyPans_ = false;
             await InvokeAsync(StateHasChanged);
         }
-        else if (!anyPans_ && Playback.ActivePans.Any())
+        else if (!anyPans_ && MidiService.Playback.ActivePans.Any())
         {
             anyPans_ = true;
             await InvokeAsync(StateHasChanged);
@@ -184,10 +183,11 @@
     private async Task OnSingleMidiSelectedAsync(IBrowserFile file)
     {
         await toolbar_!.RequestCloseAsync();
-        await Playback.OnLoadMidiAsync(async () =>
+        await MidiService.Playback.OnLoadMidiAsync(async () =>
         {
             await using var stream = file.OpenReadStream(UserState.MaxMidiFileSize);
-            return (Guid.NewGuid(), file.Name, await MidiService.OpenMidiFileAsync(stream));
+            using var midiStream = await MidiService.Files.OpenMidiFileAsync(stream);
+            return (Guid.NewGuid(), file.Name, MidiFile.Read(midiStream));
         });
     }
 
@@ -195,16 +195,16 @@
 
     private async Task OnClickTrackEnabledShellChangedAsync(bool enabled)
     {
-        if (Playback.ClickTrackEnabled == enabled)
+        if (MidiService.Playback.ClickTrackEnabled == enabled)
             return;
 
-        await Playback.SetClickTrackEnabledAsync(enabled);
+        await MidiService.Playback.SetClickTrackEnabledAsync(enabled);
     }
 
 
 
     public void Dispose()
     {
-        Playback.AssignmentsChanged -= OnAssignmentsChangedAsync;
+        MidiService.Playback.AssignmentsChanged -= OnAssignmentsChangedAsync;
     }
 }

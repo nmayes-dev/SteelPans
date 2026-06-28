@@ -1,4 +1,4 @@
-﻿@inject MidiPlaybackService Playback
+﻿@inject MidiManagerService MidiService
 
 <ModalPopup TPayload="MidiAssignedPan"
             Id="RemovePan"
@@ -23,7 +23,7 @@
         if (payload.Assignment.TrackId is null)
             return false;
 
-        await Playback.OnRemoveAssignmentAsync(payload.Assignment.TrackId.Value);
+        await MidiService.Playback.OnRemoveAssignmentAsync(payload.Assignment.TrackId.Value);
         return true;
     }
 }

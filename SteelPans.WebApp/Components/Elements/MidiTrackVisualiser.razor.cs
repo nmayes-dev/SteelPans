@@ -411,7 +411,7 @@ public partial class MidiTrackVisualiser
         if (Mode != MidiTrackVisualiserMode.Playback)
             return;
 
-        await Playback.PreviewSeekAsync(TimeSpan.FromSeconds(Math.Max(0, seconds)));
+        await MidiService.Playback.PreviewSeekAsync(TimeSpan.FromSeconds(Math.Max(0, seconds)));
     }
 
     [JSInvokable]
@@ -420,7 +420,7 @@ public partial class MidiTrackVisualiser
         if (Mode != MidiTrackVisualiserMode.Playback)
             return;
 
-        await Playback.CommitSeekAsync(TimeSpan.FromSeconds(Math.Max(0, seconds)));
+        await MidiService.Playback.CommitSeekAsync(TimeSpan.FromSeconds(Math.Max(0, seconds)));
     }
 
 
