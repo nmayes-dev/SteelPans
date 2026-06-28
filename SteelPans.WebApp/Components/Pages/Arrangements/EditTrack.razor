@@ -125,7 +125,8 @@
         </div>
     </div>
 
-    <MidiTrackVisualiser Mode="MidiTrackVisualiserMode.Edit"
+    <MidiTrackVisualiser @ref="editVisualiser_"
+                         Mode="MidiTrackVisualiserMode.Edit"
                          PanLabel="@panType_.ToSpacedPascal()"
                          TrackLabel="@trackName_"
                          Notes="notes_"
@@ -268,6 +269,7 @@
     private CancellationTokenSource? overdubPlaybackCts_;
     private Guid? selectedNoteId_;
     private SteelPanView? overlayPan_;
+    private MidiTrackVisualiser? editVisualiser_;
     private MidiTrackVisualiser? recordVisualiser_;
     private readonly List<MidiPanEvent> notes_ = [];
     private List<MidiPanEvent>? recordingNotes_;
@@ -365,13 +367,12 @@
                         ?? PanType.None
                 })
                 .ToList());
+
+        UserState.SetActiveMidiFile(fileId, details.OriginalFileName, playableTracks, playbackInfo);
+
         var track = playableTracks.FirstOrDefault(x => x.Id == trackDetails.Id);
         if (track is null)
             return null;
-
-        var initialTempo = Math.Clamp(playbackInfo.InitialBpm, 1, 300);
-        var initialBeatsPerBar = Math.Clamp(playbackInfo.InitialBeatsPerBar, 1, 32);
-        var initialBeatUnit = Math.Clamp(playbackInfo.InitialBeatUnit, 1, 64);
 
         return new MidiTrackInfo
         {
@@ -379,9 +380,9 @@
             Index = track.Index,
             Name = assignment?.Label ?? trackDetails.TrackName ?? track.Name ?? $"Track {trackDetails.TrackIndex}",
             PanType = assignment?.PanType ?? trackDetails.SuggestedPanType ?? track.PanType,
-            TempoBpm = initialTempo,
-            BeatsPerBar = initialBeatsPerBar,
-            BeatUnit = initialBeatUnit,
+            TempoBpm = playbackInfo.InitialBpm,
+            BeatsPerBar = playbackInfo.InitialBeatsPerBar,
+            BeatUnit = playbackInfo.InitialBeatUnit,
             DurationSeconds = Math.Max(track.DurationSeconds, track.Events.Count == 0 ? 0 : track.Events.Max(x => x.End).TotalSeconds),
             NoteCount = track.Events.Count,
             Events = track.Events.Select(CloneEvent).ToList()
@@ -967,8 +968,16 @@
         playbackCts_?.Dispose();
         playbackCts_ = new CancellationTokenSource();
         isPlayingBack_ = true;
-        _ = PlayRecordedNotesAsync(playbackCts_.Token);
-        await Task.CompletedTask;
+
+        await Task.Delay(1000);
+
+        var start = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
+        var audioAnchorTimeSeconds = await TryGetAudioTimeAsync();
+        
+        if (editVisualiser_ is not null)
+            await editVisualiser_.StartPlayheadAsync(start, audioAnchorTimeSeconds);
+
+        _ = PlayRecordedNotesAsync(start, playbackCts_.Token);
     }
 
     private async Task StopPlaybackAsync()
@@ -978,12 +987,15 @@
 
         isPlayingBack_ = false;
         playbackCts_?.Cancel();
+
+        if (editVisualiser_ is not null)
+            await editVisualiser_.StopPlayheadAsync(recordingPositionSeconds_);
+
         await InvokeAsync(StateHasChanged);
     }
 
-    private async Task PlayRecordedNotesAsync(CancellationToken cancellationToken)
+    private async Task PlayRecordedNotesAsync(double start, CancellationToken cancellationToken)
     {
-        var start = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
         var startedAt = DateTimeOffset.UtcNow;
         var pending = notes_
             .Where(x => x.Start.TotalSeconds + x.Duration.TotalSeconds >= start)
@@ -1018,6 +1030,10 @@
         finally
         {
             isPlayingBack_ = false;
+
+            if (editVisualiser_ is not null)
+                await editVisualiser_.StopPlayheadAsync(recordingPositionSeconds_);
+
             await InvokeAsync(StateHasChanged);
         }
     }
