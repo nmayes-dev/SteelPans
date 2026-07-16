@@ -727,6 +727,106 @@ public sealed class DbService
             double StartSeconds,
             double DurationSeconds);
 
+        public sealed record UpdateRecordedMidiFileRequest(
+            int TempoBpm,
+            int BeatsPerBar,
+            int BeatUnit,
+            IReadOnlyList<UpdateRecordedMidiTrackRequest> Tracks);
+
+        public sealed record UpdateRecordedMidiTrackRequest(
+            Guid Id,
+            string Name,
+            PanType PanType,
+            double DurationSeconds,
+            IReadOnlyList<CreateRecordedMidiNoteRequest> Notes);
+
+        public async Task UpdateRecordedMidiFileAsync(
+            Guid fileId,
+            UpdateRecordedMidiFileRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request.Tracks.Count == 0)
+                throw new InvalidOperationException("A recorded MIDI file must contain at least one track.");
+
+            await using var db = await dbFactory.CreateDbContextAsync(cancellationToken);
+            var file = await db.MidiFiles
+                .Include(x => x.Tracks)
+                .Include(x => x.Assignments)
+                .Include(x => x.SharedGroups)
+                .FirstOrDefaultAsync(x => x.Id == fileId, cancellationToken);
+
+            if (file is null)
+                throw new InvalidOperationException("MIDI file not found.");
+
+            if (!await CanEditFileAsync(db, file, cancellationToken))
+                throw new UnauthorizedAccessException("You don't have permissions to edit this file.");
+
+            var persistedTracks = file.Tracks.ToDictionary(x => x.Id);
+            if (request.Tracks.Count != persistedTracks.Count ||
+                request.Tracks.Any(x => x.Id == Guid.Empty || !persistedTracks.ContainsKey(x.Id)))
+            {
+                throw new InvalidOperationException("The recorded MIDI tracks no longer match the stored file.");
+            }
+
+            var writeRequest = new CreateRecordedMidiFileRequest(
+                file.Id,
+                file.Title,
+                request.TempoBpm,
+                request.BeatsPerBar,
+                request.BeatUnit,
+                request.Tracks.Select(x => new CreateRecordedMidiTrackRequest(
+                    x.Name,
+                    x.PanType,
+                    x.DurationSeconds,
+                    x.Notes)).ToList(),
+                file.IsIncomplete);
+
+            await using var midiContent = new MemoryStream();
+            WriteRecordedMidiFile(midiContent, writeRequest);
+            midiContent.Position = 0;
+
+            file.StorageKey = await fileStore.SaveAsync(
+                file.UploadedByUserId,
+                file.Id,
+                file.OriginalFileName,
+                midiContent,
+                cancellationToken);
+            file.SizeBytes = midiContent.Length;
+
+            var assignmentsByTrackId = file.Assignments.ToDictionary(x => x.TrackId);
+            for (var index = 0; index < request.Tracks.Count; index++)
+            {
+                var updatedTrack = request.Tracks[index];
+                var persistedTrack = persistedTracks[updatedTrack.Id];
+                var trackIndex = index + 1;
+                var trackName = string.IsNullOrWhiteSpace(updatedTrack.Name)
+                    ? $"Track {trackIndex}"
+                    : updatedTrack.Name.Trim();
+
+                persistedTrack.TrackIndex = trackIndex;
+                persistedTrack.TrackName = trackName;
+                persistedTrack.SuggestedPanType = updatedTrack.PanType;
+
+                if (assignmentsByTrackId.TryGetValue(updatedTrack.Id, out var assignment))
+                {
+                    assignment.TrackIndex = trackIndex;
+                    assignment.PanType = updatedTrack.PanType;
+                    assignment.Label = trackName;
+                }
+            }
+
+            var sharedGroupIds = file.SharedGroups.Select(x => x.GroupId).ToList();
+
+            await db.SaveChangesAsync(cancellationToken);
+            await updates.NotifyUserStateChangedAsync(file.UploadedByUserId, cancellationToken);
+            await updates.NotifyGroupsChangedAsync(sharedGroupIds, cancellationToken);
+            await updates.NotifyMidiAssignmentsChangedAsync(
+                file.Id,
+                file.UploadedByUserId,
+                sharedGroupIds,
+                cancellationToken);
+        }
+
         public async Task<GroupFileDto> CreateRecordedMidiFileAsync(
             CreateRecordedMidiFileRequest request,
             CancellationToken cancellationToken = default)

@@ -22,8 +22,8 @@ public sealed class ActiveMidiFile
 {
     public required Guid Id { get; set; }
     public required string FileName { get; set; }
-    public IReadOnlyList<MidiTrackInfo> Tracks { get; set; } = [];
-    public IReadOnlyList<MidiTrackAssignment> Assignments { get; set; } = [];
+    public List<MidiTrackInfo> Tracks { get; set; } = [];
+    public List<MidiTrackAssignment> Assignments { get; set; } = [];
     public MidiPlaybackInfo? PlaybackInfo { get; set; }
 
 }
@@ -58,6 +58,7 @@ public sealed class UserStateService : IAsyncDisposable
         Guid id,
         string fileName,
         IReadOnlyList<MidiTrackInfo> tracks,
+        IReadOnlyList<MidiTrackAssignment>? assignments,
         MidiPlaybackInfo? playbackInfo)
     {
         ActiveMidi = new ActiveMidiFile
@@ -65,6 +66,7 @@ public sealed class UserStateService : IAsyncDisposable
             Id = id,
             FileName = fileName,
             Tracks = tracks.Select(CloneTrack).ToList(),
+            Assignments = assignments?.ToList() ?? [],
             PlaybackInfo = playbackInfo,
         };
     }
@@ -79,7 +81,7 @@ public sealed class UserStateService : IAsyncDisposable
         return ActiveMidi?.Tracks.FirstOrDefault(x => x.Id == trackId)?.Events ?? [];
     }
 
-    public void UpsertActiveMidiTrack(MidiTrackInfo track)
+    public async Task UpsertActiveMidiTrack(MidiTrackInfo track)
     {
         if (ActiveMidi is null)
             throw new InvalidOperationException("Trying to insert track when there is no midi file active");
@@ -196,7 +198,7 @@ public sealed class UserStateService : IAsyncDisposable
         return firstNotSecond.Any() || secondNotFirst.Any();
     }
 
-    private class AssignmentCheck
+    private struct AssignmentCheck
     {
         public PanType Pan { get; set; }
         public Guid? Track { get; set; }

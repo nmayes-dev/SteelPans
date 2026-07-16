@@ -122,7 +122,6 @@ public partial class MidiTrackVisualiser
         0.01);
 
     private MidiPanEvent? SelectedRecordNote => Notes.FirstOrDefault(x => x.Id == SelectedNoteId);
-    private bool ShouldPreventKeyDefault => IsEditMode && SelectedRecordNote is not null;
     private double StepSeconds => 60.0 / Math.Max(1, TempoBpm) / 4.0;
 
     private double NoteSnapValue

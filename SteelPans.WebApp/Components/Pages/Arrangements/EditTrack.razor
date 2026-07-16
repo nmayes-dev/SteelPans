@@ -10,6 +10,7 @@
 @inject Microsoft.Extensions.Logging.ILogger<EditTrack> Logger
 @inject NavigationManager Nav
 @inject ModalPopupService Modals
+@inject OverlayManagerService Overlays
 @implements IAsyncDisposable
 
 
@@ -25,7 +26,7 @@
 
     <div class="sp-app-card record-track-page__setup">
         <ExpandingOverlay Title="Settings"
-            ClosedIconClass="sliders"
+                          ClosedIconClass="sliders"
                           ExpandDirection="ExpandingOverlay.Direction.Right">
             <div class="record-track-page__settings">
 
@@ -213,8 +214,6 @@
     [SupplyParameterFromQuery(Name = "returnTo")]
     public string? ReturnTo { get; set; }
 
-    private Toolbar? toolbar_;
-
     private string? error_;
     private Guid? editingTrackId_;
     private bool loadedExistingTrack_;
@@ -337,52 +336,24 @@
 
     private async Task<MidiTrackInfo?> LoadFileTrackAsync(Guid fileId, Guid trackId)
     {
-        var details = await Db.MidiFiles.GetMidiFileDetailsAsync(fileId);
-        var trackDetails = details?.Tracks.FirstOrDefault(x => x.Id == trackId);
-        if (details is null || trackDetails is null || details.OwnerId != UserState.Id)
+        await MidiService.Playback.LoadGroupMidiFile(fileId);
+        if (UserState.ActiveMidi is null || UserState.ActiveMidi.PlaybackInfo is null)
             return null;
 
-        var download = await Db.MidiFiles.OpenMidiFileAsync(fileId);
-        if (download is null)
-            return null;
-
-        await using var stream = download.Stream;
-        using var midiFileStream = await MidiService.Files.OpenMidiFileAsync(stream);
-        var midiFile = MidiFile.Read(midiFileStream);
-        var playbackInfo = MidiService.Files.GetPlaybackInfo(midiFile);
-        var assignment = details.Assignments.FirstOrDefault(x => x.TrackId == trackDetails.Id);
-        var playableTracks = MidiService.Files.LoadPlayableTracks(
-            midiFile,
-            details.Tracks
-                .OrderBy(x => x.TrackIndex)
-                .Select(x => new MidiTrackSummary
-                {
-                    Id = x.Id,
-                    Index = x.TrackIndex - 1,
-                    Name = details.Assignments.FirstOrDefault(a => a.TrackId == x.Id)?.Label
-                        ?? x.TrackName
-                        ?? $"Track {x.TrackIndex}",
-                    PanType = details.Assignments.FirstOrDefault(a => a.TrackId == x.Id)?.PanType
-                        ?? x.SuggestedPanType
-                        ?? PanType.None
-                })
-                .ToList());
-
-        UserState.SetActiveMidiFile(fileId, details.OriginalFileName, playableTracks, playbackInfo);
-
-        var track = playableTracks.FirstOrDefault(x => x.Id == trackDetails.Id);
+        var assignment = MidiService.Playback.Assignments.FirstOrDefault(x => x.TrackId == trackId);
+        var track = MidiService.Playback.Tracks.FirstOrDefault(x => x.Id == trackId);
         if (track is null)
             return null;
 
         return new MidiTrackInfo
         {
-            Id = trackDetails.Id,
+            Id = trackId,
             Index = track.Index,
-            Name = assignment?.Label ?? trackDetails.TrackName ?? track.Name ?? $"Track {trackDetails.TrackIndex}",
-            PanType = assignment?.PanType ?? trackDetails.SuggestedPanType ?? track.PanType,
-            TempoBpm = playbackInfo.InitialBpm,
-            BeatsPerBar = playbackInfo.InitialBeatsPerBar,
-            BeatUnit = playbackInfo.InitialBeatUnit,
+            Name = assignment?.Label ?? track.Name ?? track.Name ?? $"Track {track.Index}",
+            PanType = assignment?.AssignedPanType ?? track.PanType,
+            TempoBpm = UserState.ActiveMidi.PlaybackInfo.InitialBpm,
+            BeatsPerBar = UserState.ActiveMidi.PlaybackInfo.InitialBeatsPerBar,
+            BeatUnit = UserState.ActiveMidi.PlaybackInfo.InitialBeatUnit,
             DurationSeconds = Math.Max(track.DurationSeconds, track.Events.Count == 0 ? 0 : track.Events.Max(x => x.End).TotalSeconds),
             NoteCount = track.Events.Count,
             Events = track.Events.Select(CloneEvent).ToList()
@@ -464,7 +435,7 @@
             recordingPositionSeconds_ = 0;
         }
 
-        await toolbar_!.RequestCloseAsync();
+        await Overlays.RequestCloseAllAsync();
 
         recordingPositionSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
         isRecordOverlayOpen_ = true;
@@ -1015,7 +986,6 @@
 
     private async Task SyncEditablePlaybackTrackAsync()
     {
-        await MidiService.Playback.LoadEditableTrackPlaybackAsync(BuildEditablePlaybackTrack());
         editablePlaybackHash_ = GetEditablePlaybackHash();
         recordingPositionSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
 
@@ -1142,10 +1112,54 @@
             }).ToList()
         };
 
-        MidiService.Edit.CommitEditableTrack(track);
-        hasUnsavedTrackChanges_ = false;
+        await MidiService.Edit.CommitEditableTrack(track);
 
+        if (SourceFileId is Guid sourceFileId)
+        {
+            await SaveStoredFileAsync(sourceFileId, track);
+            await UserState.RefreshAsync();
+        }
+
+        hasUnsavedTrackChanges_ = false;
         await ExitPage();
+    }
+
+    private async Task SaveStoredFileAsync(Guid fileId, MidiTrackInfo editedTrack)
+    {
+        var tracks = MidiService.Playback.Tracks
+            .OrderBy(x => x.Index)
+            .Select(track => track.Id == editedTrack.Id ? editedTrack : track)
+            .ToList();
+
+        if (tracks.All(x => x.Id != editedTrack.Id))
+            throw new InvalidOperationException("The edited track is no longer part of the stored MIDI file.");
+
+        await Db.MidiFiles.UpdateRecordedMidiFileAsync(
+            fileId,
+            new DbService.MidiDbService.UpdateRecordedMidiFileRequest(
+                editedTrack.TempoBpm,
+                editedTrack.BeatsPerBar,
+                editedTrack.BeatUnit,
+                tracks.Select(track =>
+                {
+                    var assignment = MidiService.Playback.Assignments.FirstOrDefault(x => x.TrackId == track.Id);
+                    var name = track.Id == editedTrack.Id
+                        ? editedTrack.Name ?? $"Track {track.Index}"
+                        : assignment?.Label ?? track.Name ?? $"Track {track.Index}";
+                    var panType = track.Id == editedTrack.Id
+                        ? editedTrack.PanType
+                        : assignment?.AssignedPanType ?? track.PanType;
+
+                    return new DbService.MidiDbService.UpdateRecordedMidiTrackRequest(
+                        track.Id,
+                        name,
+                        panType,
+                        track.DurationSeconds,
+                        track.Events.Select(note => new DbService.MidiDbService.CreateRecordedMidiNoteRequest(
+                            note.Note,
+                            note.Start.TotalSeconds,
+                            note.Duration.TotalSeconds)).ToList());
+                }).ToList()));
     }
 
     private async Task ExitPage()

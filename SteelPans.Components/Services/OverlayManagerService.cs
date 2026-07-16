@@ -61,12 +61,10 @@ public class OverlayManagerService
         components_.Remove(component);
     }
 
-    public async Task RequestCloseAllComponentsAsync()
+    public async Task RequestCloseAllAsync()
     {
-        foreach (var component in components_)
-        {
-            await component.RequestCloseAsync();
-        }
+        var closeTasks = components_.Select(x => x.RequestCloseAsync());
+        await Task.WhenAll(closeTasks);
     }
 
     public async Task OnOpenComponentAsync(OverlayComponentBase component, bool closeOthers)
@@ -74,10 +72,10 @@ public class OverlayManagerService
         if (!closeOthers)
             return;
 
-        foreach (var other in components_.ToArray())
-        {
-            if (component != other)
-                await other.RequestCloseAsync();
-        }
+        var closeTasks = components_
+            .Where(x => x != component)
+            .Select(x => x.RequestCloseAsync());
+
+        await Task.WhenAll(closeTasks);
     }
 }

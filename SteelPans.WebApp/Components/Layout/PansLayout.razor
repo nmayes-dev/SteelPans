@@ -68,13 +68,17 @@
     private DotNetObjectReference<PansLayout>? dotNetReference_;
     private bool panLayoutObserved_;
 
+    protected override void OnInitialized()
+    {
+        MidiService.Playback.AssignmentsChanged += OnAssignmentsChangedAsync;
+    }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
             return;
 
         dotNetReference_ = DotNetObjectReference.Create(this);
-        MidiService.Playback.AssignmentsChanged += OnAssignmentsChangedAsync;
         await InitialiseLayoutAsync();
     }
 

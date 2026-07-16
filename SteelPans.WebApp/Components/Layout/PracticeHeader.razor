@@ -7,7 +7,7 @@
     <div class="practice-header__midi-controls @(MidiService.Playback.IsMidiLoaded ? "practice-header__midi-controls--visible" : "practice-header__midi-controls--empty")">
         @if (MidiService.Playback.IsMidiLoaded)
         {
-            var hasMidiControls = MidiService.Playback.ActivePans.Any(x => x.Events.Count > 0);
+            var hasMidiControls = MidiService.Playback.ActivePans.Any(x => MidiService.Playback.GetMidiTrackEvents(x).Any());
             <MidiPlaybackControl Enabled="@hasMidiControls" />
         }
         else

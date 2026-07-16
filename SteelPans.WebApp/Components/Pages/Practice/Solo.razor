@@ -166,7 +166,7 @@ else
     private int? SelectedPanMinSemitone => SelectedAssignedPan?.Pan.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Min();
     private int? SelectedPanMaxSemitone => SelectedAssignedPan?.Pan.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Max();
 
-    private IReadOnlyList<MidiPanEvent> SelectedTrackEvents => (SelectedTrackId is Guid trackId ? MidiService.Playback.GetMidiTrackEvents(trackId) : [])
+    private IReadOnlyList<MidiPanEvent> SelectedTrackEvents => MidiService.Playback.GetMidiTrackEvents(SelectedAssignedPan)
         .OrderBy(x => x.Start)
         .ThenBy(x => x.Note.SemitoneNumber)
         .ToList();

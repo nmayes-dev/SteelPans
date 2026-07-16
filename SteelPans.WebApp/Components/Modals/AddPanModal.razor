@@ -179,8 +179,8 @@
         {
             AssignedPanType = panType,
         };
-
-        await MidiService.Playback.OnAddAssignmentAsync(assignment, newAssignment: true, notify: true);
+        MidiService.Playback.Assignments.Add(assignment);
+        await MidiService.Playback.AddAssignmentAsync(assignment);
     }
 
     private async Task ConfirmAddTrackAsync(PanType panType)
