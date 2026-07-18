@@ -1,4 +1,4 @@
-@page "/arrangements/create"
+﻿@page "/arrangements/create"
 @attribute [Authorize]
 @inject TaskRunnerService Tasks
 @inject MidiManagerService MidiService
@@ -75,15 +75,15 @@
 @code {
     private string title_ = string.Empty;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        MidiService.Edit.BeginCreateFile();
+        await MidiService.Edit.BeginCreateFileAsync();
         title_ = MidiService.Edit.Title;
     }
 
-    private void OnTitleChanged() => MidiService.Edit.SetTitle(title_);
+    private Task OnTitleChanged() => MidiService.Edit.SetTitleAsync(title_);
 
-    private void RemoveTrack(Guid id) => MidiService.Edit.RemoveTrack(id);
+    private Task RemoveTrack(Guid id) => MidiService.Edit.RemoveTrackAsync(id);
 
     private SteelPan? GetPan(PanType panType) => PanLoader.Pans.FirstOrDefault(x => x.Type == panType);
     private int? GetPanMinSemitone(PanType panType) => GetPan(panType)?.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Min();
@@ -110,7 +110,7 @@
 
     private async Task<GroupFileDto> SaveCurrentFileAsync(bool isIncomplete)
     {
-        MidiService.Edit.SetTitle(title_);
+        await MidiService.Edit.SetTitleAsync(title_);
         var first = MidiService.Edit.Tracks[0];
         return await Db.MidiFiles.CreateRecordedMidiFileAsync(
             new DbService.MidiDbService.CreateRecordedMidiFileRequest(
@@ -142,11 +142,15 @@
         {
             OnSuccess = () =>
             {
-                MidiService.Edit.Clear();
-                Nav.NavigateTo("/arrangements");
-                return Task.CompletedTask;
+                return ClearAndNavigateAsync();
             }
         });
+    }
+
+    private async Task ClearAndNavigateAsync()
+    {
+        await MidiService.Edit.ClearAsync();
+        Nav.NavigateTo("/arrangements");
     }
 
     private async Task SaveFileAsync()
@@ -163,7 +167,7 @@
 
             newFile = await SaveCurrentFileAsync(isIncomplete: false);
 
-            MidiService.Edit.Clear();
+            await MidiService.Edit.ClearAsync();
             await UserState.RefreshAsync();
             return $"Saved {newFile.Title}. Redirecting...";
         });

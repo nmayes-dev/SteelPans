@@ -1,4 +1,4 @@
-@page "/arrangements/tracks/create"
+﻿@page "/arrangements/tracks/create"
 @page "/arrangements/tracks/edit/{TrackId:guid}"
 @attribute [Authorize]
 @inject DbService Db
@@ -216,6 +216,7 @@
 
     private string? error_;
     private Guid? editingTrackId_;
+    private Guid editablePlaybackTrackId_ = Guid.NewGuid();
     private bool loadedExistingTrack_;
 
     private string trackName_ = string.Empty;
@@ -310,7 +311,7 @@
             panType_ = AvailablePans[0].Type;
 
         if (TrackId is null)
-            MidiService.Edit.BeginCreateFile();
+            await MidiService.Edit.BeginCreateFileAsync();
     }
 
     private async Task LoadTrackAsync(Guid trackId)
@@ -330,6 +331,7 @@
 
         loadedExistingTrack_ = true;
         editingTrackId_ = trackId;
+        editablePlaybackTrackId_ = trackId;
 
         LoadTrack(track);
     }
@@ -937,7 +939,7 @@
     {
         return new MidiTrackInfo
         {
-            Id = editingTrackId_ ?? Guid.NewGuid(),
+            Id = editingTrackId_ ?? editablePlaybackTrackId_,
             Index = 0,
             Name = string.IsNullOrWhiteSpace(trackName_) ? "Edited Track" : trackName_.Trim(),
             PanType = panType_,
@@ -986,11 +988,12 @@
 
     private async Task SyncEditablePlaybackTrackAsync()
     {
+        var track = BuildEditablePlaybackTrack();
+        await MidiService.Playback.SetLiveTrackOverrideAsync(track);
+
         editablePlaybackHash_ = GetEditablePlaybackHash();
         recordingPositionSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
-
-        if (recordingPositionSeconds_ > 0)
-            await MidiService.Playback.CommitSeekAsync(TimeSpan.FromSeconds(recordingPositionSeconds_));
+        await MidiService.Playback.CommitSeekAsync(TimeSpan.FromSeconds(recordingPositionSeconds_));
     }
 
     private async Task EnsureEditablePlaybackTrackSyncedAsync()
@@ -1058,6 +1061,7 @@
         MidiService.Playback.PlaybackStopped -= OnEditPlaybackStoppedAsync;
         MidiService.Playback.PositionChanged -= OnEditPlaybackPositionChangedAsync;
 
+        await MidiService.Playback.ClearLiveTrackOverrideAsync(editingTrackId_ ?? editablePlaybackTrackId_);
         await MidiService.Playback.StopAsync(resetPosition: true);
 
         countInCts_?.Cancel();
@@ -1094,7 +1098,7 @@
 
         var track = new MidiTrackInfo
         {
-            Id = editingTrackId_ ?? Guid.NewGuid(),
+            Id = editingTrackId_ ?? editablePlaybackTrackId_,
             Index = editingTrackId_ is Guid existingId && MidiService.Edit.GetTrack(existingId) is { } existingTrack ? existingTrack.Index : MidiService.Edit.Tracks.Count,
             Name = trackName_.Trim(),
             PanType = panType_,

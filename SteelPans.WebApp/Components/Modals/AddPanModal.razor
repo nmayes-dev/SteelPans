@@ -1,4 +1,4 @@
-@using SteelPans.WebApp.Services
+﻿@using SteelPans.WebApp.Services
 @inject MidiManagerService MidiService
 @inject DbService Db
 
@@ -179,7 +179,6 @@
         {
             AssignedPanType = panType,
         };
-        MidiService.Playback.Assignments.Add(assignment);
         await MidiService.Playback.AddAssignmentAsync(assignment);
     }
 

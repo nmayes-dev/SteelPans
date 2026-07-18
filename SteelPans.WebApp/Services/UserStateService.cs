@@ -22,8 +22,10 @@ public sealed class ActiveMidiFile
 {
     public required Guid Id { get; set; }
     public required string FileName { get; set; }
-    public List<MidiTrackInfo> Tracks { get; set; } = [];
-    public List<MidiTrackAssignment> Assignments { get; set; } = [];
+    internal List<MidiTrackInfo> TrackList { get; set; } = [];
+    internal List<MidiTrackAssignment> AssignmentList { get; set; } = [];
+    public IReadOnlyList<MidiTrackInfo> Tracks => TrackList;
+    public IReadOnlyList<MidiTrackAssignment> Assignments => AssignmentList;
     public MidiPlaybackInfo? PlaybackInfo { get; set; }
 
 }
@@ -46,6 +48,7 @@ public sealed class UserStateService : IAsyncDisposable
     public readonly long MaxMidiFileSize = 64L * 1024L * 1024L;
 
     public event Func<StateUpdate, Task>? OnRefresh;
+    public event Func<StateUpdate, Task>? OnActiveMidiChanged;
 
     public Guid Id { get; private set; } = Guid.Empty;
 
@@ -54,7 +57,7 @@ public sealed class UserStateService : IAsyncDisposable
 
     public ActiveMidiFile? ActiveMidi { get; private set; }
 
-    public void SetActiveMidiFile(
+    public async Task SetActiveMidiFileAsync(
         Guid id,
         string fileName,
         IReadOnlyList<MidiTrackInfo> tracks,
@@ -65,15 +68,34 @@ public sealed class UserStateService : IAsyncDisposable
         {
             Id = id,
             FileName = fileName,
-            Tracks = tracks.Select(CloneTrack).ToList(),
-            Assignments = assignments?.ToList() ?? [],
+            TrackList = tracks.Select(CloneTrack).OrderBy(x => x.Index).ToList(),
+            AssignmentList = assignments?.Select(CloneAssignment).ToList() ?? [],
             PlaybackInfo = playbackInfo,
         };
+
+        await RaiseOnActiveMidiChangedAsync(StateUpdate.ActiveFile | StateUpdate.ActiveTracks | StateUpdate.ActiveAssignments);
     }
 
-    public void ClearActiveMidiFile()
+    public async Task ClearActiveMidiFileAsync()
     {
+        if (ActiveMidi is null)
+            return;
+
         ActiveMidi = null;
+        await RaiseOnActiveMidiChangedAsync(StateUpdate.ActiveFile | StateUpdate.ActiveTracks | StateUpdate.ActiveAssignments);
+    }
+
+    public async Task SetActiveMidiFileNameAsync(string fileName)
+    {
+        if (ActiveMidi is null)
+            throw new InvalidOperationException("There is no active MIDI file.");
+
+        var normalized = fileName.Trim();
+        if (ActiveMidi.FileName == normalized)
+            return;
+
+        ActiveMidi.FileName = normalized;
+        await RaiseOnActiveMidiChangedAsync(StateUpdate.ActiveFile);
     }
 
     public IReadOnlyList<MidiPanEvent> GetActiveMidiTrackEvents(Guid trackId)
@@ -81,21 +103,71 @@ public sealed class UserStateService : IAsyncDisposable
         return ActiveMidi?.Tracks.FirstOrDefault(x => x.Id == trackId)?.Events ?? [];
     }
 
-    public async Task UpsertActiveMidiTrack(MidiTrackInfo track)
+    public async Task UpsertActiveMidiTrackAsync(MidiTrackInfo track)
     {
         if (ActiveMidi is null)
-            throw new InvalidOperationException("Trying to insert track when there is no midi file active");
+            throw new InvalidOperationException("Trying to insert track when there is no MIDI file active.");
 
-        var tracks = ActiveMidi.Tracks.ToList();
-        var index = tracks.FindIndex(x => x.Id == track.Id);
+        var index = ActiveMidi.TrackList.FindIndex(x => x.Id == track.Id);
         var copy = CloneTrack(track);
 
         if (index >= 0)
-            tracks[index] = copy;
+            ActiveMidi.TrackList[index] = copy;
         else
-            tracks.Add(copy);
+            ActiveMidi.TrackList.Add(copy);
 
-        ActiveMidi.Tracks = tracks.OrderBy(x => x.Index).ToList();
+        ActiveMidi.TrackList = ActiveMidi.TrackList.OrderBy(x => x.Index).ToList();
+        await RaiseOnActiveMidiChangedAsync(StateUpdate.ActiveTracks);
+    }
+
+    public async Task<bool> RemoveActiveMidiTrackAsync(Guid trackId)
+    {
+        if (ActiveMidi is null || ActiveMidi.TrackList.RemoveAll(x => x.Id == trackId) == 0)
+            return false;
+
+        ActiveMidi.AssignmentList.RemoveAll(x => x.TrackId == trackId);
+        await RaiseOnActiveMidiChangedAsync(StateUpdate.ActiveTracks | StateUpdate.ActiveAssignments);
+        return true;
+    }
+
+    public async Task ReplaceActiveMidiAssignmentsAsync(IEnumerable<MidiTrackAssignment> assignments)
+    {
+        if (ActiveMidi is null)
+            throw new InvalidOperationException("There is no active MIDI file.");
+
+        ActiveMidi.AssignmentList = assignments.Select(CloneAssignment).ToList();
+        await RaiseOnActiveMidiChangedAsync(StateUpdate.ActiveAssignments);
+    }
+
+    public async Task AddOrReplaceActiveMidiAssignmentAsync(MidiTrackAssignment assignment)
+    {
+        if (ActiveMidi is null)
+            throw new InvalidOperationException("There is no active MIDI file.");
+
+        if (assignment.TrackId is Guid trackId)
+            ActiveMidi.AssignmentList.RemoveAll(x => x.TrackId == trackId);
+
+        ActiveMidi.AssignmentList.Add(CloneAssignment(assignment));
+        await RaiseOnActiveMidiChangedAsync(StateUpdate.ActiveAssignments);
+    }
+
+    public async Task RemoveActiveMidiAssignmentsAsync(Guid trackId)
+    {
+        if (ActiveMidi is null || ActiveMidi.AssignmentList.RemoveAll(x => x.TrackId == trackId) == 0)
+            return;
+
+        await RaiseOnActiveMidiChangedAsync(StateUpdate.ActiveAssignments);
+    }
+
+    private static MidiTrackAssignment CloneAssignment(MidiTrackAssignment assignment)
+    {
+        return new MidiTrackAssignment
+        {
+            AssignedPanType = assignment.AssignedPanType,
+            TrackId = assignment.TrackId,
+            Label = assignment.Label,
+            IsSelected = assignment.IsSelected,
+        };
     }
 
     private static MidiTrackInfo CloneTrack(MidiTrackInfo track)
@@ -285,6 +357,21 @@ public sealed class UserStateService : IAsyncDisposable
             return Task.CompletedTask;
 
         return RefreshAsync().AsTask();
+    }
+
+    private async Task RaiseOnActiveMidiChangedAsync(StateUpdate flag)
+    {
+        var handlers = OnActiveMidiChanged;
+
+        if (handlers is null)
+            return;
+
+        foreach (var handler in handlers
+                     .GetInvocationList()
+                     .Cast<Func<StateUpdate, Task>>())
+        {
+            await handler(flag);
+        }
     }
 
     private async Task RaiseOnRefreshAsync(StateUpdate flag)
