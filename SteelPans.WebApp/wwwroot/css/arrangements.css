@@ -1,0 +1,160 @@
+/* Shared layout and controls for arrangement pages. */
+
+.midi-files-home__header,
+.midi-upload-page__header,
+.midi-file-page__header {
+    min-width: 0;
+}
+
+.midi-files-home__actions,
+.midi-upload-page__actions,
+.midi-file-page__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    min-width: 0;
+}
+
+.midi-files-home__card,
+.midi-upload-page__card,
+.midi-file-page__card {
+    display: grid;
+    align-content: start;
+    gap: clamp(0.65rem, 1.5vw, 1rem);
+}
+
+.midi-files-home__card-header,
+.midi-files__section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.midi-files-home__list,
+.midi-file-page__shares,
+.midi-track-list {
+    display: grid;
+    gap: 0.5rem;
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding-right: 0.25rem;
+}
+
+.midi-track-list {
+    gap: 0.35rem;
+    max-height: min(28rem, 42vh);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 0.8rem;
+    padding: 0.4rem;
+}
+
+.midi-track-list__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 0.8rem;
+    padding: 0.85rem;
+}
+
+.midi-files__preview {
+    display: grid;
+    gap: 0.5rem;
+    min-height: 0;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding-top: 1rem;
+}
+
+.midi-upload-page__controls {
+    align-items: end;
+}
+
+.midi-file-picker {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    min-height: 2.5rem;
+}
+
+.midi-file-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.65rem;
+    border: 1px solid #ced4da;
+    border-right: none;
+    border-radius: 0.8rem 0 0 0.8rem;
+    background: linear-gradient(180deg, #ffffff, #f8fafc);
+    color: #0f172a;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.midi-file-name {
+    display: flex;
+    align-items: center;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0 min(0.875rem, 1.6vw);
+    border: 1px solid #ced4da;
+    border-radius: 0 0.8rem 0.8rem 0;
+    background: #fff;
+    color: #475569;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.midi-file-name--placeholder {
+    color: #94a3b8;
+}
+
+.midi-file-name-text {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.midi-file-picker .midi-file-input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.sp-app-select--placeholder {
+    font-weight: 500;
+}
+
+.sp-app-select option {
+    font-weight: 700;
+}
+
+@media (max-width: 420px) {
+    .midi-files {
+        gap: 0.6rem;
+    }
+
+    .midi-file-picker {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .midi-file-button {
+        border-right: 1px solid #ced4da;
+        border-radius: 0.8rem 0.8rem 0 0;
+    }
+
+    .midi-file-name {
+        min-height: 2.5rem;
+        border-radius: 0 0 0.8rem 0.8rem;
+    }
+}

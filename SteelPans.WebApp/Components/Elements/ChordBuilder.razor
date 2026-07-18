@@ -91,14 +91,6 @@
             selectedChord_ = value;
     }
 
-    private async Task ClearChordAsync()
-    {
-        if (IsDisabled)
-            return;
-
-        await MidiService.Playback.SelectChordAsync(new());
-    }
-
     private async Task ApplyChordAsync()
     {
         if (IsDisabled)

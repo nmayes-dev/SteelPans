@@ -18,21 +18,6 @@
 </div>
 
 @code {
-    private bool CanDecrement => !MidiService.Playback.IsPlaying && MidiService.Playback.CountInBeats > 0;
-    private bool CanIncrement => !MidiService.Playback.IsPlaying && MidiService.Playback.CountInBeats < 32;
-
-    private async Task IncrementAsync()
-    {
-        if (CanIncrement)
-            await SetCountInBeatsAsync(MidiService.Playback.CountInBeats + 1);
-    }
-
-    private async Task DecrementAsync()
-    {
-        if (CanDecrement)
-            await SetCountInBeatsAsync(MidiService.Playback.CountInBeats - 1);
-    }
-
     private async Task SetCountInBeatsAsync(int beats)
     {
         if (!MidiService.Playback.IsPlaying)

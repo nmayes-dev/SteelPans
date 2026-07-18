@@ -133,12 +133,10 @@
     private const string NoFileSubtitle = "File not found.";
     private string noFileSubtitle_ = LoadingFileSubtitle;
 
-    private string subtitle_ => File is null ? noFileSubtitle_ : $"{File.OriginalFileName} · {FormatSize(File.SizeBytes)} · {File.UploadedAt.ToLocalTime().ToString("g")}";
+    private string subtitle_ => File is null ? noFileSubtitle_ : $"{File.OriginalFileName} · {File.SizeBytes.ToFileSize()} · {File.UploadedAt.ToLocalTime().ToString("g")}";
 
     private Guid? targetShareGroup_;
     private MidiFilePreview? filePreview_;
-
-    private bool IsPreviewOpen => filePreview_?.IsPreviewOpen == true;
 
     protected override void OnInitialized()
     {
@@ -220,30 +218,5 @@
 
             return "MIDI file unshared from group.";
         });
-    }
-
-    private string GetFileAccessLabel(GroupFileDto file)
-    {
-        if (file.SharedGroupIds.Count == 0)
-            return "Private";
-
-        var groupNames = (UserState.Groups ?? [])
-            .Where(x => file.SharedGroupIds.Contains(x.Summary.Id))
-            .Select(x => x.Summary.Name)
-            .ToList();
-
-        return groupNames.Count switch
-        {
-            0 => $"Shared with {file.SharedGroupIds.Count} group(s)",
-            1 => $"Shared with {groupNames[0]}",
-            _ => $"Shared with {string.Join(", ", groupNames)}"
-        };
-    }
-
-    private static string FormatSize(long bytes)
-    {
-        if (bytes < 1024) return $"{bytes} B";
-        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.#} KB";
-        return $"{bytes / 1024d / 1024d:0.#} MB";
     }
 }

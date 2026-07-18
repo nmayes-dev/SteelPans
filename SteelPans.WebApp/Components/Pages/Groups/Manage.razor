@@ -135,7 +135,7 @@
                             <article class="sp-app-list-item manage-group-page__file">
                                 <div class="manage-group-page__copy">
                                     <strong>@file.Title</strong>
-                                    <small>@file.OriginalFileName · @FormatSize(file.SizeBytes)</small>
+                                    <small>@file.OriginalFileName · @file.SizeBytes.ToFileSize()</small>
                                 </div>
                                 <div class="sp-app-list-item__actions">
                                     @if (IsLeader || file.OwnerId == UserState.Id)
@@ -260,17 +260,7 @@
 
             return "MIDI file removed from group.";
         });
-    }
-
-    private GroupRole GetSelectedRole(GroupMemberSummaryDto member)
-    {
-        if (roles_.TryGetValue(member.UserId, out var role))
-            return role;
-
-        return member.Role;
-    }
-
-    private async Task OnRoleEditChange(GroupMemberSummaryDto member, string? role)
+    }    private async Task OnRoleEditChange(GroupMemberSummaryDto member, string? role)
     {
         if (!Enum.TryParse<GroupRole>(role, out var newRole))
             return;
@@ -353,11 +343,4 @@
 
     private static string DisplayName(GroupMemberSummaryDto member) =>
         string.IsNullOrWhiteSpace(member.UserName) ? member.Email : member.UserName;
-
-    private static string FormatSize(long bytes)
-    {
-        if (bytes < 1024) return $"{bytes} B";
-        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.#} KB";
-        return $"{bytes / 1024d / 1024d:0.#} MB";
-    }
 }

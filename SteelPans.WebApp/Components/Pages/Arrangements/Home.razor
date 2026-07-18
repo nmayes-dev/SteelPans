@@ -44,7 +44,7 @@
                     <article class="sp-app-list-item midi-files-home__file">
                         <div class="midi-files-home__copy">
                             <strong>@file.Title</strong>
-                            <small>@file.OriginalFileName · @FormatSize(file.SizeBytes) · @GetFileAccessLabel(file)</small>
+                            <small>@file.OriginalFileName · @file.SizeBytes.ToFileSize() · @GetFileAccessLabel(file)</small>
                         </div>
 
                         <a class="sp-app-button sp-app-button--primary" href="/arrangements/@file.Id">View / Edit</a>
@@ -92,10 +92,4 @@
         };
     }
 
-    private static string FormatSize(long bytes)
-    {
-        if (bytes < 1024) return $"{bytes} B";
-        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.#} KB";
-        return $"{bytes / 1024d / 1024d:0.#} MB";
-    }
 }
