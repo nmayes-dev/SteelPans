@@ -24,7 +24,7 @@
 
     <div class="sp-app-card midi-files-home__card">
         <div class="midi-files-home__card-header">
-            <h2>Your MIDI Files</h2>
+            <h2>Your Files</h2>
             <small>@(UserState.Files?.Count ?? 0) file@((UserState.Files?.Count ?? 0) == 1 ? "" : "s")</small>
         </div>
 
@@ -47,11 +47,7 @@
                             <small>@file.OriginalFileName · @FormatSize(file.SizeBytes) · @GetFileAccessLabel(file)</small>
                         </div>
 
-                        <div class="sp-app-list-item__actions">
-                            <a class="sp-app-button sp-app-button--primary" href="/arrangements/@file.Id">View / Edit</a>
-                            <a class="sp-app-button" href="/play/ensemble?file=@file.Id">Band</a>
-                            <a class="sp-app-button" href="/play/solo?file=@file.Id">Practice</a>
-                        </div>
+                        <a class="sp-app-button sp-app-button--primary" href="/arrangements/@file.Id">View / Edit</a>
                     </article>
                 }
             </div>

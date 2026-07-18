@@ -7,14 +7,12 @@
 
 <div class="sp-app-card sp-app-card--wide midi-file-preview @(IsPreviewOpen ? "" : "midi-file-preview--closed")">
     <div class="midi-file-preview-header">
-        <h2>Track Assignments</h2>
+        <span><strong>Tracks</strong> - @file_?.OriginalFileName</span>
         <button class="midi-file-preview-close"
                 @onclick="ClosePreviewAsync">
             <span class="bi bi-x-lg"></span>
         </button>
     </div>
-    <p class="midi-file-preview__meta"><strong>@file_?.OriginalFileName</strong></p>
-
     <div class="midi-file-preview-files">
         <div class="sp-app-table-wrap">
             <table class="sp-app-table">

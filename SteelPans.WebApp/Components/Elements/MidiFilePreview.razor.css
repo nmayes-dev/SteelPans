@@ -6,8 +6,8 @@
     z-index: 5;
     bottom: var(--preview-bottom-offset);
     display: grid;
-    grid-template-rows: auto auto minmax(0, 1fr) auto;
-    gap: clamp(0.35rem, 0.2rem + 0.5cqw, 0.9rem);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 0;
     min-width: 0;
     width: calc(100cqw - 2 * var(--preview-inset));
     max-height: min(calc(90cqh - 2 * var(--preview-bottom-offset)), 42rem);
@@ -33,7 +33,7 @@
     min-width: 0;
 }
 
-    .midi-file-preview-header h2 {
+    .midi-file-preview-header strong {
         min-width: 0;
         margin: 0;
         font-size: clamp(1rem, 0.8rem + 0.6cqw, 1.75rem);
@@ -95,8 +95,9 @@
     gap: 0.25rem;
 }
 
-.midi-file-preview .sp-app-button--small {
+.midi-file-preview .sp-app-button {
     min-height: 0;
     padding: 0.45rem 0.7rem;
     font-size: 0.85em;
+    margin-top: 0.25rem;
 }

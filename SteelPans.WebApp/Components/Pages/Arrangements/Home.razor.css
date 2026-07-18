@@ -16,14 +16,14 @@
     min-width: 0;
 }
 
-.midi-files-home__header h1,
-.midi-upload-page__header h1,
-.midi-file-page__header h1,
-.midi-files-home__header p,
-.midi-upload-page__header p,
-.midi-file-page__header p {
-    overflow-wrap: anywhere;
-}
+    .midi-files-home__header h1,
+    .midi-upload-page__header h1,
+    .midi-file-page__header h1,
+    .midi-files-home__header p,
+    .midi-upload-page__header p,
+    .midi-file-page__header p {
+        overflow-wrap: anywhere;
+    }
 
 .midi-files-home__actions,
 .midi-upload-page__actions,
@@ -60,18 +60,18 @@
     min-width: 0;
 }
 
-.midi-files-home__card-header > *,
-.midi-files__section-header > * {
-    min-width: 0;
-}
+    .midi-files-home__card-header > *,
+    .midi-files__section-header > * {
+        min-width: 0;
+    }
 
-.midi-files-home__card-header h2,
-.midi-files__section-header h2,
-.midi-files__preview h3,
-.midi-files__preview p {
-    margin: 0;
-    overflow-wrap: anywhere;
-}
+    .midi-files-home__card-header h2,
+    .midi-files__section-header h2,
+    .midi-files__preview h3,
+    .midi-files__preview p {
+        margin: 0;
+        overflow-wrap: anywhere;
+    }
 
 .midi-files-home__list,
 .midi-file-page__shares,
@@ -97,13 +97,16 @@
     padding: 0.4rem;
 }
 
-.midi-files-home__file,
-.midi-file-page__share,
-.midi-track-list__item {
+.midi-files-home__file {
     width: 100%;
     min-width: 0;
     align-items: stretch;
+    flex-wrap: nowrap;
 }
+
+    .midi-files-home__file .sp-app-button {
+        text-wrap: nowrap;
+    }
 
 .midi-track-list__item {
     display: flex;
@@ -155,33 +158,33 @@
     min-height: 2.5rem;
 }
 
-.midi-file-picker:active {
-    transform: translateY(1px);
-}
+    .midi-file-picker:active {
+        transform: translateY(1px);
+    }
 
-.midi-file-picker:active > .midi-file-button {
-    background: linear-gradient(180deg, #e2e8f0, #cbd5e1);
-}
+        .midi-file-picker:active > .midi-file-button {
+            background: linear-gradient(180deg, #e2e8f0, #cbd5e1);
+        }
 
-.midi-file-picker:hover > .midi-file-button {
-    background: linear-gradient(180deg, #f8fafc, #e2e8f0);
-}
+    .midi-file-picker:hover > .midi-file-button {
+        background: linear-gradient(180deg, #f8fafc, #e2e8f0);
+    }
 
-.midi-file-picker:hover > .midi-file-name {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-}
+    .midi-file-picker:hover > .midi-file-name {
+        background: #f8fafc;
+        border-color: #cbd5e1;
+    }
 
-.midi-file-picker:active > .midi-file-name {
-    background: #f1f5f9;
-    border-color: #94a3b8;
-}
+    .midi-file-picker:active > .midi-file-name {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+    }
 
-.midi-file-picker:focus-within > .midi-file-name {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
-}
+    .midi-file-picker:focus-within > .midi-file-name {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+    }
 
 .midi-file-button {
     display: inline-flex;
@@ -237,21 +240,21 @@
     margin: 0;
 }
 
-.midi-file-page__details div {
-    display: grid;
-    gap: 0.15rem;
-    min-width: 0;
-}
+    .midi-file-page__details div {
+        display: grid;
+        gap: 0.15rem;
+        min-width: 0;
+    }
 
-.midi-file-page__details dt {
-    font-size: 0.8rem;
-    font-weight: 700;
-    opacity: 0.7;
-}
+    .midi-file-page__details dt {
+        font-size: 0.8rem;
+        font-weight: 700;
+        opacity: 0.7;
+    }
 
-.midi-file-page__details dd {
-    margin: 0;
-}
+    .midi-file-page__details dd {
+        margin: 0;
+    }
 
 .sp-app-select--placeholder {
     font-weight: 500;
@@ -279,12 +282,12 @@
         width: 100%;
     }
 
-    .midi-files-home__actions .sp-app-button,
-    .midi-upload-page__actions .sp-app-button,
-    .midi-file-page__actions .sp-app-button,
-    .midi-file-page__card > .sp-app-button {
-        width: 100%;
-    }
+        .midi-files-home__actions .sp-app-button,
+        .midi-upload-page__actions .sp-app-button,
+        .midi-file-page__actions .sp-app-button,
+        .midi-file-page__card > .sp-app-button {
+            width: 100%;
+        }
 
     .midi-file-page__grid,
     .midi-upload-page__controls {
@@ -319,10 +322,10 @@
             width: 100%;
         }
 
-    .midi-files-home__file .sp-app-list-item__actions .sp-app-button,
-    .midi-file-page__share .sp-app-list-item__actions .sp-app-button {
-        width: 100%;
-    }
+            .midi-files-home__file .sp-app-list-item__actions .sp-app-button,
+            .midi-file-page__share .sp-app-list-item__actions .sp-app-button {
+                width: 100%;
+            }
 
     .midi-file-picker {
         min-height: 2.75rem;

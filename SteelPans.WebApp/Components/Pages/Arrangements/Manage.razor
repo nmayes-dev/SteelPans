@@ -23,7 +23,7 @@
         <a class="sp-app-button" href="/arrangements">Back</a>
         @if (File is not null)
         {
-            <a class="sp-app-button" href="/play/ensemble?file=@File.Id">Band</a>
+            <a class="sp-app-button" href="/play/ensemble?file=@File.Id">Play</a>
             <button class="sp-app-button"
                     type="button"
                     @onclick="TogglePreviewAsync">
@@ -56,7 +56,7 @@
                         .Where(g => !File.SharedGroupIds.Contains(g.Summary.Id))
                         .ToList();
 
-                    <div class="sp-app-field">
+                    <div class="sp-app-field midi-file-page__group-select">
                         <select class="sp-app-select @(targetShareGroup_ is null ? "sp-app-select--placeholder" : "")"
                                 @bind="targetShareGroup_"
                                 disabled="@(groups.Count == 0)">
@@ -66,70 +66,51 @@
                                 <option value="@group.Summary.Id">@group.Summary.Name</option>
                             }
                         </select>
+                        <button class="sp-app-button sp-app-button--primary"
+                                type="button"
+                                disabled="@(targetShareGroup_ is null || Tasks.Busy)"
+                                @onclick="ShareFileAsync">
+                            Share
+                        </button>
                     </div>
 
-                    <button class="sp-app-button sp-app-button--primary"
-                            type="button"
-                            disabled="@(targetShareGroup_ is null || Tasks.Busy)"
-                            @onclick="ShareFileAsync">
-                        Share
-                    </button>
 
-                    @if (File.SharedGroupIds.Count == 0)
-                    {
-                        <p>This file is currently private.</p>
-                    }
-                    else
-                    {
-                        <div class="sp-app-list midi-file-page__shares">
-                            @foreach (var groupId in File.SharedGroupIds)
-                            {
-                                var group = UserState.Groups.FirstOrDefault(x => x.Summary.Id == groupId);
-                                <article class="sp-app-list-item midi-file-page__share">
-                                    <div class="midi-file-page__copy">
-                                        <strong>@(group?.Summary.Name ?? groupId.ToString())</strong>
-                                        <small>Shared group</small>
-                                    </div>
-
-                                    @if (group?.CanManage() == true)
-                                    {
-                                        <div class="sp-app-list-item__actions">
-                                            <button class="sp-app-button sp-app-button--danger"
-                                                    type="button"
-                                                    @onclick="() => UnshareFileAsync(groupId)">
-                                                Unshare
-                                            </button>
-                                        </div>
-                                    }
-                                </article>
-                            }
-                        </div>
-                    }
                 }
             </div>
 
             <div class="sp-app-card midi-file-page__card">
                 <div class="midi-files__section-header">
-                    <h2>Details</h2>
+                    <h2>Groups</h2>
                 </div>
-                <dl class="midi-file-page__details">
-                    <div>
-                        <dt>Title</dt>
-                        <dd>@File.Title</dd>
+                @if (UserState.Groups is null || File.SharedGroupIds.Count == 0)
+                {
+                    <p>This file is currently private.</p>
+                }
+                else
+                {
+                    <div class="sp-app-list midi-file-page__shares">
+                        @foreach (var groupId in File.SharedGroupIds)
+                        {
+                            var group = UserState.Groups.FirstOrDefault(x => x.Summary.Id == groupId);
+                            <article class="sp-app-list-item midi-file-page__share">
+                                <div class="midi-file-page__copy">
+                                    <strong>@(group?.Summary.Name ?? groupId.ToString())</strong>
+                                </div>
+
+                                @if (group?.CanManage() == true)
+                                {
+                                    <div class="sp-app-list-item__actions">
+                                        <button class="sp-app-button sp-app-button--danger"
+                                                type="button"
+                                                @onclick="() => UnshareFileAsync(groupId)">
+                                            Unshare
+                                        </button>
+                                    </div>
+                                }
+                            </article>
+                        }
                     </div>
-                    <div>
-                        <dt>File Name</dt>
-                        <dd>@File.OriginalFileName</dd>
-                    </div>
-                    <div>
-                        <dt>Size</dt>
-                        <dd>@FormatSize(File.SizeBytes)</dd>
-                    </div>
-                    <div>
-                        <dt>Uploaded</dt>
-                        <dd>@File.UploadedAt.ToLocalTime().ToString("g")</dd>
-                    </div>
-                </dl>
+                }
             </div>
         </div>
 
@@ -152,7 +133,7 @@
     private const string NoFileSubtitle = "File not found.";
     private string noFileSubtitle_ = LoadingFileSubtitle;
 
-    private string subtitle_ => File is null ? noFileSubtitle_ : $"{File.OriginalFileName} · {FormatSize(File.SizeBytes)} · {GetFileAccessLabel(File)}";
+    private string subtitle_ => File is null ? noFileSubtitle_ : $"{File.OriginalFileName} · {FormatSize(File.SizeBytes)} · {File.UploadedAt.ToLocalTime().ToString("g")}";
 
     private Guid? targetShareGroup_;
     private MidiFilePreview? filePreview_;
@@ -162,6 +143,17 @@
     protected override void OnInitialized()
     {
         UserState.OnRefresh += OnRefreshAsync;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await UpdateNotFoundSubtitleAsync();
+
+        if (filePreview_ is not null && FileId != Guid.Empty)
+            await filePreview_.OpenPreviewAsync(FileId);
     }
 
     private async Task UpdateNotFoundSubtitleAsync()
@@ -174,14 +166,6 @@
             noFileSubtitle_ = NoFileSubtitle;
             await InvokeAsync(StateHasChanged);
         });
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender)
-            return;
-
-        await UpdateNotFoundSubtitleAsync();
     }
 
     private Task OnRefreshAsync(StateUpdate updateFlag)
