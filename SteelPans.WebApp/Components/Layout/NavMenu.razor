@@ -1,7 +1,18 @@
 @inject ModalPopupService Modals
+@inject NavigationManager Navigation
+@inject NavigationHistoryService NavigationHistory
+@implements IDisposable
 
-<div class="top-row ps-3 navbar navbar-dark">
+<div class="top-row navbar navbar-dark">
     <div class="container-fluid">
+        <button type="button"
+                class="navbar-back-button"
+                title="Back"
+                disabled="@DisableBackButton"
+                aria-label="Back"
+                @onclick="GoBack">
+            <span class="bi bi-arrow-left" aria-hidden="true"></span>
+        </button>
         <a class="navbar-brand" href="">Steel Pans</a>
     </div>
 </div>
@@ -62,8 +73,37 @@
 </div>
 
 @code {
+    private bool DisableBackButton
+    {
+        get
+        {
+            var path = Navigation.ToBaseRelativePath(Navigation.Uri)
+                .Split('?', '#')[0]
+                .TrimEnd('/');
+
+            return string.IsNullOrWhiteSpace(path);
+        }
+    }
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    private void GoBack() => NavigationHistory.Back("/");
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args)
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
     private async Task OpenLogoutAsync()
     {
         await Modals.OpenAsync("Logout");
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
     }
 }

@@ -23,16 +23,46 @@
 
 .top-row {
     min-height: var(--layout-nav-top-height);
-    background-color: rgba(0, 0, 0, 0.4);
 }
 
     .top-row .container-fluid {
+        display: flex;
+        justify-content: start;
+        align-items: center;
         min-height: var(--layout-nav-top-height);
-        padding-right: calc(var(--layout-nav-toggler-size) + (var(--layout-nav-top-padding-x) * 2));
-        padding-left: var(--layout-nav-top-padding-x);
+        padding-left: clamp(0.5rem, 1.4vw, 0.7rem);
+        gap: 0.8rem;
     }
 
-.navbar-brand {
+.navbar-back-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: var(--back-button-size);
+    height: var(--back-button-size);
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: calc(var(--back-button-size) * 0.5);
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+    .navbar-back-button:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .navbar-back-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .navbar-back-button .bi {
+        margin-right: 0;
+    }
+
+.top-row .container-fluid .navbar-brand {
+    margin: 0;
     font-size: var(--layout-nav-brand-font-size);
     text-transform: uppercase;
     line-height: 1.1;
@@ -119,6 +149,9 @@
         position: sticky;
         top: 0;
         z-index: 1;
+        width: 100%;
+        container: inline-size;
+        background-color: rgba(0, 0, 0, 0.4);
     }
 
         .top-row.auth a:first-child {
@@ -128,7 +161,6 @@
         }
 
         .top-row .container-fluid {
-            padding-right: var(--layout-nav-top-padding-x);
         }
 
     .navbar-toggler {
@@ -146,11 +178,16 @@
         background-image: none;
         box-shadow: none;
     }
+
+    .navbar-back-button {
+        --back-button-size: calc(0.9 * var(--layout-nav-toggler-size));
+    }
 }
 
 
 @media (max-width: 900px) {
     .top-row {
+        width: fit-content;
         justify-content: space-between;
     }
 
@@ -158,4 +195,11 @@
         .top-row .btn-link {
             margin-left: 0;
         }
+
+        .top-row .container-fluid {
+        }
+
+    .navbar-back-button {
+        --back-button-size: calc(1.1 * var(--layout-nav-toggler-size));
+    }
 }

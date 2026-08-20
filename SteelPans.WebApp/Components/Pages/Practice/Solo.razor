@@ -2,7 +2,6 @@
 @inject MidiManagerService MidiService
 @inject UserStateService UserState
 @inject ModalPopupService Modals
-@inject NavigationHistoryService NavigationHistory
 @implements IAsyncDisposable
 
 <PageTitle>Practice</PageTitle>
@@ -10,7 +9,6 @@
 @if (loadingFile_)
 {
     <section class="sp-app-page practice-page__loading">
-        <BackButton FallbackUrl="/play" />
         <LoadingSpinner Text="Loading practice track..." />
     </section>
 }
@@ -98,9 +96,6 @@ else if (MidiService.Playback.Assignments.Count == 0)
 else
 {
     <section class="sp-app-page practice-page">
-        <div class="practice-page__navigation">
-            <BackButton FallbackUrl="/play" />
-        </div>
         <div class="practice-page__control">
             <div class="sp-app-card practice-page__track">
                 <div class="practice-page__field practice-page__field-pan">

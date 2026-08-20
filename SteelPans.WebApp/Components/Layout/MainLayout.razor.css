@@ -6,7 +6,7 @@
     --layout-nav-link-gap: clamp(0.2rem, 1.4vw, 0.5rem);
     --layout-nav-item-padding-x: clamp(0.45rem, 2.5vw, 1rem);
     --layout-nav-font-size: clamp(0.78rem, 2.65vw, 0.9rem);
-    --layout-nav-brand-font-size: clamp(0.7rem, 2.4vw, 1.1rem);
+    --layout-nav-brand-font-size: clamp(0.8rem, 2.4vw, 1.1rem);
     --layout-nav-icon-size: clamp(1rem, 3.6vw, 1.25rem);
     --layout-nav-toggler-size: clamp(1.5rem, 3.2vw, 2.5rem);
     --layout-nav-toggler-icon-size: calc(var(--layout-nav-toggler-size) * 0.5);

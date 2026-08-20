@@ -11,17 +11,12 @@
 @if (loadingFile_)
 {
     <section class="sp-app-page band-page__loading">
-        <BackButton FallbackUrl="/play" />
         <LoadingSpinner Text="Loading ensemble..." />
     </section>
 }
 else
 {
     <div class="band-page">
-        <div class="band-page__navigation">
-            <BackButton FallbackUrl="/play" />
-        </div>
-
         @if (MidiService.Playback.AvailablePans.Count > 0)
         {
             <PracticeHeader />

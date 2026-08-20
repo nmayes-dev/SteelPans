@@ -1,6 +1,6 @@
 .band-page {
     display: grid;
-    grid-template-rows: auto auto 0 minmax(0, 1fr);
+    grid-template-rows: auto 0 minmax(0, 1fr);
     height: 100%;
     min-height: 0;
     overflow: hidden;
@@ -11,7 +11,7 @@
 }
 
     .band-page:has(.sp-app-alert--visible) {
-        grid-template-rows: auto auto auto minmax(0, 1fr);
+        grid-template-rows: auto auto minmax(0, 1fr);
     }
 
     .band-page .sp-app-alert--visible {
@@ -33,10 +33,6 @@
     }
 }
 
-.band-page__navigation {
-    display: flex;
-    align-items: center;
-}
 
 .band-page__loading {
     min-height: 100%;
