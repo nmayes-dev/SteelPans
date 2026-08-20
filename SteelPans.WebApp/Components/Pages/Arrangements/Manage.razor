@@ -20,7 +20,7 @@
     </div>
 
     <div class="midi-file-page__actions">
-        <a class="sp-app-button" href="/arrangements">Back</a>
+        <BackButton FallbackUrl="/arrangements" />
         @if (File is not null)
         {
             <a class="sp-app-button" href="/play/ensemble?file=@File.Id">Play</a>

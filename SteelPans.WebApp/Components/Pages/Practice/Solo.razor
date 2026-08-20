@@ -2,11 +2,19 @@
 @inject MidiManagerService MidiService
 @inject UserStateService UserState
 @inject ModalPopupService Modals
+@inject NavigationHistoryService NavigationHistory
 @implements IAsyncDisposable
 
 <PageTitle>Practice</PageTitle>
 
-@if (!MidiService.Playback.IsMidiLoaded)
+@if (loadingFile_)
+{
+    <section class="sp-app-page practice-page__loading">
+        <BackButton FallbackUrl="/play" />
+        <LoadingSpinner Text="Loading practice track..." />
+    </section>
+}
+else if (!MidiService.Playback.IsMidiLoaded)
 {
     <section class="sp-app-page">
         <div class="sp-app-card practice-page__empty-card">
@@ -21,7 +29,7 @@
                 </Authorized>
                 <NotAuthorized>
                     <div class="practice-page__load">
-                        <a class="sp-app-button sp-app-button--secondary" href="/play">Back</a>
+                        <BackButton FallbackUrl="/play" Class="sp-app-button sp-app-button--secondary" />
                         <label for="practice-page-file-input" class="sp-app-button sp-app-button--primary">Load</label>
                         <FileInput Id="practice-page-file-input"
                                    OnSingleFileLoad="OnSingleMidiSelectedAsync"
@@ -45,7 +53,7 @@ else if (MidiService.Playback.Tracks.Count == 0)
                 </Authorized>
                 <NotAuthorized>
                     <div class="practice-page__load">
-                        <a class="sp-app-button sp-app-button--secondary" href="/play">Back</a>
+                        <BackButton FallbackUrl="/play" Class="sp-app-button sp-app-button--secondary" />
                         <label for="practice-page-file-input" class="sp-app-button sp-app-button--primary">Load</label>
                         <FileInput Id="practice-page-file-input"
                                    OnSingleFileLoad="OnSingleMidiSelectedAsync"
@@ -77,7 +85,7 @@ else if (MidiService.Playback.Assignments.Count == 0)
                 </Authorized>
                 <NotAuthorized>
                     <div class="practice-page__load">
-                        <a class="sp-app-button sp-app-button--secondary" href="/play">Back</a>
+                        <BackButton FallbackUrl="/play" Class="sp-app-button sp-app-button--secondary" />
                         <ExpandingOverlay Title="Add Pans" Text="Tracks" ExpandDirection="ExpandingOverlay.Direction.Right" ClosedIconClass="x-lg">
                             <MidiTrackList Tracks="MidiService.Playback.Tracks" />
                          </ExpandingOverlay>
@@ -90,6 +98,9 @@ else if (MidiService.Playback.Assignments.Count == 0)
 else
 {
     <section class="sp-app-page practice-page">
+        <div class="practice-page__navigation">
+            <BackButton FallbackUrl="/play" />
+        </div>
         <div class="practice-page__control">
             <div class="sp-app-card practice-page__track">
                 <div class="practice-page__field practice-page__field-pan">
@@ -156,6 +167,7 @@ else
     private MidiFilePreview? filePreview_;
 
     private bool loadedFileFromQuery_;
+    private bool loadingFile_;
     private bool soloTrack_ = true;
     private Guid? selectedTrackId_;
 
@@ -195,8 +207,17 @@ else
             return;
 
         loadedFileFromQuery_ = true;
-        await MidiService.Playback.LoadGroupMidiFile(FileId.Value);
-        EnsureSelectedTrack();
+        loadingFile_ = MidiService.Playback.MidiFileId != FileId;
+
+        try
+        {
+            await MidiService.Playback.LoadGroupMidiFile(FileId.Value);
+            EnsureSelectedTrack();
+        }
+        finally
+        {
+            loadingFile_ = false;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

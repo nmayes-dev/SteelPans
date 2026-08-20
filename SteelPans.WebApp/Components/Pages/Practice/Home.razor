@@ -11,7 +11,7 @@
 
         <p class="sp-app-alert sp-app-alert--error @(string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--hidden" : "")">@Tasks.Error</p>
         <p class="sp-app-alert sp-app-alert--success @(string.IsNullOrWhiteSpace(Tasks.Message) ? "sp-app-alert--hidden" : "")">@Tasks.Message</p>
-        <a class="sp-app-button" href="/">Back</a>
+        <BackButton FallbackUrl="/" />
     </div>
 
     <div class="sp-app-grid sp-app-grid--two practice-home-page__grid">

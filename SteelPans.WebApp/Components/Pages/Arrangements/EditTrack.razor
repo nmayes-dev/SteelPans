@@ -1,4 +1,4 @@
-﻿@page "/arrangements/tracks/create"
+@page "/arrangements/tracks/create"
 @page "/arrangements/tracks/edit/{TrackId:guid}"
 @attribute [Authorize]
 @inject DbService Db
@@ -9,6 +9,7 @@
 @inject IJSRuntime JS
 @inject Microsoft.Extensions.Logging.ILogger<EditTrack> Logger
 @inject NavigationManager Nav
+@inject NavigationHistoryService NavigationHistory
 @inject ModalPopupService Modals
 @inject OverlayManagerService Overlays
 @implements IAsyncDisposable
@@ -1170,7 +1171,7 @@
     {
         if (!hasUnsavedTrackChanges_)
         {
-            Nav.NavigateTo(GetSaveReturnUrl());
+            NavigationHistory.Back(GetSaveReturnUrl());
             return;
         }
 
@@ -1178,7 +1179,7 @@
         {
             OnSuccess = () =>
             {
-                Nav.NavigateTo(GetSaveReturnUrl());
+                NavigationHistory.Back(GetSaveReturnUrl());
                 return Task.CompletedTask;
             }
         });

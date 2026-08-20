@@ -1,5 +1,5 @@
 .practice-page {
-    grid-template-rows: min-content min-content auto;
+    grid-template-rows: min-content min-content min-content auto;
     gap: 0.2rem;
 }
 
@@ -379,3 +379,12 @@
         grid-template-columns: minmax(16rem, 42rem);
         justify-content: center;
     }
+
+.practice-page__navigation {
+    display: flex;
+    align-items: center;
+}
+
+.practice-page__loading {
+    min-height: 100%;
+}

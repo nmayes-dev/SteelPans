@@ -8,15 +8,29 @@
 
 <PageTitle>Band</PageTitle>
 
-<div class="band-page">
-    @if (MidiService.Playback.AvailablePans.Count > 0)
-    {
-        <PracticeHeader />
+@if (loadingFile_)
+{
+    <section class="sp-app-page band-page__loading">
+        <BackButton FallbackUrl="/play" />
+        <LoadingSpinner Text="Loading ensemble..." />
+    </section>
+}
+else
+{
+    <div class="band-page">
+        <div class="band-page__navigation">
+            <BackButton FallbackUrl="/play" />
+        </div>
 
-        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
+        @if (MidiService.Playback.AvailablePans.Count > 0)
+        {
+            <PracticeHeader />
 
-        <section class="band-page__content">
-            <PansLayout Pans="@MidiService.Playback.ActivePans" />
-        </section>
-    }
-</div>
+            <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
+
+            <section class="band-page__content">
+                <PansLayout Pans="@MidiService.Playback.ActivePans" />
+            </section>
+        }
+    </div>
+}

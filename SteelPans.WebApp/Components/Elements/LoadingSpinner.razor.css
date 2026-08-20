@@ -1,0 +1,31 @@
+.loading-spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 12rem;
+    color: #475569;
+    font-weight: 700;
+}
+
+.loading-spinner__indicator {
+    width: 2rem;
+    height: 2rem;
+    border: 0.2rem solid rgba(100, 116, 139, 0.25);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: loading-spinner-spin 0.75s linear infinite;
+}
+
+@keyframes loading-spinner-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loading-spinner__indicator {
+        animation-duration: 1.5s;
+    }
+}

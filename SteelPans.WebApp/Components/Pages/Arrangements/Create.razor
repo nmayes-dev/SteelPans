@@ -1,4 +1,4 @@
-﻿@page "/arrangements/create"
+@page "/arrangements/create"
 @attribute [Authorize]
 @inject TaskRunnerService Tasks
 @inject MidiManagerService MidiService
@@ -7,6 +7,7 @@
 @inject NavigationManager Nav
 @inject UserStateService UserState
 @inject ModalPopupService Modals
+@inject NavigationHistoryService NavigationHistory
 
 <PageTitle>Create Recorded File</PageTitle>
 
@@ -134,7 +135,7 @@
     {
         if (!MidiService.Edit.HasUnsavedChanges)
         {
-            Nav.NavigateTo("/arrangements");
+            NavigationHistory.Back("/arrangements");
             return;
         }
 
@@ -150,7 +151,7 @@
     private async Task ClearAndNavigateAsync()
     {
         await MidiService.Edit.ClearAsync();
-        Nav.NavigateTo("/arrangements");
+        NavigationHistory.Back("/arrangements");
     }
 
     private async Task SaveFileAsync()
