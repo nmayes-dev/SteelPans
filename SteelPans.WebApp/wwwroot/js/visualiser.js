@@ -443,12 +443,12 @@ window.visualiser = {
         const viewportHeight = Math.max(260, window.visualViewport?.height || window.innerHeight || rootBounds.height || 0);
         const viewportWidth = Math.max(180, rootWidth - Math.min(defaultLabelWidth, rootWidth * 0.36));
         const compactness = this._clamp((Math.min(rootWidth, viewportHeight) - 320) / 720, 0, 1);
-        const heightDrivenLaneHeight = viewportHeight * (state.mode === "Record" ? 0.18 : 0.14);
-        const widthDrivenLaneHeight = rootWidth * 0.13;
-        const laneHeight = this._clamp(Math.min(widthDrivenLaneHeight, heightDrivenLaneHeight), 56, 220);
+        const heightDrivenLaneHeight = viewportHeight * 0.45;
+        const widthDrivenLaneHeight = rootWidth * 0.45;
+        const laneHeight = this._clamp(Math.min(widthDrivenLaneHeight, heightDrivenLaneHeight), 120, 220);
 
         return {
-            labelWidth: Math.round(this._clamp(rootWidth * 0.2, 78, 200)),
+            labelWidth: Math.round(this._clamp(rootWidth * 0.15, 95, 180)),
             rulerHeight: Math.round(this._clamp(20 + (compactness * 6), 20, 28)),
             laneHeight: Math.round(laneHeight),
             noteHeight: Math.round(this._clamp(laneHeight * 0.1, 5, 14)),
