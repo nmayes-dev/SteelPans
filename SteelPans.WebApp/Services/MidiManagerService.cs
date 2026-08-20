@@ -571,7 +571,7 @@ public sealed class MidiManagerService
 
         private async Task OnRefreshAsync(StateUpdate updateFlag)
         {
-            if (state_.ActiveMidi is null || state_.ActiveMidi.Id == Guid.Empty)
+            if (state_.ActiveMidi is null || state_.ActiveMidi.Id == Guid.Empty || !state_.ActiveMidi.IsPersisted)
                 return;
 
             if (!updateFlag.HasFlag(StateUpdate.ActiveAssignments))
@@ -725,7 +725,14 @@ public sealed class MidiManagerService
                     IsSelected = false,
                 }).ToList();
 
-            await state_.SetActiveMidiFileAsync(fileId, fileName, playableTracks, playableAssignments, playbackInfo);
+            await state_.SetActiveMidiFileAsync(
+                fileId,
+                fileName,
+                playableTracks,
+                playableAssignments,
+                playbackInfo,
+                isPersisted: details is not null);
+
             foreach (var assignment in Assignments)
                 await OnAddAssignmentAsync(assignment, false, true);
 
@@ -979,7 +986,7 @@ public sealed class MidiManagerService
             ActivePans.Add(assignedPan);
             RecalculateDuration();
 
-            if (newAssignment && TryCreateDtoAssignment(assignment, out var dto))
+            if (newAssignment && state_.ActiveMidi?.IsPersisted == true && TryCreateDtoAssignment(assignment, out var dto))
             {
                 await db_.MidiFiles.AddMidiAssignmentsAsync(MidiFileId, dto!);
             }
@@ -1015,7 +1022,8 @@ public sealed class MidiManagerService
                         .OrderBy(x => x.TrackIndex)
                         .ToList();
 
-            await db_.MidiFiles.SaveMidiAssignmentsAsync(MidiFileId, new SaveMidiAssignmentsRequest(dto));
+            if (state_.ActiveMidi?.IsPersisted == true)
+                await db_.MidiFiles.SaveMidiAssignmentsAsync(MidiFileId, new SaveMidiAssignmentsRequest(dto));
 
             await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Remove);
             await NotifyPositionChangedAsync(jump: true);

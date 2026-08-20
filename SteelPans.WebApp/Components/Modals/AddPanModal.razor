@@ -1,6 +1,5 @@
 ﻿@using SteelPans.WebApp.Services
 @inject MidiManagerService MidiService
-@inject DbService Db
 
 <ModalPopup TPayload="Guid?"
             Id="AddPan"
@@ -197,9 +196,6 @@
             TrackId = track.Id,
         };
 
-        if (!MidiService.Playback.TryCreateDtoAssignment(assignment, out var dto))
-            return;
-
-        await Db.MidiFiles.AddMidiAssignmentsAsync(MidiService.Playback.MidiFileId, dto!);
+        await MidiService.Playback.AddAssignmentAsync(assignment);
     }
 }

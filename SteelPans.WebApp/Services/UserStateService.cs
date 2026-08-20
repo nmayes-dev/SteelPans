@@ -27,6 +27,7 @@ public sealed class ActiveMidiFile
     public IReadOnlyList<MidiTrackInfo> Tracks => TrackList;
     public IReadOnlyList<MidiTrackAssignment> Assignments => AssignmentList;
     public MidiPlaybackInfo? PlaybackInfo { get; set; }
+    public bool IsPersisted { get; set; } = true;
 
 }
 
@@ -62,7 +63,8 @@ public sealed class UserStateService : IAsyncDisposable
         string fileName,
         IReadOnlyList<MidiTrackInfo> tracks,
         IReadOnlyList<MidiTrackAssignment>? assignments,
-        MidiPlaybackInfo? playbackInfo)
+        MidiPlaybackInfo? playbackInfo,
+        bool isPersisted = true)
     {
         ActiveMidi = new ActiveMidiFile
         {
@@ -71,6 +73,7 @@ public sealed class UserStateService : IAsyncDisposable
             TrackList = tracks.Select(CloneTrack).OrderBy(x => x.Index).ToList(),
             AssignmentList = assignments?.Select(CloneAssignment).ToList() ?? [],
             PlaybackInfo = playbackInfo,
+            IsPersisted = isPersisted,
         };
 
         await RaiseOnActiveMidiChangedAsync(StateUpdate.ActiveFile | StateUpdate.ActiveTracks | StateUpdate.ActiveAssignments);
@@ -320,13 +323,16 @@ public sealed class UserStateService : IAsyncDisposable
             Files = await db_.Groups.GetGroupFilesAsync(group.Id)
         }));
 
-        var activeFile = ActiveMidi is not null ? await db_.MidiFiles.GetMidiFileDetailsAsync(ActiveMidi.Id) : null;
+        var activeFile = ActiveMidi is { IsPersisted: true }
+            ? await db_.MidiFiles.GetMidiFileDetailsAsync(ActiveMidi.Id)
+            : null;
 
         var updateFlag = StateUpdate.None;
         updateFlag = Id != id ? StateUpdate.Id : StateUpdate.None;
         updateFlag |= HasChanged(Groups, groupData) ? StateUpdate.Groups : StateUpdate.None;
         updateFlag |= HasChanged(Files, files) ? StateUpdate.Files : StateUpdate.None;
-        updateFlag |= GetActiveFileUpdateFlag(ActiveMidi, activeFile);
+        if (ActiveMidi is null || ActiveMidi.IsPersisted)
+            updateFlag |= GetActiveFileUpdateFlag(ActiveMidi, activeFile);
 
         Id = id;
         Groups = groupData;
