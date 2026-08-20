@@ -277,6 +277,7 @@
 .overlay--open .overlay__panel {
     border-width: 1px;
     border-color: var(--overlay__border-color);
+    width: fit-content;
     height: 100%;
     pointer-events: auto;
     transform: translateY(0);

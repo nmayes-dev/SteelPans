@@ -118,7 +118,6 @@
     position: relative;
     width: var(--timeline-width);
     height: var(--lane-height);
-    min-height: var(--lane-height);
     cursor: grab;
     touch-action: none;
     background-size: 100% 100%, 100% var(--lane-height);
