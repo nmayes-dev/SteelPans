@@ -26,7 +26,6 @@
     }
 
 .record-track-page__settings {
-    width: min(40vw, 32rem);
     display: grid;
     gap: clamp(0.45rem, 1.1vw, 0.75rem);
     min-width: 0;
@@ -52,13 +51,17 @@
     display: flex;
 }
 
+    .record-track-page__settings-control label {
+        width: max-content;
+    }
+
     .record-track-page__settings-control span,
     .record-track-page__settings-beat span {
         margin-left: 0.2rem;
     }
 
     .record-track-page__settings-control select {
-        width: 100%;
+        width: max-content;
         height: 100%;
         border: 1px solid rgba(148, 163, 184, 0.4);
         border-radius: 0.8rem;
