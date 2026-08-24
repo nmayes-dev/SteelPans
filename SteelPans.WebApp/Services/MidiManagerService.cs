@@ -297,22 +297,16 @@ public sealed class MidiManagerService
         public bool HasOpenFile => state_.ActiveMidi is not null;
         public bool HasUnsavedChanges { get; private set; }
 
-        public async Task BeginCreateFileAsync(string? title = null, bool resetExisting = false)
+        public async Task BeginCreateFileAsync(string? title = null)
         {
-            var tracks = resetExisting || !HasOpenFile ? [] : Tracks.ToList();
-            var assignments = resetExisting || !HasOpenFile
-                ? []
-                : state_.ActiveMidi?.Assignments.ToList() ?? [];
-            var fileName = resetExisting || !HasOpenFile
-                ? (string.IsNullOrWhiteSpace(title) ? string.Empty : title.Trim())
-                : Title;
+            var fileName = string.IsNullOrWhiteSpace(title) ? string.Empty : title.Trim();
 
             await state_.SetActiveMidiFileAsync(
                 Guid.NewGuid(),
                 fileName,
-                tracks,
-                assignments,
-                CreatePlaybackInfo(tracks));
+                [],
+                [],
+                null);
 
             HasUnsavedChanges = false;
         }
