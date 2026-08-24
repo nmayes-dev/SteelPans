@@ -48,6 +48,7 @@ public sealed class SteelPanLoaderService
                ?? throw new InvalidOperationException("Invalid JSON");
 
         Pans = pansDto
+            .OrderBy(p => p.PanType)
             .Select(p => new SteelPan
             {
                 Type = p.PanType,

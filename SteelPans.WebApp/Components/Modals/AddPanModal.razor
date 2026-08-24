@@ -127,8 +127,62 @@
         if (!Guid.TryParse(selectedTrackIdString_, out var selectedTrackId) ||
             UnassignedTracks.All(x => x.Id != selectedTrackId))
         {
-            selectedTrackIdString_ = UnassignedTracks[0].Id.ToString();
+            selectedTrackId = UnassignedTracks[0].Id;
+            selectedTrackIdString_ = selectedTrackId.ToString();
         }
+
+        var selectedTrack = UnassignedTracks.First(x => x.Id == selectedTrackId);
+        var matchingPanType = FindMatchingPanType(selectedTrack.Name);
+        if (matchingPanType is not null)
+            selectedPanTypeString_ = matchingPanType.Value.ToString();
+    }
+
+    private PanType? FindMatchingPanType(string? trackName)
+    {
+        if (string.IsNullOrWhiteSpace(trackName))
+            return null;
+
+        var normalisedTrackName = NormaliseName(trackName);
+        if (normalisedTrackName.Length == 0)
+            return null;
+
+        return AvailablePanTypes
+            .Select(panType => new
+            {
+                PanType = panType,
+                Score = GetPanNameMatchScore(normalisedTrackName, panType),
+            })
+            .Where(x => x.Score > 0)
+            .OrderByDescending(x => x.Score)
+            .Select(x => (PanType?)x.PanType)
+            .FirstOrDefault();
+    }
+
+    private static int GetPanNameMatchScore(string normalisedTrackName, PanType panType)
+    {
+        var aliases = panType switch
+        {
+            PanType.LeadTenor => new[] { "leadtenor", "tenor", "lead" },
+            PanType.DoubleGuitar => new[] { "doubleguitar", "guitar" },
+            PanType.DoubleSecond => new[] { "doublesecond", "seconds", "second" },
+            PanType.TripleCello => new[] { "triplecello", "cello" },
+            PanType.Bass => new[] { "bass" },
+            _ => Array.Empty<string>(),
+        };
+
+        return aliases
+            .Where(normalisedTrackName.Contains)
+            .Select(alias => alias.Length)
+            .DefaultIfEmpty(0)
+            .Max();
+    }
+
+    private static string NormaliseName(string name)
+    {
+        return new string(name
+            .Where(char.IsLetterOrDigit)
+            .Select(char.ToLowerInvariant)
+            .ToArray());
     }
 
     protected override void OnParametersSet()
