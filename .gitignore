@@ -20,5 +20,6 @@ SteelPans.PracticeWebApp/appsettings.Development.json
 SteelPans.LeaderWebApp/appsettings.Development.json
 
 **/appsettings.Development.json
-# Encrypted licensed audio pack build outputs
+
+# Audio Packs
 SteelPans.WebApp/AudioPacks/*.spp
