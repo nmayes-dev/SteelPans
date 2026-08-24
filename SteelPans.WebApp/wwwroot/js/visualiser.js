@@ -174,7 +174,7 @@ window.visualiser = {
         state.activeNoteElements = new Set();
         state.barLabels = [];
 
-        const secondsPerBeat = this._getSecondsPerBeat(data.tempoBpm, data.beatUnit);
+        const secondsPerBeat = this._getSecondsPerBeat(data.initialMidiBpm, data.beatUnit);
         const beatsPerBar = Math.max(1, data.beatsPerBar || 4);
         const secondsPerBar = Math.max(0.01, secondsPerBeat * beatsPerBar);
         root.style.setProperty("--bar-grid-size", `${secondsPerBar * state.pixelsPerSecond}px`);
@@ -247,6 +247,35 @@ window.visualiser = {
         } else {
             state.playhead = null;
         }
+    },
+
+    setTempoBpm(root, tempoBpm) {
+        const state = this._states.get(root);
+        if (!state)
+            return;
+
+        const nextTempoBpm = Math.max(Number(tempoBpm) || state.tempoBpm || state.initialMidiBpm || 120, 1);
+        if (Math.abs(nextTempoBpm - state.tempoBpm) < 0.0001)
+            return;
+
+        const audioTime = this._getAudioTimeOrNull();
+        if (state.isPlaying && audioTime !== null && state.audioAnchorTime !== null) {
+            const elapsed = Math.max(0, audioTime - state.audioAnchorTime);
+            const previousTempoRatio = state.tempoBpm / Math.max(state.initialMidiBpm, 1);
+            state.positionSeconds = this._clamp(
+                state.positionAnchorSeconds + (elapsed * previousTempoRatio),
+                0,
+                state.durationSeconds);
+            state.positionAnchorSeconds = state.positionSeconds;
+            state.audioAnchorTime = audioTime;
+            this._setPlayheadPosition(state, state.positionSeconds, true);
+        }
+
+        state.tempoBpm = nextTempoBpm;
+        if (state.lastData)
+            state.lastData.tempoBpm = nextTempoBpm;
+
+        this._updateAnimation(state);
     },
 
     setPosition(root, positionSeconds, follow = true) {
@@ -379,7 +408,10 @@ window.visualiser = {
         if (!state || !playbackState)
             return;
 
-        const durationSeconds = Number(playbackState.durationSeconds) || state.durationSeconds || 0.01;
+        const playbackDurationSeconds = Number(playbackState.durationSeconds) || state.durationSeconds || 0.01;
+        const durationSeconds = state.lastData
+            ? Math.max(state.durationSeconds || Number(state.lastData.durationSeconds) || 0.01, 0.01)
+            : Math.max(playbackDurationSeconds, 0.01);
         const positionSeconds = this._clamp(Number(playbackState.positionSeconds) || 0, 0, durationSeconds);
         const midiStartAt = Number(playbackState.midiStartAt);
         const audioAnchorTime = Number(playbackState.audioAnchorTime);
@@ -389,8 +421,9 @@ window.visualiser = {
         state.positionAnchorSeconds = positionSeconds;
         state.durationSeconds = Math.max(durationSeconds, 0.01);
         state.midiStartAt = Number.isFinite(midiStartAt) ? midiStartAt : null;
-        state.initialMidiBpm = Math.max(Number(playbackState.initialMidiBpm) || 120, 1);
-        state.tempoBpm = Math.max(Number(playbackState.tempoBpm) || state.initialMidiBpm, 1);
+        if (!state.lastData)
+            state.initialMidiBpm = Math.max(Number(playbackState.initialMidiBpm) || 120, 1);
+        state.tempoBpm = Math.max(Number(playbackState.tempoBpm) || state.tempoBpm || state.initialMidiBpm, 1);
         state.pendingPlaybackSeek = false;
 
         if (state.isPlaying) {
@@ -503,7 +536,7 @@ window.visualiser = {
     },
 
     _getKeyboardStepSeconds(state) {
-        return 60.0 / Math.max(1, Number(state.tempoBpm) || 120) / 4.0;
+        return 60.0 / Math.max(1, Number(state.initialMidiBpm) || 120) / 4.0;
     },
 
     _beginPlayheadDrag(root, event) {
@@ -921,7 +954,7 @@ window.visualiser = {
         if (snapDivision <= 0)
             return clamped;
 
-        const snapSeconds = this._getSecondsPerBeat(state.tempoBpm, snapDivision);
+        const snapSeconds = this._getSecondsPerBeat(state.initialMidiBpm, snapDivision);
         if (!Number.isFinite(snapSeconds) || snapSeconds <= 0)
             return clamped;
 
@@ -1114,7 +1147,8 @@ window.visualiser = {
             const audioTime = this._getAudioTimeOrNull();
             if (audioTime !== null && state.audioAnchorTime !== null) {
                 const elapsed = Math.max(0, audioTime - state.audioAnchorTime);
-                const position = this._clamp(state.positionAnchorSeconds + elapsed, 0, state.durationSeconds);
+                const tempoRatio = state.tempoBpm / Math.max(state.initialMidiBpm, 1);
+                const position = this._clamp(state.positionAnchorSeconds + (elapsed * tempoRatio), 0, state.durationSeconds);
                 state.positionSeconds = position;
                 this._setPlayheadPosition(state, position, true);
 

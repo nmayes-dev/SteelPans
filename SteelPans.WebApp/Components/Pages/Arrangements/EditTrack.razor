@@ -129,13 +129,14 @@
                          TrackLabel="@trackName_"
                          Notes="notes_"
                          SelectedNoteId="selectedNoteId_"
-                         DurationSeconds="durationSeconds_"
+                         DurationSeconds="visualiserDurationSeconds_"
                          ShowPlayhead="true"
                          PositionSeconds="recordingPositionSeconds_"
                          NoteSnapDivision="noteSnapDivision_"
                          MinSemitone="SelectedPanMinSemitone"
                          MaxSemitone="SelectedPanMaxSemitone"
                          TempoBpm="tempoBpm_"
+                         InitialMidiBpm="visualiserInitialBpm_"
                          BeatsPerBar="beatsPerBar_"
                          BeatUnit="beatUnit_"
                          SelectNote="SelectNoteAsync"
@@ -165,13 +166,14 @@
                                      TrackLabel="@trackName_"
                                      Notes="CurrentOverlayNotes"
                                      SelectedNoteId="selectedNoteId_"
-                                     DurationSeconds="durationSeconds_"
+                                     DurationSeconds="visualiserDurationSeconds_"
                                      ShowPlayhead="true"
                                      PositionSeconds="recordingPositionSeconds_"
                                      NoteSnapDivision="noteSnapDivision_"
                                      MinSemitone="SelectedPanMinSemitone"
                                      MaxSemitone="SelectedPanMaxSemitone"
                                      TempoBpm="tempoBpm_"
+                                     InitialMidiBpm="visualiserInitialBpm_"
                                      BeatsPerBar="beatsPerBar_"
                                      BeatUnit="beatUnit_"
                                      SelectNote="SelectNoteAsync"
@@ -229,7 +231,9 @@
     private PanType panType_ = PanType.None;
 
     private int tempoBpm_ = 120;
+    private int visualiserInitialBpm_ = 120;
     private double beatsPerSecond_ => 60.0 / tempoBpm_;
+    private double visualiserBeatsPerSecond_ => 60.0 / Math.Max(visualiserInitialBpm_, 1);
 
     private int beatsPerBar_ = 4;
     private int beatUnit_ = 4;
@@ -237,6 +241,8 @@
 
     private int durationBars_ = 20;
     private double durationSeconds_ => durationBars_ * (beatsPerBar_ * beatsPerSecond_ * beatRatio_);
+    private double visualiserDurationSeconds_ => durationBars_ * (beatsPerBar_ * visualiserBeatsPerSecond_ * beatRatio_);
+    private double recordingTempoRatio_ => (double)Math.Max(tempoBpm_, 1) / Math.Max(visualiserInitialBpm_, 1);
 
     private int defaultNoteDivision_ = 4;
     private NoteSnapDivision noteSnapDivision_;
@@ -375,6 +381,7 @@
         trackName_ = track.Name ?? $"Track {track.Index + 1}";
         panType_ = track.PanType;
         tempoBpm_ = track.TempoBpm;
+        visualiserInitialBpm_ = Math.Max(track.TempoBpm, 1);
         beatsPerBar_ = track.BeatsPerBar;
         beatUnit_ = track.BeatUnit;
         durationBars_ = Math.Max(1, (int)Math.Ceiling(track.DurationSeconds / Math.Max(0.001, beatsPerBar_ * beatsPerSecond_ * beatRatio_)));
@@ -447,7 +454,7 @@
 
         await Overlays.RequestCloseAllAsync();
 
-        recordingPositionSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
+        recordingPositionSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, visualiserDurationSeconds_));
         isRecordOverlayOpen_ = true;
         isCountingIn_ = true;
         countInNumber_ = Math.Max(1, beatsPerBar_);
@@ -501,7 +508,7 @@
 
     private async Task BeginRecordingAtCurrentPositionAsync()
     {
-        recordingStartSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
+        recordingStartSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, visualiserDurationSeconds_));
         recordStartedAt_ = DateTimeOffset.UtcNow;
         recordStartedAtAudioTimeSeconds_ = await TryGetAudioTimeAsync();
         LogRecordingDiagnostic(
@@ -538,7 +545,7 @@
             Id = Guid.NewGuid(),
             Note = playedNote.Note,
             Start = TimeSpan.FromSeconds(start),
-            Duration = TimeSpan.FromSeconds(Math.Min(defaultDuration, Math.Max(0.05, durationSeconds_ - start)))
+            Duration = TimeSpan.FromSeconds(Math.Min(defaultDuration, Math.Max(0.05, visualiserDurationSeconds_ - start)))
         };
 
         targetNotes.Add(draft);
@@ -597,7 +604,7 @@
         if (isRecording_ || isCountingIn_)
             return;
 
-        recordingPositionSeconds_ = Math.Clamp(seconds, 0, Math.Max(0, durationSeconds_));
+        recordingPositionSeconds_ = Math.Clamp(seconds, 0, Math.Max(0, visualiserDurationSeconds_));
 
         if (!isPlayingBack_)
         {
@@ -703,15 +710,15 @@
         if (audioTimeSeconds is double audioTime && recordStartedAtAudioTimeSeconds_ is double startedAudioTime)
         {
             return Math.Clamp(
-                recordingStartSeconds_ + audioTime - startedAudioTime,
+                recordingStartSeconds_ + ((audioTime - startedAudioTime) * recordingTempoRatio_),
                 0,
-                Math.Max(1, durationSeconds_));
+                Math.Max(1, visualiserDurationSeconds_));
         }
 
         return Math.Clamp(
-            recordingStartSeconds_ + (DateTimeOffset.UtcNow - recordStartedAt_).TotalSeconds,
+            recordingStartSeconds_ + ((DateTimeOffset.UtcNow - recordStartedAt_).TotalSeconds * recordingTempoRatio_),
             0,
-            Math.Max(1, durationSeconds_));
+            Math.Max(1, visualiserDurationSeconds_));
     }
 
     private async Task<double?> TryGetAudioTimeAsync()
@@ -769,7 +776,7 @@
 
                 recordingPositionSeconds_ = GetCurrentRecordingPositionSeconds();
 
-                if (recordingPositionSeconds_ >= durationSeconds_)
+                if (recordingPositionSeconds_ >= visualiserDurationSeconds_)
                 {
                     StopRecording(keepOverlayOpen: true, resetPosition: false);
                 }
@@ -832,18 +839,18 @@
 
     private async Task RunMetronomeClickLoopAsync(CancellationToken cancellationToken)
     {
-        var secondsPerBeat = GetSecondsPerBeat(beatUnit_);
-        var nextBeatIndex = (int)Math.Ceiling(Math.Max(0, recordingStartSeconds_ - 0.0001) / Math.Max(secondsPerBeat, 0.001));
+        var scoreSecondsPerBeat = GetVisualiserSecondsPerBeat(beatUnit_);
+        var nextBeatIndex = (int)Math.Ceiling(Math.Max(0, recordingStartSeconds_ - 0.0001) / Math.Max(scoreSecondsPerBeat, 0.001));
 
         try
         {
             while (!cancellationToken.IsCancellationRequested && isRecording_)
             {
-                var nextBeatSeconds = nextBeatIndex * secondsPerBeat;
-                var delaySeconds = nextBeatSeconds - recordingPositionSeconds_;
+                var nextBeatSeconds = nextBeatIndex * scoreSecondsPerBeat;
+                var delayScoreSeconds = nextBeatSeconds - recordingPositionSeconds_;
 
-                if (delaySeconds > 0)
-                    await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
+                if (delayScoreSeconds > 0)
+                    await Task.Delay(TimeSpan.FromSeconds(delayScoreSeconds / recordingTempoRatio_), cancellationToken);
 
                 if (!isRecording_ || cancellationToken.IsCancellationRequested)
                     return;
@@ -878,7 +885,7 @@
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         var start = recordingStartSeconds_;
         var notesToPlay = notes_
-            .Where(x => x.Start.TotalSeconds >= start && x.Start.TotalSeconds < durationSeconds_)
+            .Where(x => x.Start.TotalSeconds >= start && x.Start.TotalSeconds < visualiserDurationSeconds_)
             .OrderBy(x => x.Start.TotalSeconds)
             .ThenBy(x => x.Note.SemitoneNumber)
             .Select(CloneEvent)
@@ -914,10 +921,10 @@
         {
             foreach (var note in notesToPlay)
             {
-                var delaySeconds = note.Start.TotalSeconds - GetCurrentRecordingPositionSeconds();
+                var delayScoreSeconds = note.Start.TotalSeconds - GetCurrentRecordingPositionSeconds();
 
-                if (delaySeconds > 0)
-                    await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
+                if (delayScoreSeconds > 0)
+                    await Task.Delay(TimeSpan.FromSeconds(delayScoreSeconds / recordingTempoRatio_), cancellationToken);
 
                 if (!isRecording_ || cancellationToken.IsCancellationRequested)
                     return;
@@ -1052,7 +1059,14 @@
     private double GetDefaultNoteDurationSeconds()
     {
         var noteDivision = Math.Max(1, defaultNoteDivision_);
-        return Math.Max(0.05, GetSecondsPerBeat(noteDivision));
+        return Math.Max(0.05, GetVisualiserSecondsPerBeat(noteDivision));
+    }
+
+    private double GetVisualiserSecondsPerBeat(int noteDivision)
+    {
+        var safeBpm = Math.Max(visualiserInitialBpm_, 1);
+        var safeDivision = Math.Max(1, noteDivision);
+        return (60.0 / safeBpm) * (4.0 / safeDivision);
     }
 
     private double GetSecondsPerBeat(int noteDivision)

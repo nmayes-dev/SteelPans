@@ -144,7 +144,7 @@
             repeatCts_ = new CancellationTokenSource();
             var token = repeatCts_.Token;
 
-            await Task.Delay(RepeatInterval, token);
+            await Task.Delay(InitialRepeatDelay, token);
 
             while (!token.IsCancellationRequested)
             {

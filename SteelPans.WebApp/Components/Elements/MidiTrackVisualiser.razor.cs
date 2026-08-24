@@ -112,6 +112,7 @@ public partial class MidiTrackVisualiser
     private bool rendered_;
     private int? lastDataHash_;
     private int? lastLayoutHash_;
+    private int? lastTempoBpm_;
 
     private bool IsEditMode => Mode == MidiTrackVisualiserMode.Edit;
     private bool IsRecordMode => Mode == MidiTrackVisualiserMode.Record;
@@ -122,7 +123,6 @@ public partial class MidiTrackVisualiser
         0.01);
 
     private MidiPanEvent? SelectedRecordNote => Notes.FirstOrDefault(x => x.Id == SelectedNoteId);
-    private double StepSeconds => 60.0 / Math.Max(1, TempoBpm) / 4.0;
 
     private double NoteSnapValue
     {
@@ -172,6 +172,7 @@ public partial class MidiTrackVisualiser
         dotNetRef_ = DotNetObjectReference.Create(this);
         await JS.InvokeVoidAsync("visualiser.initialize", root_, dotNetRef_);
         rendered_ = true;
+        lastTempoBpm_ = Math.Max(TempoBpm, 1);
         await RenderVisualiserIfChangedAsync(force: true);
     }
 
@@ -180,48 +181,18 @@ public partial class MidiTrackVisualiser
         if (!rendered_)
             return;
 
+        await UpdatePlaybackTempoIfChangedAsync();
         await RenderVisualiserIfChangedAsync();
     }
 
-
-    private async Task OnKeyDownAsync(KeyboardEventArgs args)
+    private async Task UpdatePlaybackTempoIfChangedAsync()
     {
-        if (!IsEditMode || !ShowEditTools || SelectedRecordNote is null)
+        var tempoBpm = Math.Max(TempoBpm, 1);
+        if (lastTempoBpm_ == tempoBpm)
             return;
 
-        switch (args.Key)
-        {
-            case "+":
-            case "=":
-                await ResizeSelected.InvokeAsync(StepSeconds);
-                break;
-
-            case "-":
-            case "_":
-                await ResizeSelected.InvokeAsync(-StepSeconds);
-                break;
-
-            case "ArrowLeft":
-                await MoveSelected.InvokeAsync(-StepSeconds);
-                break;
-
-            case "ArrowRight":
-                await MoveSelected.InvokeAsync(StepSeconds);
-                break;
-
-            case "ArrowUp":
-                await ChangeSelectedPitch.InvokeAsync(1);
-                break;
-
-            case "ArrowDown":
-                await ChangeSelectedPitch.InvokeAsync(-1);
-                break;
-
-            case "Delete":
-            case "Backspace":
-                await DeleteSelected.InvokeAsync(SelectedRecordNote.Id);
-                break;
-        }
+        lastTempoBpm_ = tempoBpm;
+        await JS.InvokeVoidAsync("visualiser.setTempoBpm", root_, tempoBpm);
     }
 
     private async Task RenderVisualiserIfChangedAsync(bool force = false)
@@ -361,7 +332,6 @@ public partial class MidiTrackVisualiser
         hash.Add(PanLabel);
         hash.Add(TrackLabel);
         hash.Add(VisualDurationSeconds);
-        hash.Add(TempoBpm);
         hash.Add(InitialMidiBpm);
         hash.Add(BeatsPerBar);
         hash.Add(BeatUnit);
@@ -381,7 +351,6 @@ public partial class MidiTrackVisualiser
         hash.Add(PanLabel);
         hash.Add(TrackLabel);
         hash.Add(VisualDurationSeconds);
-        hash.Add(TempoBpm);
         hash.Add(InitialMidiBpm);
         hash.Add(BeatsPerBar);
         hash.Add(BeatUnit);

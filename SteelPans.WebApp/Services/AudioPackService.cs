@@ -13,11 +13,10 @@ public sealed class AudioPackService
 
     public AudioPackService(IWebHostEnvironment env, IConfiguration configuration)
     {
-        packDirectory_ = configuration["AudioPacks:RootPath"];
+        var packDir = configuration["AudioPacks:RootPath"];
+        ArgumentException.ThrowIfNullOrEmpty(packDir);
 
-        if (string.IsNullOrWhiteSpace(packDirectory_))
-            packDirectory_ = Path.Combine(env.ContentRootPath, "AudioPacks");
-
+        packDirectory_ = packDir;
         key_ = LoadKey(configuration);
     }
 
