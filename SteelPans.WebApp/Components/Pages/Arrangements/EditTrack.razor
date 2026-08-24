@@ -112,7 +112,6 @@
                              OnTogglePlayback="OnPlaybackToggledAsync" />
 
         <div class="record-track-page__controls">
-            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="ExitPage" disabled="@(DisableButtons(requireNotes: false))">Back</button>
             <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="ClearNotesAsync" disabled="@(DisableButtons(requireNotes: true))">Reset</button>
             <button type="button" class="sp-app-button" @onclick="StartRecordingWithCountInAsync" disabled="@(DisableButtons(requireNotes: false))">Record</button>
             <button type="button" class="sp-app-button sp-app-button--primary" @onclick="SaveTrack" disabled="@(DisableButtons(requireNotes: true))">Save</button>
@@ -252,6 +251,7 @@
     private double? recordStartedAtAudioTimeSeconds_;
     private double recordingStartSeconds_;
     private double recordingPositionSeconds_;
+    private IDisposable? leaveGuard_;
     private int countInNumber_;
     private double countInProgress_;
     private CancellationTokenSource? recordingPositionCts_;
@@ -301,6 +301,8 @@
 
     protected override async Task OnParametersSetAsync()
     {
+        leaveGuard_?.Dispose();
+        leaveGuard_ = NavigationHistory.RegisterLeaveGuard(CanLeaveAsync);
         if (TrackId is Guid trackId && (!loadedExistingTrack_ || editingTrackId_ != trackId))
         {
             await LoadTrackAsync(trackId);
@@ -1056,6 +1058,7 @@
 
     public async ValueTask DisposeAsync()
     {
+        leaveGuard_?.Dispose();
         MidiService.Playback.PlaybackStarted -= OnEditPlaybackStartedAsync;
         MidiService.Playback.PlaybackPaused -= OnEditPlaybackPausedAsync;
         MidiService.Playback.PlaybackStopped -= OnEditPlaybackStoppedAsync;
@@ -1125,7 +1128,7 @@
         }
 
         hasUnsavedTrackChanges_ = false;
-        await ExitPage();
+        NavigationHistory.Back(GetSaveReturnUrl());
     }
 
     private async Task SaveStoredFileAsync(Guid fileId, MidiTrackInfo editedTrack)
@@ -1166,22 +1169,28 @@
                 }).ToList()));
     }
 
-    private async Task ExitPage()
+    private async Task<bool> CanLeaveAsync()
     {
         if (!hasUnsavedTrackChanges_)
-        {
-            NavigationHistory.Back(GetSaveReturnUrl());
-            return;
-        }
+            return true;
 
-        await Modals.OpenAsync("UnsavedChanges", new ModalOptions
+        var result = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var opened = await Modals.OpenAsync("UnsavedChanges", new ModalOptions
         {
             OnSuccess = () =>
             {
-                NavigationHistory.Back(GetSaveReturnUrl());
+                result.TrySetResult(true);
+                return Task.CompletedTask;
+            },
+            OnFailure = () =>
+            {
+                result.TrySetResult(false);
                 return Task.CompletedTask;
             }
         });
+
+        return opened && await result.Task;
     }
 
     private string GetSaveReturnUrl()

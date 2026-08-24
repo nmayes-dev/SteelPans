@@ -8,6 +8,7 @@
 @inject UserStateService UserState
 @inject ModalPopupService Modals
 @inject NavigationHistoryService NavigationHistory
+@implements IDisposable
 
 <PageTitle>Create Recorded File</PageTitle>
 
@@ -26,7 +27,6 @@
         </label>
 
         <div class="record-file-page__actions">
-            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="BackAsync">Back</button>
             <a class="sp-app-button sp-app-button--secondary" href="/arrangements/tracks/create">Add Track</a>
             <button type="button" class="sp-app-button sp-app-button--secondary" disabled="@(Tasks.Busy || MidiService.Edit.Tracks.Count == 0)" @onclick="SaveDraftAsync">Save Draft</button>
             <button type="button" class="sp-app-button" disabled="@(Tasks.Busy || MidiService.Edit.Tracks.Count == 0)" @onclick="SaveFileAsync">Save</button>
@@ -74,11 +74,13 @@
 
 @code {
     private string title_ = string.Empty;
+    private IDisposable? leaveGuard_;
 
     protected override async Task OnInitializedAsync()
     {
         await MidiService.Edit.BeginCreateFileAsync();
         title_ = MidiService.Edit.Title;
+        leaveGuard_ = NavigationHistory.RegisterLeaveGuard(CanLeaveAsync);
     }
 
     private Task OnTitleChanged() => MidiService.Edit.SetTitleAsync(title_);
@@ -130,27 +132,33 @@
                 isIncomplete));
     }
 
-    private async Task BackAsync()
+    private async Task<bool> CanLeaveAsync()
     {
         if (!MidiService.Edit.HasUnsavedChanges)
-        {
-            NavigationHistory.Back("/arrangements");
-            return;
-        }
+            return true;
 
-        await Modals.OpenAsync("UnsavedChanges", new ModalOptions
+        var result = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var opened = await Modals.OpenAsync("UnsavedChanges", new ModalOptions
         {
-            OnSuccess = () =>
+            OnSuccess = async () =>
             {
-                return ClearAndNavigateAsync();
+                await MidiService.Edit.ClearAsync();
+                result.TrySetResult(true);
+            },
+            OnFailure = () =>
+            {
+                result.TrySetResult(false);
+                return Task.CompletedTask;
             }
         });
+
+        return opened && await result.Task;
     }
 
-    private async Task ClearAndNavigateAsync()
+    public void Dispose()
     {
-        await MidiService.Edit.ClearAsync();
-        NavigationHistory.Back("/arrangements");
+        leaveGuard_?.Dispose();
     }
 
     private async Task SaveFileAsync()
