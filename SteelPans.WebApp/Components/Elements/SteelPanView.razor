@@ -1,7 +1,6 @@
 @inject SteelPanSvgService SvgService
 @inject MidiManagerService MidiService
 @inject IJSRuntime JS
-@inject IWebHostEnvironment Env
 @implements IAsyncDisposable
 
 @if (Pan is not null)
@@ -77,7 +76,7 @@ else
     protected override Task OnInitializedAsync()
     {
         selfRef_ = DotNetObjectReference.Create(this);
-        sampleDuration_ = GetWavDuration();
+        sampleDuration_ = TimeSpan.Zero;
         return Task.CompletedTask;
     }
 
@@ -92,7 +91,7 @@ else
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && selfRef_ is not null)
-            await JS.InvokeVoidAsync("panPlayback.register", componentId_, selfRef_);
+            await JS.InvokeVoidAsync("panPlayback.register", componentId_, selfRef_, Pan.SamplePack);
 
         if (firstRender && PlaybackInstanceId is not null)
             await MidiService.Playback.RegisterSteelPanViewAsync(PlaybackInstanceId.Value, this);
@@ -118,6 +117,7 @@ else
 
         await JS.InvokeVoidAsync(
             "panPlayback.preloadNoteFiles",
+            Pan.SamplePack,
             (object)NoteKeys);
 
         noteFilesPreloaded_ = true;
@@ -132,6 +132,7 @@ else
 
         await JS.InvokeVoidAsync(
             "panPlayback.preloadNotesAfterGesture",
+            Pan.SamplePack,
             (object)NoteKeys);
 
         noteBuffersPreloaded_ = true;
@@ -254,20 +255,6 @@ else
         }
 
         await JS.InvokeVoidAsync("panPlayback.clearPlayingVisuals", componentId_, (object)noteKeys);
-    }
-
-    private TimeSpan GetWavDuration()
-    {
-        var samplesPath = Path.Combine(Env.WebRootPath, "audio", "samples");
-        var path = Directory.Exists(samplesPath)
-            ? Directory.EnumerateFiles(samplesPath, "*.wav", SearchOption.AllDirectories).FirstOrDefault()
-            : null;
-
-        if (path is null)
-            return TimeSpan.Zero;
-
-        using var reader = new AudioFileReader(path);
-        return reader.TotalTime;
     }
 
     public async ValueTask DisposeAsync()

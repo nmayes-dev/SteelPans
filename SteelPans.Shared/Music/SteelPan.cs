@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
@@ -34,6 +34,8 @@ public class PanNote
 public class SteelPan
 {
     public PanType Type { get; set; }
+
+    public string SamplePack { get; set; } = "default";
 
     public List<PanNote> Notes { get; set; } = new();
 

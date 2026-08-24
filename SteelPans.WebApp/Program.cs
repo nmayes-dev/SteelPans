@@ -11,6 +11,7 @@ using SteelPans.WebApp.Components;
 using SteelPans.WebApp.Hubs;
 using SteelPans.WebApp.Services;
 using System.Text;
+using System.Security.Cryptography;
 
 namespace SteelPans.WebApp;
 
@@ -119,6 +120,7 @@ public static class Program
     {
         builder.Services.AddSingleton<SteelPanLoaderService>();
         builder.Services.AddSingleton<SteelPanSvgService>();
+        builder.Services.AddSingleton<AudioPackService>();
 
         builder.Services.AddScoped<IRealtimeUpdateDispatcher, SignalRRealtimeUpdateDispatcher>();
         builder.Services.AddScoped<AppUpdatesService>();
@@ -171,6 +173,8 @@ public static class Program
 
         app.MapHub<AppUpdatesHub>("/hubs/app-updates");
 
+        app.MapGet("/api/audio-packs/{packId}", GetAudioPack);
+
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();
 
@@ -202,6 +206,37 @@ public static class Program
         });
 
         return app;
+    }
+
+    private static IResult GetAudioPack(string packId, AudioPackService packs, HttpResponse response)
+    {
+        var pack = packs.GetPackByOpaqueId(packId);
+        if (pack is null)
+            return Results.NotFound();
+
+        try
+        {
+            var bytes = packs.Decrypt(pack);
+            response.Headers.CacheControl = "no-store";
+            response.Headers.Pragma = "no-cache";
+
+            return Results.File(
+                bytes,
+                "application/octet-stream",
+                enableRangeProcessing: false);
+        }
+        catch (CryptographicException)
+        {
+            return Results.Problem(
+                "Audio pack could not be decrypted.",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
+        catch (InvalidDataException)
+        {
+            return Results.Problem(
+                "Audio pack is invalid.",
+                statusCode: StatusCodes.Status500InternalServerError);
+        }
     }
 
     private static async Task<WebApplication> InitializeServices(WebApplication app)

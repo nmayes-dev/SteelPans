@@ -1,6 +1,10 @@
 window.panPlayback = {
     _refs: {},
+    _samplePackByComponent: {},
     _audioBuffers: {},
+    _audioSampleBytes: {},
+    _audioPacks: {},
+    _audioPackPromises: {},
     _audioContext: null,
     _masterCompressor: null,
     _masterGain: null,
@@ -77,12 +81,14 @@ window.panPlayback = {
         return { ...this._midiPlaybackState };
     },
 
-    register: function (id, dotNetRef) {
+    register: function (id, dotNetRef, samplePack) {
         this._refs[id] = dotNetRef;
+        this._samplePackByComponent[id] = samplePack || "default";
     },
 
     unregister: function (id) {
         delete this._refs[id];
+        delete this._samplePackByComponent[id];
         delete this._panElements[id];
         delete this._volumeByComponent[id];
 
@@ -213,50 +219,97 @@ window.panPlayback = {
         return ctx.currentTime;
     },
 
-    _getSamplePath: function (noteKey) {
+    _getSampleCacheKey: function (packId, noteKey) {
+        return `${packId}:${this._normalizeEnharmonic(noteKey)}`;
+    },
+
+    _parseAudioPack: function (plainBytes) {
+        const bytes = new Uint8Array(plainBytes);
+        const magic = new TextDecoder().decode(bytes.slice(0, 4));
+        if (magic !== "SPP1")
+            throw new Error("Invalid audio pack payload header.");
+
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        const manifestLength = view.getUint32(4, true);
+        const manifestStart = 8;
+        const manifestEnd = manifestStart + manifestLength;
+        const manifest = JSON.parse(new TextDecoder().decode(bytes.slice(manifestStart, manifestEnd)));
+
+        return {
+            manifest: manifest,
+            payload: bytes.slice(manifestEnd)
+        };
+    },
+
+    _loadAudioPack: async function (packId) {
+        if (this._audioPacks[packId])
+            return this._audioPacks[packId];
+
+        if (this._audioPackPromises[packId])
+            return await this._audioPackPromises[packId];
+
+        const promise = (async () => {
+            const response = await fetch(`/api/audio-packs/${encodeURIComponent(packId)}`, {
+                cache: "no-store"
+            });
+            if (!response.ok)
+                throw new Error(`Failed to load audio pack ${packId}: ${response.status} ${response.statusText}`);
+
+            const plainBytes = await response.arrayBuffer();
+            const pack = this._parseAudioPack(plainBytes);
+            this._audioPacks[packId] = pack;
+            return pack;
+        })();
+
+        this._audioPackPromises[packId] = promise;
+
+        try {
+            return await promise;
+        } finally {
+            delete this._audioPackPromises[packId];
+        }
+    },
+
+    _preloadSampleBytes: async function (packId, noteKey) {
         const normalized = this._normalizeEnharmonic(noteKey);
-        return `/audio/samples/${encodeURIComponent(normalized)}.ogg`;
+        const cacheKey = this._getSampleCacheKey(packId, normalized);
+
+        let bytes = this._audioSampleBytes[cacheKey];
+        if (bytes)
+            return bytes;
+
+        const pack = await this._loadAudioPack(packId);
+        const sample = pack.manifest.samples?.[normalized];
+        if (!sample)
+            throw new Error(`Audio pack ${packId} does not contain sample ${normalized}.`);
+
+        bytes = pack.payload.slice(sample.offset, sample.offset + sample.length).buffer;
+        this._audioSampleBytes[cacheKey] = bytes;
+        return bytes;
     },
 
-    _preloadSampleBytes: async function (noteKey) {
-        const path = this._getSamplePath(noteKey);
-
-        let arrayBuffer = this._audioSampleBytes?.[path];
-        if (arrayBuffer)
-            return arrayBuffer;
-
-        const response = await fetch(path);
-        if (!response.ok)
-            throw new Error(`Failed to load sample ${path}: ${response.status} ${response.statusText}`);
-
-        arrayBuffer = await response.arrayBuffer();
-        this._audioSampleBytes[path] = arrayBuffer;
-        return arrayBuffer;
-    },
-
-    _loadBuffer: async function (noteKey) {
+    _loadBuffer: async function (packId, noteKey) {
         const ctx = this._ensureAudioContext();
-        const path = this._getSamplePath(noteKey);
+        const cacheKey = this._getSampleCacheKey(packId, noteKey);
 
-        let buffer = this._audioBuffers[path];
+        let buffer = this._audioBuffers[cacheKey];
         if (buffer)
             return buffer;
 
-        const bytes = await this._preloadSampleBytes(noteKey);
+        const bytes = await this._preloadSampleBytes(packId, noteKey);
         buffer = await ctx.decodeAudioData(bytes.slice(0));
 
-        this._audioBuffers[path] = buffer;
+        this._audioBuffers[cacheKey] = buffer;
         return buffer;
     },
 
-    preloadNoteFiles: async function (noteKeys) {
-        this._audioSampleBytes ??= {};
-
+    preloadNoteFiles: async function (packId, noteKeys) {
         const uniqueNoteKeys = [
             ...new Set(noteKeys.filter(x => typeof x === "string" && x.length > 0))
         ];
 
-        await Promise.allSettled(uniqueNoteKeys.map(x => this._preloadSampleBytes(x)));
+        await this._loadAudioPack(packId);
+        await Promise.allSettled(uniqueNoteKeys.map(x => this._preloadSampleBytes(packId, x)));
     },
 
     unlockAudio: async function () {
@@ -268,40 +321,41 @@ window.panPlayback = {
         return ctx;
     },
 
-    _decodePreloadedBuffer: async function (noteKey) {
+    _decodePreloadedBuffer: async function (packId, noteKey) {
         const ctx = await this.unlockAudio();
-        const path = this._getSamplePath(noteKey);
+        const cacheKey = this._getSampleCacheKey(packId, noteKey);
 
-        let buffer = this._audioBuffers[path];
+        let buffer = this._audioBuffers[cacheKey];
         if (buffer)
             return buffer;
 
-        const bytes = await this._preloadSampleBytes(noteKey);
+        const bytes = await this._preloadSampleBytes(packId, noteKey);
 
         // decodeAudioData detaches/consumes the ArrayBuffer in some implementations,
         // so pass a copy if you want to keep the cached bytes.
         buffer = await ctx.decodeAudioData(bytes.slice(0));
 
-        this._audioBuffers[path] = buffer;
+        this._audioBuffers[cacheKey] = buffer;
         return buffer;
     },
 
-    preloadNotesAfterGesture: async function (noteKeys) {
+    preloadNotesAfterGesture: async function (packId, noteKeys) {
         await this.unlockAudio();
 
         const uniqueNoteKeys = [
             ...new Set(noteKeys.filter(x => typeof x === "string" && x.length > 0))
         ];
 
-        await Promise.allSettled(uniqueNoteKeys.map(x => this._decodePreloadedBuffer(x)));
+        await Promise.allSettled(uniqueNoteKeys.map(x => this._decodePreloadedBuffer(packId, x)));
     },
 
     playNote: async function (componentId, noteKey) {
+        const packId = this._samplePackByComponent[componentId] || "default";
         const startedAt = performance.now();
         const ctx = await this._resumeAudioContext();
 
         const loadStartedAt = performance.now();
-        const buffer = await this._loadBuffer(noteKey);
+        const buffer = await this._loadBuffer(packId, noteKey);
         this._diagSlow(loadStartedAt, "playNote load buffer", { componentId, noteKey }, 8);
 
         const source = ctx.createBufferSource();
@@ -318,6 +372,7 @@ window.panPlayback = {
     },
 
     playNotes: async function (componentId, noteKeys) {
+        const packId = this._samplePackByComponent[componentId] || "default";
         if (!Array.isArray(noteKeys) || noteKeys.length === 0)
             return;
 
@@ -325,7 +380,7 @@ window.panPlayback = {
         const componentGain = this._getOrCreateComponentGain(componentId);
 
         for (const noteKey of noteKeys) {
-            const buffer = await this._loadBuffer(noteKey);
+            const buffer = await this._loadBuffer(packId, noteKey);
 
             const source = ctx.createBufferSource();
             source.buffer = buffer;
@@ -764,7 +819,7 @@ window.panPlayback = {
             if (when >= windowStart - 0.005) {
                 if (action.isNoteOn) {
                     const loadStartedAt = performance.now();
-                    const buffer = await this._loadBuffer(action.noteKey);
+                    const buffer = await this._loadBuffer(this._samplePackByComponent[componentId] || "default", action.noteKey);
                     this._diagSlow(loadStartedAt, "schedule load buffer", { componentId, noteKey: action.noteKey }, 8);
                     const source = ctx.createBufferSource();
                     const noteGain = ctx.createGain();

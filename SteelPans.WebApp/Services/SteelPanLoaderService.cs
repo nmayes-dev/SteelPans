@@ -1,4 +1,4 @@
-﻿namespace SteelPans.WebApp.Services;
+namespace SteelPans.WebApp.Services;
 
 using SteelPans.Shared.Music;
 using SteelPans.WebApp.Components.Pages;
@@ -9,12 +9,14 @@ public sealed class SteelPanLoaderService
 {
     private readonly IWebHostEnvironment env_;
     private readonly JsonSerializerOptions options_;
+    private readonly AudioPackService audioPacks_;
 
     public IReadOnlyList<SteelPan> Pans { get; private set; } = [];
 
-    public SteelPanLoaderService(IWebHostEnvironment env)
+    public SteelPanLoaderService(IWebHostEnvironment env, AudioPackService audioPacks)
     {
         env_ = env;
+        audioPacks_ = audioPacks;
 
         options_ = new JsonSerializerOptions
         {
@@ -25,14 +27,13 @@ public sealed class SteelPanLoaderService
     public class SteelPanDto
     {
         public PanType PanType { get; set; }
+        public string SamplePack { get; set; } = "default";
         public List<Note> Notes { get; set; } = new();
     }
 
     public async Task InitializeAsync(string path = "data/pans.json")
     {
         Console.WriteLine($"ContentRootPath: {env_.ContentRootPath}");
-        Console.WriteLine($"WebRootPath: {env_.WebRootPath ?? "<null>"}");
-
         if (string.IsNullOrWhiteSpace(env_.WebRootPath))
             throw new InvalidOperationException("WebRootPath is null. Ensure wwwroot exists in the published app.");
 
@@ -52,6 +53,7 @@ public sealed class SteelPanLoaderService
             .Select(p => new SteelPan
             {
                 Type = p.PanType,
+                SamplePack = audioPacks_.GetOpaqueId(p.SamplePack),
                 Notes = p.Notes.Select(n => new PanNote { Note = n }).ToList()
             }).ToList();
 

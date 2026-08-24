@@ -1,4 +1,4 @@
-﻿using Melanchall.DryWetMidi.Core;
+using Melanchall.DryWetMidi.Core;
 using Melanchall.DryWetMidi.Interaction;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
@@ -2162,6 +2162,7 @@ public sealed class MidiManagerService
             return new SteelPan
             {
                 Type = source.Type,
+                SamplePack = source.SamplePack,
                 Notes = source.Notes
                     .Select(n => new PanNote
                     {
