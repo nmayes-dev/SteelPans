@@ -11,7 +11,6 @@
 
 <section class="sp-app-page midi-files midi-file-page">
     <div class="sp-app-page__header midi-file-page__header">
-        <p class="sp-app-page__eyebrow">Steel Pans</p>
         <h1>@title_</h1>
         <p>@subtitle_</p>
 
@@ -20,7 +19,6 @@
     </div>
 
     <div class="midi-file-page__actions">
-        <BackButton FallbackUrl="/arrangements" />
         @if (File is not null)
         {
             <a class="sp-app-button" href="/play/ensemble?file=@File.Id">Play</a>

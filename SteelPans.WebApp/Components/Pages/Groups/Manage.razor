@@ -13,7 +13,6 @@
 <section class="sp-app-page groups-page manage-group-page">
     <div class="sp-app-page__header manage-group-page__header">
         <div class="manage-group-page__header-copy">
-            <p class="sp-app-page__eyebrow">Group Tools</p>
             <h1>@(group_?.Name ?? "Manage Group")</h1>
             <p>@(group_ is null ? "Loading group..." : $"Your role: {group_.Role}")</p>
 
@@ -36,8 +35,6 @@
                 }
 
                 <div class="manage-group-page__header-actions">
-                    <BackButton FallbackUrl="/groups" />
-
                     @if (CanManageFiles)
                     {
                         <button class="sp-app-button sp-app-button--primary"
