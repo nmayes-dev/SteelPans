@@ -1,7 +1,13 @@
 .home-page {
     display: grid;
-    align-items: center;
+    justify-content: space-between;
     padding: clamp(0.75rem, 2.5vw, 3rem);
+    grid-template-rows: minmax(0, 1fr) min-content;
+}
+
+.home-page footer {
+    font-style: italic;
+    font-size: min(1rem, 3vh);
 }
 
 .home-page__shell {
