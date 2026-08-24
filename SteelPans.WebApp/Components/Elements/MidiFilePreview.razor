@@ -210,7 +210,7 @@
                 ?? new MidiTrackAssignmentDto(
                     x.Id,
                     x.TrackIndex,
-                    x.SuggestedPanType ?? PanType.None,
+                    PanType.None,
                     x.TrackName ?? $"Track {x.TrackIndex}"));
 
         IsPreviewOpen = true;
