@@ -2,6 +2,7 @@
 using Melanchall.DryWetMidi.Interaction;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.JSInterop;
 using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Music;
@@ -553,6 +554,7 @@ public sealed class MidiManagerService
         public string MidiFileName => state_.ActiveMidi?.FileName ?? string.Empty;
         public IReadOnlyList<MidiTrackInfo> Tracks => state_.ActiveMidi?.Tracks ?? [];
         public IReadOnlyList<MidiTrackAssignment> Assignments => state_.ActiveMidi?.Assignments ?? [];
+        public bool MidiPersistedFile => state_.ActiveMidi?.IsPersisted ?? false;
 
         public bool IsPlaying { get; private set; }
         public TimeSpan Position { get; private set; }
@@ -970,7 +972,9 @@ public sealed class MidiManagerService
 
         public async Task AddAssignmentAsync(MidiTrackAssignment assignment)
         {
-            await state_.AddOrReplaceActiveMidiAssignmentAsync(assignment);
+            if (state_.ActiveMidi is not null)
+                await state_.AddOrReplaceActiveMidiAssignmentAsync(assignment);
+
             await OnAddAssignmentAsync(assignment, true, true);
         }
 
@@ -998,32 +1002,44 @@ public sealed class MidiManagerService
             }
         }
 
-        public async Task OnRemoveAssignmentAsync(Guid trackId)
+        public async Task OnRemoveAssignmentAsync(MidiAssignedPan assignedPan)
         {
-            await state_.RemoveActiveMidiAssignmentsAsync(trackId);
+            if (assignedPan.Assignment.TrackId is Guid trackId)
+                await state_.RemoveActiveMidiAssignmentsAsync(trackId);
 
-            if (!Assignments.Any())
-                await StopAsync();
+            var toRemove = assignedPan.Assignment.TrackId is Guid assignedTrackId
+                ? ActivePans.Where(x => x.Assignment.TrackId == assignedTrackId).ToList()
+                : ActivePans.Where(x => x.InstanceId == assignedPan.InstanceId).ToList();
 
-            var toRemove = ActivePans.Where(x => x.Assignment.TrackId == trackId).ToList();
             foreach (var removedPan in toRemove)
+            {
+                if (steelPanViews_.TryGetValue(removedPan.InstanceId, out var view))
+                    playingComponentIds_.Remove(view.ComponentId);
+
+                playingComponentIds_.Remove(GetHeadlessPlaybackComponentId(removedPan.InstanceId));
                 steelPanViews_.Remove(removedPan.InstanceId);
+            }
 
             ActivePans = ActivePans.Except(toRemove).ToList();
+
+            if (!ActivePans.Any())
+                await StopAsync();
 
             RecalculateDuration();
             Position = TimeSpan.Zero;
             playbackSessionStartOffset_ = TimeSpan.Zero;
 
-            var dto = Assignments
-                        .Select(CreateDtoAssignment)
-                        .Where(x => x is not null)
-                        .OfType<MidiTrackAssignmentDto>()
-                        .OrderBy(x => x.TrackIndex)
-                        .ToList();
-
             if (state_.ActiveMidi?.IsPersisted == true)
+            {
+                var dto = Assignments
+                    .Select(CreateDtoAssignment)
+                    .Where(x => x is not null)
+                    .OfType<MidiTrackAssignmentDto>()
+                    .OrderBy(x => x.TrackIndex)
+                    .ToList();
+
                 await db_.MidiFiles.SaveMidiAssignmentsAsync(MidiFileId, new SaveMidiAssignmentsRequest(dto));
+            }
 
             await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Remove);
             await NotifyPositionChangedAsync(jump: true);
@@ -1784,10 +1800,6 @@ public sealed class MidiManagerService
             if (sourcePan is null)
                 return null;
 
-            var track = Tracks.FirstOrDefault(x => x.Id == assignment.TrackId);
-            if (track is null)
-                return null;
-
             return new MidiAssignedPan
             {
                 InstanceId = Guid.NewGuid(),
@@ -2062,7 +2074,8 @@ public sealed class MidiManagerService
                 Tracks.ToList(),
                 InitialMidiBpm,
                 BeatsPerBar,
-                BeatUnit);
+                BeatUnit,
+                MidiPersistedFile);
 
             foreach (Func<MidiEventArgs.FileLoaded, Task> handler in handlers.GetInvocationList())
                 await handler(args);
@@ -2200,7 +2213,8 @@ public static class MidiEventArgs
         IReadOnlyList<MidiTrackInfo> Tracks,
         int InitialBpm,
         int InitialBeatsPerBar,
-        int InitialBeatUnit);
+        int InitialBeatUnit,
+        bool Persisted);
 
     public sealed record FileUnloaded();
 

@@ -97,7 +97,7 @@ public partial class Toolbar : OverlayComponentBase
         await NotifyOpenedAsync();
     }
 
-    internal async Task OpenElementAsync(ToolbarElement element)
+    public async Task OpenElementAsync(ToolbarElement element, bool modal = false)
     {   
         if (element.Disabled || element.HasSubMenu)
             return;
@@ -105,8 +105,17 @@ public partial class Toolbar : OverlayComponentBase
         if (element.HasBody)
         {
             ActiveElement = element;
-            state_ = State.Content;
-            await NotifyOpenedAsync();
+
+            if (element.CanExpand && modal)
+            {
+                await OpenModalElement();
+            }
+            else
+            {
+                state_ = State.Content;
+                await NotifyOpenedAsync();
+            }
+
             await InvokeAsync(StateHasChanged);
             return;
         }

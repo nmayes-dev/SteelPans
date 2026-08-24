@@ -1,5 +1,5 @@
 ﻿<div class="toolbar__menu-tree toolbar__menu-tree--depth-@Depth" role="@(Depth == 0 ? null : "menu")">
-    @foreach (var element in Items)
+    @foreach (var element in Items.Where(x => !x.Hidden))
     {
         <div class="@GetItemShellClass(element)">
             @if (element.LabelFor is not null)

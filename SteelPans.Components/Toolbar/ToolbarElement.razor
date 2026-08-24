@@ -49,6 +49,9 @@
     [Parameter]
     public bool Disabled { get; set; } = false;
 
+    [Parameter]
+    public bool Hidden { get; set; } = false;
+
     internal IReadOnlyList<ToolbarElement> Children => children_.OrderBy(x => x.Order).ToArray();
 
     internal bool HasBody => ChildContent is not null;

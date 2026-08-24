@@ -60,18 +60,16 @@
                             OnClick="OpenAddPanAsync" />
 
                             
-            @if (MidiService.Playback.IsMidiLoaded)
-            {
-                <ToolbarElement Order="2"
-                                Text="Tracks"
-                                IconClass="bi-music-note-list"
-                                Disabled="@(!MidiService.Playback.Tracks.Any())"
-                                CanExpand="true">
-                    <ChildContent>
-                        <MidiTrackList Tracks="@MidiService.Playback.Tracks"/>
-                    </ChildContent>
-                </ToolbarElement>
-            }
+            <ToolbarElement @ref="trackList_"
+                            Order="2"
+                            Text="Tracks"
+                            IconClass="bi-music-note-list"
+                            Hidden=@(!ShowTrackList)
+                            CanExpand="true">
+                <ChildContent>
+                    <MidiTrackList Tracks="@MidiService.Playback.Tracks" />
+                </ChildContent>
+            </ToolbarElement>
         </SubMenu>
     </ToolbarElement>
 
@@ -118,10 +116,15 @@
     @code {
     private Toolbar? toolbar_;
 
+    private ToolbarElement? trackList_;
+
     private bool anyPans_;
+
+    private bool ShowTrackList => MidiService.Playback.IsMidiLoaded && MidiService.Playback.Tracks.Any();
 
     protected override async Task OnInitializedAsync()
     {
+        MidiService.Playback.MidiFileLoaded += OnMidiFileLoadedAsync;
         MidiService.Playback.AssignmentsChanged += OnAssignmentsChangedAsync;
         anyPans_ = MidiService.Playback.ActivePans.Any();
     }
@@ -172,7 +175,13 @@
     }
 
 
+    private async Task OnMidiFileLoadedAsync(MidiEventArgs.FileLoaded args)
+    {
+        if (args.Persisted || !MidiService.Playback.IsMidiLoaded || !MidiService.Playback.Tracks.Any() || trackList_ is null)
+            return;
 
+        await toolbar_!.OpenElementAsync(trackList_, modal: true);
+    }
 
     private async Task OnMultipleMidiSelectedAsync(IReadOnlyList<IBrowserFile> files)
     {
@@ -205,6 +214,7 @@
 
     public void Dispose()
     {
+        MidiService.Playback.MidiFileLoaded -= OnMidiFileLoadedAsync;
         MidiService.Playback.AssignmentsChanged -= OnAssignmentsChangedAsync;
     }
 }
