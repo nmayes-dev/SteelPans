@@ -35,7 +35,7 @@ public class SteelPan
 {
     public PanType Type { get; set; }
 
-    public string SamplePack { get; set; } = "default";
+    public string SamplePack { get; set; } = "Default";
 
     public List<PanNote> Notes { get; set; } = new();
 

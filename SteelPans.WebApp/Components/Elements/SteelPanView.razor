@@ -128,8 +128,6 @@ else
         if (noteBuffersPreloaded_ || !await JS.InvokeAsync<bool>("panPlayback.hasUserGestureOccurred"))
             return;
 
-        await PreloadNoteFilesAsync();
-
         await JS.InvokeVoidAsync(
             "panPlayback.preloadNotesAfterGesture",
             Pan.SamplePack,

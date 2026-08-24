@@ -33,7 +33,7 @@
                 <div class="record-track-page__settings-control">
                     <label>
                         <span>Pan</span>
-                        <select @bind="panType_">
+                        <select @bind="panType_" disabled="@(DisableButtons(requireNotes: false))">
                             @foreach (var pan in AvailablePans)
                             {
                                 <option value="@pan.Type">@pan.Type.ToSpacedPascal()</option>
@@ -43,7 +43,7 @@
 
                     <label>
                         <span>Mode</span>
-                        <select @bind="recordingMode_">
+                        <select @bind="recordingMode_" disabled="@(DisableButtons(requireNotes: false))">
                             @foreach (var option in Enum.GetValues<RecordingMode>())
                             {
                                 <option value="@option">@option.ToString()</option>
@@ -53,7 +53,7 @@
 
                     <label>
                         <span>Snapping</span>
-                        <select @bind="noteSnapDivision_">
+                        <select @bind="noteSnapDivision_" disabled="@(DisableButtons(requireNotes: false))">
                             @foreach (var option in Enum.GetValues<NoteSnapDivision>())
                             {
                                 <option value="@option">@option.ToSpacedPascal()</option>
@@ -65,6 +65,7 @@
                         <span>Click Track</span>
                         <ToggleSwitch Value="@clickTrackDuringRecording_"
                                       ValueChanged="value => clickTrackDuringRecording_ = value"
+                                      Disabled="@(DisableButtons(requireNotes: false))"
                                       AriaLabel="Enable click track while recording" />
                     </label>
                 </div>
@@ -74,6 +75,7 @@
                         <NumericInput Min="1"
                                       Max="1800"
                                       CanRepeat="true"
+                                      Disabled="@(DisableButtons(requireNotes: false))"
                                       @bind-Value="durationBars_" />
                     </label>
 
@@ -82,6 +84,7 @@
                         <NumericInput Min="1"
                                       Max="200"
                                       CanRepeat="true"
+                                      Disabled="@(DisableButtons(requireNotes: false))"
                                       @bind-Value="tempoBpm_" />
                     </label>
 
@@ -90,9 +93,11 @@
                         <span class="record-track-page__signature">
                             <NumericInput Min=" 1"
                                           Max="32"
+                                          Disabled="@(DisableButtons(requireNotes: false))"
                                           @bind-Value="beatsPerBar_" />
                             <span>/</span>
                             <NoteDivisionDropdown @bind-Value="beatUnit_"
+                                                  Disabled="@(DisableButtons(requireNotes: false))"
                                                   NoteDivisions="@([2, 4, 8, 16])" />
                         </span>
                     </label>
@@ -100,6 +105,7 @@
                     <label>
                         <span>Note Length</span>
                         <NoteDivisionDropdown @bind-Value="defaultNoteDivision_"
+                                              Disabled="@(DisableButtons(requireNotes: false))"
                                               NoteDivisions="@([1, 2, 4, 8, 16])" />
                     </label>
                 </div>

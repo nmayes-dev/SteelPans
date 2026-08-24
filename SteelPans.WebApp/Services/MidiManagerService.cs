@@ -879,7 +879,18 @@ public sealed class MidiManagerService
 
         public async Task PlayPreviewNoteAsync(Shared.Music.Note note, PanType panType, CancellationToken cancellationToken = default)
         {
+            var pan = AvailablePans.FirstOrDefault(x => x.Type == panType);
+            if (pan is null)
+                return;
+
             var componentId = $"midi-preview-{panType}";
+
+            await js_.InvokeVoidAsync(
+                "panPlayback.setComponentSamplePack",
+                cancellationToken,
+                componentId,
+                pan.SamplePack);
+
             await js_.InvokeVoidAsync("panPlayback.playNote", cancellationToken, componentId, note.ToString());
         }
 
@@ -1301,6 +1312,7 @@ public sealed class MidiManagerService
 
                     var actualStartAt = await StartMidiSequenceAsync(
                         group.ComponentId,
+                        group.Pan.Pan.SamplePack,
                         group.Events,
                         playbackToken,
                         sharedStartAt);
@@ -1592,6 +1604,7 @@ public sealed class MidiManagerService
         {
             return await StartMidiSequenceAsync(
                 view.ComponentId,
+                view.Pan.SamplePack,
                 events,
                 cancellationToken,
                 startAt);
@@ -1599,6 +1612,7 @@ public sealed class MidiManagerService
 
         private async Task<double?> StartMidiSequenceAsync(
             string componentId,
+            string samplePack,
             IReadOnlyList<MidiPanEvent> events,
             CancellationToken cancellationToken = default,
             double? startAt = null)
@@ -1613,6 +1627,12 @@ public sealed class MidiManagerService
             var scheduledActions = BuildScheduledActions(playbackActions);
 
             cancellationToken.ThrowIfCancellationRequested();
+
+            await js_.InvokeVoidAsync(
+                "panPlayback.setComponentSamplePack",
+                cancellationToken,
+                componentId,
+                samplePack);
 
             var actualStartAt = await js_.InvokeAsync<double?>(
                 "panPlayback.playMidiSchedule",

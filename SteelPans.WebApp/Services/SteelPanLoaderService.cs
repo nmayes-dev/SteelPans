@@ -27,7 +27,7 @@ public sealed class SteelPanLoaderService
     public class SteelPanDto
     {
         public PanType PanType { get; set; }
-        public string SamplePack { get; set; } = "default";
+        public string SamplePack { get; set; } = "Default";
         public List<Note> Notes { get; set; } = new();
     }
 

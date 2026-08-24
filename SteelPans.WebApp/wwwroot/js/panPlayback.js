@@ -83,7 +83,25 @@ window.panPlayback = {
 
     register: function (id, dotNetRef, samplePack) {
         this._refs[id] = dotNetRef;
-        this._samplePackByComponent[id] = samplePack || "default";
+        this.setComponentSamplePack(id, samplePack);
+    },
+
+    setComponentSamplePack: function (componentId, samplePack) {
+        if (!componentId)
+            throw new Error("A component ID is required when assigning an audio pack.");
+
+        if (!samplePack)
+            throw new Error(`No audio pack was provided for component ${componentId}.`);
+
+        this._samplePackByComponent[componentId] = samplePack;
+    },
+
+    _getComponentSamplePack: function (componentId) {
+        const samplePack = this._samplePackByComponent[componentId];
+        if (!samplePack)
+            throw new Error(`No audio pack is registered for component ${componentId}.`);
+
+        return samplePack;
     },
 
     unregister: function (id) {
@@ -350,7 +368,7 @@ window.panPlayback = {
     },
 
     playNote: async function (componentId, noteKey) {
-        const packId = this._samplePackByComponent[componentId] || "default";
+        const packId = this._getComponentSamplePack(componentId);
         const startedAt = performance.now();
         const ctx = await this._resumeAudioContext();
 
@@ -372,7 +390,7 @@ window.panPlayback = {
     },
 
     playNotes: async function (componentId, noteKeys) {
-        const packId = this._samplePackByComponent[componentId] || "default";
+        const packId = this._getComponentSamplePack(componentId);
         if (!Array.isArray(noteKeys) || noteKeys.length === 0)
             return;
 
@@ -819,7 +837,7 @@ window.panPlayback = {
             if (when >= windowStart - 0.005) {
                 if (action.isNoteOn) {
                     const loadStartedAt = performance.now();
-                    const buffer = await this._loadBuffer(this._samplePackByComponent[componentId] || "default", action.noteKey);
+                    const buffer = await this._loadBuffer(this._getComponentSamplePack(componentId), action.noteKey);
                     this._diagSlow(loadStartedAt, "schedule load buffer", { componentId, noteKey: action.noteKey }, 8);
                     const source = ctx.createBufferSource();
                     const noteGain = ctx.createGain();
