@@ -1,7 +1,5 @@
-﻿﻿using Microsoft.JSInterop;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using Microsoft.JSInterop;
+using SteelPans.Shared.Extensions;
 
 namespace SteelPans.Shared.Services;
 
@@ -12,6 +10,7 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
 
     public void MarkSafe()
     {
+        cts_?.Dispose();
         cts_ = new();
         isReady_ = true;
     }
@@ -25,7 +24,7 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Safe JS Interop was cancelled: {ex.Message}");
+            ex.Log("Safe JS Interop was cancelled:");
         }
         finally
         {
@@ -39,7 +38,9 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
         MarkUnsafe();
     }
 
-    public async ValueTask<TValue?> InvokeAsync<TValue>(string identifier, params object?[]? args)
+    public async ValueTask<TValue?> InvokeAsync<TValue>(
+        string identifier,
+        params object?[]? args)
     {
         if (!isReady_ || cts_ is null)
         {
@@ -47,10 +48,24 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
             return default;
         }
 
-        return await js.InvokeAsync<TValue>(identifier, cts_.Token, args);
+        try
+        {
+            return await js.InvokeAsync<TValue>(
+                identifier,
+                cts_.Token,
+                args);
+        }
+        catch (JSDisconnectedException ex)
+        {
+            HandleDisconnected(ex);
+            return default;
+        }
     }
 
-    public async ValueTask<TValue?> InvokeAsync<TValue>(string identifier, CancellationToken token, params object?[]? args)
+    public async ValueTask<TValue?> InvokeAsync<TValue>(
+        string identifier,
+        CancellationToken token,
+        params object?[]? args)
     {
         if (!isReady_ || cts_ is null)
         {
@@ -58,34 +73,78 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
             return default;
         }
 
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-            token,
-            cts_.Token);
-        return await js.InvokeAsync<TValue>(identifier, linkedCts.Token, args);
+        try
+        {
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                token,
+                cts_.Token);
+
+            return await js.InvokeAsync<TValue>(
+                identifier,
+                linkedCts.Token,
+                args);
+        }
+        catch (JSDisconnectedException ex)
+        {
+            HandleDisconnected(ex);
+            return default;
+        }
     }
 
-    public ValueTask InvokeVoidAsync(string identifier, params object?[]? args)
+    public async ValueTask InvokeVoidAsync(
+        string identifier,
+        params object?[]? args)
     {
         if (!isReady_ || cts_ is null)
         {
             Console.WriteLine("Cannot issue JS interop calls at this time!");
-            return ValueTask.CompletedTask;
+            return;
         }
 
-        return js.InvokeVoidAsync(identifier, cts_.Token, args);
+        try
+        {
+            await js.InvokeVoidAsync(
+                identifier,
+                cts_.Token,
+                args);
+        }
+        catch (JSDisconnectedException ex)
+        {
+            HandleDisconnected(ex);
+        }
     }
 
-    public ValueTask InvokeVoidAsync(string identifier, CancellationToken token, params object?[]? args)
+    public async ValueTask InvokeVoidAsync(
+        string identifier,
+        CancellationToken token,
+        params object?[]? args)
     {
         if (!isReady_ || cts_ is null)
         {
             Console.WriteLine("Cannot issue JS interop calls at this time!");
-            return ValueTask.CompletedTask;
+            return;
         }
 
-        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
-            token,
-            cts_.Token);
-        return js.InvokeVoidAsync(identifier, linkedCts.Token, args);
+        try
+        {
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
+                token,
+                cts_.Token);
+
+            await js.InvokeVoidAsync(
+                identifier,
+                linkedCts.Token,
+                args);
+        }
+        catch (JSDisconnectedException ex)
+        {
+            HandleDisconnected(ex);
+        }
+    }
+
+    private void HandleDisconnected(JSDisconnectedException ex)
+    {
+        isReady_ = false;
+        ex.Log("JS interop was disconnected before this task was completed.");
     }
 }

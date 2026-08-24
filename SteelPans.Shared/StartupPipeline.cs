@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using SteelPans.Shared.Extensions;
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
 namespace SteelPans.Shared;
@@ -95,7 +96,7 @@ internal static class StartupStepExecutor
         }
         catch (Exception ex)
         {
-            WriteStartupException(ex);
+            ex.Log("Exception occurred during app startup:");
             throw;
         }
     }
@@ -108,26 +109,8 @@ internal static class StartupStepExecutor
         }
         catch (Exception ex)
         {
-            WriteStartupException(ex);
+            ex.Log("Exception occurred during app startup:");
             throw;
-        }
-    }
-
-    private static void WriteStartupException(Exception ex)
-    {
-        Console.Error.WriteLine("Exception occurred during app startup:");
-        Console.Error.WriteLine(ex.Message);
-
-        var inner = ex.InnerException;
-        var innerCount = 1;
-
-        while (inner is not null)
-        {
-            Console.Error.WriteLine($"{new string('\t', innerCount)}Inner Exception:");
-            Console.Error.WriteLine(inner.Message);
-
-            inner = inner.InnerException;
-            innerCount++;
         }
     }
 }

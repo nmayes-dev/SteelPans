@@ -3,7 +3,7 @@
 @inject KeyboardManagerService KeyboardManager
 @inject UserStateService UserState
 @inject NavigationHistoryService NavigationHistory
-@implements IDisposable
+@implements IAsyncDisposable
 
 <div class="page">
     <div class="sidebar">
@@ -42,8 +42,9 @@
         await KeyboardManager.InitializeAsync();
     }
 
-    public void Dispose()
+    public ValueTask DisposeAsync()
     {
         SafeJS.MarkUnsafe();
+        return ValueTask.CompletedTask;
     }
 }
