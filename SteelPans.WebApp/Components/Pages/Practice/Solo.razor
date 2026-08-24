@@ -285,14 +285,29 @@ else
             return;
         }
 
-        if (selectedTrackId_ is null && Track is not null && MidiService.Playback.Tracks.Any(x => x.Id == Track.Value))
+        if (selectedTrackId_ is not null && MidiService.Playback.Tracks.All(x => x.Id != selectedTrackId_))
+        {
+            selectedTrackId_ = MidiService.Playback.Tracks[0].Id;
+            return;
+        }
+
+        if (Track is not null && MidiService.Playback.Tracks.Any(x => x.Id == Track.Value))
         {
             selectedTrackId_ = Track.Value;
             return;
         }
 
-        if (selectedTrackId_ is null || MidiService.Playback.Tracks.All(x => x.Id != selectedTrackId_))
+        if (MidiService.Playback.Assignments.Any())
+        {
+            selectedTrackId_ = MidiService.Playback.Assignments.First().TrackId;
+            return;
+        }
+
+        if (MidiService.Playback.Tracks.Any())
+        {
             selectedTrackId_ = MidiService.Playback.Tracks[0].Id;
+            return;
+        }
     }
 
     public ValueTask DisposeAsync()
