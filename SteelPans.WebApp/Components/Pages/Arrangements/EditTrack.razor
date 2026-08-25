@@ -6,7 +6,7 @@
 @inject MidiManagerService MidiService
 @inject UserStateService UserState
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
-@inject IJSRuntime JS
+@inject SafeJSInteropService JS
 @inject Microsoft.Extensions.Logging.ILogger<EditTrack> Logger
 @inject NavigationManager Nav
 @inject NavigationHistoryService NavigationHistory
@@ -196,8 +196,8 @@
                               Disabled="@isCountingIn_" />
 
                 <div class="record-track-page__overlay-actions">
-                    <button type="button" class="sp-app-button sp-app-button--danger" @onclick="CancelRecordingOverlay">Cancel</button>
-                    <button type="button" class="sp-app-button sp-app-button--primary" @onclick="SaveRecordingOverlay" disabled="@isCountingIn_">Save</button>
+                    <button type="button" class="sp-app-button sp-app-button--danger" @onclick="CancelRecordingOverlayAsync">Cancel</button>
+                    <button type="button" class="sp-app-button sp-app-button--primary" @onclick="SaveRecordingOverlayAsync" disabled="@isCountingIn_">Save</button>
                 </div>
 
                 <div class="@($"record-track-page__count-in{(isCountingIn_ ? " record-track-page__count-in--show" : " record-track-page__count-in--hide")}")"
@@ -222,6 +222,7 @@
     public string? ReturnTo { get; set; }
 
     private string? error_;
+    private string? pageTitleText_;
     private Guid? editingTrackId_;
     private Guid editablePlaybackTrackId_ = Guid.NewGuid();
     private bool loadedExistingTrack_;
@@ -269,13 +270,13 @@
     private CancellationTokenSource? recordingPositionCts_;
     private CancellationTokenSource? countInCts_;
     private CancellationTokenSource? metronomeCts_;
-    private CancellationTokenSource? overdubPlaybackCts_;
     private Guid? selectedNoteId_;
     private int? editablePlaybackHash_;
     private SteelPanView? overlayPan_;
     private MidiTrackVisualiser? recordVisualiser_;
     private readonly List<MidiPanEvent> notes_ = [];
     private List<MidiPanEvent>? recordingNotes_;
+    private List<MidiPanScheduledAction> overdubNotes_ = [];
     private IReadOnlyList<MidiPanEvent> CurrentOverlayNotes => recordingNotes_ ?? notes_;
     private bool hasUnsavedTrackChanges_;
     private bool DiagnosticsEnabled => string.Equals(Env.EnvironmentName, "Development", StringComparison.OrdinalIgnoreCase);
@@ -285,12 +286,13 @@
     private int? SelectedPanMinSemitone => SelectedPan?.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Min();
     private int? SelectedPanMaxSemitone => SelectedPan?.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Max();
     private string StatusText => isCountingIn_ ? "Count in" : isRecording_ ? "Recording" : isPlayingBack_ ? "Playing" : "Ready";
-    private string PageTitleText => editingTrackId_ is null ? "Create Track" : "Edit Track";
+    private string PageTitleText => pageTitleText_ ?? "Loading...";
 
     private bool DisableButtons(bool requireNotes) => isRecording_ || isCountingIn_ || isPlayingBack_ || (requireNotes && !notes_.Any());
 
     protected override void OnInitialized()
     {
+        pageTitleText_ = editingTrackId_ is null ? "Create Track" : "Edit Track";
         MidiService.Playback.PlaybackStarted += OnEditPlaybackStartedAsync;
         MidiService.Playback.PlaybackPaused += OnEditPlaybackPausedAsync;
         MidiService.Playback.PlaybackStopped += OnEditPlaybackStoppedAsync;
@@ -465,52 +467,104 @@
         countInCts_?.Dispose();
         countInCts_ = new CancellationTokenSource();
 
+        // Always finish tearing down a previous recording schedule before starting a new one.
+        // In particular, this prevents a fire-and-forget stop from an earlier Cancel from
+        // arriving after the new overdub schedule has started and stopping the new audio.
+        await StopOverdubPlaybackAsync();
+
+        recordingStartSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, visualiserDurationSeconds_));
+
+        if (recordingMode_ == RecordingMode.Overdub)
+            await PrepareOverdubPlaybackAsync();
+
+        // Slight pause to sync
+        await Task.Delay(200);
+
         try
         {
             await RunCountInAsync(countInCts_.Token);
+            await BeginRecordingAtCurrentPositionAsync();
         }
         catch (OperationCanceledException)
         {
             isCountingIn_ = false;
             isRecordOverlayOpen_ = false;
             countInProgress_ = 0;
-            return;
+        }
+    }
+
+    private Task RunCountInCycleAsync(int beats, double secondsPerBeat, CancellationToken cancellationToken)
+    {
+        var ticks = TimeSpan.Zero;
+        var tickInterval = TimeSpan.FromMilliseconds(5);
+        var tickCycleEnd = TimeSpan.FromSeconds(beats * secondsPerBeat);
+
+        var spinnerTasks = new List<Task>();
+        for (var tick = TimeSpan.Zero; tick < tickCycleEnd; tick += tickInterval)
+        {
+            var beatProgress = tick.TotalSeconds % secondsPerBeat;
+            spinnerTasks.Add(Task.Delay(tick, cancellationToken).ContinueWith(async _ =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                countInProgress_ = Math.Clamp(beatProgress / secondsPerBeat, 0, 1);
+                await InvokeAsync(StateHasChanged);
+            }));
         }
 
-        isCountingIn_ = false;
-        await BeginRecordingAtCurrentPositionAsync();
+        return Task.WhenAll(spinnerTasks);
+    }
+
+    private Task RunCountInAudioTicksAsync(int beats, double secondsPerBeat, CancellationToken cancellationToken)
+    {
+        var beatInterval = TimeSpan.FromSeconds(secondsPerBeat);
+
+        var countInTasks = new List<Task>();
+        for (var beat = 0; beat < beats; beat++)
+        {
+            var currentBeat = beat;
+            countInTasks.Add(Task.Delay(beat * beatInterval, cancellationToken).ContinueWith(async _ =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                countInNumber_ = beats - currentBeat;
+                await PlayMetronomeTickAsync(currentBeat == 0, cancellationToken);
+                await InvokeAsync(StateHasChanged);
+            }));
+        }
+
+        return Task.WhenAll(countInTasks);
     }
 
     private async Task RunCountInAsync(CancellationToken cancellationToken)
     {
         var beats = Math.Max(1, beatsPerBar_);
         var secondsPerBeat = GetSecondsPerBeat(beatUnit_);
-        var tickInterval = TimeSpan.FromMilliseconds(33);
+        var countInEnd = TimeSpan.FromSeconds(beats * secondsPerBeat);
 
-        for (var beat = beats; beat >= 1; beat--)
-        {
-            countInNumber_ = beat;
-            var beatStartedAt = DateTimeOffset.UtcNow;
-            await PlayMetronomeTickAsync(beat == beats, cancellationToken);
-            await InvokeAsync(StateHasChanged);
-
-            while ((DateTimeOffset.UtcNow - beatStartedAt).TotalSeconds < secondsPerBeat)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                countInProgress_ = Math.Clamp((DateTimeOffset.UtcNow - beatStartedAt).TotalSeconds / secondsPerBeat, 0, 1);
-                await InvokeAsync(StateHasChanged);
-                await Task.Delay(tickInterval, cancellationToken);
-            }
-
-            countInProgress_ = 1;
-        }
+        await Task.WhenAll(
+            RunCountInAudioTicksAsync(beats, secondsPerBeat, cancellationToken),
+            RunCountInCycleAsync(beats, secondsPerBeat, cancellationToken)
+        );
     }
 
     private async Task BeginRecordingAtCurrentPositionAsync()
     {
-        recordingStartSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, visualiserDurationSeconds_));
-        recordStartedAt_ = DateTimeOffset.UtcNow;
-        recordStartedAtAudioTimeSeconds_ = await TryGetAudioTimeAsync();
+        isCountingIn_ = false;
+
+        double? currentAudioTime = await TryGetAudioTimeAsync();
+        recordStartedAtAudioTimeSeconds_ = recordingMode_ == RecordingMode.Overdub
+            ? await StartOverdubPlaybackAsync()
+            : currentAudioTime;
+
+        recordStartedAtAudioTimeSeconds_ ??= currentAudioTime;
+
+        // Keep the DateTime fallback on the same zero point as Web Audio. Overdub playback is
+        // deliberately anchored slightly in the future so that all samples are ready before
+        // the playhead and audio begin together.
+        var fallbackDelaySeconds = recordStartedAtAudioTimeSeconds_ is double audioStart && currentAudioTime is double audioNow
+            ? Math.Max(0, audioStart - audioNow)
+            : 0;
+        recordStartedAt_ = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(fallbackDelaySeconds);
+
         LogRecordingDiagnostic(
             "Begin recording mode={RecordingMode}, startSeconds={StartSeconds:F3}, audioStart={AudioStart}, existingNotes={ExistingNoteCount}, overlayNotes={OverlayNoteCount}, clickTrack={ClickTrack}",
             recordingMode_,
@@ -526,8 +580,6 @@
         if (clickTrackDuringRecording_)
             StartMetronomeClickLoop();
 
-        if (recordingMode_ == RecordingMode.Overdub)
-            StartOverdubPlaybackLoop();
     }
 
     private Task OnPanNotePlayedAsync(SteelPanView.PlayedNote playedNote)
@@ -778,7 +830,8 @@
 
                 if (recordingPositionSeconds_ >= visualiserDurationSeconds_)
                 {
-                    StopRecording(keepOverlayOpen: true, resetPosition: false);
+                    await StopRecordingAsync(keepOverlayOpen: true, resetPosition: false);
+                    return;
                 }
             }
         }
@@ -787,18 +840,18 @@
         }
     }
 
-    private void CancelRecordingOverlay()
+    private async Task CancelRecordingOverlayAsync()
     {
         countInCts_?.Cancel();
-        StopRecording(keepOverlayOpen: false, resetPosition: true);
+        await StopRecordingAsync(keepOverlayOpen: false, resetPosition: true);
         isCountingIn_ = false;
         recordingNotes_ = null;
     }
 
-    private void SaveRecordingOverlay()
+    private async Task SaveRecordingOverlayAsync()
     {
         countInCts_?.Cancel();
-        StopRecording(keepOverlayOpen: false, resetPosition: true);
+        await StopRecordingAsync(keepOverlayOpen: false, resetPosition: true);
         isCountingIn_ = false;
 
         if (recordingNotes_ is not null)
@@ -810,23 +863,24 @@
         }
     }
 
-    private void StopRecording(bool keepOverlayOpen = false, bool resetPosition = true)
+    private async Task StopRecordingAsync(bool keepOverlayOpen = false, bool resetPosition = true)
     {
         if (isRecording_)
-        {
             recordingPositionSeconds_ = GetCurrentRecordingPositionSeconds();
-        }
 
         isRecording_ = false;
         isRecordOverlayOpen_ = keepOverlayOpen;
         recordingPositionCts_?.Cancel();
         metronomeCts_?.Cancel();
-        overdubPlaybackCts_?.Cancel();
+
+        // This must complete before another recording can start. Otherwise a delayed stop from
+        // the previous recording can clear the newly-created Web Audio schedule.
+        await StopOverdubPlaybackAsync();
 
         if (resetPosition)
             recordingPositionSeconds_ = 0;
 
-        _ = StopRecordingVisualiserPlayheadAsync(recordingPositionSeconds_, resetPosition);
+        await StopRecordingVisualiserPlayheadAsync(recordingPositionSeconds_, resetPosition);
     }
 
     private void StartMetronomeClickLoop()
@@ -876,76 +930,111 @@
         }
     }
 
-    private void StartOverdubPlaybackLoop()
+    private async Task PrepareOverdubPlaybackAsync()
     {
-        overdubPlaybackCts_?.Cancel();
-        overdubPlaybackCts_?.Dispose();
-        overdubPlaybackCts_ = new CancellationTokenSource();
-
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-        var start = recordingStartSeconds_;
-        var notesToPlay = notes_
-            .Where(x => x.Start.TotalSeconds >= start && x.Start.TotalSeconds < visualiserDurationSeconds_)
-            .OrderBy(x => x.Start.TotalSeconds)
-            .ThenBy(x => x.Note.SemitoneNumber)
-            .Select(CloneEvent)
-            .ToList();
-        stopwatch.Stop();
-
-        LogRecordingDiagnostic(
-            "Prepared overdub playback start={Start:F3}, sourceNotes={SourceNoteCount}, notesToPlay={NotesToPlay}, elapsedMs={ElapsedMs}",
-            start,
-            notes_.Count,
-            notesToPlay.Count,
-            stopwatch.ElapsedMilliseconds);
-        LogRecordingSlowDiagnostic(
-            stopwatch.ElapsedMilliseconds,
-            "Slow overdub note preparation sourceNotes={SourceNoteCount}, notesToPlay={NotesToPlay}",
-            notes_.Count,
-            notesToPlay.Count);
-
-        _ = PlayOverdubNotesAsync(start, notesToPlay, overdubPlaybackCts_.Token);
-    }
-
-    private async Task PlayOverdubNotesAsync(double startSeconds, IReadOnlyList<MidiPanEvent> notesToPlay, CancellationToken cancellationToken)
-    {
-        if (notesToPlay.Count == 0)
+        if (overlayPan_ is null)
             return;
 
-        LogRecordingDiagnostic(
-            "Started overdub playback loop start={Start:F3}, notesToPlay={NotesToPlay}",
-            startSeconds,
-            notesToPlay.Count);
+        var start = recordingStartSeconds_;
+        var events = notes_
+            .Where(x => x.End.TotalSeconds > start && x.Start.TotalSeconds < visualiserDurationSeconds_)
+            .OrderBy(x => x.Start)
+            .ThenBy(x => x.Note.SemitoneNumber)
+            .Select(x =>
+            {
+                var eventStart = Math.Max(x.Start.TotalSeconds, start);
+                var eventEnd = Math.Min(x.End.TotalSeconds, visualiserDurationSeconds_);
+
+                return new MidiPanEvent
+                {
+                    Note = x.Note,
+                    Start = TimeSpan.FromSeconds(Math.Max(0, eventStart - start)),
+                    Duration = TimeSpan.FromSeconds(Math.Max(0.001, eventEnd - eventStart))
+                };
+            })
+            .ToList();
+
+        if (events.Count == 0)
+            return;
+
+        overdubNotes_ = events
+            .SelectMany(x => new[]
+            {
+                new MidiPanScheduledAction
+                {
+                    NoteKey = x.Note.ToString(),
+                    TimeSeconds = x.Start.TotalSeconds,
+                    IsNoteOn = true
+                },
+                new MidiPanScheduledAction
+                {
+                    NoteKey = x.Note.ToString(),
+                    TimeSeconds = x.End.TotalSeconds,
+                    IsNoteOn = false
+                }
+            })
+            .OrderBy(x => x.TimeSeconds)
+            .ThenBy(x => x.IsNoteOn ? 1 : 0)
+            .ToList();
 
         try
         {
-            foreach (var note in notesToPlay)
-            {
-                var delayScoreSeconds = note.Start.TotalSeconds - GetCurrentRecordingPositionSeconds();
-
-                if (delayScoreSeconds > 0)
-                    await Task.Delay(TimeSpan.FromSeconds(delayScoreSeconds / recordingTempoRatio_), cancellationToken);
-
-                if (!isRecording_ || cancellationToken.IsCancellationRequested)
-                    return;
-
-                if (GetCurrentRecordingPositionSeconds() + 0.05 < note.Start.TotalSeconds)
-                    continue;
-
-                var previewStopwatch = System.Diagnostics.Stopwatch.StartNew();
-                await PreviewNoteAsync(note.Note);
-                previewStopwatch.Stop();
-
-                LogRecordingSlowDiagnostic(
-                    previewStopwatch.ElapsedMilliseconds,
-                    "Slow overdub preview note={Note}, noteStart={NoteStart:F3}, position={Position:F3}, notesToPlay={NotesToPlay}",
-                    note.Note,
-                    note.Start.TotalSeconds,
-                    recordingPositionSeconds_,
-                    notesToPlay.Count);
-            }
+            // Load every sample needed by the overdub before choosing the shared start time.
+            // This avoids the first scheduler window blocking on sample loads and starting the
+            // audio late relative to the playhead.
+            await JS.InvokeVoidAsync(
+                "panPlayback.prepareMidiSchedule",
+                overlayPan_.ComponentId,
+                overdubNotes_);
         }
-        catch (OperationCanceledException)
+        catch (JSException)
+        {
+        }
+    }
+
+    private async Task<double?> StartOverdubPlaybackAsync()
+    {
+        if (overlayPan_ is null)
+            return null;
+
+        if (overdubNotes_.Count == 0)
+            return await TryGetAudioTimeAsync();
+
+        LogRecordingDiagnostic(
+            "Starting overdub Web Audio schedule start={Start:F3}, sourceNotes={SourceNoteCount}, scheduledNotes={ScheduledNoteCount}, tempo={TempoBpm}, baseTempo={BaseTempoBpm}",
+            recordingStartSeconds_,
+            notes_.Count,
+            overdubNotes_.Count,
+            tempoBpm_,
+            visualiserInitialBpm_);
+
+        try
+        {
+            var currentAudioTime = await MidiService.Playback.GetAudioTimeAsync();
+            return await JS.InvokeAsync<double?>(
+                "panPlayback.playMidiSchedule",
+                overlayPan_.ComponentId,
+                overdubNotes_,
+                Math.Max(visualiserInitialBpm_, 1),
+                Math.Max(tempoBpm_, 1),
+                currentAudioTime);
+        }
+        catch (JSException)
+        {
+            return await TryGetAudioTimeAsync();
+        }
+    }
+
+    private async Task StopOverdubPlaybackAsync()
+    {
+        if (overlayPan_ is null)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync("panPlayback.stopMidiSchedule", overlayPan_.ComponentId);
+        }
+        catch (JSException)
         {
         }
     }
@@ -1005,6 +1094,7 @@
     {
         var track = BuildEditablePlaybackTrack();
         await MidiService.Playback.SetLiveTrackOverrideAsync(track);
+        await MidiService.Playback.SetTempoBpmAsync(tempoBpm_);
 
         editablePlaybackHash_ = GetEditablePlaybackHash();
         recordingPositionSeconds_ = Math.Clamp(recordingPositionSeconds_, 0, Math.Max(0, durationSeconds_));
@@ -1096,16 +1186,14 @@
         metronomeCts_?.Cancel();
         metronomeCts_?.Dispose();
         metronomeCts_ = null;
-        overdubPlaybackCts_?.Cancel();
-        overdubPlaybackCts_?.Dispose();
-        overdubPlaybackCts_ = null;
+        await StopOverdubPlaybackAsync();
         await Task.CompletedTask;
     }
 
     private async Task SaveTrack()
     {
         await StopPlaybackAsync();
-        StopRecording();
+        await StopRecordingAsync();
         error_ = null;
         if (notes_.Count == 0)
         {

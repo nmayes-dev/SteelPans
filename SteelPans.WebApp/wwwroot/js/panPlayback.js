@@ -700,6 +700,20 @@ window.panPlayback = {
         this._diagSlow(pointerStartedAt, "notePointerDown sync path", { componentId, noteKey, noteAudioTime }, 8);
     },
 
+    prepareMidiSchedule: async function (componentId, scheduledActions) {
+        if (!componentId || !Array.isArray(scheduledActions) || scheduledActions.length === 0)
+            return;
+
+        const ctx = await this._resumeAudioContext();
+        const samplePack = this._getComponentSamplePack(componentId);
+        const noteKeys = [...new Set(
+            scheduledActions
+                .filter(action => action && action.isNoteOn === true && typeof action.noteKey === "string" && action.noteKey.length > 0)
+                .map(action => action.noteKey))];
+
+        await Promise.all(noteKeys.map(noteKey => this._loadBuffer(samplePack, noteKey)));
+    },
+
     playMidiSchedule: async function (componentId, scheduledActions, baseBpm, currentBpm, startAt) {
         if (!Array.isArray(scheduledActions) || scheduledActions.length === 0)
             return null;
@@ -724,9 +738,8 @@ window.panPlayback = {
         const hasProvidedStartAt = Number.isFinite(numericStartAt);
 
         const actualStartAt = hasProvidedStartAt
-            ? numericStartAt
-            : ctx.currentTime + 0.8;
-
+            ? Math.max(numericStartAt, ctx.currentTime)
+            : ctx.currentTime;
 
         const state = this._getOrCreateMidiScheduleState(componentId);
         state.baseBpm = effectiveBaseBpm;
@@ -734,23 +747,8 @@ window.panPlayback = {
         state.nextActionIndex = 0;
         state.isRunning = true;
 
-        if (hasProvidedStartAt && actualStartAt <= ctx.currentTime) {
-            const lateBySeconds = ctx.currentTime - actualStartAt;
-
-            state.anchorAudioTime = ctx.currentTime;
-            state.anchorBeat = lateBySeconds * effectiveCurrentBpm / 60.0;
-
-            console.warn("Joining MIDI schedule late", {
-                componentId,
-                providedStartAt: actualStartAt,
-                currentTime: ctx.currentTime,
-                lateBySeconds,
-                anchorBeat: state.anchorBeat
-            });
-        } else {
-            state.anchorAudioTime = actualStartAt;
-            state.anchorBeat = 0;
-        }
+        state.anchorAudioTime = actualStartAt;
+        state.anchorBeat = 0;
 
         state.actions = scheduledActions
             .filter(action =>

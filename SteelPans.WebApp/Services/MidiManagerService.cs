@@ -1405,7 +1405,8 @@ public sealed class MidiManagerService
         {
             bpm = Math.Clamp(bpm, 20, 200);
 
-            if (TempoBpm == bpm)
+            var overrideChanged = MidiPlaybackInfo is not null && midiBpmOverride_ != bpm;
+            if (TempoBpm == bpm && !overrideChanged)
                 return;
 
             TempoBpm = bpm;
