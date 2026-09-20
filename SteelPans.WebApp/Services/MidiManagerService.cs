@@ -421,18 +421,6 @@ public sealed class MidiManagerService
             return Tracks.Count == 0 ? 0 : Tracks.Max(x => x.Index) + 1;
         }
 
-        private static MidiPlaybackInfo? CreatePlaybackInfo(IReadOnlyList<MidiTrackInfo> tracks)
-        {
-            return tracks.FirstOrDefault() is { } first
-                ? new MidiPlaybackInfo
-                {
-                    InitialBpm = first.TempoBpm,
-                    InitialBeatsPerBar = first.BeatsPerBar,
-                    InitialBeatUnit = first.BeatUnit
-                }
-                : null;
-        }
-
         private static MidiTrackInfo CloneTrack(MidiTrackInfo track, Guid id, int index)
         {
             var events = CloneEvents(track.Events);
@@ -1163,6 +1151,19 @@ public sealed class MidiManagerService
                 return;
 
             activePan.Muted = muted;
+
+            await ApplyPlaybackVolumesAsync();
+            await NotifyPanMixChangedAsync();
+        }
+
+        public async Task ResetPanPlaybackSettings()
+        {
+            foreach (var pan in ActivePans)
+            {
+                pan.Muted = false;
+                pan.Soloing = false;
+                pan.Volume = 1.0;
+            }
 
             await ApplyPlaybackVolumesAsync();
             await NotifyPanMixChangedAsync();

@@ -73,7 +73,7 @@ else if (MidiService.Playback.Assignments.Count == 0)
                     @if (FileId is not null)
                     {
                         <button class="sp-app-button sp-app-button--primary" @onclick="() => TogglePreviewAsync(FileId.Value)">Tracks</button>
-                        <MidiFilePreview @ref="filePreview_" CloseOnSave="true"/>
+                        <MidiFilePreview @ref="filePreview_" CloseOnSave="true" />
                     }
                     else
                     {
@@ -85,7 +85,7 @@ else if (MidiService.Playback.Assignments.Count == 0)
                         <BackButton FallbackUrl="/play" Class="sp-app-button sp-app-button--secondary" />
                         <ExpandingOverlay Title="Add Pans" Text="Tracks" ExpandDirection="ExpandingOverlay.Direction.Right" ClosedIconClass="x-lg">
                             <MidiTrackList Tracks="MidiService.Playback.Tracks" />
-                         </ExpandingOverlay>
+                        </ExpandingOverlay>
                     </div>
                 </NotAuthorized>
             </AuthorizeView>
@@ -165,6 +165,9 @@ else
     private bool soloTrack_ = true;
     private Guid? selectedTrackId_;
 
+    private bool previousClickTrackSetting_;
+    private int previousCountInSetting_;
+
     private Guid? SelectedTrackId => selectedTrackId_ ?? Track ?? MidiService.Playback.Assignments.FirstOrDefault()?.TrackId;
     private MidiTrackInfo? SelectedTrack => SelectedTrackId is Guid trackId ? MidiService.Playback.Tracks.FirstOrDefault(x => x.Id == trackId) : null;
     private MidiAssignedPan? SelectedAssignedPan => SelectedTrackId is Guid trackId ? MidiService.Playback.GetAssignedPanForTrack(trackId) : null;
@@ -196,6 +199,12 @@ else
     {
         MidiService.Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
         MidiService.Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
+
+        previousClickTrackSetting_ = MidiService.Playback.ClickTrackEnabled;
+        previousCountInSetting_ = MidiService.Playback.CountInBeats;
+
+        await MidiService.Playback.SetClickTrackEnabledAsync(true);
+        await MidiService.Playback.SetCountInBeatsAsync(MidiService.Playback.BeatsPerBar);
 
         if (loadedFileFromQuery_ || FileId is null)
             return;
@@ -310,10 +319,13 @@ else
         }
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
+        await MidiService.Playback.SetClickTrackEnabledAsync(previousClickTrackSetting_);
+        await MidiService.Playback.SetCountInBeatsAsync(previousCountInSetting_);
+        await MidiService.Playback.ResetPanPlaybackSettings();
+
         MidiService.Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
         MidiService.Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
-        return ValueTask.CompletedTask;
     }
 }
