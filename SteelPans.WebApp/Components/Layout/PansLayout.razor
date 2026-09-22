@@ -22,14 +22,12 @@
                 <div class="pans-display__item-header">
                     <div class="pans-display__item-copy">
                         <div class="pans-display__item-copy-group pans-display__item-copy-group--left">
-                            <div class="pans-display__item-copy-label">Pan</div>
                             <div class="pans-display__item-type">
                                 @assignedPan.Assignment.AssignedPanType.ToSpacedPascal()
                             </div>
                         </div>
 
                         <div class="pans-display__item-copy-group pans-display__item-copy-group--right">
-                            <div class="pans-display__item-copy-label">Track</div>
                             <div class="pans-display__item-track">
                                 @MidiService.Playback.GetTrackForAssignment(assignedPan.Assignment)?.Name
                             </div>

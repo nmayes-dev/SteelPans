@@ -476,7 +476,7 @@ window.visualiser = {
         const viewportHeight = Math.max(260, window.visualViewport?.height || window.innerHeight || rootBounds.height || 0);
         const viewportWidth = Math.max(180, rootWidth - Math.min(defaultLabelWidth, rootWidth * 0.36));
         const compactness = this._clamp((Math.min(rootWidth, viewportHeight) - 320) / 720, 0, 1);
-        const heightDrivenLaneHeight = viewportHeight * 0.45;
+        const heightDrivenLaneHeight = viewportHeight * 0.25;
         const widthDrivenLaneHeight = rootWidth * 0.45;
         const laneHeight = this._clamp(Math.min(widthDrivenLaneHeight, heightDrivenLaneHeight), 120, 220);
 
@@ -484,7 +484,7 @@ window.visualiser = {
             labelWidth: Math.round(this._clamp(rootWidth * 0.15, 95, 180)),
             rulerHeight: Math.round(this._clamp(20 + (compactness * 6), 20, 28)),
             laneHeight: Math.round(laneHeight),
-            noteHeight: Math.round(this._clamp(laneHeight * 0.1, 5, 14)),
+            noteHeight: Math.round(this._clamp(laneHeight * 0.08, 5, 14)),
             pixelsPerSecond: this._clamp(viewportWidth / Math.max(4, Math.min(durationSeconds, 8)), 112, defaultPixelsPerSecond),
             minTimelineWidth: Math.max(Math.round(viewportWidth), 560)
         };

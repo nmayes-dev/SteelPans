@@ -39,6 +39,15 @@ public partial class MidiTrackVisualiser
     public string? TrackLabel { get; set; }
 
     [Parameter]
+    public RenderFragment? HeaderContent { get; set; }
+
+    [Parameter]
+    public RenderFragment? TrackControls { get; set; }
+
+    [Parameter]
+    public RenderFragment? FooterContent { get; set; }
+
+    [Parameter]
     public IReadOnlyList<MidiPanEvent> Notes { get; set; } = [];
 
     [Parameter]

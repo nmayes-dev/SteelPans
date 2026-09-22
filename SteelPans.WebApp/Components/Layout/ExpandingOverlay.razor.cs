@@ -17,6 +17,8 @@ public partial class ExpandingOverlay
 
     [Parameter] public RenderFragment? ChildContent { get; set; }
 
+    [Parameter] public RenderFragment? HeaderContent { get; set; }
+
     [Parameter] public string MenuButtonLabel { get; set; } = "Open Menu";
 
     [Parameter] public string MenuLabel { get; set; } = "Toolbar Menu";

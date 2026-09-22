@@ -9,7 +9,7 @@
                     type="button"
                     aria-label="@MenuButtonLabel"
                     @onclick="ToggleStateAsync">
-                <div class="overlay__header-content">
+                <div class="overlay__header-content @(HeaderContent != null ? "overlay__header-with-user-content" : "")">
                     <div class="overlay__header-button-content">
                         <span class="overlay__header-button-icon">
                             <span class="@IconClass" aria-hidden="true" />
@@ -20,6 +20,10 @@
                     <div class="overlay__header-container">
                         <div class="overlay__header-title-wrap">
                             <span class="overlay__header-title">@Title</span>
+                            @if (HeaderContent != null)
+                            {
+                                @HeaderContent
+                            }
                         </div>
                     </div>
                 </div>

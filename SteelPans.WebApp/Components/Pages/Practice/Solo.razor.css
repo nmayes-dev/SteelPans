@@ -1,5 +1,5 @@
 .practice-page {
-    grid-template-rows: min-content min-content auto;
+    grid-template-rows: min-content minmax(0, 1fr);
     gap: 0.2rem;
 }
 
@@ -14,12 +14,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
-}
-
-.practice-page__control {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    gap: 0.5rem;
 }
 
 .practice-page__empty-card {
@@ -53,61 +47,37 @@
         transform: translateY(1px);
     }
 
-
-.practice-page__playback {
-    padding: 0 clamp(0.5rem, 0.8vw, 0.8rem);
-}
-
-.practice-page__selector-card {
-    display: grid;
-    gap: clamp(1rem, 2vw, 1.5rem);
-    align-items: center;
-}
-
-.practice-page__selector-card {
-    grid-template-columns: minmax(16rem, 28rem) minmax(0, 1fr);
-}
-
-.practice-page__track {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    overflow: visible;
-    padding: clamp(0.25rem, 0.5vw, 0.5rem) clamp(0.35rem, 0.5vw, 0.6rem);
-}
-
-.practice-page__field {
-    display: flex;
-    flex-direction: column;
-    align-items: start;
+.practice-page__track-select {
+    width: 100%;
     min-width: 0;
+    border: 0;
+    background: transparent;
+    color: #475569;
+    font: inherit;
+    font-size: clamp(0.62rem, 1.8vw, 0.8rem);
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: normal;
+    cursor: pointer;
 }
 
-    .practice-page__field span {
-        color: #475569;
+    .practice-page__track-select:focus-visible {
+        outline: 2px solid rgba(37, 99, 235, 0.45);
+        outline-offset: 2px;
+        border-radius: 0.25rem;
     }
 
-.practice-page__field-pan {
-    gap: 0.25rem;
+.practice-page__solo-control {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: end;
+    gap: 0.1rem;
+    color: rgba(15, 23, 42, 0.68);
+    font-size: clamp(0.4rem, 0.38rem + 0.18vw, 0.9rem);
+    font-weight: 700;
+    white-space: nowrap;
 }
-
-    .practice-page__field-pan span {
-        color: #475569;
-        font-size: 1rem;
-        font-weight: 800;
-    }
-
-    .practice-page__field-pan select {
-        width: max-content;
-        font-size: 0.9rem;
-    }
-
-.practice-page__field-controls {
-    gap: 0.25rem;
-}
-
-    .practice-page__field-controls ::deep {
-        --overlay__button-override-size: calc(0.75 * var(--ui-icon-button-size));
-    }
 
 .practice-page__card {
     display: grid;

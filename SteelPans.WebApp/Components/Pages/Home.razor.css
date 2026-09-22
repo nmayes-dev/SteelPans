@@ -136,7 +136,7 @@
     }
 
     .home-page__actions {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: clamp(0.4rem, 1vw, 0.75rem);
     }
 

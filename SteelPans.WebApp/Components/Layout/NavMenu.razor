@@ -3,76 +3,30 @@
 @inject NavigationHistoryService NavigationHistory
 @implements IDisposable
 
-<div class="top-row navbar navbar-dark">
-    <div class="container-fluid">
-        <button type="button"
-                class="navbar-back-button"
-                title="Back"
-                disabled="@DisableBackButton"
-                aria-label="Back"
-                @onclick="GoBack">
-            <span class="bi bi-arrow-left" aria-hidden="true"></span>
-        </button>
-        <a class="navbar-brand" href="">Steel Pans</a>
+<div class="navbar-full-display">
+    <div class="top-row navbar navbar-dark">
+        <div class="container-fluid">
+            @BackButtonFragment
+            <a class="navbar-brand" href="">Steel Pans</a>
+        </div>
     </div>
+    @NavigationOptionsFragment
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="play">
-                <span class="bi bi-play-circle" aria-hidden="true"></span> Play
-            </NavLink>
-        </div>
-
-        <AuthorizeView>
-            <Authorized Context="auth">
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="arrangements">
-                        <span class="bi bi-sliders" aria-hidden="true"></span> Arrangements
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="groups">
-                        <span class="bi bi-people" aria-hidden="true"></span> Groups
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="account">
-                        <span class="bi bi-person-circle" aria-hidden="true"></span> Account
-                    </NavLink>
-                </div>
-
-                <div class="nav-item px-3">
-                    <button class="nav-link" @onclick="OpenLogoutAsync">
-                        <span class="bi bi-box-arrow-right" aria-hidden="true"></span> Logout
-                    </button>
-                </div>
-            </Authorized>
-
-            <NotAuthorized>
-                <div class="nav-item px-3">
-                    <a class="nav-link" href="/account/login">
-                        <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Login
-                    </a>
-                </div>
-            </NotAuthorized>
-        </AuthorizeView>
-    </nav>
+<div class="navbar-mobile-display">
+    <ExpandingOverlay @ref="mobileOverlay_" Title="Steel Pans" ClosedIconClass="list" ExpandDirection="ExpandingOverlay.Direction.Left">
+        <HeaderContent>
+            @BackButtonFragment
+        </HeaderContent>
+        <ChildContent>
+            @NavigationOptionsFragment
+</ChildContent>
+    </ExpandingOverlay>
 </div>
 
 @code {
+    private ExpandingOverlay? mobileOverlay_;
+
     private bool DisableBackButton
     {
         get
@@ -106,4 +60,72 @@
     {
         Navigation.LocationChanged -= OnLocationChanged;
     }
+
+    private async Task OnNavigationItemClicked(string targetLocation)
+    {
+        if (mobileOverlay_ is not null && targetLocation != Navigation.ToBaseRelativePath(Navigation.Uri))
+        {
+            await mobileOverlay_.RequestCloseAsync();
+        }
+    }
+
+    private RenderFragment BackButtonFragment =>@<button type="button"
+                                                      class="navbar-back-button"
+                                                      title="Back"
+                                                      disabled="@DisableBackButton"
+                                                      aria-label="Back"
+                                                      @onclick="GoBack">
+        <span class="bi bi-arrow-left" aria-hidden="true"></span>
+    </button>;
+
+    private RenderFragment NavigationOptionsFragment => @<nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All" @onclick="() => OnNavigationItemClicked(string.Empty)">
+                <span class="bi bi-house-door-fill" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="play" @onclick='() => OnNavigationItemClicked("play")'>
+                <span class="bi bi-play-circle" aria-hidden="true"></span> Play
+            </NavLink>
+        </div>
+
+        <AuthorizeView>
+            <Authorized Context="auth">
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="arrangements" @onclick='() => OnNavigationItemClicked("arrangements")'>
+                        <span class="bi bi-sliders" aria-hidden="true"></span> Arrangements
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="groups" @onclick='() => OnNavigationItemClicked("groups")'>
+                        <span class="bi bi-people" aria-hidden="true"></span> Groups
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="account" @onclick='() => OnNavigationItemClicked("account")'>
+                        <span class="bi bi-person-circle" aria-hidden="true"></span> Account
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <button class="nav-link" @onclick="OpenLogoutAsync">
+                        <span class="bi bi-box-arrow-right" aria-hidden="true"></span> Logout
+                    </button>
+                </div>
+            </Authorized>
+
+            <NotAuthorized>
+                <div class="nav-item px-3">
+                    <a class="nav-link" href="/account/login" @onclick='() => OnNavigationItemClicked("login")'>
+                        <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Login
+                    </a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </nav>;
 }

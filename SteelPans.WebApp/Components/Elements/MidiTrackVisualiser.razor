@@ -4,14 +4,31 @@
 
 <div class="midi-track-visualiser midi-track-visualiser--@Mode.ToString().ToLowerInvariant()" @ref="root_" tabindex="0">
     <div class="midi-track-visualiser__labels">
-        <div class="midi-track-visualiser__corner" />
-        <div class="midi-track-visualiser__track-label">
-            <strong>@PanLabel</strong>
-            @if (!string.IsNullOrWhiteSpace(TrackLabel))
+        <div class="midi-track-visualiser__corner">
+            @if (HeaderContent is not null)
             {
-                <span>@TrackLabel</span>
+                @HeaderContent
             }
-            <small>@Notes.Count note@(Notes.Count == 1 ? string.Empty : "s")</small>
+            else
+            {
+                <strong>@PanLabel</strong>
+            }
+        </div>
+        <div class="midi-track-visualiser__track-label">
+            <div class="midi-track-visualiser__track-info">
+                <small>@Notes.Count note@(Notes.Count == 1 ? string.Empty : "s")</small>
+                @if (!string.IsNullOrWhiteSpace(TrackLabel))
+                {
+                    <span>@TrackLabel</span>
+                }
+            </div>
+
+            @if (TrackControls is not null)
+            {
+                <div class="midi-track-visualiser__track-controls">
+                    @TrackControls
+                </div>
+            }
         </div>
     </div>
 
@@ -21,4 +38,11 @@
             <div class="midi-track-visualiser__tracks" data-midi-track-visualiser-tracks></div>
         </div>
     </div>
+
+    @if (FooterContent is not null)
+    {
+        <div class="midi-track-visualiser__footer">
+            @FooterContent
+        </div>
+    }
 </div>

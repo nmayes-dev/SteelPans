@@ -2,13 +2,13 @@
     --layout-nav-top-height: clamp(1.45rem, 3.5vw, 3.5rem);
     --layout-nav-top-padding-x: clamp(0.5rem, 2.5vw, 1rem);
     --layout-nav-top-padding-y: clamp(0.25rem, 1vw, 0.75rem);
-    --layout-nav-link-height: clamp(2.35rem, 7vw, 3rem);
-    --layout-nav-link-gap: clamp(0.2rem, 1.4vw, 0.5rem);
-    --layout-nav-item-padding-x: clamp(0.45rem, 2.5vw, 1rem);
+    --layout-nav-link-height: clamp(2.35rem, 2vw, 3rem);
+    --layout-nav-link-gap: clamp(0.2rem, 0vw, 0.5rem);
+    --layout-nav-item-padding-x: clamp(0.25rem, 1vw, 1rem);
     --layout-nav-font-size: clamp(0.78rem, 2.65vw, 0.9rem);
     --layout-nav-brand-font-size: clamp(0.8rem, 2.4vw, 1.1rem);
     --layout-nav-icon-size: clamp(1rem, 3.6vw, 1.25rem);
-    --layout-nav-toggler-size: clamp(1.5rem, 3.2vw, 2.5rem);
+    --layout-nav-toggler-size: clamp(1.5rem, 5vw, 3rem);
     --layout-nav-toggler-icon-size: calc(var(--layout-nav-toggler-size) * 0.5);
     position: relative;
     display: flex;
@@ -26,12 +26,13 @@ main {
 }
 
 .sidebar {
-    position: sticky;
-    top: 0;
-    z-index: 20;
-    flex: 0 0 auto;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
     width: 100%;
-    background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
+    height: 100%;
+    background: none;
+    pointer-events: none;
 }
 
 .top-row {
@@ -74,8 +75,14 @@ main {
     }
 
     .sidebar {
+        position: sticky;
+        inset: auto;
+        top: 0;
+        flex: 0 0 auto;
         width: fit-content;
         height: 100dvh;
+        background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
+        pointer-events: auto;
     }
 }
 
