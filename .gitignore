@@ -10,16 +10,11 @@ temp/
 
 App_Data/
 
-# Code for retrieving samples
-sample-data/
-SteelPans.Samples
-SteelPans.Decode
+__pycache__/
 
-**.user
-SteelPans.PracticeWebApp/appsettings.Development.json
-SteelPans.LeaderWebApp/appsettings.Development.json
+# Private utils
+SteelPans.PythonUtils/
+
+**.env
 
 **/appsettings.Development.json
-
-# Audio Packs
-SteelPans.WebApp/AudioPacks/*.spp
