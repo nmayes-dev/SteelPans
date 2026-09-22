@@ -164,9 +164,6 @@ else
     private bool soloTrack_ = true;
     private Guid? selectedTrackId_;
 
-    private bool previousClickTrackSetting_;
-    private int previousCountInSetting_;
-
     private Guid? SelectedTrackId => selectedTrackId_ ?? Track ?? MidiService.Playback.Assignments.FirstOrDefault()?.TrackId;
     private MidiTrackInfo? SelectedTrack => SelectedTrackId is Guid trackId ? MidiService.Playback.Tracks.FirstOrDefault(x => x.Id == trackId) : null;
     private MidiAssignedPan? SelectedAssignedPan => SelectedTrackId is Guid trackId ? MidiService.Playback.GetAssignedPanForTrack(trackId) : null;
@@ -199,12 +196,6 @@ else
     {
         MidiService.Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
         MidiService.Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
-
-        previousClickTrackSetting_ = MidiService.Playback.ClickTrackEnabled;
-        previousCountInSetting_ = MidiService.Playback.CountInBeats;
-
-        await MidiService.Playback.SetClickTrackEnabledAsync(true);
-        await MidiService.Playback.SetCountInBeatsAsync(MidiService.Playback.BeatsPerBar);
 
         if (loadedFileFromQuery_ || FileId is null)
             return;
@@ -321,8 +312,6 @@ else
 
     public async ValueTask DisposeAsync()
     {
-        await MidiService.Playback.SetClickTrackEnabledAsync(previousClickTrackSetting_);
-        await MidiService.Playback.SetCountInBeatsAsync(previousCountInSetting_);
         await MidiService.Playback.ResetPanPlaybackSettings();
 
         MidiService.Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;

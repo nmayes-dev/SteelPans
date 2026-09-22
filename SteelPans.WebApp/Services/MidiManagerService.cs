@@ -546,7 +546,7 @@ public sealed class MidiManagerService
         public int TempoBpm { get; private set; } = 120;
         public int BeatsPerBar { get; private set; } = 4;
         public int BeatUnit { get; private set; } = 4;
-        public bool ClickTrackEnabled { get; private set; }
+        public bool ClickTrackEnabled { get; private set; } = true;
         public int CountInBeats { get; private set; }
         public int CountInNoteDivision { get; private set; } = 4;
 
@@ -787,6 +787,7 @@ public sealed class MidiManagerService
                 TempoBpm = MidiPlaybackInfo.InitialBpm;
                 BeatsPerBar = MidiPlaybackInfo.InitialBeatsPerBar;
                 BeatUnit = MidiPlaybackInfo.InitialBeatUnit;
+                CountInBeats = BeatsPerBar;
             }
 
             await NotifyMidiFileLoadedAsync();
