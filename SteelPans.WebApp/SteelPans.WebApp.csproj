@@ -34,4 +34,9 @@
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
     </None>
   </ItemGroup>
+
+
+  <ItemGroup>
+    <Folder Include="wwwroot\js\visualiser\" />
+  </ItemGroup>
 </Project>
