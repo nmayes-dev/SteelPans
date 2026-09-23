@@ -1,0 +1,129 @@
+﻿@implements IDisposable
+
+<div class="playback-slider">
+    <input type="range"
+           min="0"
+           max="@MaxSecondsString"
+           step="0.01"
+           value="@DisplaySecondsString"
+           style="--value:@DisplaySecondsString; --max:@MaxSecondsString;"
+           aria-label="Playback position"
+           @oninput="HandleSliderInputAsync"
+           @onchange="HandleSliderChangeAsync"
+           @onpointerdown="BeginSeek"
+           @onpointerdown:stopPropagation="true"
+           @onmouseup="EndSeekAsync"
+           @ontouchstart="BeginSeek"
+           @ontouchstart:stopPropagation="true"
+           @ontouchend="EndSeekAsync" />
+
+    <div class="playback-slider__info">
+        <span>@FormatTime(DisplayTime)</span>
+        <span>@FormatTime(MidiService.Playback.Duration)</span>
+    </div>
+</div>
+
+@code {
+    [Inject] private MidiManagerService MidiService { get; set; } = default!;
+
+    private bool isSeeking_;
+    private double previewSeconds_;
+
+    private double MaxSeconds => Math.Max(MidiService.Playback.Duration.TotalSeconds, 0.01);
+
+    private string MaxSecondsString => MaxSeconds.ToString(
+        "0.##",
+        System.Globalization.CultureInfo.InvariantCulture);
+
+    private TimeSpan DisplayTime => isSeeking_
+        ? TimeSpan.FromSeconds(previewSeconds_)
+        : ClampTime(MidiService.Playback.Position);
+
+    private string DisplaySecondsString => Math.Clamp(DisplayTime.TotalSeconds, 0, MaxSeconds)
+        .ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
+    protected override void OnInitialized()
+    {
+        MidiService.Playback.PositionChanged += HandlePlaybackPositionChangedAsync;
+    }
+
+    protected override void OnParametersSet()
+    {
+        if (!isSeeking_)
+            previewSeconds_ = ClampSeconds(MidiService.Playback.Position.TotalSeconds);
+    }
+
+    private async Task HandlePlaybackPositionChangedAsync(MidiEventArgs.PlaybackPositionChanged args)
+    {
+        if (!isSeeking_)
+            previewSeconds_ = ClampSeconds(args.Position.TotalSeconds);
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private void BeginSeek()
+    {
+        isSeeking_ = true;
+    }
+
+    private async Task EndSeekAsync()
+    {
+        await CommitPreviewAsync();
+    }
+
+    private async Task HandleSliderInputAsync(ChangeEventArgs args)
+    {
+        isSeeking_ = true;
+        previewSeconds_ = ParseSeconds(args.Value);
+        await MidiService.Playback.PreviewSeekAsync(TimeSpan.FromSeconds(previewSeconds_));
+    }
+
+    private async Task HandleSliderChangeAsync(ChangeEventArgs args)
+    {
+        previewSeconds_ = ParseSeconds(args.Value);
+        await CommitPreviewAsync();
+    }
+
+    private async Task CommitPreviewAsync()
+    {
+        previewSeconds_ = ClampSeconds(previewSeconds_);
+        isSeeking_ = false;
+
+        await MidiService.Playback.CommitSeekAsync(TimeSpan.FromSeconds(previewSeconds_));
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private double ParseSeconds(object? value)
+    {
+        if (value is null)
+            return 0;
+
+        return double.TryParse(
+            value.ToString(),
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var seconds)
+            ? ClampSeconds(seconds)
+            : 0;
+    }
+
+    private double ClampSeconds(double seconds) => Math.Clamp(seconds, 0, MaxSeconds);
+
+    private TimeSpan ClampTime(TimeSpan time) => TimeSpan.FromSeconds(ClampSeconds(time.TotalSeconds));
+
+    private static string FormatTime(TimeSpan time)
+    {
+        var totalHours = (int)time.TotalHours;
+
+        return totalHours > 0
+            ? $"{totalHours}:{time.Minutes:00}:{time.Seconds:00}.{time.Milliseconds:000}"
+            : $"{time.Minutes}:{time.Seconds:00}.{time.Milliseconds:000}";
+    }
+
+    
+
+    public void Dispose()
+    {
+        MidiService.Playback.PositionChanged -= HandlePlaybackPositionChangedAsync;
+    }
+}

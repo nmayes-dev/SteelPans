@@ -2023,8 +2023,11 @@ public sealed class MidiManagerService
             if (handlers is null)
                 return;
 
-            foreach (Func<MidiEventArgs.PlaybackCountInChanged, Task> handler in handlers.GetInvocationList())
-                await handler(args);
+            var tasks = handlers.GetInvocationList()
+                .Cast<Func<MidiEventArgs.PlaybackCountInChanged, Task>>()
+                .Select(handler => handler(args));
+
+            await Task.WhenAll(tasks);
         }
 
         private async Task NotifyPlaybackStartedAsync(MidiEventArgs.PlaybackStarted args)
@@ -2033,8 +2036,11 @@ public sealed class MidiManagerService
             if (handlers is null)
                 return;
 
-            foreach (Func<MidiEventArgs.PlaybackStarted, Task> handler in handlers.GetInvocationList())
-                await handler(args);
+            var tasks = handlers.GetInvocationList()
+                .Cast<Func<MidiEventArgs.PlaybackStarted, Task>>()
+                .Select(handler => handler(args));
+
+            await Task.WhenAll(tasks);
         }
 
         private async Task NotifyPlaybackPausedAsync(MidiEventArgs.PlaybackPaused args)
@@ -2043,8 +2049,11 @@ public sealed class MidiManagerService
             if (handlers is null)
                 return;
 
-            foreach (Func<MidiEventArgs.PlaybackPaused, Task> handler in handlers.GetInvocationList())
-                await handler(args);
+            var tasks = handlers.GetInvocationList()
+                .Cast<Func<MidiEventArgs.PlaybackPaused, Task>>()
+                .Select(handler => handler(args));
+
+            await Task.WhenAll(tasks);
         }
 
         private async Task NotifyPlaybackStoppedAsync(MidiEventArgs.PlaybackStopped args)
@@ -2053,8 +2062,11 @@ public sealed class MidiManagerService
             if (handlers is null)
                 return;
 
-            foreach (Func<MidiEventArgs.PlaybackStopped, Task> handler in handlers.GetInvocationList())
-                await handler(args);
+            var tasks = handlers.GetInvocationList()
+                .Cast<Func<MidiEventArgs.PlaybackStopped, Task>>()
+                .Select(handler => handler(args));
+
+            await Task.WhenAll(tasks);
         }
 
         private async Task NotifyPositionChangedAsync(bool jump)
@@ -2064,9 +2076,11 @@ public sealed class MidiManagerService
                 return;
 
             var args = new MidiEventArgs.PlaybackPositionChanged(Position, Duration, IsPlaying, !jump);
+            var tasks = handlers.GetInvocationList()
+                .Cast<Func<MidiEventArgs.PlaybackPositionChanged, Task>>()
+                .Select(handler => handler(args));
 
-            foreach (Func<MidiEventArgs.PlaybackPositionChanged, Task> handler in handlers.GetInvocationList())
-                await handler(args);
+            await Task.WhenAll(tasks);
         }
 
         private async Task NotifyTempoChangedAsync(MidiEventArgs.PlaybackTempoChanged args)
@@ -2075,8 +2089,11 @@ public sealed class MidiManagerService
             if (handlers is null)
                 return;
 
-            foreach (Func<MidiEventArgs.PlaybackTempoChanged, Task> handler in handlers.GetInvocationList())
-                await handler(args);
+            var tasks = handlers.GetInvocationList()
+                .Cast<Func<MidiEventArgs.PlaybackTempoChanged, Task>>()
+                .Select(handler => handler(args));
+
+            await Task.WhenAll(tasks);
         }
 
         private async Task NotifyMidiFileLoadedAsync()
@@ -2094,8 +2111,11 @@ public sealed class MidiManagerService
                 BeatUnit,
                 MidiPersistedFile);
 
-            foreach (Func<MidiEventArgs.FileLoaded, Task> handler in handlers.GetInvocationList())
-                await handler(args);
+            var tasks = handlers.GetInvocationList()
+                .Cast<Func<MidiEventArgs.FileLoaded, Task>>()
+                .Select(handler => handler(args));
+
+            await Task.WhenAll(tasks);
         }
 
         private async Task NotifyMidiFileUnloadedAsync()
@@ -2106,8 +2126,11 @@ public sealed class MidiManagerService
 
             var args = new MidiEventArgs.FileUnloaded();
 
-            foreach (Func<MidiEventArgs.FileUnloaded, Task> handler in handlers.GetInvocationList())
-                await handler(args);
+            var tasks = handlers.GetInvocationList()
+                .Cast<Func<MidiEventArgs.FileUnloaded, Task>>()
+                .Select(handler => handler(args));
+
+            await Task.WhenAll(tasks);
         }
 
         private async Task NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation operation)
@@ -2121,8 +2144,11 @@ public sealed class MidiManagerService
                 ActivePans.ToList(),
                 operation);
 
-            foreach (Func<MidiEventArgs.AssignmentsChanged, Task> handler in handlers.GetInvocationList())
-                await handler(args);
+            var tasks = handlers.GetInvocationList()
+                .Cast<Func<MidiEventArgs.AssignmentsChanged, Task>>()
+                .Select(handler => handler(args));
+
+            await Task.WhenAll(tasks);
         }
 
         private async Task NotifyPanMixChangedAsync()
@@ -2133,8 +2159,11 @@ public sealed class MidiManagerService
 
             var args = new MidiEventArgs.PanMixChanged(ActivePans.ToList());
 
-            foreach (Func<MidiEventArgs.PanMixChanged, Task> handler in handlers.GetInvocationList())
-                await handler(args);
+            var tasks = handlers.GetInvocationList()
+                .Cast<Func<MidiEventArgs.PanMixChanged, Task>>()
+                .Select(handler => handler(args));
+
+            await Task.WhenAll(tasks);
         }
 
         private async Task NotifyClickTrackSettingsChangedAsync()
@@ -2149,8 +2178,11 @@ public sealed class MidiManagerService
                 BeatUnit,
                 ClickTrackEnabled);
 
-            foreach (Func<MidiEventArgs.ClickTrackSettingsChanged, Task> handler in handlers.GetInvocationList())
-                await handler(args);
+            var tasks = handlers.GetInvocationList()
+                .Cast<Func<MidiEventArgs.ClickTrackSettingsChanged, Task>>()
+                .Select(handler => handler(args));
+
+            await Task.WhenAll(tasks);
         }
 
 

@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Web;
+using Microsoft.JSInterop;
 using SteelPans.Components.Layout;
 using SteelPans.Components.Services;
 
@@ -65,6 +67,23 @@ public partial class Toolbar : OverlayComponentBase
 
     private string ToolbarClass => $"toolbar{ToolbarSideClass}{StateClass}";
 
+    private ElementReference toolbar_;
+
+    private async Task OnFocusInAsync()
+    {
+
+    }
+
+    private async Task OnFocusOutAsync()
+    {
+        await Task.Yield();
+
+        var focusIsInside = await JS.InvokeAsync<bool>("elementContainsActiveElement", toolbar_);
+        if (focusIsInside)
+            return;
+
+        await RequestCloseAsync();
+    }
 
     internal void RegisterElement(ToolbarElement element, bool root)
     {

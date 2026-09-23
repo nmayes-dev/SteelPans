@@ -11,16 +11,30 @@
          data-pan-count="@Pans.Count">
         @foreach (var assignedPan in Pans)
         {
-            <section class="sp-app-section pans-display__item"
+            <section class="sp-app-section pans-display__item">
+                <div class="pans-display__item-container"
                      @key="assignedPan.InstanceId"
                      data-pan-id="@assignedPan.InstanceId">
-                <div class="pans-display__item-container">
                     <SteelPanView Pan="@assignedPan.Pan"
                                   PlaybackInstanceId="@assignedPan.InstanceId" />
                 </div>
 
-                <div class="pans-display__item-header">
-                    <div class="pans-display__item-copy">
+                <div class="pans-display__item-overlay">
+                    <div class="pan-display__item-overlay-top">
+                        <div class="pans-display__item-overlay-left">
+                            @if (TopLeftContent is not null)
+                            {
+                                @TopLeftContent(assignedPan)
+                            }
+                        </div>
+                        <div class="pans-display__item-overlay-right">
+                            @if (TopRightContent is not null)
+                            {
+                                @TopRightContent(assignedPan)
+                            }
+                        </div>
+                    </div>
+                    <div class="pan-display__item-overlay-bottom">
                         <div class="pans-display__item-copy-group pans-display__item-copy-group--left">
                             <div class="pans-display__item-type">
                                 @assignedPan.Assignment.AssignedPanType.ToSpacedPascal()
@@ -34,17 +48,6 @@
                         </div>
                     </div>
 
-                    @if (!Locked)
-                    {
-                        <button type="button"
-                                class="pans-display__remove-button"
-                                title="Remove"
-                                aria-label="Remove"
-                                data-pan-layout-no-drag
-                                @onclick="() => OnRemovePan(assignedPan)">
-                            <span class="bi bi-trash3"></span>
-                        </button>
-                    }
                 </div>
             </section>
         }
@@ -57,6 +60,12 @@
 
     [Parameter]
     public EventCallback<IReadOnlyList<Guid>> OnPansReordered { get; set; }
+
+    [Parameter]
+    public RenderFragment<MidiAssignedPan>? TopLeftContent { get; set; }
+
+    [Parameter]
+    public RenderFragment<MidiAssignedPan>? TopRightContent { get; set; }
 
     [Parameter]
     public bool Locked { get; set; }
@@ -78,11 +87,6 @@
 
         dotNetReference_ = DotNetObjectReference.Create(this);
         await InitialiseLayoutAsync();
-    }
-
-    private async Task OnRemovePan(MidiAssignedPan pan)
-    {
-        await Modals.OpenAsync("RemovePan", pan);
     }
 
     private async Task InitialiseLayoutAsync()
@@ -147,7 +151,7 @@
     {
         if (panLayoutObserved_)
             await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
-        
+
         MidiService.Playback.AssignmentsChanged -= OnAssignmentsChangedAsync;
         dotNetReference_?.Dispose();
     }

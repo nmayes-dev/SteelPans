@@ -3,6 +3,7 @@
 @inject MidiManagerService MidiService
 @inject DbService Db
 @inject NavigationManager Nav
+@inject ModalPopupService Modals
 @inject TaskRunnerService Tasks
 @inject IJSRuntime JS
 
@@ -24,7 +25,18 @@ else
             <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
 
             <section class="band-page__content">
-                <PansLayout Pans="@MidiService.Playback.ActivePans" />
+                <PansLayout Pans="@MidiService.Playback.ActivePans" >
+                    <TopRightContent Context="assignedPan">
+                        <button type="button"
+                                class="band-page__remove-button"
+                                title="Remove"
+                                aria-label="Remove"
+                                data-pan-layout-no-drag
+                                @onclick="() => OnRemovePan(assignedPan)">
+                            <span class="bi bi-trash3"></span>
+                        </button>
+                    </TopRightContent>
+                </PansLayout>
             </section>
         }
     </div>

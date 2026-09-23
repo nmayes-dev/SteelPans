@@ -148,22 +148,29 @@
     overflow: hidden;
 }
 
-.pans-display__item-header {
+.pans-display__item-overlay {
     position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
     inset: 0;
     z-index: 10;
     pointer-events: none;
 }
 
-.pans-display__item-copy {
+.pan-display__item-overlay-top,
+.pan-display__item-overlay-bottom {
+    display: flex;
+    width: 100%;
+    justify-content: space-between;
+}
+
+.pan-display__item-overlay-bottom {
     --pan-copy-value-font-size: clamp(0.48rem, 0.78vw, 0.74rem);
     --pan-copy-label-scale: 0.72;
     --pan-copy-inline-inset: clamp(0.45rem, 1.45em, 0.95rem);
     --pan-copy-block-inset: clamp(0.18rem, 0.7em, 0.5rem);
-    position: absolute;
-    left: var(--pan-copy-inline-inset);
-    right: var(--pan-copy-inline-inset);
-    bottom: var(--pan-copy-block-inset);
+    padding: var(--pan-copy-block-inset) var(--pan-copy-inline-inset);
     display: flex;
     justify-content: space-between;
     align-items: end;
@@ -214,32 +221,6 @@
     transition: font-size 200ms ease;
 }
 
-.pans-display__remove-button {
-    --top-right-padding: clamp(0.35rem, 0.4vw, 0.5rem);
-    --button-size: clamp(1.25rem, 2vw, var(--ui-icon-button-size));
-    --button-icon-size: calc(0.5 * var(--button-size));
-    --button-radius: calc(0.5 * var(--button-size));
-    position: absolute;
-    top: var(--top-right-padding);
-    right: var(--top-right-padding);
-    z-index: 12;
-    pointer-events: auto;
-    display: grid;
-    place-items: center;
-    width: var(--button-size);
-    aspect-ratio: 1 / 1;
-    border: 1px solid rgba(248, 113, 113, 0.35);
-    border-radius: var(--button-radius);
-    background: rgba(254, 242, 242, 0.8);
-    color: #dc2626;
-    cursor: pointer;
-    transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, transform 160ms ease;
-}
-
-    .pans-display__remove-button .bi {
-        font-size: var(--button-icon-size);
-        line-height: 1;
-    }
 
 @media (hover: hover) and (pointer: fine) {
     .pans-display__remove-button:hover {

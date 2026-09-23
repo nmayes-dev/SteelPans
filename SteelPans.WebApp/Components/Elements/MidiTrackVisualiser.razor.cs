@@ -45,9 +45,6 @@ public partial class MidiTrackVisualiser
     public RenderFragment? TrackControls { get; set; }
 
     [Parameter]
-    public RenderFragment? FooterContent { get; set; }
-
-    [Parameter]
     public IReadOnlyList<MidiPanEvent> Notes { get; set; } = [];
 
     [Parameter]
@@ -132,7 +129,6 @@ public partial class MidiTrackVisualiser
         0.01);
 
     private MidiPanEvent? SelectedRecordNote => Notes.FirstOrDefault(x => x.Id == SelectedNoteId);
-
     private double NoteSnapValue
     {
         get

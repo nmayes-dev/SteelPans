@@ -1,0 +1,112 @@
+﻿@implements IDisposable
+@inject OverlayManagerService Overlays
+@inject KeyboardManagerService Keyboard
+
+<div class="playback-buttons">
+    <button class="secondary"
+            type="button"
+            title="Back to start"
+            aria-label="Back to start"
+            disabled="@(!CanGoToStart)"
+            @onclick="HandleBackToStartAsync">
+        <span class="bi bi-skip-start-fill" aria-hidden="true"></span>
+    </button>
+
+    <button class="primary"
+            type="button"
+            title="@(MidiService.Playback.IsPlaying ? "Pause" : "Play")"
+            aria-label="@(MidiService.Playback.IsPlaying ? "Pause" : "Play")"
+            @onclick="HandlePlayPauseAsync">
+        <span class="bi @(MidiService.Playback.IsPlaying ? "bi-pause-fill" : "bi-play-fill")" aria-hidden="true"></span>
+    </button>
+
+    <button class="secondary"
+            type="button"
+            title="Next track"
+            aria-label="Next track"
+            disabled="@(!CanGoNext)"
+            @onclick="HandleNextTrackAsync">
+        <span class="bi bi-skip-end-fill" aria-hidden="true"></span>
+    </button>
+</div>
+
+@code {
+    [Inject] private MidiManagerService MidiService { get; set; } = default!;
+
+    [Parameter]
+    public bool Enabled { get; set; } = false;
+
+    [Parameter]
+    public EventCallback OnSeekStart { get; set; }
+
+    [Parameter]
+    public EventCallback OnTogglePlayback { get; set; }
+
+    [Parameter]
+    public EventCallback OnSkipToEnd { get; set; }
+
+    private readonly List<IDisposable> keyCallbacks_ = [];
+
+    private bool CanGoToStart => MidiService.Playback.Position > TimeSpan.Zero;
+    private bool CanGoNext => MidiService.Playback.Position < MidiService.Playback.Duration;
+
+    private bool startButtonState;
+    private bool skipToEndButtonState;
+
+    protected override void OnInitialized()
+    {
+        keyCallbacks_.Add(Keyboard.Register(
+            e => Enabled && !Overlays.AnyOpen && e.Code.Equals("Space", StringComparison.OrdinalIgnoreCase),
+            _ => HandlePlayPauseAsync()
+        ));
+
+        MidiService.Playback.PositionChanged += OnPlaybackPositionChanged;
+
+        startButtonState = CanGoToStart;
+        skipToEndButtonState = CanGoNext;
+    }
+
+    private async Task OnPlaybackPositionChanged(MidiEventArgs.PlaybackPositionChanged args)
+    {
+        if (startButtonState != CanGoToStart || skipToEndButtonState != CanGoNext)
+        {
+            startButtonState = CanGoToStart;
+            skipToEndButtonState = CanGoNext;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task HandlePlayPauseAsync()
+    {
+        await OnTogglePlayback.InvokeAsync();
+        await MidiService.Playback.ToggleAsync();
+    }
+
+    private async Task HandleBackToStartAsync()
+    {
+        if (!CanGoToStart)
+            return;
+
+        await OnSeekStart.InvokeAsync();
+        await MidiService.Playback.SeekToStartAsync();
+    }
+
+    private async Task HandleNextTrackAsync()
+    {
+        if (!CanGoNext)
+            return;
+
+        await OnSkipToEnd.InvokeAsync();
+        await MidiService.Playback.GoToEndAsync();
+    }
+
+    public void Dispose()
+    {
+        MidiService.Playback.PositionChanged -= OnPlaybackPositionChanged;
+
+        foreach (var registration in keyCallbacks_)
+            registration.Dispose();
+
+        keyCallbacks_.Clear();
+    }
+}

@@ -1,65 +1,19 @@
-@using Microsoft.AspNetCore.Components.Web
-@using SteelPans.WebApp.Services
-@implements IDisposable
 @inject OverlayManagerService Overlays
 @inject KeyboardManagerService Keyboard
 
-<div class="midi-playback">
-    <div class="midi-playback__top-row">
-        <input class="midi-playback__slider"
-               type="range"
-               min="0"
-               max="@MaxSecondsString"
-               step="0.01"
-               value="@DisplaySecondsString"
-               style="--value:@DisplaySecondsString; --max:@MaxSecondsString;"
-               aria-label="Playback position"
-               @oninput="HandleSliderInputAsync"
-               @onchange="HandleSliderChangeAsync"
-               @onmousedown="BeginSeek"
-               @onmouseup="EndSeekAsync"
-               @ontouchstart="BeginSeek"
-               @ontouchend="EndSeekAsync" />
+<div class="midi-playback-control">
+    <div>
+        <TrackPlaybackSlider />
     </div>
-
-    <div class="midi-playback__bottom-row">
-        <span class="midi-playback__time midi-playback__time--current">@FormatTime(DisplayTime)</span>
-
-        <div class="midi-playback__controls">
-            <button class="midi-playback__button midi-playback__button--secondary"
-                    type="button"
-                    title="Back to start"
-                    aria-label="Back to start"
-                    disabled="@(!CanGoToStart)"
-                    @onclick="HandleBackToStartAsync">
-                <span class="bi bi-skip-start-fill" aria-hidden="true"></span>
-            </button>
-
-            <button class="midi-playback__button midi-playback__button--primary"
-                    type="button"
-                    title="@(MidiService.Playback.IsPlaying ? "Pause" : "Play")"
-                    aria-label="@(MidiService.Playback.IsPlaying ? "Pause" : "Play")"
-                    @onclick="HandlePlayPauseAsync">
-                <span class="bi @(MidiService.Playback.IsPlaying ? "bi-pause-fill" : "bi-play-fill")" aria-hidden="true"></span>
-            </button>
-
-            <button class="midi-playback__button midi-playback__button--secondary"
-                    type="button"
-                    title="Next track"
-                    aria-label="Next track"
-                    disabled="@(!CanGoNext)"
-                    @onclick="HandleNextTrackAsync">
-                <span class="bi bi-skip-end-fill" aria-hidden="true"></span>
-            </button>
-        </div>
-
-        <span class="midi-playback__time midi-playback__time--total">@FormatTime(MidiService.Playback.Duration)</span>
+    <div>
+        <TrackPlaybackButtons Enabled=@Enabled
+                              OnSeekStart="@OnSeekStart"
+                              OnTogglePlayback="@OnTogglePlayback"
+                              OnSkipToEnd="@OnSkipToEnd" />
     </div>
 </div>
 
 @code {
-    [Inject] private MidiManagerService MidiService { get; set; } = default!;
-
     [Parameter]
     public bool Enabled { get; set; } = false;
 
@@ -71,142 +25,4 @@
 
     [Parameter]
     public EventCallback OnSkipToEnd { get; set; }
-
-    private readonly List<IDisposable> keyCallbacks_ = [];
-
-    private bool isSeeking_;
-    private double previewSeconds_;
-
-    private TimeSpan DisplayTime => isSeeking_
-        ? TimeSpan.FromSeconds(previewSeconds_)
-        : ClampTime(MidiService.Playback.Position);
-
-    private double MaxSeconds => Math.Max(MidiService.Playback.Duration.TotalSeconds, 0.01);
-
-    private string MaxSecondsString => MaxSeconds.ToString(
-        "0.##",
-        System.Globalization.CultureInfo.InvariantCulture);
-
-    private string DisplaySecondsString => Math.Clamp(DisplayTime.TotalSeconds, 0, MaxSeconds)
-        .ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
-
-    private bool CanGoToStart => MidiService.Playback.Position > TimeSpan.Zero;
-    private bool CanGoNext => MidiService.Playback.Position < MidiService.Playback.Duration;
-
-    protected override void OnInitialized()
-    {
-        MidiService.Playback.PositionChanged += HandlePlaybackPositionChangedAsync;
-
-        keyCallbacks_.Add(Keyboard.Register(
-            e => Enabled && !Overlays.AnyOpen && e.Code.Equals("Space", StringComparison.OrdinalIgnoreCase),
-            _ => HandlePlayPauseAsync()
-        ));
-    }
-
-    protected override void OnParametersSet()
-    {
-        if (!isSeeking_)
-            previewSeconds_ = ClampSeconds(MidiService.Playback.Position.TotalSeconds);
-    }
-
-    private async Task HandlePlaybackPositionChangedAsync(MidiEventArgs.PlaybackPositionChanged args)
-    {
-        if (!isSeeking_)
-            previewSeconds_ = ClampSeconds(args.Position.TotalSeconds);
-
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private async Task HandlePlayPauseAsync()
-    {
-        await OnTogglePlayback.InvokeAsync();
-        await MidiService.Playback.ToggleAsync();
-    }
-
-    private async Task HandleBackToStartAsync()
-    {
-        if (!CanGoToStart)
-            return;
-
-        await OnSeekStart.InvokeAsync();
-        await MidiService.Playback.SeekToStartAsync();
-    }
-
-    private async Task HandleNextTrackAsync()
-    {
-        if (!CanGoNext)
-            return;
-
-        await OnSkipToEnd.InvokeAsync();
-        await MidiService.Playback.GoToEndAsync();
-    }
-
-    private void BeginSeek()
-    {
-        isSeeking_ = true;
-    }
-
-    private async Task EndSeekAsync()
-    {
-        await CommitPreviewAsync();
-    }
-
-    private async Task HandleSliderInputAsync(ChangeEventArgs args)
-    {
-        isSeeking_ = true;
-        previewSeconds_ = ParseSeconds(args.Value);
-        await MidiService.Playback.PreviewSeekAsync(TimeSpan.FromSeconds(previewSeconds_));
-    }
-
-    private async Task HandleSliderChangeAsync(ChangeEventArgs args)
-    {
-        previewSeconds_ = ParseSeconds(args.Value);
-        await CommitPreviewAsync();
-    }
-
-    private async Task CommitPreviewAsync()
-    {
-        previewSeconds_ = ClampSeconds(previewSeconds_);
-        isSeeking_ = false;
-
-        await MidiService.Playback.CommitSeekAsync(TimeSpan.FromSeconds(previewSeconds_));
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private double ParseSeconds(object? value)
-    {
-        if (value is null)
-            return 0;
-
-        return double.TryParse(
-            value.ToString(),
-            System.Globalization.NumberStyles.Float,
-            System.Globalization.CultureInfo.InvariantCulture,
-            out var seconds)
-            ? ClampSeconds(seconds)
-            : 0;
-    }
-
-    private double ClampSeconds(double seconds) => Math.Clamp(seconds, 0, MaxSeconds);
-
-    private TimeSpan ClampTime(TimeSpan time) => TimeSpan.FromSeconds(ClampSeconds(time.TotalSeconds));
-
-    private static string FormatTime(TimeSpan time)
-    {
-        var totalHours = (int)time.TotalHours;
-
-        return totalHours > 0
-            ? $"{totalHours}:{time.Minutes:00}:{time.Seconds:00}.{time.Milliseconds:000}"
-            : $"{time.Minutes}:{time.Seconds:00}.{time.Milliseconds:000}";
-    }
-
-    public void Dispose()
-    {
-        MidiService.Playback.PositionChanged -= HandlePlaybackPositionChangedAsync;
-
-        foreach (var registration in keyCallbacks_)
-            registration.Dispose();
-
-        keyCallbacks_.Clear();
-    }
 }

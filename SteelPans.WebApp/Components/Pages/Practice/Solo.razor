@@ -129,23 +129,39 @@ else
                 </HeaderContent>
 
                 <TrackControls>
-                    <ControlToolbar />
-
-                    <label class="practice-page__solo-control">
-                        <span>Solo</span>
-                        <ToggleSwitch Value="@soloTrack_" ValueChanged="OnAllowOtherTrackAudioChangedAsync" />
-                    </label>
-
-                    <CountInControl />
+                    <div class="practice-page__track-controls">
+                        <TrackPlaybackButtons />
+                    </div>
                 </TrackControls>
-
-                <FooterContent>
-                    <MidiPlaybackControl Enabled="@HasMidiControls" />
-                </FooterContent>
             </MidiTrackVisualiser>
 
             <PansLayout Pans="@SelectedPanList"
-                        Locked="true" />
+                        Locked="true">
+                <TopLeftContent Context="assignedPan">
+                    <div class="practice-page__practice-controls">
+                        <ExpandingOverlay ExpandDirection="ExpandingOverlay.Direction.Right"
+                                          ClosedIconClass="gear-fill"
+                                          Title="Settings">
+                            <div class="practice-page__track-controls-settings">
+                                <CountInControl />
+                                <label class="practice-page__solo-control">
+                                    <ToggleSwitch Value="@soloTrack_" ValueChanged="OnAllowOtherTrackAudioChangedAsync" />
+                                    <span>Solo</span>
+                                </label>
+                            </div>
+                        </ExpandingOverlay>
+                    </div>
+                </TopLeftContent>
+                <TopRightContent Context="assignPan">
+                    <div class="practice-page__pan-controls">
+                        <ExpandingOverlay ExpandDirection="ExpandingOverlay.Direction.Left"
+                                          ClosedIconClass="sliders2-vertical"
+                                          Title="Mixer">
+                            <VolumeMixer />
+                        </ExpandingOverlay>
+                    </div>
+                </TopRightContent>
+            </PansLayout>
         }
     </section>
 }
@@ -196,6 +212,7 @@ else
     {
         MidiService.Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
         MidiService.Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
+        MidiService.Playback.PanMixChanged += OnPlaybackMixChanged;
 
         if (loadedFileFromQuery_ || FileId is null)
             return;
@@ -238,6 +255,20 @@ else
 
         await ApplySelectedTrackSoloAsync();
         await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnPlaybackMixChanged(MidiEventArgs.PanMixChanged args)
+    {
+        foreach (var pan in args.ActivePans)
+        {
+            if (pan.Assignment.TrackId == SelectedTrackId)
+            {
+                soloTrack_ = pan.Soloing;
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+        }
+
     }
 
     private async Task OnAllowOtherTrackAudioChangedAsync(bool solo)
@@ -316,5 +347,6 @@ else
 
         MidiService.Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
         MidiService.Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
+        MidiService.Playback.PanMixChanged -= OnPlaybackMixChanged;
     }
 }

@@ -48,6 +48,7 @@
     width: var(--number-input-spinner-width);
     display: grid;
     grid-template-rows: 1fr 1fr;
+    place-items: center;
     pointer-events: none;
     border-left: 1px solid rgba(148, 163, 184, 0.18);
     border-radius: 0 0.8rem 0.8rem 0;

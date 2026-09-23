@@ -161,7 +161,7 @@ h4 {
     display: grid;
     grid-auto-rows: min-content;
     gap: 0.5rem;
-    padding: clamp(0.5rem, 0.65vw, 0.8rem);
+    padding: clamp(0.15rem, 0.45vw, 0.8rem);
     width: 100%;
     height: 100%;
     overflow: clip;

@@ -8,8 +8,8 @@
                        role="menuitem"
                        disabled="@element.Disabled"
                        for="@element.LabelFor"
-                       @onclick="() => Owner.OpenElementAsync(element)"
-                       @onclick:stopPropagation="true">
+                       @onpointerdown="() => Owner.OpenElementAsync(element)"
+                       @onpointerdown:stopPropagation="true">
                     <span class="toolbar__menu-item-text">
                         <span>@element.Text</span>
                     </span>
@@ -24,8 +24,8 @@
                         type="button"
                         role="menuitem"
                         disabled="@element.Disabled"
-                        @onclick="() => Owner.OpenElementAsync(element)"
-                        @onclick:stopPropagation="true">
+                        @onpointerdown="() => Owner.OpenElementAsync(element)"
+                        @onpointerdown:stopPropagation="true">
                     <span class="toolbar__menu-item-text">
                         <span>@element.Text</span>
                     </span>
@@ -43,8 +43,8 @@
                         aria-expanded="false"
                         tabindex="-1"
                         aria-hidden="true"
-                        @onclick="() => Owner.OpenElementAsync(element)"
-                        @onclick:stopPropagation="true" />
+                        @onpointerdown="() => Owner.OpenElementAsync(element)"
+                        @onpointerdown:stopPropagation="true" />
             </span>
 
 

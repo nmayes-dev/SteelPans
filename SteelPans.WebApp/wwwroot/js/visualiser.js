@@ -1,13 +1,12 @@
 const defaultPixelsPerSecond = 192;
 const defaultMinTimelineWidth = 960;
 const defaultLabelWidth = 200;
-const defaultRulerHeight = 24;
+const defaultRulerHeight = 32;
 const defaultLaneHeight = 160;
 const defaultNoteHeight = 10;
 const playheadWidth = 3;
 const timelinePaddingRight = playheadWidth;
 const playheadHalfWidth = playheadWidth / 2;
-const minNoteLabelWidth = 24;
 const scrollOffset = 32;
 const dragScrollEdgeRatio = 0.25;
 const dragScrollMaxPixelsPerSecond = 1920;
@@ -144,6 +143,7 @@ window.visualiser = {
             state.minSemitone = state.maxSemitone;
             state.maxSemitone = temp;
         }
+
         const layout = this._measureLayout(state, durationSeconds);
         state.pixelsPerSecond = layout.pixelsPerSecond;
         state.minTimelineWidth = layout.minTimelineWidth;
@@ -217,11 +217,6 @@ window.visualiser = {
 
         const row = this._createScopedElement(state, "div", "midi-track-visualiser__track-row");
         state.tracks.appendChild(row);
-
-        const minSemitone = state.minSemitone;
-        const maxSemitone = state.maxSemitone;
-        const range = Math.max(1, maxSemitone - minSemitone);
-        const availableHeight = state.laneHeight - state.noteHeight - 22;
 
         for (const note of notes)
             this._addOrUpdateNoteElement(state, note, data.panLabel || "Unassigned");
@@ -476,13 +471,13 @@ window.visualiser = {
         const viewportHeight = Math.max(260, window.visualViewport?.height || window.innerHeight || rootBounds.height || 0);
         const viewportWidth = Math.max(180, rootWidth - Math.min(defaultLabelWidth, rootWidth * 0.36));
         const compactness = this._clamp((Math.min(rootWidth, viewportHeight) - 320) / 720, 0, 1);
-        const heightDrivenLaneHeight = viewportHeight * 0.25;
+        const heightDrivenLaneHeight = viewportHeight * 0.2;
         const widthDrivenLaneHeight = rootWidth * 0.45;
-        const laneHeight = this._clamp(Math.min(widthDrivenLaneHeight, heightDrivenLaneHeight), 120, 220);
+        const laneHeight = this._clamp(Math.min(widthDrivenLaneHeight, heightDrivenLaneHeight), 70, 220);
 
         return {
             labelWidth: Math.round(this._clamp(rootWidth * 0.15, 95, 180)),
-            rulerHeight: Math.round(this._clamp(20 + (compactness * 6), 20, 28)),
+            rulerHeight: Math.round(this._clamp(20 + (compactness * 8), 20, 40)),
             laneHeight: Math.round(laneHeight),
             noteHeight: Math.round(this._clamp(laneHeight * 0.08, 5, 14)),
             pixelsPerSecond: this._clamp(viewportWidth / Math.max(4, Math.min(durationSeconds, 8)), 112, defaultPixelsPerSecond),
@@ -667,7 +662,6 @@ window.visualiser = {
         window.addEventListener("pointercancel", up);
     },
 
-
     _beginRecordNoteDrag(state, event, id, startSeconds, durationSeconds, semitoneNumber) {
         if (event.button !== undefined && event.button !== 0)
             return;
@@ -731,7 +725,11 @@ window.visualiser = {
                 target.title = target.title.replace(/· [A-G][#b]?-?\d+ ·/, `· ${noteLabel} ·`);
                 if (label) {
                     label.textContent = noteLabel;
-                    this._fitNoteLabel(label, target.getBoundingClientRect().width || this._getNoteWidth(state, duration, noteLabel), noteLabel);
+                    this._fitNoteLabel(
+                        label,
+                        target.getBoundingClientRect().width || this._getNoteWidth(state, duration),
+                        noteLabel,
+                        state.noteHeight);
                 }
 
                 try {
@@ -773,7 +771,6 @@ window.visualiser = {
         window.addEventListener("pointerup", up);
         window.addEventListener("pointercancel", up);
     },
-
 
     _beginRecordPlayheadDrag(state, event) {
         if (event.button !== undefined && event.button !== 0)
@@ -841,7 +838,7 @@ window.visualiser = {
             state.minSemitone,
             state.maxSemitone);
         const noteLabel = note.note || this._formatNoteFromSemitone(semitone);
-        const width = this._getNoteWidth(state, duration, noteLabel);
+        const width = this._getNoteWidth(state, duration);
         const end = start + duration;
         const isEditMode = state.mode === "Edit";
         const isSelected = id && state.selectedNoteId === id;
@@ -907,7 +904,7 @@ window.visualiser = {
 
         if (label) {
             label.textContent = noteLabel;
-            this._fitNoteLabel(label, width, noteLabel);
+            this._fitNoteLabel(label, width, noteLabel, state.noteHeight);
         }
 
         entry.id = id;
@@ -1279,32 +1276,42 @@ window.visualiser = {
         state.activeNoteElements = active;
     },
 
-    _getNoteWidth(state, durationSeconds, text) {
-        const naturalWidth = Math.max(durationSeconds * state.pixelsPerSecond, 8);
-        const labelLength = String(text || "").length;
-
-        if (labelLength === 0)
-            return naturalWidth;
-
-        const labelWidth = Math.max(minNoteLabelWidth, 14 + (labelLength * 6.25));
-        return Math.max(naturalWidth, labelWidth);
+    _getNoteWidth(state, durationSeconds) {
+        return Math.max(durationSeconds * state.pixelsPerSecond, 8);
     },
 
-    _fitNoteLabel(label, width, text) {
+    _fitNoteLabel(label, width, text, noteHeight) {
         if (!label || !text) {
             if (label)
                 label.style.display = "none";
             return;
         }
 
-        const characters = Math.max(1, String(text).length);
+        const minFontSizePx = 6;
+        const maxFontSizePx = 10.5;
+        const verticalChrome = 2;
         const horizontalChrome = 10;
-        const available = Math.max(1, width - horizontalChrome);
-        const fontSizePx = this._clamp(available / Math.max(characters * 0.64, 1), 4, 10.5);
+
+        const fontSizePx = Math.min(
+            maxFontSizePx,
+            noteHeight - verticalChrome);
+
+        if (fontSizePx < minFontSizePx) {
+            label.style.display = "none";
+            return;
+        }
+
+        const availableWidth = Math.max(0, width - horizontalChrome);
+        const estimatedTextWidth = String(text).length * fontSizePx * 0.64;
+
+        if (estimatedTextWidth > availableWidth) {
+            label.style.display = "none";
+            return;
+        }
 
         label.style.fontSize = `${fontSizePx}px`;
-        label.style.width = `${available}px`;
-        label.style.maxWidth = `${available}px`;
+        label.style.width = `${availableWidth}px`;
+        label.style.maxWidth = `${availableWidth}px`;
         label.style.display = "block";
     },
 

@@ -15,14 +15,6 @@
             }
         </div>
         <div class="midi-track-visualiser__track-label">
-            <div class="midi-track-visualiser__track-info">
-                <small>@Notes.Count note@(Notes.Count == 1 ? string.Empty : "s")</small>
-                @if (!string.IsNullOrWhiteSpace(TrackLabel))
-                {
-                    <span>@TrackLabel</span>
-                }
-            </div>
-
             @if (TrackControls is not null)
             {
                 <div class="midi-track-visualiser__track-controls">
@@ -32,17 +24,17 @@
         </div>
     </div>
 
-    <div class="midi-track-visualiser__viewport" data-midi-track-visualiser-viewport>
-        <div class="midi-track-visualiser__timeline" data-midi-track-visualiser-timeline>
-            <div class="midi-track-visualiser__ruler" data-midi-track-visualiser-ruler></div>
-            <div class="midi-track-visualiser__tracks" data-midi-track-visualiser-tracks></div>
+    
+    <div class="midi-track-visualiser__display">
+        <div class="midi-track-visualiser__slider">
+            <TrackPlaybackSlider />
+        </div>
+        <div class="midi-track-visualiser__viewport" data-midi-track-visualiser-viewport>
+            <div class="midi-track-visualiser__timeline" data-midi-track-visualiser-timeline>
+                <div class="midi-track-visualiser__ruler" data-midi-track-visualiser-ruler />
+                <div class="midi-track-visualiser__tracks" data-midi-track-visualiser-tracks />
+            </div>
         </div>
     </div>
 
-    @if (FooterContent is not null)
-    {
-        <div class="midi-track-visualiser__footer">
-            @FooterContent
-        </div>
-    }
 </div>

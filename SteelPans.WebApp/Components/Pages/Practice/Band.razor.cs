@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Components;
+using SteelPans.Shared.Music;
 
 namespace SteelPans.WebApp.Components.Pages.Practice;
 
@@ -41,6 +42,10 @@ public partial class Band : IAsyncDisposable
     private Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)
     {
         return InvokeAsync(StateHasChanged);
+    }
+    private async Task OnRemovePan(MidiAssignedPan pan)
+    {
+        await Modals.OpenAsync("RemovePan", pan);
     }
 
     public ValueTask DisposeAsync()

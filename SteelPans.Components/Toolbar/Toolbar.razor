@@ -1,17 +1,19 @@
 ﻿@implements IDisposable
 @inherits OverlayComponentBase
+@inject IJSRuntime JS
 @inject ModalPopupService Modals
 
 <CascadingValue Value="this" IsFixed="true">
     @ChildContent
 </CascadingValue>
 
-<div class="@ToolbarClass">
+<div class="@ToolbarClass" @ref="toolbar_" @onfocusin="OnFocusInAsync" @onfocusout="@OnFocusOutAsync">
     <div class="toolbar__surface">
-        <button class="toolbar__header"
-                role="button"
-                aria-label="@MenuButtonLabel"
-                @onclick="ChangeStateAsync">
+        <div class="toolbar__header"
+             role="button"
+             tabindex="0"
+             aria-label="@MenuButtonLabel"
+             @onclick="ChangeStateAsync">
             <div class="toolbar__header-content">
                 <span class="toolbar__header-button-icon">
                     <span class="@ButtonClass" aria-hidden="true"></span>
@@ -42,9 +44,11 @@
                     </div>
                 </div>
             </div>
-        </button>
+        </div>
 
-        <div class="toolbar__menu" role="menu" aria-label="@MenuLabel">
+        <div class="toolbar__menu"
+             role="menu"
+             aria-label="@MenuLabel">
             <ToolbarMenuItems Items="Elements"
                               Owner="this"
                               Depth="0" />

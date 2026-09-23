@@ -10,6 +10,7 @@
     --overlay__header_title_color: var(--overlay__header-title-color_arg, var(--overlay__header_title_color_default));
     /* Button */
     --overlay__button-size: var(--overlay__button-size-arg, var(--ui-icon-button-size));
+    --overlay__button-radius: calc(var(--overlay__button-size) / 2);
     --overlay__button-icon-size: calc(var(--overlay__button-size) * 0.5);
     /* Content Panel */
     --overlay__panel-min-width: clamp(2.5rem, 4vw, 5rem);
@@ -102,7 +103,7 @@
     user-select: none;
     background: var(--overlay__background-color);
     border: 1px solid var(--overlay__border-color);
-    border-radius: clamp(0.45rem, 0.3rem + 0.4cqw, 0.65rem);
+    border-radius: var(--overlay__button-radius);
 }
 
 @media (hover: hover) and (pointer: fine) {
