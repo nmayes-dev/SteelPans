@@ -8,6 +8,8 @@ Properties/
 
 temp/
 
+logs/
+
 App_Data/
 
 __pycache__/

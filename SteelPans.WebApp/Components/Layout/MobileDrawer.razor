@@ -1,0 +1,145 @@
+﻿@implements IAsyncDisposable
+@inherits OverlayComponentBase
+@inject IJSRuntime JS
+
+<div @ref="drawer_"
+     class="@DrawerClass"
+     style="--drawer-position: @Position;">
+    <div class="mobile-drawer__lip">
+        <div class="mobile-drawer__handle"></div>
+    </div>
+
+    <div class="mobile-drawer__content">
+        @ChildContent
+    </div>
+</div>
+
+@code {
+    public enum Edge
+    {
+        Bottom,
+        Top,
+        Left,
+        Right
+    }
+
+    [Parameter, EditorRequired]
+    public RenderFragment ChildContent { get; set; } = default!;
+
+    [Parameter]
+    public Edge Side { get; set; } = Edge.Bottom;
+
+    [Parameter]
+    public Edge? ResponsiveSide { get; set; }
+
+    [Parameter]
+    public int? ResponsiveThreshold { get; set; }
+
+    [Parameter]
+    public string Position { get; set; } = "50%";
+
+    [Parameter]
+    public bool InitiallyOpen { get; set; }
+
+    private ElementReference drawer_;
+    private DotNetObjectReference<MobileDrawer>? dotNetRef_;
+
+    private bool initialized_;
+    private bool disposed_;
+
+    private string SideClass => $"mobile-drawer--{Side.ToString().ToLowerInvariant()}";
+    private string InitialClass => InitiallyOpen ? "mobile-drawer--initially-open" : "mobile-drawer--initially-closed";
+
+    private string[] Classes => [
+        "mobile-drawer",
+        "mobile-drawer--no-transition",
+        SideClass,
+        InitialClass,
+    ];
+
+    private string DrawerClass => string.Join(" ", Classes);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        dotNetRef_ = DotNetObjectReference.Create(this);
+
+        await JS.InvokeVoidAsync(
+            "mobileDrawer.initialize",
+            drawer_,
+            Side.ToString().ToLowerInvariant(),
+            InitiallyOpen,
+            dotNetRef_,
+            ResponsiveSide?.ToString().ToLowerInvariant(),
+            ResponsiveThreshold);
+
+        initialized_ = true;
+
+        if (InitiallyOpen)
+            await NotifyOpenedAsync();
+    }
+
+    protected override async Task OnCloseAsync()
+    {
+        if (!initialized_)
+            return;
+
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "mobileDrawer.close",
+                drawer_);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    [JSInvokable]
+    public Task NotifyOpenedFromJsAsync()
+    {
+        return NotifyOpenedAsync();
+    }
+
+    [JSInvokable]
+    public Task NotifyClosedFromJsAsync()
+    {
+        return RequestCloseAsync();
+    }
+
+    public override void Dispose()
+    {
+        if (disposed_)
+            return;
+
+        disposed_ = true;
+
+        dotNetRef_?.Dispose();
+        dotNetRef_ = null;
+
+        base.Dispose();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (disposed_)
+            return;
+
+        if (initialized_)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync(
+                    "mobileDrawer.dispose",
+                    drawer_);
+            }
+            catch (JSDisconnectedException)
+            {
+            }
+        }
+
+        Dispose();
+    }
+}

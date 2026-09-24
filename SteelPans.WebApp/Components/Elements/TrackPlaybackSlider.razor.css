@@ -81,7 +81,7 @@
 
 
 .playback-slider__info {
-    --info-offset: clamp(-0.75rem, calc(-1rem + 0.6vw), -0.65rem);
+    --info-offset: clamp(-0.75rem, calc(-1rem + 0.7vw), -0.6rem);
     width: 100%;
     display: flex;
     justify-content: space-between;

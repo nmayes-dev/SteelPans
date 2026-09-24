@@ -64,7 +64,6 @@
     }
 
     .navbar-back-button .bi {
-        margin-right: 0;
         font-size: calc(var(--back-button-size) * 0.75);
     }
 
@@ -94,7 +93,6 @@
     flex: 0 0 var(--layout-nav-icon-size);
     width: var(--layout-nav-icon-size);
     height: var(--layout-nav-icon-size);
-    margin-right: clamp(0.45rem, 2.2vw, 0.75rem);
     font-size: var(--layout-nav-icon-size);
     line-height: 1;
     color: white;
@@ -102,7 +100,6 @@
 
 .nav-item {
     font-size: var(--layout-nav-font-size);
-    padding: var(--layout-nav-link-gap) var(--layout-nav-item-padding-x) !important;
 }
 
     .nav-item ::deep .nav-link {
@@ -111,10 +108,13 @@
         border: none;
         border-radius: 0.6rem;
         min-height: var(--layout-nav-link-height);
-        display: flex;
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        column-gap: clamp(0.45rem, 2.2vw, 0.75rem);
         align-items: center;
         line-height: 1.1;
         width: 100%;
+        text-align: left;
     }
 
     .nav-item ::deep a.active,
@@ -154,10 +154,6 @@
     }
 
     .navbar-mobile-display {
-        z-index: 3;
-        position: fixed;
-        right: clamp(0.25rem, 0.8vw, 0.55rem);
-        top: clamp(0.25rem, 0.8vw, 0.55rem);
     }
 
         .navbar-mobile-display ::deep {
@@ -188,7 +184,6 @@
         padding: var(--layout-nav-top-padding-y) 0;
         container: inline-size;
         background-color: rgba(0, 0, 0, 0.4);
-        pointer-events: auto;
     }
 
         .top-row.auth a:first-child {
@@ -206,9 +201,9 @@
             gap: 0.8rem;
         }
 
-        .top-row .container-fluid .navbar-brand {
-            display: inline-block;
-        }
+            .top-row .container-fluid .navbar-brand {
+                display: inline-block;
+            }
 
     .navbar-back-button {
         --back-button-size: calc(0.9 * var(--layout-nav-toggler-size));
@@ -236,11 +231,15 @@
         pointer-events: auto;
     }
 
-    .nav-item:first-of-type {
-        padding-top: clamp(0.45rem, 2.2vw, 1rem);
+    nav ::deep .nav-item {
+        padding: var(--layout-nav-link-gap) var(--layout-nav-item-padding-x) !important;
     }
 
-    .nav-item:last-of-type {
-        padding-bottom: clamp(0.45rem, 2.2vw, 1rem);
-    }
+        nav ::deep .nav-item:first-of-type {
+            padding-top: clamp(0.45rem, 2.2vw, 1rem);
+        }
+
+        nav ::deep .nav-item:last-of-type {
+            padding-bottom: clamp(0.45rem, 2.2vw, 1rem);
+        }
 }

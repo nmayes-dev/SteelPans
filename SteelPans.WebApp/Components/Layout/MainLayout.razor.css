@@ -29,8 +29,6 @@ main {
     position: fixed;
     inset: 0;
     z-index: 1000;
-    width: 100%;
-    height: 100%;
     background: none;
     pointer-events: none;
 }
@@ -46,6 +44,7 @@ main {
 }
 
     .top-row ::deep a,
+    .top-row ::deep button,
     .top-row ::deep .btn-link {
         white-space: nowrap;
         margin-left: clamp(0.5rem, 3vw, 1.5rem);
@@ -61,6 +60,13 @@ main {
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
+@media (max-width: 900px) {
+    .sidebar {
+        width: 0px;
+        height: 0px;
+    }
+}
 
 @media (min-width: 900px) {
     .page {
@@ -82,7 +88,6 @@ main {
         width: fit-content;
         height: 100dvh;
         background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
-        pointer-events: auto;
     }
 }
 

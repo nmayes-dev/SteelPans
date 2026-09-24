@@ -1,3 +1,7 @@
-﻿.midi-playback-control div:last-child {
-    margin-top: -1rem;
+﻿.midi-playback-control {
+    --playback-play-button-size_arg: calc(0.75 * var(--ui-icon-button-size));
+}
+
+.midi-playback-control div:last-child {
+    margin-top: -0.35rem;
 }

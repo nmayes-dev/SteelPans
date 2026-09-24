@@ -76,13 +76,13 @@ public partial class Toolbar : OverlayComponentBase
 
     private async Task OnFocusOutAsync()
     {
-        await Task.Yield();
+        //await Task.Yield();
 
-        var focusIsInside = await JS.InvokeAsync<bool>("elementContainsActiveElement", toolbar_);
-        if (focusIsInside)
-            return;
+        //var focusIsInside = await JS.InvokeAsync<bool>("elementContainsActiveElement", toolbar_);
+        //if (focusIsInside)
+        //    return;
 
-        await RequestCloseAsync();
+        //await RequestCloseAsync();
     }
 
     internal void RegisterElement(ToolbarElement element, bool root)
