@@ -1,4 +1,6 @@
-﻿<!DOCTYPE html>
+﻿@inject IConfiguration Configuration
+
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -20,6 +22,10 @@
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script type="module" src="app.js"></script>
+    @if (Configuration.GetValue<bool>("LAUNCH_RESPONSIVE_FIREFOX"))
+    {
+        <script src="./js/debugBrowser.js"></script>
+    }
 </body>
 
 </html>

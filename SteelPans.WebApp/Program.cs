@@ -10,8 +10,8 @@ using SteelPans.Shared.Services;
 using SteelPans.WebApp.Components;
 using SteelPans.WebApp.Hubs;
 using SteelPans.WebApp.Services;
-using System.Text;
 using System.Security.Cryptography;
+using System.Text;
 
 namespace SteelPans.WebApp;
 
@@ -24,7 +24,7 @@ public static class Program
 {
     public static async Task Main(string[] args)
     {
-        await StartupPipeline 
+        await StartupPipeline
             .AddStep(WebApplication.CreateBuilder)
             .AddStep(AddAuthServices)
             .AddStep(AddCoreServices)
@@ -33,6 +33,7 @@ public static class Program
             .AddStep(BuildApp)
             .AddStep(ConfigureApp)
             .AddStep(InitializeServices)
+            .AddStep(ConfigureDebugBrowser)
             .AddStep(LaunchApp)
             .RunAsync(args);
     }
@@ -132,6 +133,12 @@ public static class Program
         builder.Services.AddScoped<MidiManagerService>();
         builder.Services.AddScoped<NavigationHistoryService>();
 
+        if (builder.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("LAUNCH_RESPONSIVE_FIREFOX"))
+        {
+            builder.Services.AddSingleton<DebugBrowserLifetimeService>();
+            builder.Services.AddSingleton<DebugBrowserLauncher>();
+        }
+
         return builder;
     }
 
@@ -141,7 +148,7 @@ public static class Program
             .AddInteractiveServerComponents();
 
         builder.Services.AddSignalR();
-        
+
         return builder;
     }
 
@@ -205,6 +212,17 @@ public static class Program
                 enableRangeProcessing: false);
         });
 
+        if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("LAUNCH_RESPONSIVE_FIREFOX"))
+        {
+            app.MapPost("/api/dev/browser-heartbeat",
+                (DebugBrowserLifetimeService browserLifetime) =>
+                {
+                    browserLifetime.Heartbeat();
+
+                    return Results.NoContent();
+                });
+        }
+
         return app;
     }
 
@@ -247,8 +265,22 @@ public static class Program
         return app;
     }
 
-    private static Task LaunchApp(WebApplication app)
+    private static WebApplication ConfigureDebugBrowser(WebApplication app)
     {
-        return app.RunAsync();
+        if (!app.Environment.IsDevelopment() ||
+            !app.Configuration.GetValue<bool>("LAUNCH_RESPONSIVE_FIREFOX"))
+        {
+            return app;
+        }
+
+        app.Services.GetRequiredService<DebugBrowserLauncher>()
+            .Configure(app);
+
+        return app;
+    }
+
+    private static async Task LaunchApp(WebApplication app)
+    {
+        await app.RunAsync();
     }
 }
