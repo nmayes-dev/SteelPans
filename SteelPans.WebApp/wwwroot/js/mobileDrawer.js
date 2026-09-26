@@ -34,11 +34,6 @@
 
         this._drawers.set(element, state);
 
-        /*
-         * Do this immediately even if the component is currently hidden.
-         * The initial CSS classes can then use the correct responsive edge
-         * before the drawer becomes visible.
-         */
         this._updateSide(element, state);
 
         state.onPointerDown = event => {
@@ -92,10 +87,6 @@
 
             state.pointerId = null;
 
-            /*
-             * Treat a pointer interaction as a tap only if it hasn't moved
-             * far enough to reasonably be a drag.
-             */
             if (pointerDistance <= 10) {
                 const now = performance.now();
 
@@ -138,13 +129,12 @@
         };
 
         state.onResize = () => {
-            /*
-             * Resizing can change the responsive edge or make a previously
-             * display:none drawer visible. Synchronise the layout without
-             * animating between those layout states.
-             */
             this._syncLayout(element, state);
         };
+
+        state.resizeObserver = new ResizeObserver(() => {
+            this._syncLayout(element, state);
+        });
 
         lip.addEventListener(
             "pointerdown",
@@ -169,6 +159,8 @@
         window.addEventListener(
             "resize",
             state.onResize);
+
+        state.resizeObserver.observe(element);
 
         this._syncLayout(element, state);
     },
@@ -216,6 +208,8 @@
             "resize",
             state.onResize);
 
+        state.resizeObserver?.disconnect();
+
         this._drawers.delete(element);
     },
 
@@ -225,13 +219,10 @@
 
         this._updateSide(element, state);
 
-        /*
-         * If the component is currently hidden through display:none,
-         * getBoundingClientRect() will be zero. In that case don't apply
-         * an inline transform: leave the CSS initial state in control.
-         */
         if (!this._updateSize(element, state))
             return;
+
+        this._updatePosition(element, state);
 
         state.offset = state.open
             ? state.size
@@ -239,10 +230,6 @@
 
         this._applyOffset(element, state);
 
-        /*
-         * Once JS has a real measurement it can take over from the CSS-only
-         * initial transform.
-         */
         element.classList.remove(
             "mobile-drawer--initially-open",
             "mobile-drawer--initially-closed");
@@ -250,10 +237,6 @@
         state.hasMeasured = true;
 
         requestAnimationFrame(() => {
-            /*
-             * Ensure the current element/state hasn't been disposed before
-             * enabling transitions again.
-             */
             if (this._drawers.get(element) !== state)
                 return;
 
@@ -289,6 +272,84 @@
             `mobile-drawer--${newSide}`);
     },
 
+    _updatePosition(element, state) {
+        /*
+         * Remove the previously calculated inline position so the original
+         * --drawer-position value is resolved again after resizing.
+         */
+        element.style.left = "";
+        element.style.top = "";
+
+        const style =
+            getComputedStyle(element);
+
+        const rect =
+            element.getBoundingClientRect();
+
+        const sidePadding = parseFloat(
+            style.getPropertyValue("--page-padding"));
+
+        const padding =
+            Number.isFinite(sidePadding)
+                ? sidePadding
+                : 0;
+
+        if (state.side === "top" ||
+            state.side === "bottom") {
+
+            const requestedPosition =
+                parseFloat(style.left);
+
+            const viewportSize =
+                document.documentElement.clientWidth;
+
+            const minPosition =
+                padding;
+
+            const maxPosition =
+                Math.max(
+                    minPosition,
+                    viewportSize - rect.width - padding);
+
+            const position =
+                this._clamp(
+                    Number.isFinite(requestedPosition)
+                        ? requestedPosition
+                        : minPosition,
+                    minPosition,
+                    maxPosition);
+
+            element.style.left =
+                `${position}px`;
+        }
+        else {
+            const requestedPosition =
+                parseFloat(style.top);
+
+            const viewportSize =
+                document.documentElement.clientHeight;
+
+            const minPosition =
+                padding;
+
+            const maxPosition =
+                Math.max(
+                    minPosition,
+                    viewportSize - rect.height - padding);
+
+            const position =
+                this._clamp(
+                    Number.isFinite(requestedPosition)
+                        ? requestedPosition
+                        : minPosition,
+                    minPosition,
+                    maxPosition);
+
+            element.style.top =
+                `${position}px`;
+        }
+    },
+
     _finishDrag(element, state) {
         const open =
             state.offset >= state.size * 0.5;
@@ -306,10 +367,6 @@
 
         state.open = open;
 
-        /*
-         * If it still hasn't been measurable, don't add an inline transform.
-         * Change the CSS initial-state class instead.
-         */
         if (!state.hasMeasured) {
             element.classList.toggle(
                 "mobile-drawer--initially-open",
@@ -346,11 +403,10 @@
         const rect =
             element.getBoundingClientRect();
 
-        /*
-         * display:none elements cannot be meaningfully measured.
-         */
-        if (rect.width === 0 || rect.height === 0)
+        if (rect.width === 0 ||
+            rect.height === 0) {
             return false;
+        }
 
         const lipSize = parseFloat(
             getComputedStyle(element)
@@ -382,22 +438,22 @@
         switch (state.side) {
             case "bottom":
                 element.style.transform =
-                    `translate3d(-50%, ${hidden}px, 0)`;
+                    `translate3d(0, ${hidden}px, 0)`;
                 break;
 
             case "top":
                 element.style.transform =
-                    `translate3d(-50%, ${-hidden}px, 0)`;
+                    `translate3d(0, ${-hidden}px, 0)`;
                 break;
 
             case "left":
                 element.style.transform =
-                    `translate3d(${-hidden}px, -50%, 0)`;
+                    `translate3d(${-hidden}px, 0, 0)`;
                 break;
 
             case "right":
                 element.style.transform =
-                    `translate3d(${hidden}px, -50%, 0)`;
+                    `translate3d(${hidden}px, 0, 0)`;
                 break;
         }
     },

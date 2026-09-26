@@ -2,41 +2,15 @@
     padding: var(--layout-nav-top-padding-y) 0;
 }
 
-.navbar-toggler {
-    appearance: none;
-    cursor: pointer;
-    width: var(--layout-nav-toggler-size);
-    height: var(--layout-nav-toggler-size);
-    border-radius: calc(var(--layout-nav-toggler-size) * 0.5);
-    color: white;
-    position: fixed;
-    left: clamp(0.55rem, 2vw, 0.85rem);
-    bottom: clamp(0.55rem, 2vw, 0.85rem);
-    z-index: 3;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.9%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") no-repeat center / var(--layout-nav-toggler-icon-size, clamp(1rem, 4vw, 1.25rem)) rgba(5, 39, 103, 0.94);
-    box-shadow: 0 0.55rem 1.4rem rgba(15, 23, 42, 0.28);
-    pointer-events: auto;
-}
-
-    .navbar-toggler:checked {
-        background-color: rgba(58, 6, 71, 0.96);
-    }
-
-.navbar-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 1;
+.top-row .container-fluid .navbar-brand {
     display: none;
-    background: rgba(15, 23, 42, 0.34);
-    backdrop-filter: blur(1px);
-    pointer-events: auto;
+    margin: 0;
+    font-size: var(--layout-nav-brand-font-size);
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+    font-weight: 700;
 }
-
-.navbar-toggler:checked + .navbar-backdrop {
-    display: block;
-}
-
 
 .navbar-back-button {
     --back-button-size: calc(0.9 * var(--layout-nav-toggler-size));
@@ -66,16 +40,6 @@
     .navbar-back-button .bi {
         font-size: calc(var(--back-button-size) * 0.75);
     }
-
-.top-row .container-fluid .navbar-brand {
-    display: none;
-    margin: 0;
-    font-size: var(--layout-nav-brand-font-size);
-    text-transform: uppercase;
-    letter-spacing: -0.03em;
-    line-height: 1.02;
-    font-weight: 700;
-}
 
 .mobile-nav-brand {
     padding: 0.7rem 1rem 0.45rem;
@@ -128,25 +92,6 @@
         color: white;
     }
 
-.nav-scrollable {
-    position: fixed;
-    left: clamp(0.55rem, 2vw, 0.85rem);
-    bottom: calc(clamp(0.55rem, 2vw, 0.85rem) + var(--layout-nav-toggler-size) + 0.5rem);
-    z-index: 2;
-    display: none;
-    width: min(19rem, calc(100vw - 1.1rem));
-    max-height: calc(100dvh - var(--layout-nav-toggler-size) - 1.8rem);
-    overflow-y: auto;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 1rem;
-    background-image: linear-gradient(180deg, rgba(5, 39, 103, 0.98) 0%, rgba(58, 6, 71, 0.98) 100%);
-    box-shadow: 0 1rem 2.25rem rgba(15, 23, 42, 0.34);
-    pointer-events: auto;
-}
-
-.navbar-toggler:checked ~ .nav-scrollable {
-    display: block;
-}
 
 @media (max-width: 900px) {
     .navbar-full-display {
@@ -154,21 +99,21 @@
     }
 
     .navbar-mobile-display {
+        --overlay__background-color_arg: rgba(5, 39, 103, 0.94);
+        --overlay__header-title-color_arg: rgba(255, 255, 255, 0.82);
+        --overlay__button-size-arg: calc(1.1 * var(--layout-nav-toggler-size));
     }
 
-        .navbar-mobile-display ::deep {
-            --overlay__background-color_arg: rgba(5, 39, 103, 0.94);
-            --overlay__header-title-color_arg: rgba(255, 255, 255, 0.82);
-            --overlay__button-size-arg: calc(1.1 * var(--layout-nav-toggler-size));
-        }
-
-    .navbar-back-button {
-        --back-button-size: calc(0.8 * var(--layout-nav-toggler-size));
-        box-shadow: none;
+    .nav {
+        gap: 0.16rem;
     }
 }
 
 @media (min-width: 900px) {
+    .navbar-full-display {
+        pointer-events: auto;
+    }
+
     .navbar-mobile-display {
         display: none !important;
     }
@@ -215,21 +160,6 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
-
-    .nav-scrollable {
-        position: static;
-        z-index: auto;
-        display: block;
-        width: auto;
-        max-height: none;
-        height: calc(100dvh - var(--layout-nav-top-height, 3.5rem));
-        overflow-y: auto;
-        border: 0;
-        border-radius: 0;
-        background-image: none;
-        box-shadow: none;
-        pointer-events: auto;
-    }
 
     nav ::deep .nav-item {
         padding: var(--layout-nav-link-gap) var(--layout-nav-item-padding-x) !important;

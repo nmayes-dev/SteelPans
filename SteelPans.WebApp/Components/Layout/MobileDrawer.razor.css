@@ -1,15 +1,17 @@
 ﻿.mobile-drawer {
-    --lip-size_default: 12px;
+    --lip-size_default: 8px;
     --lip-size: var(--lip-size_arg, var(--lip-size_default));
-    --handle-size: calc(0.5 * var(--lip-size));
+    --handle-size: calc(0.6 * var(--lip-size));
     --drawer-width_default: max-content;
     --drawer-width: var(--drawer-width_arg, var(--drawer-width_default));
-    --extra-offset: 4px;
-    --side-padding: 6px;
     --drawer-position: 50%;
+    --extra-offset: 4px;
+    --drawer-padding: 6px;
+    --page-padding: 8px;
     position: fixed;
     z-index: 1000;
     display: flex;
+    box-sizing: border-box;
     background-image: linear-gradient(180deg, rgb(5, 39, 103) 0%, #3a0647 70%);
     touch-action: none;
     transition: transform 220ms ease-out;
@@ -26,22 +28,23 @@
 .mobile-drawer--bottom,
 .mobile-drawer--top {
     width: var(--drawer-width);
+    max-width: calc(100vw - (2 * var(--page-padding)));
     left: var(--drawer-position);
-    max-height: 95dvh;
+    max-height: 100dvh;
 }
 
 .mobile-drawer--bottom {
     bottom: 0;
     flex-direction: column;
     border-radius: 12px 12px 0 0;
-    padding: 0 var(--side-padding) var(--extra-offset) var(--side-padding);
+    padding: 0 var(--drawer-padding) var(--extra-offset) var(--drawer-padding);
 }
 
 .mobile-drawer--top {
     top: 0;
     flex-direction: column-reverse;
     border-radius: 0 0 12px 12px;
-    padding: var(--extra-offset) var(--side-padding) 0 var(--side-padding);
+    padding: var(--extra-offset) var(--drawer-padding) 0 var(--drawer-padding);
 }
 
 /* Left / right */
@@ -49,15 +52,16 @@
 .mobile-drawer--left,
 .mobile-drawer--right {
     height: var(--drawer-width);
+    max-height: calc(100dvh - (2 * var(--page-padding)));
     top: var(--drawer-position);
-    max-width: 95dvw;
+    max-width: 100dvw;
 }
 
 .mobile-drawer--left {
     left: 0;
     flex-direction: row-reverse;
     border-radius: 0 12px 12px 0;
-    padding: var(--side-padding) 0 var(--side-padding) var(--extra-offset);
+    padding: var(--drawer-padding) 0 var(--drawer-padding) var(--extra-offset);
     text-align: right;
 }
 
@@ -65,37 +69,34 @@
     right: 0;
     flex-direction: row;
     border-radius: 12px 0 0 12px;
-    padding: var(--side-padding) var(--extra-offset) var(--side-padding) 0;
+    padding: var(--drawer-padding) var(--extra-offset) var(--drawer-padding) 0;
 }
 
-/* Initial open state */
+    /* Initial open state */
 
-.mobile-drawer--bottom.mobile-drawer--initially-open,
-.mobile-drawer--top.mobile-drawer--initially-open {
-    transform: translate3d(-50%, 0, 0);
-}
-
-.mobile-drawer--left.mobile-drawer--initially-open,
-.mobile-drawer--right.mobile-drawer--initially-open {
-    transform: translate3d(0, -50%, 0);
-}
+    .mobile-drawer--bottom.mobile-drawer--initially-open,
+    .mobile-drawer--top.mobile-drawer--initially-open,
+    .mobile-drawer--left.mobile-drawer--initially-open,
+    .mobile-drawer--right.mobile-drawer--initially-open {
+        transform: translate3d(0, 0, 0);
+    }
 
 /* Initial closed state */
 
 .mobile-drawer--bottom.mobile-drawer--initially-closed {
-    transform: translate3d(-50%, calc(100% - var(--lip-size)), 0);
+    transform: translate3d( 0, calc(100% - var(--lip-size)), 0);
 }
 
 .mobile-drawer--top.mobile-drawer--initially-closed {
-    transform: translate3d(-50%, calc(-100% + var(--lip-size)), 0);
+    transform: translate3d( 0, calc(-100% + var(--lip-size)), 0);
 }
 
 .mobile-drawer--left.mobile-drawer--initially-closed {
-    transform: translate3d(calc(-100% + var(--lip-size)), -50%, 0);
+    transform: translate3d( calc(-100% + var(--lip-size)), 0, 0);
 }
 
 .mobile-drawer--right.mobile-drawer--initially-closed {
-    transform: translate3d(calc(100% - var(--lip-size)), -50%, 0);
+    transform: translate3d( calc(100% - var(--lip-size)), 0, 0);
 }
 
 /* Lip */
@@ -124,18 +125,22 @@
 
 .mobile-drawer--bottom .mobile-drawer__lip {
     border-radius: 12px 12px 0 0;
+    align-items: flex-start;
 }
 
 .mobile-drawer--top .mobile-drawer__lip {
     border-radius: 0 0 12px 12px;
+    align-items: flex-end;
 }
 
 .mobile-drawer--left .mobile-drawer__lip {
     border-radius: 0 12px 12px 0;
+    justify-content: flex-end;
 }
 
 .mobile-drawer--right .mobile-drawer__lip {
     border-radius: 12px 0 0 12px;
+    justify-content: flex-start;
 }
 
 /* Handle */
@@ -150,6 +155,10 @@
     width: 48px;
     max-width: calc(100% - 8px);
     height: var(--handle-size);
+}
+
+.mobile-drawer--left .mobile-drawer__handle,
+.mobile-drawer--right .mobile-drawer__lip {
 }
 
 .mobile-drawer--left .mobile-drawer__handle,

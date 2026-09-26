@@ -23,7 +23,7 @@
 <div class="navbar-mobile-display">
     <MobileDrawer @ref="mobileLayout_"
                   Side="MobileDrawer.Edge.Top"
-                  Position="75%">
+                  Position="100%">
         @NavigationOptionsFragment(backButton: true)
     </MobileDrawer>
 </div>
@@ -80,10 +80,10 @@
     }
 
     private RenderFragment NavigationOptionsFragment(bool backButton) => @<nav class="nav flex-column">
-        @if (backButton)
+        @if (backButton && !DisableBackButton)
         {
             <div class="nav-item">
-                <button class="nav-link" @onclick="GoBackInOverlay" disabled="@DisableBackButton">
+                <button class="nav-link" @onclick="GoBackInOverlay">
                     <span class="bi bi-arrow-left" aria-hidden="true" /> Back
                 </button>
             </div>
