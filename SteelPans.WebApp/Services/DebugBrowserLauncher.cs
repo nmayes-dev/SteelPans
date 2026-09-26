@@ -202,7 +202,7 @@ public sealed class DebugBrowserLauncher : IDisposable
     {
         var script = Path.Combine(
             app.Environment.ContentRootPath,
-            "Properties",
+            "Scripts",
             "DebugBrowserWatcher.ps1");
 
         Process.Start(new ProcessStartInfo
