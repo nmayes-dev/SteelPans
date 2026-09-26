@@ -10,6 +10,7 @@ using SteelPans.Shared.Services;
 using SteelPans.WebApp.Components;
 using SteelPans.WebApp.Hubs;
 using SteelPans.WebApp.Services;
+using SteelPans.WebApp.Endpoints;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -32,6 +33,7 @@ public static class Program
             .AddStep(AddBlazorServices)
             .AddStep(BuildApp)
             .AddStep(ConfigureApp)
+            .AddStep(MapApiEndpoints)
             .AddStep(InitializeServices)
             .AddStep(ConfigureResponsiveFirefox)
             .AddStep(LaunchApp)
@@ -188,83 +190,21 @@ public static class Program
         app.UseAuthorization();
         app.UseAntiforgery();
 
-        app.MapAccountEndpoints();
-
         app.MapHub<AppUpdatesHub>("/hubs/app-updates");
-
-        app.MapGet(
-            "/api/audio-packs/{packId}",
-            GetAudioPack);
 
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();
 
-        app.MapPost("/api/download", async (HttpRequest request) =>
-        {
-            var form = await request.ReadFormAsync();
-
-            var fileName =
-                Path.GetFileName(form["fileName"].ToString());
-
-            var content =
-                form["content"].ToString();
-
-            var contentType =
-                form["contentType"].ToString();
-
-            if (string.IsNullOrWhiteSpace(contentType))
-            {
-                contentType = "application/octet-stream";
-            }
-
-            var bytes = Encoding.UTF8.GetBytes(content);
-
-            return Results.File(
-                bytes,
-                contentType,
-                fileName,
-                enableRangeProcessing: false);
-        });
-
         return app;
     }
 
-    private static IResult GetAudioPack(
-        string packId,
-        AudioPackService packs,
-        HttpResponse response)
+    public static WebApplication MapApiEndpoints(WebApplication app)
     {
-        var pack = packs.GetPackByOpaqueId(packId);
+        AccountEndpoints.Map(app);
+        AudioEndpoints.Map(app);
+        FileEndpoints.Map(app);
 
-        if (pack is null)
-            return Results.NotFound();
-
-        try
-        {
-            var bytes = packs.Decrypt(pack);
-
-            response.Headers.CacheControl = "no-store";
-            response.Headers.Pragma = "no-cache";
-
-            return Results.File(
-                bytes,
-                "application/octet-stream",
-                enableRangeProcessing: false);
-        }
-        catch (CryptographicException)
-        {
-            return Results.Problem(
-                "Audio pack could not be decrypted.",
-                statusCode:
-                    StatusCodes.Status500InternalServerError);
-        }
-        catch (InvalidDataException)
-        {
-            return Results.Problem(
-                "Audio pack is invalid.",
-                statusCode:
-                    StatusCodes.Status500InternalServerError);
-        }
+        return app;
     }
 
     private static async Task<WebApplication> InitializeServices(

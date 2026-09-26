@@ -8,11 +8,11 @@ using SteelPans.Shared.Data;
 using SteelPans.Shared.Ensembles;
 using SteelPans.Shared.Services;
 
-namespace SteelPans.Shared.Auth;
+namespace SteelPans.WebApp.Endpoints;
 
 public static class AccountEndpoints
 {
-    public static IEndpointRouteBuilder MapAccountEndpoints(this IEndpointRouteBuilder app)
+    public static IEndpointRouteBuilder Map(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/account");
 
