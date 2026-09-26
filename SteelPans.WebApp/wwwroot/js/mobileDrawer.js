@@ -7,19 +7,26 @@
         initiallyOpen,
         dotNetRef,
         responsiveSide = null,
-        responsiveBreakpoint = null) {
+        responsiveThreshold = null) {
 
-        const lip = element.querySelector(".mobile-drawer__lip");
+        const lip =
+            element.querySelector(".mobile-drawer__lip");
+
+        const content =
+            element.querySelector(".mobile-drawer__content");
 
         const state = {
             defaultSide: side,
             side,
             responsiveSide,
-            responsiveBreakpoint,
+            responsiveThreshold,
 
             lip,
+            content,
             dotNetRef,
+
             open: initiallyOpen,
+            peekOpen: false,
 
             pointerId: null,
             startPointer: 0,
@@ -30,96 +37,160 @@
             hasMeasured: false,
 
             lastTapTime: 0,
+
+            crossSize: null,
+            animatingCrossSize: false,
+            resizeObserver: null,
         };
 
-        this._drawers.set(element, state);
+        this._drawers.set(
+            element,
+            state);
 
-        this._updateSide(element, state);
+        this._updateSide(
+            element,
+            state);
 
         state.onPointerDown = event => {
             if (!event.isPrimary)
                 return;
 
-            state.pointerId = event.pointerId;
-
-            lip.setPointerCapture(event.pointerId);
+            state.pointerId =
+                event.pointerId;
 
             state.startPointer =
-                this._getPointerPosition(event, state.side);
+                this._getPointerPosition(
+                    event,
+                    state.side);
 
-            state.startOffset = state.offset;
+            state.startOffset =
+                state.offset;
 
-            element.style.transition = "none";
+            element.style.transitionProperty =
+                "none";
 
             event.preventDefault();
         };
 
         state.onPointerMove = event => {
-            if (event.pointerId !== state.pointerId)
+            if (event.pointerId !==
+                state.pointerId) {
                 return;
+            }
 
             const current =
-                this._getPointerPosition(event, state.side);
+                this._getPointerPosition(
+                    event,
+                    state.side);
 
             const delta =
-                current - state.startPointer;
+                current -
+                state.startPointer;
 
-            state.offset = this._clamp(
-                state.startOffset +
-                this._normalizeDelta(delta, state.side),
-                0,
-                state.size);
+            state.offset =
+                this._clamp(
+                    state.startOffset +
+                    this._normalizeDelta(
+                        delta,
+                        state.side),
+                    0,
+                    state.size);
 
-            this._applyOffset(element, state);
-
-            event.preventDefault();
+            this._applyOffset(
+                element,
+                state);
         };
 
         state.onPointerUp = event => {
-            if (event.pointerId !== state.pointerId)
+            if (event.pointerId !==
+                state.pointerId) {
                 return;
+            }
 
             const pointerPosition =
-                this._getPointerPosition(event, state.side);
+                this._getPointerPosition(
+                    event,
+                    state.side);
 
             const pointerDistance =
-                Math.abs(pointerPosition - state.startPointer);
+                Math.abs(
+                    pointerPosition -
+                    state.startPointer);
 
-            state.pointerId = null;
+            state.pointerId =
+                null;
+
+            element.style.transitionProperty =
+                "";
 
             if (pointerDistance <= 10) {
-                const now = performance.now();
+                const now =
+                    performance.now();
 
-                if (now - state.lastTapTime <= 300) {
-                    state.lastTapTime = 0;
+                /*
+                 * Second tap while closed/peeked:
+                 * open fully.
+                 */
+                if (!state.open &&
+                    now - state.lastTapTime <= 300) {
 
-                    if (!state.open) {
-                        this._setOpen(
-                            element,
-                            state,
-                            true,
-                            true);
+                    state.lastTapTime =
+                        0;
 
-                        return;
-                    }
+                    this._setOpen(
+                        element,
+                        state,
+                        true,
+                        true);
+
+                    return;
                 }
-                else {
-                    state.lastTapTime = now;
+
+                state.lastTapTime =
+                    now;
+
+                /*
+                 * First tap while closed:
+                 * reveal a small amount.
+                 */
+                if (!state.open) {
+                    this._setPeekOpen(
+                        element,
+                        state);
+
+                    return;
                 }
             }
             else {
-                state.lastTapTime = 0;
+                state.lastTapTime =
+                    0;
             }
 
-            this._finishDrag(element, state);
+            this._finishDrag(
+                element,
+                state);
         };
 
         state.onDocumentPointerDown = event => {
-            if (!state.open)
+            if (!state.open &&
+                !state.peekOpen) {
                 return;
+            }
 
             if (element.contains(event.target))
                 return;
+
+            /*
+             * Peek isn't considered logically open,
+             * so collapse it without notifying .NET.
+             */
+            if (state.peekOpen) {
+                this._setPeekClosed(
+                    element,
+                    state);
+
+                return;
+            }
 
             this._setOpen(
                 element,
@@ -129,26 +200,24 @@
         };
 
         state.onResize = () => {
-            this._syncLayout(element, state);
+            this._syncLayout(
+                element,
+                state);
         };
 
-        state.resizeObserver = new ResizeObserver(() => {
-            this._syncLayout(element, state);
-        });
-
-        lip.addEventListener(
+        element.addEventListener(
             "pointerdown",
             state.onPointerDown);
 
-        lip.addEventListener(
+        window.addEventListener(
             "pointermove",
             state.onPointerMove);
 
-        lip.addEventListener(
+        window.addEventListener(
             "pointerup",
             state.onPointerUp);
 
-        lip.addEventListener(
+        window.addEventListener(
             "pointercancel",
             state.onPointerUp);
 
@@ -160,13 +229,63 @@
             "resize",
             state.onResize);
 
-        state.resizeObserver.observe(element);
+        state.resizeObserver =
+            new ResizeObserver(() => {
+                if (state.animatingCrossSize)
+                    return;
 
-        this._syncLayout(element, state);
+                /*
+                 * Content can change both:
+                 *
+                 * - the drawer's slide distance
+                 * - its max-content width/height
+                 *
+                 * Update the slide distance immediately,
+                 * then animate the cross-axis size.
+                 */
+                if (this._updateSize(
+                    element,
+                    state)) {
+
+                    this._syncOffsetForState(
+                        element,
+                        state);
+
+                    this._applyOffset(
+                        element,
+                        state);
+                }
+
+                this._animateCrossSize(
+                    element,
+                    state);
+            });
+
+        if (content) {
+            state.resizeObserver.observe(
+                content);
+        }
+
+        this._syncLayout(
+            element,
+            state);
+
+        const rect =
+            element.getBoundingClientRect();
+
+        if (rect.width > 0 &&
+            rect.height > 0) {
+
+            state.crossSize =
+                this._getCrossSize(
+                    rect,
+                    state.side);
+        }
     },
 
     close(element) {
-        const state = this._drawers.get(element);
+        const state =
+            this._drawers.get(element);
 
         if (!state)
             return;
@@ -179,24 +298,25 @@
     },
 
     dispose(element) {
-        const state = this._drawers.get(element);
+        const state =
+            this._drawers.get(element);
 
         if (!state)
             return;
 
-        state.lip.removeEventListener(
+        state.element.removeEventListener(
             "pointerdown",
             state.onPointerDown);
 
-        state.lip.removeEventListener(
+        window.removeEventListener(
             "pointermove",
             state.onPointerMove);
 
-        state.lip.removeEventListener(
+        window.removeEventListener(
             "pointerup",
             state.onPointerUp);
 
-        state.lip.removeEventListener(
+        window.removeEventListener(
             "pointercancel",
             state.onPointerUp);
 
@@ -210,35 +330,68 @@
 
         state.resizeObserver?.disconnect();
 
-        this._drawers.delete(element);
+        this._drawers.delete(
+            element);
     },
 
     _syncLayout(element, state) {
         element.classList.add(
             "mobile-drawer--no-transition");
 
-        this._updateSide(element, state);
+        const previousSide =
+            state.side;
 
-        if (!this._updateSize(element, state))
+        this._updateSide(
+            element,
+            state);
+
+        if (previousSide !==
+            state.side) {
+
+            state.crossSize =
+                null;
+        }
+
+        if (!this._updateSize(
+            element,
+            state)) {
             return;
+        }
 
-        this._updatePosition(element, state);
+        this._updatePosition(
+            element,
+            state);
 
-        state.offset = state.open
-            ? state.size
-            : 0;
+        this._syncOffsetForState(
+            element,
+            state);
 
-        this._applyOffset(element, state);
+        this._applyOffset(
+            element,
+            state);
 
         element.classList.remove(
             "mobile-drawer--initially-open",
             "mobile-drawer--initially-closed");
 
-        state.hasMeasured = true;
+        state.hasMeasured =
+            true;
+
+        const rect =
+            element.getBoundingClientRect();
+
+        if (state.crossSize === null) {
+            state.crossSize =
+                this._getCrossSize(
+                    rect,
+                    state.side);
+        }
 
         requestAnimationFrame(() => {
-            if (this._drawers.get(element) !== state)
+            if (this._drawers.get(element) !==
+                state) {
                 return;
+            }
 
             element.classList.remove(
                 "mobile-drawer--no-transition");
@@ -246,17 +399,21 @@
     },
 
     _updateSide(element, state) {
-        let newSide = state.defaultSide;
+        let newSide =
+            state.defaultSide;
 
         if (state.responsiveSide &&
-            state.responsiveBreakpoint !== null &&
-            window.innerWidth < state.responsiveBreakpoint) {
+            state.responsiveThreshold !== null &&
+            window.innerWidth <
+            state.responsiveThreshold) {
 
-            newSide = state.responsiveSide;
+            newSide =
+                state.responsiveSide;
         }
 
         if (state.side === newSide &&
-            element.classList.contains(`mobile-drawer--${newSide}`)) {
+            element.classList.contains(
+                `mobile-drawer--${newSide}`)) {
             return;
         }
 
@@ -266,19 +423,166 @@
             "mobile-drawer--left",
             "mobile-drawer--right");
 
-        state.side = newSide;
+        state.side =
+            newSide;
 
         element.classList.add(
             `mobile-drawer--${newSide}`);
     },
 
+    _animateCrossSize(element, state) {
+        if (state.animatingCrossSize)
+            return;
+
+        const currentRect =
+            element.getBoundingClientRect();
+
+        if (currentRect.width === 0 ||
+            currentRect.height === 0) {
+            return;
+        }
+
+        const property =
+            this._isHorizontal(state.side)
+                ? "width"
+                : "height";
+
+        const previousSize =
+            state.crossSize;
+
+        /*
+         * Let max-content calculate its new
+         * natural size.
+         */
+        element.style[property] =
+            "";
+
+        const naturalRect =
+            element.getBoundingClientRect();
+
+        const newSize =
+            this._getCrossSize(
+                naturalRect,
+                state.side);
+
+        if (previousSize === null) {
+            state.crossSize =
+                newSize;
+
+            this._syncLayout(
+                element,
+                state);
+
+            return;
+        }
+
+        if (Math.abs(
+            previousSize -
+            newSize) < 0.5) {
+
+            state.crossSize =
+                newSize;
+
+            this._syncLayout(
+                element,
+                state);
+
+            return;
+        }
+
+        state.animatingCrossSize =
+            true;
+
+        /*
+         * Lock at the old size.
+         */
+        element.style[property] =
+            `${previousSize}px`;
+
+        element.getBoundingClientRect();
+
+        /*
+         * Calculate the final clamped position
+         * using the final drawer size.
+         */
+        const previousTransition =
+            element.style.transition;
+
+        element.style.transition =
+            "none";
+
+        element.style[property] =
+            `${newSize}px`;
+
+        this._updatePosition(
+            element,
+            state);
+
+        element.getBoundingClientRect();
+
+        /*
+         * Restore starting size.
+         */
+        element.style[property] =
+            `${previousSize}px`;
+
+        element.getBoundingClientRect();
+
+        element.style.transition =
+            previousTransition;
+
+        requestAnimationFrame(() => {
+            if (this._drawers.get(element) !==
+                state) {
+                return;
+            }
+
+            element.style[property] =
+                `${newSize}px`;
+        });
+
+        const onTransitionEnd = event => {
+            if (event.target !== element ||
+                event.propertyName !== property) {
+                return;
+            }
+
+            element.removeEventListener(
+                "transitionend",
+                onTransitionEnd);
+
+            state.crossSize =
+                newSize;
+
+            state.animatingCrossSize =
+                false;
+
+            /*
+             * Return sizing to max-content.
+             */
+            element.style[property] =
+                "";
+
+            this._syncLayout(
+                element,
+                state);
+        };
+
+        element.addEventListener(
+            "transitionend",
+            onTransitionEnd);
+    },
+
     _updatePosition(element, state) {
         /*
-         * Remove the previously calculated inline position so the original
-         * --drawer-position value is resolved again after resizing.
+         * Clear the previous calculated position so
+         * --drawer-position is resolved again.
          */
-        element.style.left = "";
-        element.style.top = "";
+        element.style.left =
+            "";
+
+        element.style.top =
+            "";
 
         const style =
             getComputedStyle(element);
@@ -286,17 +590,18 @@
         const rect =
             element.getBoundingClientRect();
 
-        const sidePadding = parseFloat(
-            style.getPropertyValue("--page-padding"));
+        const pagePaddingValue =
+            parseFloat(
+                style.getPropertyValue(
+                    "--page-padding"));
 
-        const padding =
-            Number.isFinite(sidePadding)
-                ? sidePadding
+        const pagePadding =
+            Number.isFinite(
+                pagePaddingValue)
+                ? pagePaddingValue
                 : 0;
 
-        if (state.side === "top" ||
-            state.side === "bottom") {
-
+        if (this._isHorizontal(state.side)) {
             const requestedPosition =
                 parseFloat(style.left);
 
@@ -304,16 +609,19 @@
                 document.documentElement.clientWidth;
 
             const minPosition =
-                padding;
+                pagePadding;
 
             const maxPosition =
                 Math.max(
                     minPosition,
-                    viewportSize - rect.width - padding);
+                    viewportSize -
+                    rect.width -
+                    pagePadding);
 
             const position =
                 this._clamp(
-                    Number.isFinite(requestedPosition)
+                    Number.isFinite(
+                        requestedPosition)
                         ? requestedPosition
                         : minPosition,
                     minPosition,
@@ -330,16 +638,19 @@
                 document.documentElement.clientHeight;
 
             const minPosition =
-                padding;
+                pagePadding;
 
             const maxPosition =
                 Math.max(
                     minPosition,
-                    viewportSize - rect.height - padding);
+                    viewportSize -
+                    rect.height -
+                    pagePadding);
 
             const position =
                 this._clamp(
-                    Number.isFinite(requestedPosition)
+                    Number.isFinite(
+                        requestedPosition)
                         ? requestedPosition
                         : minPosition,
                     minPosition,
@@ -350,9 +661,90 @@
         }
     },
 
+    _setPeekOpen(element, state) {
+        if (!state.hasMeasured)
+            return;
+
+        const peekSize =
+            this._getPeekSize(
+                element,
+                state);
+
+        state.peekOpen =
+            true;
+
+        state.offset =
+            peekSize;
+
+        element.style.transitionProperty =
+            "";
+
+        this._applyOffset(
+            element,
+            state);
+    },
+
+    _setPeekClosed(element, state) {
+        state.peekOpen =
+            false;
+
+        state.offset =
+            0;
+
+        element.style.transitionProperty =
+            "";
+
+        this._applyOffset(
+            element,
+            state);
+    },
+
+    _getPeekSize(element, state) {
+        const value =
+            parseFloat(
+                getComputedStyle(element)
+                    .getPropertyValue(
+                        "--tap-open-size"));
+
+        const peekSize =
+            Number.isFinite(value)
+                ? value
+                : 48;
+
+        return this._clamp(
+            peekSize,
+            0,
+            state.size);
+    },
+
+    _syncOffsetForState(element, state) {
+        if (state.open) {
+            state.offset =
+                state.size;
+
+            return;
+        }
+
+        if (state.peekOpen) {
+            state.offset =
+                this._getPeekSize(
+                    element,
+                    state);
+
+            return;
+        }
+
+        state.offset =
+            0;
+    },
+
     _finishDrag(element, state) {
         const open =
-            state.offset >= state.size * 0.5;
+            state.offset >=
+            state.size * 0.5;
+
+        state.peekOpen =
+            false;
 
         this._setOpen(
             element,
@@ -361,11 +753,23 @@
             true);
     },
 
-    _setOpen(element, state, open, notifyDotNet) {
+    _setOpen(
+        element,
+        state,
+        open,
+        notifyDotNet) {
+
         const changed =
             state.open !== open;
 
-        state.open = open;
+        state.open =
+            open;
+
+        element.classList.add(open ? "mobile-drawer--open" : "mobile-drawer--closed");
+        element.classList.remove(open ? "mobile-drawer--closed" : "mobile-drawer--open");
+
+        state.peekOpen =
+            false;
 
         if (!state.hasMeasured) {
             element.classList.toggle(
@@ -377,21 +781,28 @@
                 !open);
         }
         else {
-            state.offset = open
-                ? state.size
-                : 0;
+            state.offset =
+                open
+                    ? state.size
+                    : 0;
 
-            element.style.transition = "";
+            element.style.transitionProperty =
+                "";
 
-            this._applyOffset(element, state);
+            this._applyOffset(
+                element,
+                state);
         }
 
-        if (!changed || !notifyDotNet)
+        if (!changed ||
+            !notifyDotNet) {
             return;
+        }
 
-        const method = open
-            ? "NotifyOpenedFromJsAsync"
-            : "NotifyClosedFromJsAsync";
+        const method =
+            open
+                ? "NotifyOpenedFromJsAsync"
+                : "NotifyClosedFromJsAsync";
 
         state.dotNetRef
             .invokeMethodAsync(method)
@@ -408,24 +819,28 @@
             return false;
         }
 
-        const lipSize = parseFloat(
-            getComputedStyle(element)
-                .getPropertyValue("--lip-size"));
+        const lipSize =
+            parseFloat(
+                getComputedStyle(element)
+                    .getPropertyValue(
+                        "--lip-size"));
 
         if (!Number.isFinite(lipSize))
             return false;
 
-        if (state.side === "top" ||
-            state.side === "bottom") {
-
-            state.size = Math.max(
-                0,
-                rect.height - lipSize);
+        if (this._isHorizontal(state.side)) {
+            state.size =
+                Math.max(
+                    0,
+                    rect.height -
+                    lipSize);
         }
         else {
-            state.size = Math.max(
-                0,
-                rect.width - lipSize);
+            state.size =
+                Math.max(
+                    0,
+                    rect.width -
+                    lipSize);
         }
 
         return true;
@@ -433,7 +848,8 @@
 
     _applyOffset(element, state) {
         const hidden =
-            state.size - state.offset;
+            state.size -
+            state.offset;
 
         switch (state.side) {
             case "bottom":
@@ -459,8 +875,7 @@
     },
 
     _getPointerPosition(event, side) {
-        return side === "top" ||
-            side === "bottom"
+        return this._isHorizontal(side)
             ? event.clientY
             : event.clientX;
     },
@@ -480,9 +895,22 @@
         }
     },
 
+    _getCrossSize(rect, side) {
+        return this._isHorizontal(side)
+            ? rect.width
+            : rect.height;
+    },
+
+    _isHorizontal(side) {
+        return side === "top" ||
+            side === "bottom";
+    },
+
     _clamp(value, min, max) {
         return Math.min(
             max,
-            Math.max(min, value));
+            Math.max(
+                min,
+                value));
     }
 };

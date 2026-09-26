@@ -47,8 +47,13 @@
     private bool initialized_;
     private bool disposed_;
 
-    private string SideClass => $"mobile-drawer--{Side.ToString().ToLowerInvariant()}";
-    private string InitialClass => InitiallyOpen ? "mobile-drawer--initially-open" : "mobile-drawer--initially-closed";
+    private string SideClass =>
+        $"mobile-drawer--{Side.ToString().ToLowerInvariant()}";
+
+    private string InitialClass =>
+        InitiallyOpen
+            ? "mobile-drawer--open"
+            : "mobile-drawer--closed";
 
     private string[] Classes => [
         "mobile-drawer",
@@ -57,7 +62,8 @@
         InitialClass,
     ];
 
-    private string DrawerClass => string.Join(" ", Classes);
+    private string DrawerClass =>
+        string.Join(" ", Classes);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
