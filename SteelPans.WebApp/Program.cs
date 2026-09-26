@@ -33,16 +33,13 @@ public static class Program
             .AddStep(BuildApp)
             .AddStep(ConfigureApp)
             .AddStep(InitializeServices)
-            .AddStep(ConfigureDebugBrowser)
+            .AddStep(ConfigureResponsiveFirefox)
             .AddStep(LaunchApp)
             .RunAsync(args);
     }
 
-
-
-
-
-    private static WebApplicationBuilder AddAuthServices(WebApplicationBuilder builder)
+    private static WebApplicationBuilder AddAuthServices(
+        WebApplicationBuilder builder)
     {
         builder.Services
             .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
@@ -84,7 +81,9 @@ public static class Program
         builder.Services.AddCascadingAuthenticationState();
 
         builder.Services.AddHttpContextAccessor();
-        builder.Services.AddScoped<ICurrentUserAccessor, BlazorCurrentUserAccessor>();
+        builder.Services.AddScoped<
+            ICurrentUserAccessor,
+            BlazorCurrentUserAccessor>();
 
         builder.Services.AddAntiforgery(options =>
         {
@@ -94,7 +93,8 @@ public static class Program
         return builder;
     }
 
-    private static WebApplicationBuilder AddCoreServices(WebApplicationBuilder builder)
+    private static WebApplicationBuilder AddCoreServices(
+        WebApplicationBuilder builder)
     {
         builder.Services.AddScoped<TaskRunnerService>();
         builder.Services.AddScoped<SafeJSInteropService>();
@@ -109,21 +109,27 @@ public static class Program
         builder.Services.AddScoped<IEnsembleFileStore>(sp =>
             sp.GetRequiredService<LocalEnsembleFileStore>());
 
-        builder.Services.TryAddScoped<IRealtimeUpdateDispatcher, NullRealtimeUpdateDispatcher>();
-        builder.Services.AddScoped<DbService>();
+        builder.Services.TryAddScoped<
+            IRealtimeUpdateDispatcher,
+            NullRealtimeUpdateDispatcher>();
 
+        builder.Services.AddScoped<DbService>();
         builder.Services.AddScoped<IEmailSender, EmailSender>();
 
         return builder;
     }
 
-    private static WebApplicationBuilder AddAppServices(WebApplicationBuilder builder)
+    private static WebApplicationBuilder AddAppServices(
+        WebApplicationBuilder builder)
     {
         builder.Services.AddSingleton<SteelPanLoaderService>();
         builder.Services.AddSingleton<SteelPanSvgService>();
         builder.Services.AddSingleton<AudioPackService>();
 
-        builder.Services.AddScoped<IRealtimeUpdateDispatcher, SignalRRealtimeUpdateDispatcher>();
+        builder.Services.AddScoped<
+            IRealtimeUpdateDispatcher,
+            SignalRRealtimeUpdateDispatcher>();
+
         builder.Services.AddScoped<AppUpdatesService>();
 
         builder.Services.AddScoped<UserStateService>();
@@ -133,16 +139,18 @@ public static class Program
         builder.Services.AddScoped<MidiManagerService>();
         builder.Services.AddScoped<NavigationHistoryService>();
 
-        if (builder.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("LAUNCH_RESPONSIVE_FIREFOX"))
+        if (builder.Environment.IsDevelopment() &&
+            builder.Configuration.GetValue<bool>(
+                "LAUNCH_RESPONSIVE_FIREFOX"))
         {
-            builder.Services.AddSingleton<DebugBrowserLifetimeService>();
             builder.Services.AddSingleton<DebugBrowserLauncher>();
         }
 
         return builder;
     }
 
-    private static WebApplicationBuilder AddBlazorServices(WebApplicationBuilder builder)
+    private static WebApplicationBuilder AddBlazorServices(
+        WebApplicationBuilder builder)
     {
         builder.Services.AddRazorComponents()
             .AddInteractiveServerComponents();
@@ -152,12 +160,14 @@ public static class Program
         return builder;
     }
 
-    private static WebApplication BuildApp(WebApplicationBuilder builder)
+    private static WebApplication BuildApp(
+        WebApplicationBuilder builder)
     {
         return builder.Build();
     }
 
-    private static WebApplication ConfigureApp(WebApplication app)
+    private static WebApplication ConfigureApp(
+        WebApplication app)
     {
         if (!app.Environment.IsDevelopment())
         {
@@ -170,7 +180,9 @@ public static class Program
         app.UseStaticFiles();
         app.MapStaticAssets();
 
-        app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+        app.UseStatusCodePagesWithReExecute(
+            "/not-found",
+            createScopeForStatusCodePages: true);
 
         app.UseAuthentication();
         app.UseAuthorization();
@@ -180,7 +192,9 @@ public static class Program
 
         app.MapHub<AppUpdatesHub>("/hubs/app-updates");
 
-        app.MapGet("/api/audio-packs/{packId}", GetAudioPack);
+        app.MapGet(
+            "/api/audio-packs/{packId}",
+            GetAudioPack);
 
         app.MapRazorComponents<App>()
             .AddInteractiveServerRenderMode();
@@ -212,29 +226,23 @@ public static class Program
                 enableRangeProcessing: false);
         });
 
-        if (app.Environment.IsDevelopment() && app.Configuration.GetValue<bool>("LAUNCH_RESPONSIVE_FIREFOX"))
-        {
-            app.MapPost("/api/dev/browser-heartbeat",
-                (DebugBrowserLifetimeService browserLifetime) =>
-                {
-                    browserLifetime.Heartbeat();
-
-                    return Results.NoContent();
-                });
-        }
-
         return app;
     }
 
-    private static IResult GetAudioPack(string packId, AudioPackService packs, HttpResponse response)
+    private static IResult GetAudioPack(
+        string packId,
+        AudioPackService packs,
+        HttpResponse response)
     {
         var pack = packs.GetPackByOpaqueId(packId);
+
         if (pack is null)
             return Results.NotFound();
 
         try
         {
             var bytes = packs.Decrypt(pack);
+
             response.Headers.CacheControl = "no-store";
             response.Headers.Pragma = "no-cache";
 
@@ -247,39 +255,51 @@ public static class Program
         {
             return Results.Problem(
                 "Audio pack could not be decrypted.",
-                statusCode: StatusCodes.Status500InternalServerError);
+                statusCode:
+                    StatusCodes.Status500InternalServerError);
         }
         catch (InvalidDataException)
         {
             return Results.Problem(
                 "Audio pack is invalid.",
-                statusCode: StatusCodes.Status500InternalServerError);
+                statusCode:
+                    StatusCodes.Status500InternalServerError);
         }
     }
 
-    private static async Task<WebApplication> InitializeServices(WebApplication app)
+    private static async Task<WebApplication> InitializeServices(
+        WebApplication app)
     {
-        await app.Services.GetRequiredService<SteelPanLoaderService>().InitializeAsync();
-        await app.Services.GetRequiredService<SteelPanSvgService>().InitializeAsync();
+        await app.Services
+            .GetRequiredService<SteelPanLoaderService>()
+            .InitializeAsync();
+
+        await app.Services
+            .GetRequiredService<SteelPanSvgService>()
+            .InitializeAsync();
 
         return app;
     }
 
-    private static WebApplication ConfigureDebugBrowser(WebApplication app)
+    private static WebApplication ConfigureResponsiveFirefox(
+        WebApplication app)
     {
         if (!app.Environment.IsDevelopment() ||
-            !app.Configuration.GetValue<bool>("LAUNCH_RESPONSIVE_FIREFOX"))
+            !app.Configuration.GetValue<bool>(
+                "LAUNCH_RESPONSIVE_FIREFOX"))
         {
             return app;
         }
 
-        app.Services.GetRequiredService<DebugBrowserLauncher>()
+        app.Services
+            .GetRequiredService<DebugBrowserLauncher>()
             .Configure(app);
 
         return app;
     }
 
-    private static async Task LaunchApp(WebApplication app)
+    private static async Task LaunchApp(
+        WebApplication app)
     {
         await app.RunAsync();
     }

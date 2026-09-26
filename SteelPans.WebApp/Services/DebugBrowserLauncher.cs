@@ -17,6 +17,7 @@ public sealed class DebugBrowserLauncher : IDisposable
     private const uint WmClose = 0x0010;
 
     private readonly Lock lock_ = new();
+    private readonly CancellationTokenSource cts_ = new();
 
     private IntPtr firefoxWindow_;
     private bool disposed_;
@@ -25,64 +26,81 @@ public sealed class DebugBrowserLauncher : IDisposable
     {
         app.Lifetime.ApplicationStarted.Register(() =>
         {
-            _ = LaunchAsync(app);
+            _ = LaunchAsync(app, cts_.Token);
         });
 
         app.Lifetime.ApplicationStopping.Register(Close);
     }
 
-    private async Task LaunchAsync(WebApplication app)
+    private async Task LaunchAsync(
+        WebApplication app,
+        CancellationToken cancellationToken)
     {
-        var url = app.Configuration["ASPNETCORE_URLS"]?
-            .Split(';', StringSplitOptions.RemoveEmptyEntries)
-            .FirstOrDefault(x => x.StartsWith(
-                "https://",
-                StringComparison.OrdinalIgnoreCase));
-
-        if (url is null)
-            return;
-
-        var existingWindows = GetFirefoxWindows();
-
-        Process.Start(new ProcessStartInfo
+        try
         {
-            FileName = FirefoxPath,
-            Arguments = $"-new-window \"{url}\"",
-            UseShellExecute = true
-        });
+            var url = app.Configuration["ASPNETCORE_URLS"]?
+                .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault(x => x.StartsWith(
+                    "https://",
+                    StringComparison.OrdinalIgnoreCase));
 
-        var window = await FindNewFirefoxWindowAsync(existingWindows);
-
-        if (window == IntPtr.Zero)
-            return;
-
-        lock (lock_)
-        {
-            if (disposed_)
-            {
-                PostMessage(
-                    window,
-                    WmClose,
-                    IntPtr.Zero,
-                    IntPtr.Zero);
-
+            if (url is null)
                 return;
+
+            var existingWindows = GetFirefoxWindows();
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = FirefoxPath,
+                Arguments = $"-new-window \"{url}\"",
+                UseShellExecute = true
+            });
+
+            var window = await FindNewFirefoxWindowAsync(
+                existingWindows,
+                cancellationToken);
+
+            if (window == IntPtr.Zero)
+                return;
+
+            lock (lock_)
+            {
+                if (disposed_)
+                {
+                    PostMessage(
+                        window,
+                        WmClose,
+                        IntPtr.Zero,
+                        IntPtr.Zero);
+
+                    return;
+                }
+
+                firefoxWindow_ = window;
             }
 
-            firefoxWindow_ = window;
+            StartWatchdog(app, window);
+
+            _ = MonitorWindowAsync(
+                app,
+                window,
+                cancellationToken);
+
+            // Give Firefox time to finish initializing before sending
+            // the Responsive Design Mode shortcut.
+            await Task.Delay(500, cancellationToken);
+
+            SendResponsiveDesignShortcut(window);
         }
-
-        StartWatchdog(app, window);
-
-        // Give Firefox time to finish initializing and become ready
-        // to receive the responsive-design keyboard shortcut.
-        await Task.Delay(500);
-
-        SendResponsiveDesignShortcut(window);
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+        }
     }
 
     private static async Task<IntPtr> FindNewFirefoxWindowAsync(
-        HashSet<IntPtr> existingWindows)
+        HashSet<IntPtr> existingWindows,
+        CancellationToken cancellationToken)
     {
         for (var i = 0; i < 50; ++i)
         {
@@ -94,10 +112,31 @@ public sealed class DebugBrowserLauncher : IDisposable
             if (window != IntPtr.Zero)
                 return window;
 
-            await Task.Delay(100);
+            await Task.Delay(100, cancellationToken);
         }
 
         return IntPtr.Zero;
+    }
+
+    private static async Task MonitorWindowAsync(
+        WebApplication app,
+        IntPtr window,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (IsWindow(window))
+            {
+                await Task.Delay(250, cancellationToken);
+            }
+
+            if (!cancellationToken.IsCancellationRequested)
+                app.Lifetime.StopApplication();
+        }
+        catch (OperationCanceledException)
+            when (cancellationToken.IsCancellationRequested)
+        {
+        }
     }
 
     private static HashSet<IntPtr> GetFirefoxWindows()
@@ -212,7 +251,11 @@ public sealed class DebugBrowserLauncher : IDisposable
             disposed_ = true;
         }
 
+        cts_.Cancel();
+
         Close();
+
+        cts_.Dispose();
     }
 
     private delegate bool EnumWindowsProc(
