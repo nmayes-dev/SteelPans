@@ -2,7 +2,7 @@
     --lip-size_default: 12px;
     --lip-size: var(--lip-size_arg, var(--lip-size_default));
     --handle-size: calc(0.5 * var(--lip-size));
-    --drawer-width_default: fit-content;
+    --drawer-width_default: max-content;
     --drawer-width: var(--drawer-width_arg, var(--drawer-width_default));
     --extra-offset: 4px;
     --side-padding: 6px;
