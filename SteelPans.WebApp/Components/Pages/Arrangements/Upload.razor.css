@@ -1,6 +1,6 @@
 .midi-files {
     display: grid;
-    grid-template-rows: min-content min-content minmax(0, 1fr);
+    grid-template-rows: min-content minmax(0, 1fr);
     gap: clamp(0.65rem, 1.5vw, 1rem);
     min-width: 0;
     height: 100%;
@@ -8,6 +8,19 @@
     overflow: auto;
     -webkit-overflow-scrolling: touch;
     container-type: inline-size;
+}
+
+.midi-upload-page__card {
+    display: grid;
+    grid-template-rows: min-content minmax(0, 1fr);
+}
+
+.midi-upload-page__controls {
+    align-items: end;
+}
+
+.midi-files__preview {
+    grid-template-rows: min-content minmax(0, 1fr);
 }
 
 .midi-files-home__header h1,

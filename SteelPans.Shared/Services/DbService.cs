@@ -1,5 +1,6 @@
 using Melanchall.DryWetMidi.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SteelPans.Shared.Auth;
 using SteelPans.Shared.Data;
@@ -22,25 +23,41 @@ public sealed class DbService
     private readonly ICurrentUserAccessor currentUser_;
 
     public DbService(
+        IConfiguration configuration,
         IDbContextFactory<EnsembleDbContext> dbFactory,
         ICurrentUserAccessor currentUser,
         IEnsembleFileStore fileStore,
         IRealtimeUpdateDispatcher updates,
         ILogger<DbService> logger)
     {
+
         currentUser_ = currentUser;
-        Groups = new(dbFactory, currentUser, updates, logger);
+        Groups = new(configuration, dbFactory, currentUser, updates, logger);
         MidiFiles = new(dbFactory, currentUser, Groups, fileStore, updates, logger);
     }
 
     public async Task<Guid> GetUserIdAsync() => await currentUser_.GetUserIdAsync();
 
     public sealed class GroupDbService(
+        IConfiguration configuration,
         IDbContextFactory<EnsembleDbContext> dbFactory,
         ICurrentUserAccessor currentUser,
         IRealtimeUpdateDispatcher updates,
         ILogger<DbService> logger)
     {
+        private const double DefaultInviteDuration = 30; // Minutes
+        private double InviteDuration
+        {
+            get
+            {
+                if (double.TryParse(configuration["InviteDuration"], out var result))
+                    return result;
+                else
+                    return DefaultInviteDuration;
+            }
+        }
+        
+
         public async Task<IReadOnlyList<GroupSummaryDto>> GetMyGroupsAsync(
             CancellationToken cancellationToken = default)
         {
@@ -164,7 +181,7 @@ public sealed class DbService
                 Token = token,
                 CreatedByUserId = await currentUser.GetUserIdAsync(),
                 CreatedAt = now,
-                ExpiresAt = now.AddMinutes(30)
+                ExpiresAt = now.AddMinutes(InviteDuration)
             };
 
             db.GroupInvites.Add(invite);

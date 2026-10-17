@@ -1,7 +1,7 @@
 ﻿.mobile-drawer {
-    --lip-size_default: 12px;
+    --lip-size_default: 14px;
     --lip-size: var(--lip-size_arg, var(--lip-size_default));
-    --handle-size: calc(0.6 * var(--lip-size));
+    --handle-size: calc(0.5 * var(--lip-size));
     --tap-open-size_default: 10px;
     --tap-open-size: var(--tap-open-size_arg, var(--tap-open-size_default));
     --drawer-width_default: max-content;
@@ -16,16 +16,21 @@
     box-sizing: border-box;
     background-image: linear-gradient( 180deg, rgb(5, 39, 103) 0%, #3a0647 70% );
     touch-action: none;
-    transition: transform 220ms ease-out, width 220ms ease-out, height 220ms ease-out;
+    transition: transform 220ms ease-out, width 220ms ease-out, height 220ms ease-out, opacity 220ms ease-out;
     will-change: transform, width, height;
     pointer-events: auto;
+    opacity: 1;
+}
+
+/* Initialization */
+
+.mobile-drawer--pending {
+    opacity: 0;
 }
 
 .mobile-drawer--no-transition {
-    transition: transform 0ms, width 220ms ease-out, height 220ms ease-out;
+    transition: none;
 }
-
-
 
 /* Top / bottom */
 
@@ -74,6 +79,24 @@
     flex-direction: row;
     border-radius: 12px 0 0 12px;
     padding: var(--drawer-padding) var(--extra-offset) var(--drawer-padding) 0;
+}
+
+/* Default closed transforms */
+
+.mobile-drawer--bottom {
+    transform: translate3d( 0, calc(100% - var(--lip-size)), 0 );
+}
+
+.mobile-drawer--top {
+    transform: translate3d( 0, calc(-100% + var(--lip-size)), 0 );
+}
+
+.mobile-drawer--left {
+    transform: translate3d( calc(-100% + var(--lip-size)), 0, 0 );
+}
+
+.mobile-drawer--right {
+    transform: translate3d( calc(100% - var(--lip-size)), 0, 0 );
 }
 
 /* Lip */
@@ -156,4 +179,3 @@
 .mobile-drawer--closed .mobile-drawer__content ::deep .nav-item {
     pointer-events: none;
 }
-

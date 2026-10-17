@@ -18,7 +18,7 @@ const DEFAULTS = {
     startupFinishWaitMs: 50,
 };
 
-window.panLayout = {
+const panLayout = {
     _layoutCache: new Map(),
     _textMeasureCanvas: null,
     _startupLogSequence: 0,
@@ -1241,11 +1241,15 @@ window.panLayout = {
 
     notifyReordered(container) {
         const ids = this.getItems(container)
-            .map(item => item.dataset.panId)
+            .map(item =>
+                item.querySelector("[data-pan-id]")?.dataset.panId)
             .filter(Boolean);
 
         const dotNetRef = this.getState(container).dotNetRef;
-        dotNetRef?.invokeMethodAsync?.("NotifyPansReordered", ids);
+
+        dotNetRef?.invokeMethodAsync?.(
+            "NotifyPansReordered",
+            ids);
     },
 
     getGaps(element) {
@@ -1744,3 +1748,71 @@ window.panLayout = {
         }, 0);
     }
 };
+
+// Named exports for Blazor JS module interop.
+export const logStartup = (...args) => panLayout.logStartup(...args);
+export const warnStartup = (...args) => panLayout.warnStartup(...args);
+export const observe = (...args) => panLayout.observe(...args);
+export const disconnect = (...args) => panLayout.disconnect(...args);
+export const requestUpdateAfterResizeSettles = (...args) => panLayout.requestUpdateAfterResizeSettles(...args);
+export const requestUpdate = (...args) => panLayout.requestUpdate(...args);
+export const completeStartupLayout = (...args) => panLayout.completeStartupLayout(...args);
+export const waitForStartupPanLayout = (...args) => panLayout.waitForStartupPanLayout(...args);
+export const getActiveTransitionAnimations = (...args) => panLayout.getActiveTransitionAnimations(...args);
+export const getState = (...args) => panLayout.getState(...args);
+export const update = (...args) => panLayout.update(...args);
+export const fitAllPanText = (...args) => panLayout.fitAllPanText(...args);
+export const applyLayout = (...args) => panLayout.applyLayout(...args);
+export const toPercent = (...args) => panLayout.toPercent(...args);
+export const getItems = (...args) => panLayout.getItems(...args);
+export const attachDragHandlers = (...args) => panLayout.attachDragHandlers(...args);
+export const detachDragHandlers = (...args) => panLayout.detachDragHandlers(...args);
+export const onPointerMove = (...args) => panLayout.onPointerMove(...args);
+export const clearPanBodyHover = (...args) => panLayout.clearPanBodyHover(...args);
+export const isNoDragStartTarget = (...args) => panLayout.isNoDragStartTarget(...args);
+export const isPointerInsidePanCircle = (...args) => panLayout.isPointerInsidePanCircle(...args);
+export const isPointerInsideSvgCircle = (...args) => panLayout.isPointerInsideSvgCircle(...args);
+export const onPointerDown = (...args) => panLayout.onPointerDown(...args);
+export const onPendingPointerMove = (...args) => panLayout.onPendingPointerMove(...args);
+export const onPendingPointerUp = (...args) => panLayout.onPendingPointerUp(...args);
+export const cancelPendingDrag = (...args) => panLayout.cancelPendingDrag(...args);
+export const startDrag = (...args) => panLayout.startDrag(...args);
+export const onDragPointerMove = (...args) => panLayout.onDragPointerMove(...args);
+export const onDragPointerUp = (...args) => panLayout.onDragPointerUp(...args);
+export const moveDrag = (...args) => panLayout.moveDrag(...args);
+export const endDrag = (...args) => panLayout.endDrag(...args);
+export const findNearestDropEdge = (...args) => panLayout.findNearestDropEdge(...args);
+export const findAdjacentDropItem = (...args) => panLayout.findAdjacentDropItem(...args);
+export const getAdjacencyMetrics = (...args) => panLayout.getAdjacencyMetrics(...args);
+export const getOverlapSpan = (...args) => panLayout.getOverlapSpan(...args);
+export const getOverlapSize = (...args) => panLayout.getOverlapSize(...args);
+export const distanceToSpan = (...args) => panLayout.distanceToSpan(...args);
+export const setDropIndicator = (...args) => panLayout.setDropIndicator(...args);
+export const installDragBlockers = (...args) => panLayout.installDragBlockers(...args);
+export const removeDragBlockers = (...args) => panLayout.removeDragBlockers(...args);
+export const notifyReordered = (...args) => panLayout.notifyReordered(...args);
+export const getGaps = (...args) => panLayout.getGaps(...args);
+export const numberFromDataset = (...args) => panLayout.numberFromDataset(...args);
+export const getPanAspect = (...args) => panLayout.getPanAspect(...args);
+export const findBestLayout = (...args) => panLayout.findBestLayout(...args);
+export const createRows = (...args) => panLayout.createRows(...args);
+export const layoutRowsForScale = (...args) => panLayout.layoutRowsForScale(...args);
+export const rowsMeetHeightRatio = (...args) => panLayout.rowsMeetHeightRatio(...args);
+export const rowsFillWidth = (...args) => panLayout.rowsFillWidth(...args);
+export const scoreLayout = (...args) => panLayout.scoreLayout(...args);
+export const getLayoutPartitions = (...args) => panLayout.getLayoutPartitions(...args);
+export const findFallbackLayout = (...args) => panLayout.findFallbackLayout(...args);
+export const measurePanTextSize = (...args) => panLayout.measurePanTextSize(...args);
+export const getTextFitParts = (...args) => panLayout.getTextFitParts(...args);
+export const measureCopyFit = (...args) => panLayout.measureCopyFit(...args);
+export const getBaseFontSize = (...args) => panLayout.getBaseFontSize(...args);
+export const getFittedFontSize = (...args) => panLayout.getFittedFontSize(...args);
+export const measureTextWidth = (...args) => panLayout.measureTextWidth(...args);
+export const getEstimatedPanBoundsAtY = (...args) => panLayout.getEstimatedPanBoundsAtY(...args);
+export const samplePanBoundsAtY = (...args) => panLayout.samplePanBoundsAtY(...args);
+export const getPanHitElements = (...args) => panLayout.getPanHitElements(...args);
+export const clearLayoutCaches = (...args) => panLayout.clearLayoutCaches(...args);
+export const pointHitsAnyElement = (...args) => panLayout.pointHitsAnyElement(...args);
+export const getRowBalancePenalty = (...args) => panLayout.getRowBalancePenalty(...args);
+export const getLonelyRowPenalty = (...args) => panLayout.getLonelyRowPenalty(...args);
+export const getHeightVariancePenalty = (...args) => panLayout.getHeightVariancePenalty(...args);

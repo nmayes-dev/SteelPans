@@ -5,6 +5,7 @@
 @inject SteelPanLoaderService PanLoader
 @inject MidiManagerService MidiService
 @inject UserStateService UserState
+@inject MessagePopupService AlertService
 @inject Microsoft.AspNetCore.Hosting.IWebHostEnvironment Env
 @inject SafeJSInteropService JS
 @inject Microsoft.Extensions.Logging.ILogger<EditTrack> Logger
@@ -21,7 +22,6 @@
     <div class="sp-app-page__header record-track-page__header">
         <h1>@PageTitleText</h1>
         <p>Set up the track, then press record to open the recording view.</p>
-        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(error_) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@error_</p>
     </div>
 
     <div class="sp-app-card record-track-page__setup">
@@ -114,13 +114,31 @@
 
         <input @bind="trackName_" placeholder="Track Name..." />
 
-        <MidiPlaybackControl Enabled="@notes_.Any()"
-                             OnTogglePlayback="OnPlaybackToggledAsync" />
-
         <div class="record-track-page__controls">
-            <button type="button" class="sp-app-button sp-app-button--secondary" @onclick="ClearNotesAsync" disabled="@(DisableButtons(requireNotes: true))">Reset</button>
-            <button type="button" class="sp-app-button" @onclick="StartRecordingWithCountInAsync" disabled="@(DisableButtons(requireNotes: false))">Record</button>
-            <button type="button" class="sp-app-button sp-app-button--primary" @onclick="SaveTrack" disabled="@(DisableButtons(requireNotes: true))">Save</button>
+            <button class="sp-app-button sp-app-button--danger"
+                    type="button"
+                    title="Delete changes"
+                    aria-label="Delete changes"
+                    @onclick="ClearNotesAsync"
+                    disabled="@(DisableButtons(requireNotes: true))">
+                <span class="bi bi-trash3-fill" aria-hidden="true" />
+            </button>
+            <button class="sp-app-button"
+                    type="button"
+                    title="Record track"
+                    aria-label="Record track"
+                    @onclick="StartRecordingWithCountInAsync"
+                    disabled="@(DisableButtons(requireNotes: false))">
+                <span class="bi bi-record-fill" aria-hidden="true" />
+            </button>
+            <button class="sp-app-button sp-app-button--primary"
+                    type="button"
+                    title="Save track"
+                    aria-label="Save track"
+                    @onclick="SaveTrack" 
+                    disabled="@(DisableButtons(requireNotes: true) || !hasUnsavedTrackChanges_)">
+                <span class="bi bi-floppy" aria-hidden="true" />
+            </button>
         </div>
     </div>
 
@@ -221,8 +239,17 @@
     [SupplyParameterFromQuery(Name = "returnTo")]
     public string? ReturnTo { get; set; }
 
-    private string? error_;
-    private string? pageTitleText_;
+
+    public enum PageMode
+    {
+        Create,
+        Edit
+    }
+
+    private PageMode Mode => TrackId.HasValue
+        ? PageMode.Edit
+        : PageMode.Create;
+
     private Guid? editingTrackId_;
     private Guid editablePlaybackTrackId_ = Guid.NewGuid();
     private bool loadedExistingTrack_;
@@ -286,13 +313,27 @@
     private int? SelectedPanMinSemitone => SelectedPan?.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Min();
     private int? SelectedPanMaxSemitone => SelectedPan?.Notes.Select(x => x.Note.SemitoneNumber).DefaultIfEmpty().Max();
     private string StatusText => isCountingIn_ ? "Count in" : isRecording_ ? "Recording" : isPlayingBack_ ? "Playing" : "Ready";
-    private string PageTitleText => pageTitleText_ ?? "Loading...";
+
+    private string PageTitleText
+    {
+        get
+        {
+            if (editingTrackId_ is null)
+                return "Loading...";
+
+            return Mode switch
+            {
+                PageMode.Create => "Create Track",
+                PageMode.Edit => "Edit Track",
+                _ => "Loading...",
+            };
+        }
+    }
 
     private bool DisableButtons(bool requireNotes) => isRecording_ || isCountingIn_ || isPlayingBack_ || (requireNotes && !notes_.Any());
 
     protected override void OnInitialized()
     {
-        pageTitleText_ = editingTrackId_ is null ? "Create Track" : "Edit Track";
         MidiService.Playback.PlaybackStarted += OnEditPlaybackStartedAsync;
         MidiService.Playback.PlaybackPaused += OnEditPlaybackPausedAsync;
         MidiService.Playback.PlaybackStopped += OnEditPlaybackStoppedAsync;
@@ -340,9 +381,8 @@
 
         if (track is null)
         {
-            error_ = "That track could not be found.";
-            if (AvailablePans.Count > 0 && panType_ == PanType.None)
-                panType_ = AvailablePans[0].Type;
+            // Failed to read track file, return if possible
+            NavigationHistory.Back(GetSaveReturnUrl());
             return;
         }
 
@@ -425,10 +465,10 @@
 
     private async Task StartRecordingWithCountInAsync()
     {
-        error_ = null;
         if (isRecording_ || isCountingIn_ || isPlayingBack_)
             return;
 
+        await AlertService.ClearAsync();
         await StopPlaybackAsync();
 
         if (recordingMode_ == RecordingMode.Overwrite)
@@ -744,7 +784,7 @@
     {
         var options = new ModalOptions
         {
-            OnComplete = () =>
+            OnSuccess = () =>
             {
                 notes_.Clear();
                 selectedNoteId_ = null;
@@ -1201,16 +1241,18 @@
     {
         await StopPlaybackAsync();
         await StopRecordingAsync();
-        error_ = null;
+        
+        await AlertService.ClearAsync();
+
         if (notes_.Count == 0)
         {
-            error_ = "Record at least one note before adding the track.";
+            await AlertService.DisplayAsync("Record at least one note before adding the track.", MessageKind.Warning);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(trackName_))
         {
-            error_ = "Please give your track a name.";
+            await AlertService.DisplayAsync("Please give your track a name.", MessageKind.Warning);
             return;
         }
 

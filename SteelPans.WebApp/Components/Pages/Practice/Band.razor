@@ -22,8 +22,6 @@ else
         {
             <PracticeHeader />
 
-            <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
-
             <section class="band-page__content">
                 <PansLayout Pans="@MidiService.Playback.ActivePans" >
                     <TopRightContent Context="assignedPan">

@@ -174,6 +174,7 @@ public static class Program
     private static WebApplicationBuilder AddCoreServices(
         WebApplicationBuilder builder)
     {
+        builder.Services.AddScoped<MessagePopupService>();
         builder.Services.AddScoped<TaskRunnerService>();
         builder.Services.AddScoped<SafeJSInteropService>();
 
@@ -299,9 +300,7 @@ public static class Program
     private static WebApplication ConfigureDevelopmentMode(
         WebApplication app)
     {
-        if (!app.Environment.IsDevelopment() ||
-            !app.Configuration.GetValue<bool>(
-                "LAUNCH_RESPONSIVE_FIREFOX"))
+        if (!app.Environment.IsDevelopment() || !app.Configuration.GetValue<bool>("LAUNCH_RESPONSIVE_FIREFOX"))
         {
             return app;
         }

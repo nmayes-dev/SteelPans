@@ -1,8 +1,9 @@
 ﻿@inherits OverlayComponentBase
+@implements IAsyncDisposable
 @inject ModalPopupService Modals
+@inject SafeJSInteropService JS
 
-
-<div class="@OverlayClass">
+<div @ref="overlay_" class="@OverlayClass">
     <div class="overlay__wrap">
         <div class="overlay__surface">
             <button class="overlay__header"

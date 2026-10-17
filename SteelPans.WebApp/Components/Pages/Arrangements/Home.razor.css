@@ -5,19 +5,18 @@
     min-width: 0;
     height: 100%;
     min-height: 0;
-    overflow: auto;
     -webkit-overflow-scrolling: touch;
     container-type: inline-size;
 }
 
-    .midi-files-home__header h1,
-    .midi-upload-page__header h1,
-    .midi-file-page__header h1,
-    .midi-files-home__header p,
-    .midi-upload-page__header p,
-    .midi-file-page__header p {
-        overflow-wrap: anywhere;
-    }
+.midi-files-home__header h1,
+.midi-upload-page__header h1,
+.midi-file-page__header h1,
+.midi-files-home__header p,
+.midi-upload-page__header p,
+.midi-file-page__header p {
+    overflow-wrap: anywhere;
+}
 
 .midi-files-home__card,
 .midi-upload-page__card,
@@ -27,82 +26,145 @@
     min-height: 0;
 }
 
-    .midi-files-home__card-header > *,
-    .midi-files__section-header > * {
-        min-width: 0;
+.midi-files-home__card-header > *,
+.midi-files__section-header > * {
+    min-width: 0;
+}
+
+.midi-files-home__card-header h2,
+.midi-files__section-header h2,
+.midi-files__preview h3,
+.midi-files__preview p {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.midi-files-home__card {
+    padding: 0;
+    gap: 0;
+}
+
+.midi-files-home__card-header {
+    padding: 0.4rem clamp(0.7rem, 1vw, 1rem);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.4);
+}
+
+    .midi-files-home__card-header h2 {
+        font-size: 1.2rem;
+        font-weight: bold;
     }
 
-    .midi-files-home__card-header h2,
-    .midi-files__section-header h2,
-    .midi-files__preview h3,
-    .midi-files__preview p {
-        margin: 0;
-        overflow-wrap: anywhere;
-    }
-
-.midi-files-home__list,
-.midi-file-page__shares {
+.midi-files-home__list {
+    margin-top: 0.1rem;
+    padding: clamp(0.5rem, 0.9vw, 0.8rem);
+    gap: clamp(0.45rem, 0.6vw, 0.75rem);
 }
 
 .midi-files-home__file {
     width: 100%;
     min-width: 0;
-    align-items: stretch;
+    display: flex;
+    align-items: center;
     flex-wrap: nowrap;
+    appearance: none;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    padding: clamp(0.25rem, 0.25rem + 0.45cqw, 0.75rem);
+    user-select: none;
+    transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
-    .midi-files-home__file .sp-app-button {
-        text-wrap: nowrap;
+    .midi-files-home__file:hover {
+        transform: translateY(-2px);
+        background-color: rgba(255, 255, 255, 0.045);
+        border-color: rgba(255, 255, 255, 0.2);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
     }
 
-.midi-files-home__copy,
-.midi-file-page__copy {
-    width: 100%;
-    text-wrap: nowrap;
-    display: grid;
-    gap: 0.2rem;
+    .midi-files-home__file:focus-visible {
+        outline: 2px solid var(--sp-accent, #60a5fa);
+        outline-offset: 3px;
+    }
+
+    .midi-files-home__file:active {
+        transform: translateY(1px);
+        background-color: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+        transition-duration: 70ms;
+    }
+
+.midi-files-home__copy {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
     min-width: 0;
 }
 
-    .midi-files-home__copy strong,
-    .midi-files-home__copy small,
-    .midi-file-page__copy strong,
-    .midi-file-page__copy small,
-    .midi-track-list__item strong,
-    .midi-track-list__item span,
-    .midi-file-page__details dd {
-        width: 100%;
+    .midi-files-home__copy strong {
+        flex: 1;
         min-width: 0;
-        overflow-wrap: anywhere;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
-    .midi-file-picker:active {
-        transform: translateY(1px);
+    .midi-files-home__copy small {
+        flex: 0 1 auto;
+        min-width: 0;
+        margin-left: auto;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        text-align: right;
+        opacity: 0.7;
     }
 
-        .midi-file-picker:active > .midi-file-button {
-            background: linear-gradient(180deg, #e2e8f0, #cbd5e1);
-        }
+@media (hover: none) {
+    .midi-files-home__file:hover {
+        transform: none;
+        background-color: inherit;
+        border-color: inherit;
+        box-shadow: none;
+    }
+}
 
-    .midi-file-picker:hover > .midi-file-button {
-        background: linear-gradient(180deg, #f8fafc, #e2e8f0);
+@media (prefers-reduced-motion: reduce) {
+    .midi-files-home__file {
+        transition: none;
+    }
+}
+
+.midi-file-picker:active {
+    transform: translateY(1px);
+}
+
+    .midi-file-picker:active > .midi-file-button {
+        background: linear-gradient(180deg, #e2e8f0, #cbd5e1);
     }
 
-    .midi-file-picker:hover > .midi-file-name {
-        background: #f8fafc;
-        border-color: #cbd5e1;
-    }
+.midi-file-picker:hover > .midi-file-button {
+    background: linear-gradient(180deg, #f8fafc, #e2e8f0);
+}
 
-    .midi-file-picker:active > .midi-file-name {
-        background: #f1f5f9;
-        border-color: #94a3b8;
-    }
+.midi-file-picker:hover > .midi-file-name {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
 
-    .midi-file-picker:focus-within > .midi-file-name {
-        outline: none;
-        border-color: #3b82f6;
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
-    }
+.midi-file-picker:active > .midi-file-name {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
+
+.midi-file-picker:focus-within > .midi-file-name {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
 
 .midi-file-page__details {
     display: grid;
@@ -128,11 +190,10 @@
 
 @media (max-width: 720px) {
     .midi-files {
-        min-height: 100%;
-        grid-template-rows: none;
+        max-height: 100%;
         grid-auto-rows: min-content;
         padding: clamp(0.5rem, 2.5vw, 0.75rem);
-        overflow-y: auto;
+        padding-bottom: 0.25rem;
     }
 
     .midi-files-home__actions,
@@ -156,38 +217,37 @@
         grid-template-columns: 1fr;
     }
 
-    .midi-files-home__card-header,
-    .midi-files__section-header {
-        display: grid;
-        gap: 0.4rem;
-    }
-
-    .midi-files-home__list,
-    .midi-file-page__shares,
-    .midi-track-list {
-        max-height: none;
-        overflow: visible;
+    .midi-files-home__card {
         padding-right: 0;
     }
 
-    .midi-files-home__file,
-    .midi-file-page__share,
-    .midi-track-list__item {
-        display: grid;
-        gap: 0.75rem;
+    .midi-files-home__list {
+        padding-right: clamp(0.6rem, 0.9vw, 0.9rem);
     }
 
-        .midi-files-home__file .sp-app-list-item__actions,
-        .midi-file-page__share .sp-app-list-item__actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            width: 100%;
+    .midi-files-home__copy {
+        gap: 0rem;
+    }
+
+        .midi-files-home__copy strong {
+            font-size: 1.1rem;
         }
 
-            .midi-files-home__file .sp-app-list-item__actions .sp-app-button,
-            .midi-file-page__share .sp-app-list-item__actions .sp-app-button {
-                width: 100%;
-            }
+        .midi-files-home__copy small {
+            font-size: 0.75rem;
+        }
+
+    .midi-files-home__file .sp-app-list-item__actions,
+    .midi-file-page__share .sp-app-list-item__actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+    }
+
+        .midi-files-home__file .sp-app-list-item__actions .sp-app-button,
+        .midi-file-page__share .sp-app-list-item__actions .sp-app-button {
+            width: 100%;
+        }
 
     .midi-file-picker {
         min-height: 2.75rem;
@@ -195,5 +255,12 @@
 
     .midi-file-button {
         flex: 0 0 auto;
+    }
+}
+
+@media (max-width: 500px) {
+
+    .midi-files-home__copy {
+        display: grid;
     }
 }

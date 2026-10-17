@@ -11,8 +11,6 @@
     <div class="sp-app-page__header">
         <h1>Create Group</h1>
         <p>Create a new ensemble group, then generate expiring invite links from its management page.</p>
-
-        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
     </div>
 
     <form class="sp-app-card sp-app-form create-group-page__card" @onsubmit="CreateGroupAsync">

@@ -1,6 +1,6 @@
 ﻿@implements IAsyncDisposable
 @inherits OverlayComponentBase
-@inject IJSRuntime JS
+@inject SafeJSInteropService JS
 
 <div @ref="drawer_"
      class="@DrawerClass"
@@ -43,6 +43,7 @@
 
     private ElementReference drawer_;
     private DotNetObjectReference<MobileDrawer>? dotNetRef_;
+    private IJSObjectReference? module_;
 
     private bool initialized_;
     private bool disposed_;
@@ -50,30 +51,26 @@
     private string SideClass =>
         $"mobile-drawer--{Side.ToString().ToLowerInvariant()}";
 
-    private string InitialClass =>
-        InitiallyOpen
-            ? "mobile-drawer--open"
-            : "mobile-drawer--closed";
-
-    private string[] Classes => [
-        "mobile-drawer",
-        "mobile-drawer--no-transition",
-        SideClass,
-        InitialClass,
-    ];
-
     private string DrawerClass =>
-        string.Join(" ", Classes);
+        $"mobile-drawer mobile-drawer--pending mobile-drawer--no-transition mobile-drawer--closed {SideClass}";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
+        if (!firstRender || disposed_)
             return;
 
         dotNetRef_ = DotNetObjectReference.Create(this);
 
-        await JS.InvokeVoidAsync(
-            "mobileDrawer.initialize",
+        var module = await JS.ImportModuleAsync<MobileDrawer>();
+        if (disposed_)
+        {
+            await module.DisposeAsync();
+            return;
+        }
+
+        module_ = module;
+        await module_.InvokeVoidAsync(
+            "initialize",
             drawer_,
             Side.ToString().ToLowerInvariant(),
             InitiallyOpen,
@@ -82,21 +79,16 @@
             ResponsiveThreshold);
 
         initialized_ = true;
-
-        if (InitiallyOpen)
-            await NotifyOpenedAsync();
     }
 
     protected override async Task OnCloseAsync()
     {
-        if (!initialized_)
+        if (!initialized_ || disposed_ || module_ is null)
             return;
 
         try
         {
-            await JS.InvokeVoidAsync(
-                "mobileDrawer.close",
-                drawer_);
+            await module_.InvokeVoidAsync("close", drawer_);
         }
         catch (JSDisconnectedException)
         {
@@ -133,19 +125,23 @@
         if (disposed_)
             return;
 
-        if (initialized_)
+        try
         {
-            try
+            if (module_ is not null)
             {
-                await JS.InvokeVoidAsync(
-                    "mobileDrawer.dispose",
-                    drawer_);
-            }
-            catch (JSDisconnectedException)
-            {
+                if (initialized_)
+                    await module_.InvokeVoidAsync("dispose", drawer_);
+
+                await module_.DisposeAsync();
             }
         }
-
-        Dispose();
+        catch (JSDisconnectedException)
+        {
+            // A Blazor Server circuit can disconnect before disposal completes.
+        }
+        finally
+        {
+            Dispose();
+        }
     }
 }

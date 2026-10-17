@@ -1,18 +1,17 @@
 @page "/arrangements"
 @attribute [Authorize]
 @inject TaskRunnerService Tasks
+@inject DbService Db
 @inject UserStateService UserState
+@inject NavigationManager Nav
 @implements IDisposable
 
-<PageTitle>MIDI Files</PageTitle>
+<PageTitle>Arrangements</PageTitle>
 
 <section class="sp-app-page midi-files midi-files-home">
     <div class="sp-app-page__header midi-files-home__header">
-        <h1>MIDI Files</h1>
-        <p>Manage uploaded MIDI files, track assignments, and group sharing.</p>
-
-        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
-        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(Tasks.Message) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Message</p>
+        <h1>Arrangements</h1>
+        <p>Manage uploaded arrangements, track assignments, and group sharing.</p>
     </div>
 
     <div class="midi-files-home__actions">
@@ -22,10 +21,9 @@
 
     <div class="sp-app-card midi-files-home__card">
         <div class="midi-files-home__card-header">
-            <h2>Your Files</h2>
+            <h2>Your Arrangements</h2>
             <small>@(UserState.Files?.Count ?? 0) file@((UserState.Files?.Count ?? 0) == 1 ? "" : "s")</small>
         </div>
-
         @if (UserState.Files is null)
         {
             <p>Loading files...</p>
@@ -39,14 +37,14 @@
             <div class="sp-app-list midi-files-home__list">
                 @foreach (var file in UserState.Files)
                 {
-                    <article class="sp-app-list-item midi-files-home__file">
-                        <div class="midi-files-home__copy">
+                    <button type="button"
+                            class="sp-app-list-item midi-files-home__file"
+                            @onclick="() => OnFileSelected(file.Id)">
+                        <span class="midi-files-home__copy">
                             <strong>@file.Title</strong>
-                            <small>@file.OriginalFileName · @file.SizeBytes.ToFileSize() · @GetFileAccessLabel(file)</small>
-                        </div>
-
-                        <a class="sp-app-button sp-app-button--primary" href="/arrangements/@file.Id">View / Edit</a>
-                    </article>
+                            <small>@file.OriginalFileName · @file.SizeBytes.ToFileSize() · @GetTrackCountLabel(file.Id)</small>
+                        </span>
+                    </button>
                 }
             </div>
         }
@@ -54,17 +52,28 @@
 </section>
 
 @code {
-    protected override void OnInitialized()
+    private Dictionary<Guid, string> trackCounts_ = new();
+
+    protected override async Task OnInitializedAsync()
     {
         UserState.OnRefresh += OnRefreshAsync;
+        await UpdateTrackCountLabelsAsync();
     }
 
-    private Task OnRefreshAsync(StateUpdate updateFlag)
+    private async Task OnRefreshAsync(StateUpdate updateFlag)
     {
         if (!updateFlag.HasAny(StateUpdate.Files))
-            return Task.CompletedTask;
+            return;
 
-        return InvokeAsync(StateHasChanged);
+        await UpdateTrackCountLabelsAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task UpdateTrackCountLabelsAsync()
+    {
+        Func<GroupFileDto, Task<KeyValuePair<Guid, string>>> getTrackCount = async (f) => KeyValuePair.Create(f.Id, await GetTrackCountLabelAsync(f.Id));
+        var details = await Task.WhenAll(UserState.Files.Select(getTrackCount));
+        trackCounts_ = details.ToDictionary();
     }
 
     public void Dispose()
@@ -72,22 +81,26 @@
         UserState.OnRefresh -= OnRefreshAsync;
     }
 
-    private string GetFileAccessLabel(GroupFileDto file)
+    private void OnFileSelected(Guid id)
     {
-        if (file.SharedGroupIds.Count == 0)
-            return "Private";
-
-        var groupNames = (UserState.Groups ?? [])
-            .Where(x => file.SharedGroupIds.Contains(x.Summary.Id))
-            .Select(x => x.Summary.Name)
-            .ToList();
-
-        return groupNames.Count switch
-        {
-            0 => $"Shared with {file.SharedGroupIds.Count} group(s)",
-            1 => $"Shared with {groupNames[0]}",
-            _ => $"Shared with {string.Join(", ", groupNames)}"
-        };
+        Nav.NavigateTo($"/arrangements/{id}");
     }
 
+    private string GetTrackCountLabel(Guid id)
+    {
+        if (trackCounts_.TryGetValue(id, out var label))
+            return label;
+
+        return "Loading...";
+    }
+
+    private async Task<string> GetTrackCountLabelAsync(Guid id)
+    {
+        var preview = await Db.MidiFiles.GetMidiFileDetailsAsync(id);
+        if (preview is null)
+            return "0 Tracks";
+
+        var trackCount = preview.Tracks.Count;
+        return $"{trackCount} Track{(trackCount == 1 ? "" : "s")}";
+    }
 }

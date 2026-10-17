@@ -395,12 +395,9 @@
 
 @media (max-width: 900px) {
     .practice-page__track-controls-settings {
-        flex-direction: column;
     }
 
     .practice-page__solo-control {
-        flex-direction: row-reverse;
-        justify-content: center;
         gap: 0.1rem;
     }
 }

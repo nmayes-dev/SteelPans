@@ -13,15 +13,6 @@
         {
             <p>Checking invite link...</p>
         }
-        else if (!string.IsNullOrWhiteSpace(Tasks.Error))
-        {
-            <p class="sp-app-alert sp-app-alert--error">@Tasks.Error</p>
-            <a class="sp-app-button" href="/groups">Go to groups</a>
-        }
-        else
-        {
-            <p>@Tasks.Message</p>
-        }
     </div>
 </section>
 

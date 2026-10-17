@@ -1,24 +1,23 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
+using SteelPans.Components.Services;
 
 namespace SteelPans.WebApp.Services;
 
 public class TaskRunnerService : IDisposable
 {
     public bool Busy { get; private set; }
-    public string Message { get; private set; } = string.Empty;
-    public string Error { get; private set; } = string.Empty;
 
     private readonly ILogger<TaskRunnerService> logger_;
-    private readonly IDisposable navEvent_;
+    private readonly MessagePopupService messager_;
     private bool disposed_;
 
     public TaskRunnerService(
-        NavigationManager nav,
+        MessagePopupService messager,
         ILogger<TaskRunnerService> logger)
     {
+        messager_ = messager;
         logger_ = logger;
-        navEvent_ = nav.RegisterLocationChangingHandler(OnLocationChanged);
     }
 
     public Task<bool> RunSafe(Func<Task<string>> job)
@@ -47,43 +46,29 @@ public class TaskRunnerService : IDisposable
             return;
 
         disposed_ = true;
-        navEvent_.Dispose();
     }
 
-    private ValueTask OnLocationChanged(LocationChangingContext context)
-    {
-        if (!Busy)
-            InitializeState(block: false, resetMessage: true);
-
-        return ValueTask.CompletedTask;
-    }
-
-    private void InitializeState(bool block, bool resetMessage)
-    {
-        Busy = block;
-        Message = resetMessage ? string.Empty : Message;
-        Error = string.Empty;
-    }
 
     private async Task<bool> Run(bool block, Func<Task<string>> job)
     {
-        InitializeState(block, resetMessage: true);
+        Busy = block;
 
         try
         {
-            Message = await job();
+            var message = await job();
+            await messager_.DisplayAsync(message);
             return true;
         }
         catch (OperationCanceledException ex)
         {
             logger_.LogDebug(ex, "UI task was cancelled");
-            Error = ex.Message;
+            await messager_.DisplayAsync(ex.Message, MessageKind.Error);
             return false;
         }
         catch (Exception ex)
         {
             logger_.LogError(ex, "UI task failed");
-            Error = ex.Message;
+            await messager_.DisplayAsync(ex.Message, MessageKind.Error);
             return false;
         }
         finally
@@ -94,7 +79,7 @@ public class TaskRunnerService : IDisposable
 
     private async Task<bool> Run(bool block, Func<Task> job)
     {
-        InitializeState(block, resetMessage: false);
+        Busy = block;
 
         try
         {
@@ -104,13 +89,13 @@ public class TaskRunnerService : IDisposable
         catch (OperationCanceledException ex)
         {
             logger_.LogDebug(ex, "UI task was cancelled");
-            Error = ex.Message;
+            await messager_.DisplayAsync(ex.Message, MessageKind.Error);
             return false;
         }
         catch (Exception ex)
         {
             logger_.LogError(ex, "UI task failed");
-            Error = ex.Message;
+            await messager_.DisplayAsync(ex.Message, MessageKind.Error);
             return false;
         }
         finally

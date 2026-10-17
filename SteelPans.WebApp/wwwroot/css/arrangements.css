@@ -20,7 +20,6 @@
 .midi-upload-page__card,
 .midi-file-page__card {
     display: grid;
-    align-content: start;
     gap: clamp(0.65rem, 1.5vw, 1rem);
 }
 

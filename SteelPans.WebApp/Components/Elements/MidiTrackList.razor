@@ -13,8 +13,8 @@
         }
         else if (Files is not null)
         {
-            <span class="pans-page__track-panel-title">Ensemble Files</span>
-            <span class="pans-page__track-panel-count">@Files.Count file@(Files.Count == 1 ? "" : "s")</span>
+            <span class="track-list__panel-title">Ensemble Files</span>
+            <span class="track-list__panel-count">@Files.Count file@(Files.Count == 1 ? "" : "s")</span>
         }
     </div>
 
@@ -43,14 +43,14 @@
         {
             @foreach (var file in Files)
             {
-                <div class="pans-page__track-item">
-                    <div class="pans-page__track-details">
-                        <div class="pans-page__track-name">@file.Title</div>
-                        <div class="pans-page__track-meta">@file.OriginalFileName</div>
+                <div class="track-list__item">
+                    <div class="track-list__details">
+                        <div class="track-list__name">@file.Title</div>
+                        <div class="track-list__meta">@file.OriginalFileName</div>
                     </div>
 
                     <button type="button"
-                            class="pans-page__track-button"
+                            class="track-list__button"
                             aria-label="Load File"
                             @onclick="() => LoadGroupMidiFileAsync(file)">
                         <span class="bi bi-download" aria-hidden="true"></span>

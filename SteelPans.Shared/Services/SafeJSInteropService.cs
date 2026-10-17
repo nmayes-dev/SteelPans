@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
+using System.Reflection;
 
 namespace SteelPans.Shared.Services;
 
@@ -41,6 +43,71 @@ public sealed class SafeJSInteropService(
     {
         MarkUnsafe();
     }
+
+
+    private static string GetModulePath<TComponent>(
+        string? packageId = null,
+        string? rootNamespace = null)
+        where TComponent : IComponent
+    {
+        var type = typeof(TComponent);
+        var assembly = type.Assembly;
+
+        var assemblyName = assembly.GetName().Name
+            ?? throw new InvalidOperationException(
+                $"Cannot determine assembly name for {type.FullName}.");
+
+        rootNamespace ??= assemblyName;
+
+        var componentNamespace = type.Namespace ?? string.Empty;
+
+        if (componentNamespace != rootNamespace &&
+            !componentNamespace.StartsWith(
+                rootNamespace + ".",
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Component namespace '{componentNamespace}' " +
+                $"does not start with '{rootNamespace}'.");
+        }
+
+        var relativeNamespace = componentNamespace == rootNamespace
+            ? string.Empty
+            : componentNamespace[(rootNamespace.Length + 1)..];
+
+        var directory = relativeNamespace.Replace('.', '/');
+        var filename = $"{type.Name.Split('`')[0]}.razor.js";
+
+        var relativePath = string.IsNullOrEmpty(directory)
+            ? filename
+            : $"{directory}/{filename}";
+
+        var entryAssembly = Assembly.GetEntryAssembly();
+
+        if (assembly == entryAssembly)
+            return $"./{relativePath}";
+
+        return $"./_content/{packageId ?? assemblyName}/{relativePath}";
+    }
+
+    public ValueTask<IJSObjectReference> ImportModuleAsync<TComponent>(
+        string? packageId = null,
+        string? rootNamespace = null,
+        CancellationToken cancellationToken = default)
+        where TComponent : IComponent
+    {
+        ArgumentNullException.ThrowIfNull(js);
+
+        var path = GetModulePath<TComponent>(
+            packageId,
+            rootNamespace);
+
+        return js.InvokeAsync<IJSObjectReference>(
+            "import",
+            cancellationToken,
+            path);
+    }
+
 
     public async ValueTask<TValue?> InvokeAsync<TValue>(
         string identifier,
