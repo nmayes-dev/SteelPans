@@ -1,9 +1,11 @@
-﻿using Microsoft.JSInterop;
-using SteelPans.Shared.Extensions;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.JSInterop;
 
 namespace SteelPans.Shared.Services;
 
-public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
+public sealed class SafeJSInteropService(
+    IJSRuntime js,
+    ILogger<SafeJSInteropService> logger) : IDisposable
 {
     private bool isReady_ = false;
     private CancellationTokenSource? cts_;
@@ -13,6 +15,7 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
         cts_?.Dispose();
         cts_ = new();
         isReady_ = true;
+        logger.LogDebug("JS interop marked safe");
     }
 
     public void MarkUnsafe()
@@ -21,10 +24,11 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
         {
             isReady_ = false;
             cts_?.Cancel();
+            logger.LogDebug("JS interop marked unsafe");
         }
         catch (Exception ex)
         {
-            ex.Log("Safe JS Interop was cancelled:");
+            logger.LogWarning(ex, "Failed while cancelling safe JS interop operations");
         }
         finally
         {
@@ -42,22 +46,19 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
         string identifier,
         params object?[]? args)
     {
-        if (!isReady_ || cts_ is null)
-        {
-            Console.WriteLine("Cannot issue JS interop calls at this time!");
+        if (!CanInvoke(identifier))
             return default;
-        }
 
         try
         {
             return await js.InvokeAsync<TValue>(
                 identifier,
-                cts_.Token,
+                cts_!.Token,
                 args);
         }
         catch (JSDisconnectedException ex)
         {
-            HandleDisconnected(ex);
+            HandleDisconnected(identifier, ex);
             return default;
         }
     }
@@ -67,17 +68,14 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
         CancellationToken token,
         params object?[]? args)
     {
-        if (!isReady_ || cts_ is null)
-        {
-            Console.WriteLine("Cannot issue JS interop calls at this time!");
+        if (!CanInvoke(identifier))
             return default;
-        }
 
         try
         {
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
                 token,
-                cts_.Token);
+                cts_!.Token);
 
             return await js.InvokeAsync<TValue>(
                 identifier,
@@ -86,7 +84,7 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
         }
         catch (JSDisconnectedException ex)
         {
-            HandleDisconnected(ex);
+            HandleDisconnected(identifier, ex);
             return default;
         }
     }
@@ -95,22 +93,19 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
         string identifier,
         params object?[]? args)
     {
-        if (!isReady_ || cts_ is null)
-        {
-            Console.WriteLine("Cannot issue JS interop calls at this time!");
+        if (!CanInvoke(identifier))
             return;
-        }
 
         try
         {
             await js.InvokeVoidAsync(
                 identifier,
-                cts_.Token,
+                cts_!.Token,
                 args);
         }
         catch (JSDisconnectedException ex)
         {
-            HandleDisconnected(ex);
+            HandleDisconnected(identifier, ex);
         }
     }
 
@@ -119,17 +114,14 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
         CancellationToken token,
         params object?[]? args)
     {
-        if (!isReady_ || cts_ is null)
-        {
-            Console.WriteLine("Cannot issue JS interop calls at this time!");
+        if (!CanInvoke(identifier))
             return;
-        }
 
         try
         {
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(
                 token,
-                cts_.Token);
+                cts_!.Token);
 
             await js.InvokeVoidAsync(
                 identifier,
@@ -138,13 +130,27 @@ public sealed class SafeJSInteropService(IJSRuntime js) : IDisposable
         }
         catch (JSDisconnectedException ex)
         {
-            HandleDisconnected(ex);
+            HandleDisconnected(identifier, ex);
         }
     }
 
-    private void HandleDisconnected(JSDisconnectedException ex)
+    private bool CanInvoke(string identifier)
+    {
+        if (isReady_ && cts_ is not null)
+            return true;
+
+        logger.LogDebug(
+            "Skipped JS interop call {Identifier} because JS interop is not currently safe",
+            identifier);
+        return false;
+    }
+
+    private void HandleDisconnected(string identifier, JSDisconnectedException ex)
     {
         isReady_ = false;
-        ex.Log("JS interop was disconnected before this task was completed.");
+        logger.LogWarning(
+            ex,
+            "JS interop disconnected while invoking {Identifier}; future calls will be skipped until marked safe again",
+            identifier);
     }
 }

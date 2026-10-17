@@ -203,6 +203,7 @@ public sealed class UserStateService : IAsyncDisposable
     private readonly DbService db_;
     private readonly TaskRunnerService task_;
     private readonly AppUpdatesService updates_;
+    private readonly ILogger<UserStateService> logger_;
 
     private readonly SemaphoreSlim refreshLock_ = new(1, 1);
 
@@ -212,11 +213,13 @@ public sealed class UserStateService : IAsyncDisposable
     public UserStateService(
         DbService db,
         TaskRunnerService task,
-        AppUpdatesService updates)
+        AppUpdatesService updates,
+        ILogger<UserStateService> logger)
     {
         db_ = db;
         task_ = task;
         updates_ = updates;
+        logger_ = logger;
 
         updates_.UserStateChanged += OnRealtimeUserStateChangedAsync;
         updates_.GroupChanged += OnRealtimeGroupChangedAsync;
@@ -232,6 +235,7 @@ public sealed class UserStateService : IAsyncDisposable
         updates_.UserStateChanged -= OnRealtimeUserStateChangedAsync;
         updates_.GroupChanged -= OnRealtimeGroupChangedAsync;
 
+        logger_.LogDebug("Disposing user state service for {UserId}", Id);
         await updates_.DisposeAsync();
     }
 
@@ -243,6 +247,7 @@ public sealed class UserStateService : IAsyncDisposable
         if (!await refreshLock_.WaitAsync(0))
         {
             refreshPending_ = true;
+            logger_.LogDebug("User state refresh already running; queued another refresh");
             return;
         }
 
@@ -313,6 +318,7 @@ public sealed class UserStateService : IAsyncDisposable
     private async Task RunRefreshAsync()
     {
         var id = await db_.GetUserIdAsync();
+        logger_.LogDebug("Refreshing user state for {UserId}", id);
 
         var groups = await db_.Groups.GetMyGroupsAsync();
         var files = await db_.MidiFiles.GetMyMidiFilesAsync();
@@ -346,7 +352,25 @@ public sealed class UserStateService : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"SignalR update client failed to start: {ex.Message}");
+            logger_.LogWarning(ex, "Realtime update client failed to start for {UserId}", Id);
+        }
+
+        if (updateFlag == StateUpdate.None)
+        {
+            logger_.LogDebug(
+                "User state refreshed for {UserId}: {GroupCount} groups, {FileCount} files; no changes",
+                Id,
+                Groups.Count,
+                Files.Count);
+        }
+        else
+        {
+            logger_.LogInformation(
+                "User state refreshed for {UserId}: {GroupCount} groups, {FileCount} files, changes {UpdateFlags}",
+                Id,
+                Groups.Count,
+                Files.Count,
+                updateFlag);
         }
 
         await RaiseOnRefreshAsync(updateFlag);
@@ -354,6 +378,7 @@ public sealed class UserStateService : IAsyncDisposable
 
     private Task OnRealtimeUserStateChangedAsync()
     {
+        logger_.LogDebug("Realtime notification requested a user state refresh");
         return RefreshAsync().AsTask();
     }
 
@@ -362,6 +387,7 @@ public sealed class UserStateService : IAsyncDisposable
         if (Groups?.Any(x => x.Summary.Id == groupId) != true)
             return Task.CompletedTask;
 
+        logger_.LogDebug("Realtime notification requested a refresh for group {GroupId}", groupId);
         return RefreshAsync().AsTask();
     }
 

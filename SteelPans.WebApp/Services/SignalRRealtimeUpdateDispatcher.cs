@@ -4,10 +4,13 @@ using SteelPans.WebApp.Hubs;
 
 namespace SteelPans.WebApp.Services;
 
-public sealed class SignalRRealtimeUpdateDispatcher(IHubContext<AppUpdatesHub> hub) : IRealtimeUpdateDispatcher
+public sealed class SignalRRealtimeUpdateDispatcher(
+    IHubContext<AppUpdatesHub> hub,
+    ILogger<SignalRRealtimeUpdateDispatcher> logger) : IRealtimeUpdateDispatcher
 {
     public Task NotifyUserStateChangedAsync(Guid userId, CancellationToken cancellationToken = default)
     {
+        logger.LogDebug("Dispatching user-state update to {UserId}", userId);
         return hub.Clients
             .Group(AppUpdatesHub.UserGroup(userId))
             .SendAsync(AppUpdateMessages.UserStateChanged, userId, cancellationToken);
@@ -15,6 +18,7 @@ public sealed class SignalRRealtimeUpdateDispatcher(IHubContext<AppUpdatesHub> h
 
     public Task NotifyGroupChangedAsync(Guid groupId, CancellationToken cancellationToken = default)
     {
+        logger.LogDebug("Dispatching group update to {GroupId}", groupId);
         return hub.Clients
             .Group(AppUpdatesHub.GroupGroup(groupId))
             .SendAsync(AppUpdateMessages.GroupChanged, groupId, cancellationToken);
@@ -22,7 +26,10 @@ public sealed class SignalRRealtimeUpdateDispatcher(IHubContext<AppUpdatesHub> h
 
     public async Task NotifyGroupsChangedAsync(IEnumerable<Guid> groupIds, CancellationToken cancellationToken = default)
     {
-        foreach (var groupId in groupIds.Distinct())
+        var distinctGroupIds = groupIds.Distinct().ToList();
+        logger.LogDebug("Dispatching updates to {GroupCount} groups", distinctGroupIds.Count);
+
+        foreach (var groupId in distinctGroupIds)
         {
             await NotifyGroupChangedAsync(groupId, cancellationToken);
         }
@@ -34,11 +41,18 @@ public sealed class SignalRRealtimeUpdateDispatcher(IHubContext<AppUpdatesHub> h
         IEnumerable<Guid> groupIds,
         CancellationToken cancellationToken = default)
     {
+        var distinctGroupIds = groupIds.Distinct().ToList();
+        logger.LogDebug(
+            "Dispatching MIDI assignment update for {FileId} to owner {OwnerId} and {GroupCount} groups",
+            fileId,
+            ownerId,
+            distinctGroupIds.Count);
+
         await hub.Clients
             .Group(AppUpdatesHub.UserGroup(ownerId))
             .SendAsync(AppUpdateMessages.MidiAssignmentsChanged, fileId, cancellationToken);
 
-        foreach (var groupId in groupIds.Distinct())
+        foreach (var groupId in distinctGroupIds)
         {
             await hub.Clients
                 .Group(AppUpdatesHub.GroupGroup(groupId))

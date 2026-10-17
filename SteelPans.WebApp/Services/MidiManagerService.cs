@@ -24,15 +24,29 @@ public sealed class MidiManagerService
     public PlaybackManager Playback { get; private set; }
 
 
-    public MidiManagerService(DbService db, TaskRunnerService tasks, UserStateService state, SteelPanLoaderService panLoader, NavigationManager nav, SafeJSInteropService js)
+    public MidiManagerService(
+        DbService db,
+        TaskRunnerService tasks,
+        UserStateService state,
+        SteelPanLoaderService panLoader,
+        NavigationManager nav,
+        SafeJSInteropService js,
+        ILoggerFactory loggerFactory)
     {
-        Files = new();
-        Edit = new(state);
-        Playback = new(Files, db, tasks, state, panLoader, nav, js);
+        Files = new(loggerFactory.CreateLogger<FileManager>());
+        Edit = new(state, loggerFactory.CreateLogger<EditingManager>());
+        Playback = new(Files, db, tasks, state, panLoader, nav, js, loggerFactory.CreateLogger<PlaybackManager>());
     }
 
     public sealed class FileManager
     {
+        private readonly ILogger<FileManager> logger_;
+
+        public FileManager(ILogger<FileManager> logger)
+        {
+            logger_ = logger;
+        }
+
         public async Task<MemoryStream> OpenMidiFileAsync(Stream midiStream, CancellationToken token = default)
         {
             var buffer = new MemoryStream();
@@ -40,13 +54,14 @@ public sealed class MidiManagerService
             await midiStream.CopyToAsync(buffer, token);
             buffer.Position = 0;
 
+            logger_.LogDebug("Opened MIDI stream into memory ({LengthBytes} bytes)", buffer.Length);
             return buffer;
         }
 
         public List<MidiTrackInfo> GetTrackInfos(MemoryStream midiFileStream)
         {
             var file = MidiFile.Read(midiFileStream);
-            return file.GetTrackChunks()
+            var tracks = file.GetTrackChunks()
                 .Where(x => x.GetNotes().Count > 0)
                 .Select((track, i) => new MidiTrackInfo
                 {
@@ -57,11 +72,17 @@ public sealed class MidiManagerService
                     NoteCount = track.GetNotes().Count
                 })
                 .ToList();
+
+            logger_.LogDebug("Read {TrackCount} playable MIDI tracks", tracks.Count);
+            return tracks;
         }
 
         public async Task<MidiFile> MergeMidiTracksAsync(string name, IEnumerable<(string, Stream)> files)
         {
-            var midiFileTasks = files.Select(async x =>
+            var inputs = files.ToList();
+            logger_.LogInformation("Merging {FileCount} MIDI tracks", inputs.Count);
+
+            var midiFileTasks = inputs.Select(async x =>
             {
                 var (name, midiStream) = x;
                 await using var buffer = new MemoryStream();
@@ -75,7 +96,7 @@ public sealed class MidiManagerService
             var tempoMap = midiFiles[0].GetTempoMap();
 
             var trackChunks = midiFiles
-                .Zip(files)
+                .Zip(inputs)
                 .Select(data =>
                 {
                     var (midi, (name, stream)) = data;
@@ -91,10 +112,13 @@ public sealed class MidiManagerService
                 })
                 .ToList();
 
-            return new MidiFile(trackChunks)
+            var merged = new MidiFile(trackChunks)
             {
                 TimeDivision = midiFiles[0].TimeDivision
             };
+
+            logger_.LogInformation("Merged {FileCount} MIDI tracks into {TrackCount} output tracks", inputs.Count, trackChunks.Count);
+            return merged;
         }
 
 
@@ -285,10 +309,12 @@ public sealed class MidiManagerService
     public sealed class EditingManager
     {
         private readonly UserStateService state_;
+        private readonly ILogger<EditingManager> logger_;
 
-        public EditingManager(UserStateService state)
+        public EditingManager(UserStateService state, ILogger<EditingManager> logger)
         {
             state_ = state;
+            logger_ = logger;
         }
 
         public IReadOnlyList<MidiTrackInfo> Tracks => state_.ActiveMidi?.Tracks ?? [];
@@ -309,6 +335,7 @@ public sealed class MidiManagerService
                 null);
 
             HasUnsavedChanges = false;
+            logger_.LogInformation("Started new MIDI draft {FileId}", FileId);
         }
 
         public async Task SetTitleAsync(string title)
@@ -318,6 +345,7 @@ public sealed class MidiManagerService
 
             await state_.SetActiveMidiFileNameAsync(title);
             HasUnsavedChanges = true;
+            logger_.LogDebug("Changed title for MIDI draft {FileId}", FileId);
         }
 
         public MidiTrackInfo CreateEditableTrack(Guid? trackId = null)
@@ -355,6 +383,7 @@ public sealed class MidiManagerService
         public void MarkSaved()
         {
             HasUnsavedChanges = false;
+            logger_.LogInformation("Marked MIDI file {FileId} as saved", FileId);
         }
 
         public MidiTrackInfo? GetTrack(Guid id)
@@ -370,6 +399,7 @@ public sealed class MidiManagerService
             var copy = CloneTrack(track, track.Id == Guid.Empty ? Guid.NewGuid() : track.Id, GetNextTrackIndex());
             await state_.UpsertActiveMidiTrackAsync(copy);
             HasUnsavedChanges = true;
+            logger_.LogInformation("Created MIDI track {TrackId} at index {TrackIndex} with {NoteCount} notes", copy.Id, copy.Index, copy.Events.Count);
             return copy;
         }
 
@@ -382,6 +412,7 @@ public sealed class MidiManagerService
             var copy = CloneTrack(track, id, existing.Index);
             await state_.UpsertActiveMidiTrackAsync(copy);
             HasUnsavedChanges = true;
+            logger_.LogInformation("Updated MIDI track {TrackId} at index {TrackIndex} with {NoteCount} notes", copy.Id, copy.Index, copy.Events.Count);
             return true;
         }
 
@@ -402,18 +433,24 @@ public sealed class MidiManagerService
             var copy = CloneTrack(track, id, track.Index);
             await state_.UpsertActiveMidiTrackAsync(copy);
             HasUnsavedChanges = true;
+            logger_.LogInformation("Added or replaced MIDI track {TrackId} at index {TrackIndex} with {NoteCount} notes", copy.Id, copy.Index, copy.Events.Count);
         }
 
         public async Task RemoveTrackAsync(Guid id)
         {
             if (await state_.RemoveActiveMidiTrackAsync(id))
+            {
                 HasUnsavedChanges = true;
+                logger_.LogInformation("Removed MIDI track {TrackId} from file {FileId}", id, FileId);
+            }
         }
 
         public async Task ClearAsync()
         {
+            var fileId = FileId;
             HasUnsavedChanges = false;
             await state_.ClearActiveMidiFileAsync();
+            logger_.LogDebug("Cleared active MIDI editor state for {FileId}", fileId);
         }
 
         private int GetNextTrackIndex()
@@ -483,6 +520,7 @@ public sealed class MidiManagerService
         private readonly TaskRunnerService tasks_;
         private readonly UserStateService state_;
         private readonly SafeJSInteropService js_;
+        private readonly ILogger<PlaybackManager> logger_;
 
         private IDisposable navCallback_;
 
@@ -501,13 +539,22 @@ public sealed class MidiManagerService
         private TimeSpan playbackScoreAnchorOffset_ = TimeSpan.Zero;
         private int playbackTempoAnchorBpm_ = 120;
 
-        public PlaybackManager(FileManager fileManager, DbService db, TaskRunnerService tasks, UserStateService state, SteelPanLoaderService panLoader, NavigationManager nav, SafeJSInteropService js)
+        public PlaybackManager(
+            FileManager fileManager,
+            DbService db,
+            TaskRunnerService tasks,
+            UserStateService state,
+            SteelPanLoaderService panLoader,
+            NavigationManager nav,
+            SafeJSInteropService js,
+            ILogger<PlaybackManager> logger)
         {
             fileManager_ = fileManager;
             db_ = db;
             tasks_ = tasks;
             state_ = state;
             js_ = js;
+            logger_ = logger;
 
             AvailablePans = panLoader.Pans;
 
@@ -631,6 +678,7 @@ public sealed class MidiManagerService
 
         public async Task OnUnloadMidiAsync()
         {
+            var unloadedFileId = MidiFileId;
             await StopAsync(resetPosition: true);
 
             ActivePans.Clear();
@@ -657,6 +705,8 @@ public sealed class MidiManagerService
             await NotifyClickTrackSettingsChangedAsync();
             await NotifyPositionChangedAsync(jump: true);
             await PushPlaybackStateToJsAsync();
+
+            logger_.LogInformation("Unloaded MIDI file {FileId}", unloadedFileId);
         }
 
         public async Task OnLoadMidiAsync(
@@ -731,6 +781,10 @@ public sealed class MidiManagerService
             await NotifyClickTrackSettingsChangedAsync();
             await NotifyPositionChangedAsync(jump: true);
             await PushPlaybackStateToJsAsync();
+
+            logger_.LogInformation(
+                "Loaded MIDI file {FileId} with {TrackCount} tracks, {AssignmentCount} assignments; persisted={Persisted}",
+                fileId, Tracks.Count, Assignments.Count, MidiPersistedFile);
         }
 
         public async Task OnLoadMidiAsync(Guid fileId, string fileName, MidiFile midiFile, IReadOnlyList<MidiTrackDto> tracks, IReadOnlyList<MidiTrackAssignmentDto> assignments)
@@ -794,6 +848,10 @@ public sealed class MidiManagerService
             await NotifyClickTrackSettingsChangedAsync();
             await NotifyPositionChangedAsync(jump: true);
             await PushPlaybackStateToJsAsync();
+
+            logger_.LogInformation(
+                "Loaded MIDI file {FileId} with {TrackCount} tracks and {AssignmentCount} assignments",
+                fileId, Tracks.Count, Assignments.Count);
         }
 
 
@@ -844,6 +902,7 @@ public sealed class MidiManagerService
             RecalculateDuration();
             await NotifyPositionChangedAsync(jump: true);
             await PushPlaybackStateToJsAsync();
+            logger_.LogDebug("Applied live override for MIDI track {TrackId}", track.Id);
         }
 
         public async Task ClearLiveTrackOverrideAsync(Guid trackId)
@@ -864,6 +923,7 @@ public sealed class MidiManagerService
 
             await NotifyPositionChangedAsync(jump: true);
             await PushPlaybackStateToJsAsync();
+            logger_.LogDebug("Cleared live override for MIDI track {TrackId}", trackId);
         }
 
         public async Task PlayPreviewNoteAsync(Shared.Music.Note note, PanType panType, CancellationToken cancellationToken = default)
@@ -888,6 +948,7 @@ public sealed class MidiManagerService
             if (MidiFileId == fileId)
                 return;
 
+            logger_.LogInformation("Loading shared MIDI file {FileId}", fileId);
             await tasks_.RunUnsafe(async () =>
             {
                 var details = await db_.MidiFiles.GetMidiFileDetailsAsync(fileId);
@@ -935,10 +996,12 @@ public sealed class MidiManagerService
             await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Reload);
             await NotifyPositionChangedAsync(jump: true);
             await PushPlaybackStateToJsAsync();
+            logger_.LogInformation("Reloaded {AssignmentCount} MIDI assignments for file {FileId}", Assignments.Count, fileId);
         }
 
         public async Task OnClearAssignmentsAsync(bool notify)
         {
+            var assignmentCount = Assignments.Count;
             await StopAsync(resetPosition: true);
 
             await state_.ReplaceActiveMidiAssignmentsAsync([]);
@@ -962,6 +1025,9 @@ public sealed class MidiManagerService
                 await NotifyPositionChangedAsync(jump: true);
                 await PushPlaybackStateToJsAsync();
             }
+
+            if (assignmentCount > 0)
+                logger_.LogInformation("Cleared {AssignmentCount} MIDI assignments for file {FileId}", assignmentCount, MidiFileId);
         }
 
         public async Task AddAssignmentAsync(MidiTrackAssignment assignment)
@@ -993,6 +1059,19 @@ public sealed class MidiManagerService
             {
                 await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Add);
                 await PushPlaybackStateToJsAsync();
+            }
+
+            if (newAssignment)
+            {
+                logger_.LogInformation(
+                    "Added MIDI assignment for track {TrackId} using {PanType} on file {FileId}",
+                    assignment.TrackId, assignment.AssignedPanType, MidiFileId);
+            }
+            else
+            {
+                logger_.LogDebug(
+                    "Loaded MIDI assignment for track {TrackId} using {PanType} on file {FileId}",
+                    assignment.TrackId, assignment.AssignedPanType, MidiFileId);
             }
         }
 
@@ -1038,6 +1117,10 @@ public sealed class MidiManagerService
             await NotifyAssignmentsChangedAsync(PlaybackAssignmentChangeOperation.Remove);
             await NotifyPositionChangedAsync(jump: true);
             await PushPlaybackStateToJsAsync();
+
+            logger_.LogInformation(
+                "Removed MIDI assignment for track {TrackId} from file {FileId}",
+                assignedPan.Assignment.TrackId, MidiFileId);
         }
 
         private MidiTrackAssignmentDto? CreateDtoAssignment(MidiTrackAssignment assignment)
@@ -1232,7 +1315,10 @@ public sealed class MidiManagerService
         public async Task PlayAsync(TimeSpan startOffset)
         {
             if (ActivePans.Count == 0)
+            {
+                logger_.LogDebug("Playback skipped because file {FileId} has no active pans", MidiFileId);
                 return;
+            }
 
             var playbackGroups = ActivePans
                 .Select(x => new
@@ -1341,29 +1427,36 @@ public sealed class MidiManagerService
 
                 StartPlaybackProgressLoop(playbackProgressCts_.Token);
                 await PushPlaybackStateToJsAsync();
+
+                logger_.LogInformation(
+                    "Started MIDI playback for file {FileId} at {PositionSeconds:F3}s with {PanCount} pans at {TempoBpm} BPM",
+                    MidiFileId, playbackSessionStartOffset_.TotalSeconds, playbackGroups.Count, EffectiveMidiBpm);
             }
             catch (OperationCanceledException)
             {
+                logger_.LogDebug("MIDI playback start was cancelled for file {FileId}", MidiFileId);
             }
         }
 
         public async Task PauseAsync()
         {
             playbackSessionStartOffset_ = await GetCurrentPositionAsync();
-            await StopAsync(resetPosition: false);
+            await StopAsync(resetPosition: false, logStop: false);
             Position = playbackSessionStartOffset_;
             await NotifyPlaybackPausedAsync(new MidiEventArgs.PlaybackPaused(Position));
             await PushPlaybackStateToJsAsync();
+            logger_.LogInformation("Paused MIDI playback for file {FileId} at {PositionSeconds:F3}s", MidiFileId, Position.TotalSeconds);
         }
 
         public async Task RestartFromAsync(TimeSpan startOffset)
         {
-            await StopAsync(resetPosition: false);
+            await StopAsync(resetPosition: false, logStop: false);
             await PlayAsync(startOffset);
         }
 
-        public async Task StopAsync(bool resetPosition = false)
+        public async Task StopAsync(bool resetPosition = false, bool logStop = true)
         {
+            var wasPlaying = IsPlaying;
             if (IsPlaying)
             {
                 await StopMetronomeAudioAsync();
@@ -1401,6 +1494,9 @@ public sealed class MidiManagerService
 
             await NotifyPlaybackStoppedAsync(new MidiEventArgs.PlaybackStopped(resetPosition, Position));
             await PushPlaybackStateToJsAsync();
+
+            if (wasPlaying && logStop)
+                logger_.LogInformation("Stopped MIDI playback for file {FileId}; reset={ResetPosition}; position={PositionSeconds:F3}s", MidiFileId, resetPosition, Position.TotalSeconds);
         }
 
         public async Task SetTempoBpmAsync(int bpm)
@@ -1439,6 +1535,7 @@ public sealed class MidiManagerService
 
             await NotifyClickTrackSettingsChangedAsync();
             await PushPlaybackStateToJsAsync();
+            logger_.LogInformation("Changed playback tempo for file {FileId} to {TempoBpm} BPM", MidiFileId, bpm);
         }
 
         public async Task SetBeatsPerBarAsync(int beatsPerBar)
@@ -1454,6 +1551,7 @@ public sealed class MidiManagerService
                 await RescheduleClickTrackAsync();
 
             await NotifyClickTrackSettingsChangedAsync();
+            logger_.LogDebug("Changed beats per bar to {BeatsPerBar} for file {FileId}", BeatsPerBar, MidiFileId);
         }
 
         public async Task SetBeatUnitAsync(int beatUnit)
@@ -1471,6 +1569,7 @@ public sealed class MidiManagerService
                 await RescheduleClickTrackAsync();
 
             await NotifyClickTrackSettingsChangedAsync();
+            logger_.LogDebug("Changed beat unit to {BeatUnit} for file {FileId}", BeatUnit, MidiFileId);
         }
 
         public async Task SetClickTrackEnabledAsync(bool enabled)
@@ -1490,6 +1589,7 @@ public sealed class MidiManagerService
 
             await NotifyClickTrackSettingsChangedAsync();
             await PushPlaybackStateToJsAsync();
+            logger_.LogInformation("Set click track enabled={Enabled} for file {FileId}", enabled, MidiFileId);
         }
 
         public async Task SetCountInBeatsAsync(int beats)
@@ -1502,6 +1602,7 @@ public sealed class MidiManagerService
             CountInBeats = beats;
             await NotifyCountInChangedAsync(new MidiEventArgs.PlaybackCountInChanged(CountInBeats, CountInNoteDivision));
             await PushPlaybackStateToJsAsync();
+            logger_.LogDebug("Changed count-in beats to {CountInBeats} for file {FileId}", CountInBeats, MidiFileId);
         }
 
         public async Task SetCountInNoteDivisionAsync(int noteDivision)
@@ -2201,8 +2302,9 @@ public sealed class MidiManagerService
                         Math.Max(InitialMidiBpm, 1),
                         Math.Max(TempoBpm, 1)));
             }
-            catch (JSDisconnectedException)
+            catch (JSDisconnectedException ex)
             {
+                logger_.LogDebug(ex, "Skipped playback-state push because JS disconnected");
             }
         }
 
@@ -2235,6 +2337,7 @@ public sealed class MidiManagerService
 
             navCallback_?.Dispose();
             state_.OnRefresh -= OnRefreshAsync;
+            logger_.LogDebug("Disposed MIDI playback manager");
         }
     }
 }

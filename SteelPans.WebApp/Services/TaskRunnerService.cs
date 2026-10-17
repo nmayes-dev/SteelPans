@@ -9,11 +9,15 @@ public class TaskRunnerService : IDisposable
     public string Message { get; private set; } = string.Empty;
     public string Error { get; private set; } = string.Empty;
 
+    private readonly ILogger<TaskRunnerService> logger_;
     private readonly IDisposable navEvent_;
     private bool disposed_;
 
-    public TaskRunnerService(NavigationManager nav)
+    public TaskRunnerService(
+        NavigationManager nav,
+        ILogger<TaskRunnerService> logger)
     {
+        logger_ = logger;
         navEvent_ = nav.RegisterLocationChangingHandler(OnLocationChanged);
     }
 
@@ -70,8 +74,15 @@ public class TaskRunnerService : IDisposable
             Message = await job();
             return true;
         }
+        catch (OperationCanceledException ex)
+        {
+            logger_.LogDebug(ex, "UI task was cancelled");
+            Error = ex.Message;
+            return false;
+        }
         catch (Exception ex)
         {
+            logger_.LogError(ex, "UI task failed");
             Error = ex.Message;
             return false;
         }
@@ -90,8 +101,15 @@ public class TaskRunnerService : IDisposable
             await job();
             return true;
         }
+        catch (OperationCanceledException ex)
+        {
+            logger_.LogDebug(ex, "UI task was cancelled");
+            Error = ex.Message;
+            return false;
+        }
         catch (Exception ex)
         {
+            logger_.LogError(ex, "UI task failed");
             Error = ex.Message;
             return false;
         }

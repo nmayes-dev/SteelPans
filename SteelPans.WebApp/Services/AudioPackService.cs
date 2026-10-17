@@ -10,14 +10,21 @@ public sealed class AudioPackService
 
     private readonly string packDirectory_;
     private readonly byte[] key_;
+    private readonly ILogger<AudioPackService> logger_;
 
-    public AudioPackService(IWebHostEnvironment env, IConfiguration configuration)
+    public AudioPackService(
+        IWebHostEnvironment env,
+        IConfiguration configuration,
+        ILogger<AudioPackService> logger)
     {
+        logger_ = logger;
         var packDir = configuration["AudioPacks:RootPath"];
         ArgumentException.ThrowIfNullOrEmpty(packDir);
 
         packDirectory_ = packDir;
         key_ = LoadKey(configuration);
+
+        logger_.LogInformation("Audio pack service configured with root {AudioPackRoot}", packDirectory_);
     }
 
     public string GetOpaqueId(string packId)
@@ -38,10 +45,16 @@ public sealed class AudioPackService
     public AudioPackFile? GetPackByOpaqueId(string opaqueId)
     {
         if (!IsValidOpaqueId(opaqueId))
+        {
+            logger_.LogDebug("Rejected invalid audio pack id {OpaquePackId}", opaqueId);
             return null;
+        }
 
         if (!Directory.Exists(packDirectory_))
+        {
+            logger_.LogWarning("Audio pack directory {AudioPackRoot} does not exist", packDirectory_);
             return null;
+        }
 
         foreach (var path in Directory.EnumerateFiles(
                      packDirectory_,
@@ -55,15 +68,18 @@ public sealed class AudioPackService
                     opaqueId,
                     StringComparison.OrdinalIgnoreCase))
             {
+                logger_.LogDebug("Resolved audio pack {OpaquePackId} to {PackFileName}", opaqueId, Path.GetFileName(path));
                 return new AudioPackFile(path);
             }
         }
 
+        logger_.LogDebug("Audio pack {OpaquePackId} was not found", opaqueId);
         return null;
     }
 
     public byte[] Decrypt(AudioPackFile pack)
     {
+        logger_.LogDebug("Decrypting audio pack {PackFileName}", Path.GetFileName(pack.Path));
         var encrypted = File.ReadAllBytes(pack.Path);
 
         if (encrypted.Length < 4 + 12 + 16 ||

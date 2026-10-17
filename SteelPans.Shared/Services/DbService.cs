@@ -1,5 +1,6 @@
 using Melanchall.DryWetMidi.Core;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using SteelPans.Shared.Auth;
 using SteelPans.Shared.Data;
 using SteelPans.Shared.Ensembles;
@@ -18,21 +19,27 @@ public sealed class DbService
     public readonly GroupDbService Groups;
     public readonly MidiDbService MidiFiles;
 
-    private ICurrentUserAccessor currentUser_;
+    private readonly ICurrentUserAccessor currentUser_;
 
-    public DbService(IDbContextFactory<EnsembleDbContext> dbFactory,
+    public DbService(
+        IDbContextFactory<EnsembleDbContext> dbFactory,
         ICurrentUserAccessor currentUser,
         IEnsembleFileStore fileStore,
-        IRealtimeUpdateDispatcher updates)
+        IRealtimeUpdateDispatcher updates,
+        ILogger<DbService> logger)
     {
         currentUser_ = currentUser;
-        Groups = new(dbFactory, currentUser, updates);
-        MidiFiles = new(dbFactory, currentUser, Groups, fileStore, updates);
+        Groups = new(dbFactory, currentUser, updates, logger);
+        MidiFiles = new(dbFactory, currentUser, Groups, fileStore, updates, logger);
     }
 
     public async Task<Guid> GetUserIdAsync() => await currentUser_.GetUserIdAsync();
 
-    public sealed class GroupDbService(IDbContextFactory<EnsembleDbContext> dbFactory, ICurrentUserAccessor currentUser, IRealtimeUpdateDispatcher updates)
+    public sealed class GroupDbService(
+        IDbContextFactory<EnsembleDbContext> dbFactory,
+        ICurrentUserAccessor currentUser,
+        IRealtimeUpdateDispatcher updates,
+        ILogger<DbService> logger)
     {
         public async Task<IReadOnlyList<GroupSummaryDto>> GetMyGroupsAsync(
             CancellationToken cancellationToken = default)
@@ -128,6 +135,11 @@ public sealed class DbService
             await db.SaveChangesAsync(cancellationToken);
             await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
 
+            logger.LogInformation(
+                "Created group {GroupId} for user {UserId}",
+                group.Id,
+                group.CreatedByUserId);
+
             return new GroupSummaryDto(group.Id, group.Name, group.InviteCode, GroupRole.Leader);
         }
 
@@ -158,6 +170,12 @@ public sealed class DbService
             db.GroupInvites.Add(invite);
             await db.SaveChangesAsync(cancellationToken);
 
+            logger.LogInformation(
+                "Created invite {InviteId} for group {GroupId}; expires at {ExpiresAt}",
+                invite.Id,
+                groupId,
+                invite.ExpiresAt);
+
             return new GroupInviteDto(invite.Token, invite.ExpiresAt);
         }
 
@@ -174,6 +192,7 @@ public sealed class DbService
 
             if (invite is null || invite.ExpiresAt <= now)
             {
+                logger.LogWarning("Group join failed because the invite was invalid or expired");
                 return null;
             }
 
@@ -195,6 +214,12 @@ public sealed class DbService
             await db.SaveChangesAsync(cancellationToken);
             await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
             await updates.NotifyGroupChangedAsync(invite.Group.Id, cancellationToken);
+
+            logger.LogInformation(
+                "User {UserId} joined group {GroupId} with role {Role}",
+                userId,
+                invite.Group.Id,
+                role);
 
             return new GroupSummaryDto(invite.Group.Id, invite.Group.Name, invite.Group.InviteCode, role);
         }
@@ -253,6 +278,12 @@ public sealed class DbService
             {
                 await updates.NotifyUserStateChangedAsync(id, cancellationToken);
             }
+
+            logger.LogInformation(
+                "Deleted group {GroupId} by user {UserId}; notified {MemberCount} members",
+                groupId,
+                userId,
+                memberUserIds.Count);
         }
 
         public async Task<List<GroupMemberSummaryDto>> GetGroupMembersAsync(Guid groupId, CancellationToken cancellationToken = default)
@@ -311,6 +342,12 @@ public sealed class DbService
 
             await db.SaveChangesAsync(cancellationToken);
             await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
+
+            logger.LogInformation(
+                "Changed role for user {TargetUserId} in group {GroupId} to {Role}",
+                request.UserId,
+                groupId,
+                request.Role);
         }
 
         public async Task TransferLeadershipAsync(Guid groupId, Guid newLeaderUserId, CancellationToken cancellationToken = default)
@@ -332,6 +369,12 @@ public sealed class DbService
 
             await db.SaveChangesAsync(cancellationToken);
             await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
+
+            logger.LogInformation(
+                "Transferred leadership of group {GroupId} from user {PreviousLeaderId} to user {NewLeaderId}",
+                groupId,
+                currentMember.UserId,
+                newLeaderUserId);
         }
 
         public async Task RemoveMemberAsync(Guid groupId, Guid userId, CancellationToken cancellationToken = default)
@@ -373,6 +416,12 @@ public sealed class DbService
             await db.SaveChangesAsync(cancellationToken);
             await updates.NotifyUserStateChangedAsync(userId, cancellationToken);
             await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
+
+            logger.LogInformation(
+                "Removed user {TargetUserId} from group {GroupId}; requested by user {RequestingUserId}",
+                userId,
+                groupId,
+                currentMember.UserId);
         }
 
         public async Task LeaveGroupAsync(Guid groupId, CancellationToken cancellationToken = default)
@@ -443,7 +492,8 @@ public sealed class DbService
         ICurrentUserAccessor currentUser,
         GroupDbService groups,
         IEnsembleFileStore fileStore,
-        IRealtimeUpdateDispatcher updates)
+        IRealtimeUpdateDispatcher updates,
+        ILogger<DbService> logger)
     {
         public async Task<GroupFileDto> UploadMidiFileAsync(
             string originalFileName,
@@ -518,6 +568,13 @@ public sealed class DbService
                 cancellationToken);
 
             await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
+
+            logger.LogInformation(
+                "Uploaded MIDI file {FileId} for user {UserId}: {SizeBytes} bytes, {TrackCount} tracks",
+                midiFile.Id,
+                midiFile.UploadedByUserId,
+                midiFile.SizeBytes,
+                midiFile.Tracks.Count);
 
             return new GroupFileDto(
                 midiFile.Id,
@@ -596,6 +653,8 @@ public sealed class DbService
                 file.StorageKey,
                 cancellationToken);
 
+            logger.LogDebug("Opened MIDI file {FileId} from storage", fileId);
+
             return new MidiFileDownload(
                 stream,
                 file.ContentType,
@@ -654,6 +713,11 @@ public sealed class DbService
                 file.UploadedByUserId,
                 sharedGroupIds,
                 cancellationToken);
+
+            logger.LogInformation(
+                "Saved {AssignmentCount} MIDI assignments for file {FileId}",
+                request.Assignments.Count,
+                fileId);
         }
 
         public async Task AddMidiAssignmentsAsync(
@@ -705,6 +769,12 @@ public sealed class DbService
                 file.UploadedByUserId,
                 sharedGroupIds,
                 cancellationToken);
+
+            logger.LogInformation(
+                "Added MIDI assignment for track {TrackId} in file {FileId} using pan {PanType}",
+                assignment.TrackId,
+                fileId,
+                assignment.PanType);
         }
 
         public sealed record CreateRecordedMidiFileRequest(
@@ -825,6 +895,12 @@ public sealed class DbService
                 file.UploadedByUserId,
                 sharedGroupIds,
                 cancellationToken);
+
+            logger.LogInformation(
+                "Updated recorded MIDI file {FileId}: {TrackCount} tracks, {SizeBytes} bytes",
+                fileId,
+                request.Tracks.Count,
+                file.SizeBytes);
         }
 
         public async Task<GroupFileDto> CreateRecordedMidiFileAsync(
@@ -898,6 +974,14 @@ public sealed class DbService
             db.MidiFiles.Add(midiFile);
             await db.SaveChangesAsync(cancellationToken);
             await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
+
+            logger.LogInformation(
+                "Created recorded MIDI file {FileId} for user {UserId}: {TrackCount} tracks, {SizeBytes} bytes, incomplete {IsIncomplete}",
+                midiFile.Id,
+                midiFile.UploadedByUserId,
+                midiFile.Tracks.Count,
+                midiFile.SizeBytes,
+                midiFile.IsIncomplete);
 
             return new GroupFileDto(
                 midiFile.Id,
@@ -1070,6 +1154,12 @@ public sealed class DbService
             await db.SaveChangesAsync(cancellationToken);
             await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
             await updates.NotifyGroupsChangedAsync(sharedGroupIds, cancellationToken);
+
+            logger.LogInformation(
+                "Deleted MIDI file {FileId} for user {UserId}; it had been shared with {GroupCount} groups",
+                fileId,
+                userId,
+                sharedGroupIds.Count);
         }
         public async Task<IReadOnlyList<GroupFileDto>> GetMyMidiFilesAsync(
             CancellationToken cancellationToken = default)
@@ -1120,6 +1210,8 @@ public sealed class DbService
             await db.SaveChangesAsync(cancellationToken);
             await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
             await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
+
+            logger.LogInformation("Unshared MIDI file {FileId} from group {GroupId}", fileId, groupId);
         }
 
         public async Task ShareMidiFileWithGroupAsync(
@@ -1160,6 +1252,12 @@ public sealed class DbService
                 await db.SaveChangesAsync(cancellationToken);
                 await updates.NotifyUserStateChangedAsync(await currentUser.GetUserIdAsync(), cancellationToken);
                 await updates.NotifyGroupChangedAsync(groupId, cancellationToken);
+
+                logger.LogInformation("Shared MIDI file {FileId} with group {GroupId}", fileId, groupId);
+            }
+            else
+            {
+                logger.LogDebug("MIDI file {FileId} was already shared with group {GroupId}", fileId, groupId);
             }
         }
 

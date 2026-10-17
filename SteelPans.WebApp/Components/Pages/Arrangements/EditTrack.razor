@@ -308,8 +308,9 @@
         {
             await JS.InvokeVoidAsync("panPlayback.setDiagnosticsEnabled", DiagnosticsEnabled);
         }
-        catch (JSException)
+        catch (JSException ex)
         {
+            Logger.LogWarning(ex, "Failed to update playback diagnostics state");
         }
     }
 
@@ -779,8 +780,9 @@
         {
             return await MidiService.Playback.GetAudioTimeAsync();
         }
-        catch (JSException)
+        catch (JSException ex)
         {
+            Logger.LogDebug(ex, "Could not read audio time from JS");
             return null;
         }
     }
@@ -802,8 +804,9 @@
         {
             await recordVisualiser_.StopPlayheadAsync(positionSeconds, resetViewport);
         }
-        catch (JSDisconnectedException)
+        catch (JSDisconnectedException ex)
         {
+            Logger.LogDebug(ex, "Skipped record playhead cleanup because JS disconnected");
         }
     }
 
@@ -925,8 +928,9 @@
         {
             await MidiService.Playback.PlayMetronomeTickAsync(isAccent, cancellationToken);
         }
-        catch (JSException)
+        catch (JSException ex)
         {
+            Logger.LogDebug(ex, "Metronome tick could not be played");
         }
     }
 
@@ -987,8 +991,9 @@
                 overlayPan_.ComponentId,
                 overdubNotes_);
         }
-        catch (JSException)
+        catch (JSException ex)
         {
+            Logger.LogWarning(ex, "Failed to prepare overdub playback schedule");
         }
     }
 
@@ -1019,8 +1024,9 @@
                 Math.Max(tempoBpm_, 1),
                 currentAudioTime);
         }
-        catch (JSException)
+        catch (JSException ex)
         {
+            Logger.LogWarning(ex, "Failed to update overdub playback tempo; falling back to current audio time");
             return await TryGetAudioTimeAsync();
         }
     }
@@ -1034,8 +1040,9 @@
         {
             await JS.InvokeVoidAsync("panPlayback.stopMidiSchedule", overlayPan_.ComponentId);
         }
-        catch (JSException)
+        catch (JSException ex)
         {
+            Logger.LogDebug(ex, "Overdub playback schedule cleanup failed");
         }
     }
 

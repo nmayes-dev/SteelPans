@@ -2,26 +2,46 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace SteelPans.WebApp.Hubs;
 
-public sealed class AppUpdatesHub : Hub
+public sealed class AppUpdatesHub(ILogger<AppUpdatesHub> logger) : Hub
 {
-    public Task JoinUser(Guid userId)
+    public override Task OnConnectedAsync()
     {
-        return Groups.AddToGroupAsync(Context.ConnectionId, UserGroup(userId));
+        logger.LogDebug("Realtime client connected with connection id {ConnectionId}", Context.ConnectionId);
+        return base.OnConnectedAsync();
     }
 
-    public Task LeaveUser(Guid userId)
+    public override Task OnDisconnectedAsync(Exception? exception)
     {
-        return Groups.RemoveFromGroupAsync(Context.ConnectionId, UserGroup(userId));
+        if (exception is null)
+            logger.LogDebug("Realtime client disconnected with connection id {ConnectionId}", Context.ConnectionId);
+        else
+            logger.LogWarning(exception, "Realtime client {ConnectionId} disconnected unexpectedly", Context.ConnectionId);
+
+        return base.OnDisconnectedAsync(exception);
     }
 
-    public Task JoinGroup(Guid groupId)
+    public async Task JoinUser(Guid userId)
     {
-        return Groups.AddToGroupAsync(Context.ConnectionId, GroupGroup(groupId));
+        await Groups.AddToGroupAsync(Context.ConnectionId, UserGroup(userId));
+        logger.LogDebug("Realtime client {ConnectionId} joined user channel {UserId}", Context.ConnectionId, userId);
     }
 
-    public Task LeaveGroup(Guid groupId)
+    public async Task LeaveUser(Guid userId)
     {
-        return Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupGroup(groupId));
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, UserGroup(userId));
+        logger.LogDebug("Realtime client {ConnectionId} left user channel {UserId}", Context.ConnectionId, userId);
+    }
+
+    public async Task JoinGroup(Guid groupId)
+    {
+        await Groups.AddToGroupAsync(Context.ConnectionId, GroupGroup(groupId));
+        logger.LogDebug("Realtime client {ConnectionId} joined group channel {GroupId}", Context.ConnectionId, groupId);
+    }
+
+    public async Task LeaveGroup(Guid groupId)
+    {
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupGroup(groupId));
+        logger.LogDebug("Realtime client {ConnectionId} left group channel {GroupId}", Context.ConnectionId, groupId);
     }
 
     public static string UserGroup(Guid userId)

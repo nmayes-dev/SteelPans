@@ -1,5 +1,5 @@
 ﻿.mobile-drawer {
-    --lip-size_default: 8px;
+    --lip-size_default: 12px;
     --lip-size: var(--lip-size_arg, var(--lip-size_default));
     --handle-size: calc(0.6 * var(--lip-size));
     --tap-open-size_default: 10px;

@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using SteelPans.Components.Layout;
 
 namespace SteelPans.Components.Services;
@@ -19,7 +20,13 @@ public interface IModalPopup
 
 public sealed class ModalPopupService
 {
+    private readonly ILogger<ModalPopupService> logger_;
     private readonly Dictionary<string, IModalPopup> modals_ = new(StringComparer.Ordinal);
+
+    public ModalPopupService(ILogger<ModalPopupService> logger)
+    {
+        logger_ = logger;
+    }
 
     public void Register(string id, IModalPopup modal)
     {
@@ -30,6 +37,7 @@ public sealed class ModalPopupService
             throw new InvalidOperationException($"A modal popup with id '{id}' has already been registered.");
 
         modals_[id] = modal;
+        logger_.LogDebug("Registered modal {ModalId}", id);
     }
 
     public void Unregister(string id, IModalPopup modal)
@@ -38,7 +46,10 @@ public sealed class ModalPopupService
             return;
 
         if (modals_.TryGetValue(id, out var existing) && ReferenceEquals(existing, modal))
+        {
             modals_.Remove(id);
+            logger_.LogDebug("Unregistered modal {ModalId}", id);
+        }
     }
 
     public Task<bool> OpenAsync(string id, ModalOptions? options = null)
@@ -49,8 +60,12 @@ public sealed class ModalPopupService
     public async Task<bool> OpenAsync<TPayload>(string id, TPayload payload, ModalOptions? options = null)
     {
         if (!modals_.TryGetValue(id, out var modal))
+        {
+            logger_.LogWarning("Cannot open unregistered modal {ModalId}", id);
             return false;
+        }
 
+        logger_.LogDebug("Opening modal {ModalId}", id);
         await modal.OpenAsync(payload, options);
         return true;
     }
@@ -58,8 +73,12 @@ public sealed class ModalPopupService
     public async Task<bool> CloseAsync(string id)
     {
         if (!modals_.TryGetValue(id, out var modal))
+        {
+            logger_.LogWarning("Cannot close unregistered modal {ModalId}", id);
             return false;
+        }
 
+        logger_.LogDebug("Closing modal {ModalId}", id);
         await modal.RequestCloseAsync();
         return true;
     }

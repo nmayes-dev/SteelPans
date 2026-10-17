@@ -10,13 +10,18 @@ public sealed class SteelPanLoaderService
     private readonly IWebHostEnvironment env_;
     private readonly JsonSerializerOptions options_;
     private readonly AudioPackService audioPacks_;
+    private readonly ILogger<SteelPanLoaderService> logger_;
 
     public IReadOnlyList<SteelPan> Pans { get; private set; } = [];
 
-    public SteelPanLoaderService(IWebHostEnvironment env, AudioPackService audioPacks)
+    public SteelPanLoaderService(
+        IWebHostEnvironment env,
+        AudioPackService audioPacks,
+        ILogger<SteelPanLoaderService> logger)
     {
         env_ = env;
         audioPacks_ = audioPacks;
+        logger_ = logger;
 
         options_ = new JsonSerializerOptions
         {
@@ -33,12 +38,12 @@ public sealed class SteelPanLoaderService
 
     public async Task InitializeAsync(string path = "data/pans.json")
     {
-        Console.WriteLine($"ContentRootPath: {env_.ContentRootPath}");
+        logger_.LogDebug("Loading steel pan definitions from web root {WebRootPath}", env_.WebRootPath);
         if (string.IsNullOrWhiteSpace(env_.WebRootPath))
             throw new InvalidOperationException("WebRootPath is null. Ensure wwwroot exists in the published app.");
 
         var fullPath = Path.Combine(env_.WebRootPath!, path);
-        Console.WriteLine($"Full path: {fullPath}");
+        logger_.LogDebug("Loading steel pan definitions from {DefinitionsPath}", fullPath);
 
         if (!File.Exists(fullPath))
             throw new FileNotFoundException(fullPath);
@@ -59,5 +64,7 @@ public sealed class SteelPanLoaderService
 
         if (Pans?.Any() == false)
             throw new ApplicationException("Failed to find any pans on startup.");
+
+        logger_.LogInformation("Loaded {PanCount} steel pan definitions", Pans?.Count ?? 0);
     }
 }

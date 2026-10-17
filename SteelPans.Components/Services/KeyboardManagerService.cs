@@ -1,17 +1,20 @@
 ﻿using Microsoft.JSInterop;
+using Microsoft.Extensions.Logging;
 
 namespace SteelPans.Components.Services;
 
 public sealed class KeyboardManagerService : IAsyncDisposable
 {
     private readonly IJSRuntime js_;
+    private readonly ILogger<KeyboardManagerService> logger_;
     private readonly List<KeyboardCallbackRegistration> callbacks_ = [];
 
     private DotNetObjectReference<KeyboardManagerService>? dotNetRef_;
 
-    public KeyboardManagerService(IJSRuntime js)
+    public KeyboardManagerService(IJSRuntime js, ILogger<KeyboardManagerService> logger)
     {
         js_ = js;
+        logger_ = logger;
     }
 
     public async ValueTask InitializeAsync()
@@ -21,6 +24,7 @@ public sealed class KeyboardManagerService : IAsyncDisposable
 
         dotNetRef_ = DotNetObjectReference.Create(this);
         await js_.InvokeVoidAsync("keyboardManager.initialize", dotNetRef_);
+        logger_.LogDebug("Keyboard manager initialized");
     }
 
     public IDisposable Register(
@@ -89,17 +93,20 @@ public sealed class KeyboardManagerService : IAsyncDisposable
         {
             await js_.InvokeVoidAsync("keyboardManager.dispose");
         }
-        catch (InvalidOperationException)
+        catch (InvalidOperationException ex)
         {
+            logger_.LogDebug(ex, "Keyboard manager JS cleanup was skipped because JS interop is unavailable");
         }
-        catch (JSDisconnectedException)
+        catch (JSDisconnectedException ex)
         {
+            logger_.LogDebug(ex, "Keyboard manager JS cleanup was skipped because the circuit disconnected");
         }
 
         callbacks_.Clear();
 
         dotNetRef_?.Dispose();
         dotNetRef_ = null;
+        logger_.LogDebug("Keyboard manager disposed");
     }
 
     private sealed class KeyboardRegistration : IDisposable

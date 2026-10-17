@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Serilog;
 using SteelPans.Components.Services;
 using SteelPans.Shared;
 using SteelPans.Shared.Auth;
@@ -25,23 +26,98 @@ public static class Program
 {
     public static async Task Main(string[] args)
     {
-        await StartupPipeline
-            .AddStep(WebApplication.CreateBuilder)
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .WriteTo.Console()
+            .CreateBootstrapLogger();
+
+        try
+        {
+            await StartupPipeline
+                .AddStep(BuildApplication)
+                .AddStep(LaunchApplication)
+                .RunAsync(args);
+        }
+        catch (HostAbortedException)
+        {
+            // Preserve host-discovery behaviour without logging a fatal error.
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Log.Fatal(ex, "Steel Pans terminated unexpectedly");
+            throw;
+        }
+        finally
+        {
+            await Log.CloseAndFlushAsync();
+        }
+    }
+
+    private static Task<WebApplicationBuilder> BuildApplication(string[] args)
+    {
+        Log.Information("Building Steel Pans app");
+
+        return StartupPipeline
+            .AddStep(CreateAppBuilder)
+            .AddStep(AddLoggingServices)
             .AddStep(AddAuthServices)
             .AddStep(AddCoreServices)
             .AddStep(AddAppServices)
             .AddStep(AddBlazorServices)
-            .AddStep(BuildApp)
-            .AddStep(ConfigureApp)
-            .AddStep(MapApiEndpoints)
-            .AddStep(InitializeServices)
-            .AddStep(ConfigureResponsiveFirefox)
-            .AddStep(LaunchApp)
             .RunAsync(args);
     }
 
-    private static WebApplicationBuilder AddAuthServices(
-        WebApplicationBuilder builder)
+    private static async Task LaunchApplication(WebApplicationBuilder builder)
+    {
+        Log.Information("Configuring and launching Steel Pans app");
+
+        var app = await StartupPipeline
+            .AddStep(BuildApp)
+            .AddStep(ConfigureApp)
+            .AddStep(ConfigureWebApi)
+            .AddStep(ConfigureDevelopmentMode)
+            .AddStep(InitializeServices)
+            .RunAsync(builder);
+
+        await app.RunAsync();
+    }
+
+    private static WebApplicationBuilder CreateAppBuilder(string[] args)
+    {
+        return WebApplication.CreateBuilder(args);
+    }
+
+    private static WebApplicationBuilder AddLoggingServices(WebApplicationBuilder builder)
+    {
+        var filePath = builder.Configuration["Logging:File:Path"] ?? "logs/steelpans-.log";
+        var fileSizeLimitBytes = builder.Configuration.GetValue<long?>("Logging:File:FileSizeLimitBytes")
+            ?? 50L * 1024L * 1024L;
+        var retainedFileCountLimit = builder.Configuration.GetValue<int?>("Logging:File:RetainedFileCountLimit")
+            ?? 60;
+        var retainedDays = builder.Configuration.GetValue<int?>("Logging:File:RetainedDays")
+            ?? 30;
+
+        builder.Logging.ClearProviders();
+
+        builder.Services.AddSerilog((services, configuration) => configuration
+            .ReadFrom.Configuration(builder.Configuration)
+            .ReadFrom.Services(services)
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .WriteTo.File(
+                filePath,
+                rollingInterval: RollingInterval.Day,
+                rollOnFileSizeLimit: true,
+                fileSizeLimitBytes: fileSizeLimitBytes,
+                retainedFileCountLimit: retainedFileCountLimit,
+                retainedFileTimeLimit: TimeSpan.FromDays(retainedDays),
+                flushToDiskInterval: TimeSpan.FromSeconds(1)));
+
+        return builder;
+    }
+
+    private static WebApplicationBuilder AddAuthServices(WebApplicationBuilder builder)
     {
         builder.Services
             .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
@@ -162,8 +238,7 @@ public static class Program
         return builder;
     }
 
-    private static WebApplication BuildApp(
-        WebApplicationBuilder builder)
+    private static WebApplication BuildApp(WebApplicationBuilder builder)
     {
         return builder.Build();
     }
@@ -182,9 +257,9 @@ public static class Program
         app.UseStaticFiles();
         app.MapStaticAssets();
 
-        app.UseStatusCodePagesWithReExecute(
-            "/not-found",
-            createScopeForStatusCodePages: true);
+        app.UseSerilogRequestLogging();
+
+        app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
         app.UseAuthentication();
         app.UseAuthorization();
@@ -198,30 +273,30 @@ public static class Program
         return app;
     }
 
-    public static WebApplication MapApiEndpoints(WebApplication app)
+    public static WebApplication ConfigureWebApi(WebApplication app)
     {
-        AccountEndpoints.Map(app);
-        AudioEndpoints.Map(app);
-        FileEndpoints.Map(app);
+        app.MapAccountApi();
+        app.MapAudioApi();
+        app.MapFileApi();
 
         return app;
     }
 
-    private static async Task<WebApplication> InitializeServices(
-        WebApplication app)
+    private static async Task<WebApplication> InitializeServices(WebApplication app)
     {
-        await app.Services
-            .GetRequiredService<SteelPanLoaderService>()
-            .InitializeAsync();
+        var logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("SteelPans.WebApp.Startup");
 
-        await app.Services
-            .GetRequiredService<SteelPanSvgService>()
-            .InitializeAsync();
+        logger.LogInformation("Initializing steel pan definitions");
+        await app.Services.GetRequiredService<SteelPanLoaderService>().InitializeAsync();
 
+        logger.LogInformation("Initializing steel pan SVG assets");
+        await app.Services.GetRequiredService<SteelPanSvgService>().InitializeAsync();
+
+        logger.LogInformation("Application services initialized");
         return app;
     }
 
-    private static WebApplication ConfigureResponsiveFirefox(
+    private static WebApplication ConfigureDevelopmentMode(
         WebApplication app)
     {
         if (!app.Environment.IsDevelopment() ||
@@ -236,11 +311,5 @@ public static class Program
             .Configure(app);
 
         return app;
-    }
-
-    private static async Task LaunchApp(
-        WebApplication app)
-    {
-        await app.RunAsync();
     }
 }

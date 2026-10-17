@@ -1,11 +1,14 @@
 ﻿using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Net.Mail;
 
 namespace SteelPans.Shared.Services;
 
-public sealed class EmailSender(IConfiguration configuration) : IEmailSender
+public sealed class EmailSender(
+    IConfiguration configuration,
+    ILogger<EmailSender> logger) : IEmailSender
 {
     public async Task SendEmailAsync(
         string to,
@@ -42,6 +45,17 @@ public sealed class EmailSender(IConfiguration configuration) : IEmailSender
 
         message.To.Add(to);
 
-        await client.SendMailAsync(message);
+        logger.LogInformation("Sending email via SMTP host {SmtpHost}:{SmtpPort}", host, port);
+
+        try
+        {
+            await client.SendMailAsync(message);
+            logger.LogInformation("Email sent successfully via SMTP host {SmtpHost}", host);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send email via SMTP host {SmtpHost}", host);
+            throw;
+        }
     }
 }
