@@ -29,16 +29,6 @@
         box-sizing: border-box;
     }
 
-.overlay--left ::deep * {
-    transform-origin: right;
-}
-
-.overlay--right ::deep * {
-    transform-origin: left;
-}
-
-
-
 /* =========================================
    Shared Styling
 ========================================= */
@@ -59,14 +49,14 @@
     -webkit-transform: translateZ(0);
     touch-action: manipulation;
     width: max-content;
-    height: max-content;
+    height: auto;
     min-width: 0;
     min-height: 0;
     max-width: var(--overlay__button-size);
-    max-height: var(--overlay__panel-min-height);
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-rows: var(--overlay__button-size) 1fr;
+    max-height: var(--overlay__button-size);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     transition: min-width var(--overlay__width_transition) ease, max-width var(--overlay__width_transition) ease, min-height var(--med-transition) ease, max-height var(--med-transition) ease;
 }
 
@@ -96,8 +86,10 @@
 ========================================= */
 
 .overlay__header {
-    grid-row: 1;
-    grid-column: 1;
+    position: relative;
+    z-index: 1;
+    padding: 0 calc(0.45 * var(--overlay__button-icon-size));
+    flex: 0 0 var(--overlay__button-size);
     display: flex;
     cursor: pointer;
     user-select: none;
@@ -122,20 +114,20 @@
 .overlay__header-content {
     display: grid;
     align-items: center;
-    grid-template-columns: auto 0;
     width: 100%;
+    height: 100%;
     min-width: 0;
     transition: grid-template-columns 0ms var(--overlay__width_transition);
 }
 
 .overlay--open .overlay__header-content {
-    min-width: var(--overlay__button-size);
-    grid-template-columns: auto minmax(0, 1fr);
+    min-width: 0;
     transition: none;
 }
 
 
 .overlay__header-button-content {
+    height: 100%;
 }
 
 .overlay--open .overlay__header-button-content {
@@ -262,35 +254,29 @@
 ========================================= */
 
 .overlay__panel {
-    grid-row: 2;
-    grid-column: 1;
+    flex: 1 1 auto;
     min-width: 0;
     min-height: 0;
-    height: 0;
     padding: 0;
     border: 0px solid transparent;
     border-top: none;
     display: grid;
     pointer-events: none;
-    overflow: auto;
     background: var(--overlay__background-color);
     border-radius: inherit;
     border-bottom-left-radius: var(--overlay__border-radius);
     border-bottom-right-radius: var(--overlay__border-radius);
-    transform: translateY(-0.25rem);
-    z-index: -1;
-    transition: transform var(--med-transition) ease, height var(--med-transition) ease, border-color var(--med-transition) ease, border-width var(--med-short-transition) ease, border-bottom-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-transition) ease;
+    transform: translateY(calc(-1 * var(--overlay__button-icon-size)));
+    z-index: 0;
+    transition: transform var(--med-transition) ease, border-color var(--med-transition) ease, border-width var(--med-short-transition) ease, border-bottom-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-transition) ease;
 }
 
 
 .overlay--open .overlay__panel {
     border-width: 1px;
     border-color: var(--overlay__border-color);
-    width: 100%;
-    height: 100%;
     pointer-events: auto;
     transform: translateY(0);
-    transition: none;
 }
 
 .overlay--closed .overlay__panel {
@@ -337,15 +323,23 @@
 ========================================= */
 
 .overlay--left {
-    transform-origin: right;
 }
+
+    .overlay--left ::deep * {
+        transform-origin: right;
+    }
 
     .overlay--left .overlay__surface {
         right: 0;
     }
 
+    .overlay--left .overlay__header {
+        transition: padding-left var(--med-short-transition) ease, width var(--short-transition) ease-in, height var(--short-transition) ease-in, border-radius var(--med-transition) ease;
+    }
+
     .overlay--left.overlay--open .overlay__header {
         padding-left: clamp(0.4rem, 0.6vw, 0.75rem);
+        transition: padding-left var(--short-transition) ease, width var(--med-short-transition) ease, height var(--med-short-transition) ease, border-radius 50ms ease;
     }
 
     .overlay--left .overlay__header-content {
@@ -353,10 +347,10 @@
     }
 
     .overlay--left.overlay--open .overlay__header-content {
-        grid-template-columns: 1fr auto;
+        grid-template-columns: minmax(0, 1fr) auto;
     }
 
-    .overlay--left .overlay__header-button-icon {
+    .overlay--left .overlay__header-button-content {
         grid-column: 2;
         grid-row: 1;
     }
@@ -384,30 +378,39 @@
 
 
 
-
 /* =========================================
    Right
 ========================================= */
 
 .overlay--right {
-    transform-origin: left;
 }
+
+    .overlay--right ::deep * {
+        transform-origin: left;
+    }
 
     .overlay--right .overlay__surface {
         left: 0;
     }
 
     .overlay--right .overlay__header {
-        transition: padding-left 0s var(--overlay__width_transition), padding-right var(--med-short-transition) ease, width var(--short-transition) ease-in, height var(--short-transition) ease-in, border-top-right-radius var(--med-transition) ease, border-top-left-radius var(--med-transition) ease, border-bottom-right-radius var(--med-short-transition) ease-out, border-bottom-left-radius var(--med-short-transition) ease-out;
+        transition: padding-right var(--med-short-transition) ease, width var(--short-transition) ease-in, height var(--short-transition) ease-in, border-radius var(--med-transition) ease;
     }
 
     .overlay--right.overlay--open .overlay__header {
-        padding-left: calc(0.45 * var(--overlay__button-icon-size));
         padding-right: clamp(0.4rem, 0.6vw, 0.75rem);
         transition: padding-right var(--short-transition) ease, width var(--med-short-transition) ease, height var(--med-short-transition) ease, border-radius 50ms ease;
     }
 
-    .overlay--right .overlay__header-button-icon {
+    .overlay--right .overlay__header-content {
+        grid-template-columns: auto 0;
+    }
+
+    .overlay--right.overlay--open .overlay__header-content {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .overlay--right .overlay__header-button-content {
         grid-column: 1;
         grid-row: 1;
     }
