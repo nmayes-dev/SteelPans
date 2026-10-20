@@ -1,62 +1,33 @@
 ﻿@inject MidiManagerService MidiService
 @inject UserStateService UserState
+@inject OverlayManagerService Overlays
 @inject ModalPopupService Modals
 @implements IDisposable
 
 <div class="track-list__panel">
 
     <div class="track-list__panel-header">
-        @if (Tracks is not null)
-        {
-            <span class="track-list__panel-title">@MidiService.Playback.MidiFileName</span>
-            <span class="track-list__panel-count">@MidiService.Playback.Tracks.Count track@(MidiService.Playback.Tracks.Count == 1 ? "" : "s")</span>
-        }
-        else if (Files is not null)
-        {
-            <span class="track-list__panel-title">Ensemble Files</span>
-            <span class="track-list__panel-count">@Files.Count file@(Files.Count == 1 ? "" : "s")</span>
-        }
+        <span class="track-list__panel-title">@MidiService.Playback.MidiFileName</span>
+        <span class="track-list__panel-count">@MidiService.Playback.Tracks.Count track@(MidiService.Playback.Tracks.Count == 1 ? "" : "s")</span>
     </div>
 
     <div class="track-list__list">
-        @if (Tracks is not null)
+        @foreach (var track in MidiService.Playback.Tracks)
         {
-            foreach (var track in MidiService.Playback.Tracks)
-            {
-                bool assigned = IsTrackAssigned(track);
-                <div class="track-list__item">
-                    <div class="track-list__details">
-                        <div class="track-list__name">@track.Index) @track.DisplayInfo</div>
-                        <div class="track-list__meta">@GetMetaInfo(track)</div>
-                    </div>
-
-                    <button type="button"
-                            class="track-list__button @(assigned ? "track-list__button--assigned" : null)"
-                            aria-label="@(assigned ? "Remove Track" : "Add Track")"
-                            @onclick="() => OnTrackButtonPressedAsync(track)">
-                        <span class="bi @(assigned ? "bi-dash-lg" : "bi-plus-lg")" aria-hidden="true"></span>
-                    </button>
+            bool assigned = IsTrackAssigned(track);
+            <div class="track-list__item">
+                <div class="track-list__details">
+                    <div class="track-list__name">@track.Index) @track.DisplayInfo</div>
+                    <div class="track-list__meta">@GetMetaInfo(track)</div>
                 </div>
-            }
-        }
-        else if (Files is not null)
-        {
-            @foreach (var file in Files)
-            {
-                <div class="track-list__item">
-                    <div class="track-list__details">
-                        <div class="track-list__name">@file.Title</div>
-                        <div class="track-list__meta">@file.OriginalFileName</div>
-                    </div>
 
-                    <button type="button"
-                            class="track-list__button"
-                            aria-label="Load File"
-                            @onclick="() => LoadGroupMidiFileAsync(file)">
-                        <span class="bi bi-download" aria-hidden="true"></span>
-                    </button>
-                </div>
-            }
+                <button type="button"
+                        class="track-list__button @(assigned ? "track-list__button--assigned" : null)"
+                        aria-label="@(assigned ? "Remove Track" : "Add Track")"
+                        @onclick="() => OnTrackButtonPressedAsync(track)">
+                    <span class="bi @(assigned ? "bi-dash-lg" : "bi-plus-lg")" aria-hidden="true"></span>
+                </button>
+            </div>
         }
     </div>
 </div>

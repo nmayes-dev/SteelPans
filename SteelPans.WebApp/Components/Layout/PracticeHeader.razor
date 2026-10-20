@@ -36,12 +36,14 @@
     {
         MidiService.Playback.MidiFileLoaded += PlaybackStateUpdate;
         MidiService.Playback.MidiFileUnloaded += PlaybackStateUpdate;
+        MidiService.Playback.AssignmentsChanged += PlaybackStateUpdate;
     }
 
     public void Dispose()
     {
         MidiService.Playback.MidiFileLoaded -= PlaybackStateUpdate;
         MidiService.Playback.MidiFileUnloaded -= PlaybackStateUpdate;
+        MidiService.Playback.AssignmentsChanged -= PlaybackStateUpdate;
     }
 
     private Task PlaybackStateUpdate<TArgs>(TArgs _)

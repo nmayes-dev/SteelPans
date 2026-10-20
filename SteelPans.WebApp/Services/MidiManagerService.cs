@@ -951,6 +951,8 @@ public sealed class MidiManagerService
             logger_.LogInformation("Loading shared MIDI file {FileId}", fileId);
             await tasks_.RunUnsafe(async () =>
             {
+                await OnUnloadMidiAsync();
+
                 var details = await db_.MidiFiles.GetMidiFileDetailsAsync(fileId);
                 var download = await db_.MidiFiles.OpenMidiFileAsync(fileId);
 
@@ -2207,6 +2209,7 @@ public sealed class MidiManagerService
                 MidiFileId,
                 MidiFileName,
                 Tracks.ToList(),
+                Assignments.ToList(),
                 InitialMidiBpm,
                 BeatsPerBar,
                 BeatUnit,
@@ -2364,6 +2367,7 @@ public static class MidiEventArgs
         Guid FileId,
         string FileName,
         IReadOnlyList<MidiTrackInfo> Tracks,
+        IReadOnlyList<MidiTrackAssignment> Assignments,
         int InitialBpm,
         int InitialBeatsPerBar,
         int InitialBeatUnit,

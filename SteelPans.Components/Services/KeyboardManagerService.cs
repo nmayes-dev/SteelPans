@@ -67,7 +67,7 @@ public sealed class KeyboardManagerService : IAsyncDisposable
     [JSInvokable]
     public async Task<bool> OnKeyDownAsync(KeyboardEventData eventData)
     {
-        foreach (var registration in callbacks_.ToArray())
+        foreach (var registration in callbacks_.ToArray().Reverse())
         {
             if (!callbacks_.Contains(registration))
                 continue;

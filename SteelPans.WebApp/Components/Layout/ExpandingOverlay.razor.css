@@ -16,7 +16,7 @@
     --overlay__panel-min-width: clamp(2.5rem, 4vw, 5rem);
     --overlay__panel-max-width: var(--overlay__panel-max-width_arg, min(32rem, 75vw));
     --overlay__panel-min-height: clamp(1.5rem, 2vw, 4rem);
-    --overlay__panel-max-height: min( var(--overlay__panel-max-height_arg, min(40rem, 88dvh)), var(--overlay__available-height, 100dvh) );
+    --overlay__panel-max-height: min( var(--overlay__panel-max-height_arg, min(40rem, 88vh)), var(--overlay__available-height, 100vh) );
     /* Styles */
     position: relative;
     display: inline-block;
@@ -62,7 +62,7 @@
 
 .overlay--open .overlay__surface {
     min-width: var(--overlay__panel-min-width);
-    min-height: min( var(--overlay__panel-min-height), var(--overlay__available-height, 100dvh) );
+    min-height: min( var(--overlay__panel-min-height), var(--overlay__available-height, 100vh) );
     max-width: var(--overlay__panel-max-width);
     max-height: var(--overlay__panel-max-height);
 }

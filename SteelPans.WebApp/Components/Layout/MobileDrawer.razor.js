@@ -1027,22 +1027,22 @@
         switch (state.side) {
             case "bottom":
                 element.style.transform =
-                    `translate3d(0, ${hidden}px, 0)`;
+                    `translate3d(-50%, ${hidden}px, 0)`;
                 break;
 
             case "top":
                 element.style.transform =
-                    `translate3d(0, ${-hidden}px, 0)`;
+                    `translate3d(-50%, ${-hidden}px, 0)`;
                 break;
 
             case "left":
                 element.style.transform =
-                    `translate3d(${-hidden}px, 0, 0)`;
+                    `translate3d(${-hidden}px, -50%, 0)`;
                 break;
 
             case "right":
                 element.style.transform =
-                    `translate3d(${hidden}px, 0, 0)`;
+                    `translate3d(${hidden}px, -50%, 0)`;
                 break;
         }
     },

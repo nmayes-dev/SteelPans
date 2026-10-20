@@ -57,6 +57,11 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
     [Parameter]
     public Func<Task<bool>> CanOpen { get; set; } = () => Task.FromResult(true);
 
+    [Parameter]
+    public bool BlockEscapeKey { get; set; }
+    [Parameter]
+    public bool BlockEnterKey { get; set; }
+
     public object? Payload => payload_;
 
     private TPayload? payload_;
@@ -121,11 +126,11 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
 
     private bool AcceptEscape(KeyboardEventData e)
     {
-        return isOpen_ && e.Key == "Escape" && !e.IsEditableTarget;
+        return isOpen_ && e.Key == "Escape" && !e.IsEditableTarget && !BlockEscapeKey;
     }
     private bool AcceptEnter(KeyboardEventData e)
     {
-        return isOpen_ && e.Key == "Enter" && !e.IsEditableTarget;
+        return isOpen_ && e.Key == "Enter" && !e.IsEditableTarget && !BlockEnterKey;
     }
     private void AddKeyCallbacks()
     {

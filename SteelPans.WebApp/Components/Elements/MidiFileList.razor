@@ -1,0 +1,32 @@
+﻿@inject MidiManagerService MidiService
+@inject UserStateService UserState
+@inject OverlayManagerService Overlays
+@inject ModalPopupService Modals
+@inject ILogger<MidiFileList> Logger
+
+<div class="file-list__panel">
+
+    <div class="file-list__panel-header">
+        <span class="file-list__panel-title">Ensemble Files</span>
+        <span class="file-list__panel-count">@Files.Count file@(Files.Count == 1 ? "" : "s")</span>
+    </div>
+
+    <div class="file-list__list">
+        @foreach (var file in Files)
+        {
+            <div class="file-list__item">
+                <div class="file-list__details">
+                    <div class="file-list__name">@file.Title</div>
+                    <div class="file-list__meta">@file.OriginalFileName</div>
+                </div>
+
+                <button type="button"
+                        class="file-list__button"
+                        aria-label="Load File"
+                        @onclick="() => LoadGroupMidiFileAsync(file)">
+                    <span class="bi bi-download" aria-hidden="true"></span>
+                </button>
+            </div>
+        }
+    </div>
+</div>
