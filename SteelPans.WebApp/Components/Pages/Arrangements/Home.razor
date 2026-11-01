@@ -42,7 +42,9 @@
                             @onclick="() => OnFileSelected(file.Id)">
                         <span class="midi-files-home__copy">
                             <strong>@file.Title</strong>
-                            <small>@file.OriginalFileName · @file.SizeBytes.ToFileSize() · @GetTrackCountLabel(file.Id)</small>
+                            <small>
+                                <bdi>@file.SizeBytes.ToFileSize() · @GetTrackCountLabel(file.Id)</bdi>
+                            </small>
                         </span>
                     </button>
                 }

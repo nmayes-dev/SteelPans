@@ -1,3 +1,4 @@
+
 window.panPlayback = {
     _refs: {},
     _samplePackByComponent: {},
@@ -8,6 +9,10 @@ window.panPlayback = {
     _audioContext: null,
     _masterCompressor: null,
     _masterGain: null,
+    _noteDuckingGain: null,
+    _metronomeGain: null,
+    _metronomeVolume: 1.0,
+    _metronomeDucking: 0.25,
     _gainByComponent: {},
     _volumeByComponent: {},
     _scheduledSourcesByComponent: {},
@@ -124,7 +129,7 @@ window.panPlayback = {
         this.clearPlayingVisuals(id);
     },
 
-    hasUserGestureOccurred: function() {
+    hasUserGestureOccurred: function () {
         return navigator.userActivation?.hasBeenActive === true;
     },
 
@@ -135,6 +140,8 @@ window.panPlayback = {
 
             this._masterCompressor = this._audioContext.createDynamicsCompressor();
             this._masterGain = this._audioContext.createGain();
+            this._noteDuckingGain = this._audioContext.createGain();
+            this._metronomeGain = this._audioContext.createGain();
 
             this._masterCompressor.threshold.value = -18;
             this._masterCompressor.knee.value = 12;
@@ -143,9 +150,17 @@ window.panPlayback = {
             this._masterCompressor.release.value = 0.15;
 
             this._masterGain.gain.value = 0.7;
+            this._noteDuckingGain.gain.value = 1.0;
+            this._metronomeGain.gain.value = this._metronomeVolume;
 
-            this._masterCompressor.connect(this._masterGain);
+            // Notes are compressed and can be ducked briefly under metronome clicks.
+            this._masterCompressor.connect(this._noteDuckingGain);
+            this._noteDuckingGain.connect(this._masterGain);
             this._masterGain.connect(this._audioContext.destination);
+
+            // The metronome has its own output bus, bypassing the compressor,
+            // note ducking, master note volume and per-component volumes.
+            this._metronomeGain.connect(this._audioContext.destination);
         }
 
         return this._audioContext;
@@ -197,6 +212,69 @@ window.panPlayback = {
         gain.gain.cancelScheduledValues(now);
         gain.gain.setValueAtTime(gain.gain.value, now);
         gain.gain.linearRampToValueAtTime(clampedVolume, now + 0.03);
+    },
+
+    setMetronomeVolume: function (volume) {
+        const numericVolume = Number(volume);
+        if (!Number.isFinite(numericVolume))
+            return;
+
+        this._metronomeVolume = Math.max(0, Math.min(1.5, numericVolume));
+
+        if (this._metronomeGain) {
+            const now = this._audioContext.currentTime;
+            this._metronomeGain.gain.setTargetAtTime(this._metronomeVolume, now, 0.01);
+        }
+    },
+
+    setMetronomeDucking: function (amount) {
+        const numericAmount = Number(amount);
+        if (!Number.isFinite(numericAmount))
+            return;
+
+        this._metronomeDucking = Math.max(0, Math.min(1, numericAmount));
+
+        if (this._metronomeDucking === 0)
+            this._restoreNoteVolume();
+    },
+
+    _duckNotesForMetronome: function (when, isSubdivision = false) {
+        if (!this._noteDuckingGain || this._metronomeDucking <= 0)
+            return;
+
+        const ctx = this._audioContext;
+        const at = Math.max(ctx.currentTime, when);
+        const gain = this._noteDuckingGain.gain;
+
+        // Hold the current level before replacing a previous click's release.
+        if (typeof gain.cancelAndHoldAtTime === "function") {
+            gain.cancelAndHoldAtTime(at);
+        } else {
+            gain.cancelScheduledValues(at);
+            gain.setValueAtTime(gain.value, at);
+        }
+
+        // Subdivision clicks duck the music slightly less than main beats.
+        const amount = this._metronomeDucking * (isSubdivision ? 0.65 : 1.0);
+        gain.setTargetAtTime(1.0 - amount, at, 0.003);
+        gain.setTargetAtTime(1.0, at + 0.055, 0.035);
+    },
+
+    _restoreNoteVolume: function () {
+        if (!this._noteDuckingGain)
+            return;
+
+        const now = this._audioContext.currentTime;
+        const gain = this._noteDuckingGain.gain;
+
+        if (typeof gain.cancelAndHoldAtTime === "function") {
+            gain.cancelAndHoldAtTime(now);
+        } else {
+            gain.cancelScheduledValues(now);
+            gain.setValueAtTime(gain.value, now);
+        }
+
+        gain.setTargetAtTime(1.0, now, 0.015);
     },
 
     bindPanElements: function (componentId) {
@@ -995,9 +1073,9 @@ window.panPlayback = {
             gain.gain.exponentialRampToValueAtTime(0.0001, when + 0.06);
 
             oscillator.connect(gain);
-            gain.connect(ctx.destination);
+            gain.connect(this._metronomeGain);
 
-            const entry = { oscillator, generation, started: false };
+            const entry = { oscillator, gain, generation, started: false };
             this._metronomeNodes.push(entry);
 
             const startNode = () => {
@@ -1009,6 +1087,7 @@ window.panPlayback = {
                 if (this._metronomeScheduleState?.generation === generation)
                     this._metronomeScheduleState.lastActionIndex = actionIndex;
 
+                this._duckNotesForMetronome(when, isSubdivision);
                 oscillator.start(when);
                 oscillator.stop(when + 0.07);
             };
@@ -1017,6 +1096,9 @@ window.panPlayback = {
             entry.timerId = window.setTimeout(startNode, delayMs);
 
             oscillator.onended = () => {
+                oscillator.disconnect();
+                gain.disconnect();
+
                 const index = this._metronomeNodes.indexOf(entry);
                 if (index >= 0)
                     this._metronomeNodes.splice(index, 1);
@@ -1112,15 +1194,20 @@ window.panPlayback = {
         gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
 
         oscillator.connect(gain);
-        gain.connect(ctx.destination);
+        gain.connect(this._metronomeGain);
 
+        this._duckNotesForMetronome(now);
         oscillator.start(now);
         oscillator.stop(now + 0.07);
 
-        this._metronomeNodes.push(oscillator);
+        const entry = { oscillator, gain };
+        this._metronomeNodes.push(entry);
 
         oscillator.onended = () => {
-            const index = this._metronomeNodes.indexOf(oscillator);
+            oscillator.disconnect();
+            gain.disconnect();
+
+            const index = this._metronomeNodes.indexOf(entry);
             if (index >= 0)
                 this._metronomeNodes.splice(index, 1);
         };
@@ -1206,11 +1293,13 @@ window.panPlayback = {
 
             try {
                 node.disconnect();
+                entry?.gain?.disconnect();
             } catch { }
         }
 
         this._metronomeNodes = [];
         this._metronomeScheduleState = null;
+        this._restoreNoteVolume();
     },
 
     beginMetronomeWeightDrag: function (trackElement, dotNetRef, initialClientY) {

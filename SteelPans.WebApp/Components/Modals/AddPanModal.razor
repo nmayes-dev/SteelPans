@@ -25,7 +25,7 @@
                     {
                         @foreach (var track in UnassignedTracks)
                         {
-                            <option value="@track.Id.ToString()">@track.DisplayInfo</option>
+                            <option value="@track.Id.ToString()">@track.TrackLabel</option>
                         }
                     }
                 </select>
@@ -77,7 +77,7 @@
             if (track is null)
                 return string.Empty;
 
-            return track.DisplayInfo;
+            return track.TrackLabel;
         }
     }
 

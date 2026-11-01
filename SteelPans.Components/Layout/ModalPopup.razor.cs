@@ -62,6 +62,8 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
     [Parameter]
     public bool BlockEnterKey { get; set; }
 
+    private bool HasButtons => CloseButton is not null || ConfirmButton is not null;
+
     public object? Payload => payload_;
 
     private TPayload? payload_;
@@ -105,7 +107,7 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
 
     protected override void OnInitialized()
     {
-        if (CloseButton is null && ConfirmButton is null && !ShowCloseButton && CloseOnBackdropClick)
+        if (!HasButtons && !ShowCloseButton && CloseOnBackdropClick)
         {
             throw new InvalidOperationException("This modal will be unable to close");
         }

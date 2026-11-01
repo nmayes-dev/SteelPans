@@ -37,8 +37,6 @@
             hasMeasured: false,
             ready: false,
 
-            lastTapTime: 0,
-
             crossSize: null,
             animatingCrossSize: false,
             resizeObserver: null,
@@ -126,43 +124,23 @@
 
             element.style.transitionProperty = "";
 
-            if (pointerDistance <= 10) {
-                const now = performance.now();
-
-                /*
-                 * Second tap while closed or peeked:
-                 * open fully.
-                 */
-                if (!state.open &&
-                    now - state.lastTapTime <= 300) {
-
-                    state.lastTapTime = 0;
-
+            if (pointerDistance <= 10 && !state.open) {
+                if (state.peekOpen) {
+                    // Second tap while peeking: open fully.
                     this._setOpen(
                         element,
                         state,
                         true,
                         true);
-
-                    return;
                 }
-
-                state.lastTapTime = now;
-
-                /*
-                 * First tap while closed:
-                 * reveal a small amount.
-                 */
-                if (!state.open) {
+                else {
+                    // First tap while closed: peek.
                     this._setPeekOpen(
                         element,
                         state);
-
-                    return;
                 }
-            }
-            else {
-                state.lastTapTime = 0;
+
+                return;
             }
 
             this._finishDrag(
@@ -212,6 +190,19 @@
                 state);
         };
 
+        /* Transitions */
+
+        state.onTransitionEnd = event => {
+            if (event.target !== element ||
+                event.propertyName !== "transform")
+                return;
+
+            if (state.open) {
+                element.classList.add(
+                    "mobile-drawer--fully-open");
+            }
+        };
+
         /* Register listeners */
 
         element.addEventListener(
@@ -237,6 +228,10 @@
         window.addEventListener(
             "resize",
             state.onResize);
+
+        element.addEventListener(
+            "transitionend",
+            state.onTransitionEnd);
 
         /*
          * Establish the closed layout before
@@ -344,6 +339,10 @@
         window.removeEventListener(
             "resize",
             state.onResize);
+
+        element.removeEventListener(
+            "transitionend",
+            state.onTransitionEnd);
 
         state.resizeObserver?.disconnect();
     },
@@ -626,7 +625,8 @@
 
         if (this._isHorizontal(state.side)) {
             const requestedPosition =
-                parseFloat(style.left);
+                parseFloat(style.left) -
+                (rect.width / 2);
 
             const viewportSize =
                 document.documentElement.clientWidth;
@@ -654,7 +654,8 @@
         }
         else {
             const requestedPosition =
-                parseFloat(style.top);
+                parseFloat(style.top) -
+                (rect.height / 2);
 
             const viewportSize =
                 document.documentElement.clientHeight;
@@ -862,8 +863,21 @@
         const changed =
             state.open !== open;
 
+        const alreadyFullyOpen =
+            state.hasMeasured &&
+            state.offset >= state.size;
+
         state.open = open;
         state.peekOpen = false;
+
+        if (!open) {
+            element.classList.remove(
+                "mobile-drawer--fully-open");
+        }
+        else if (alreadyFullyOpen) {
+            element.classList.add(
+                "mobile-drawer--fully-open");
+        }
 
         element.classList.toggle(
             "mobile-drawer--open",
@@ -1019,7 +1033,40 @@
         return true;
     },
 
+    _getNonHandleSize(element, state) {
+        const lip = element.querySelector(".mobile-drawer__lip");
+        const style = getComputedStyle(lip);
+
+        const property = {
+            bottom: "marginBottom",
+            top: "marginTop",
+            left: "marginLeft",
+            right: "marginRight"
+        }[state.side];
+
+        const value = -parseFloat(style[property]);
+
+        return this._clamp(
+            Number.isFinite(value) ? value : 7,
+            0,
+            state.size);
+    },
+
     _applyOffset(element, state) {
+        const nonHandleSize = this._getNonHandleSize(
+            element,
+            state);
+
+        const peekSize = this._getPeekSize(
+            element,
+            state);
+
+        const showOffset = state.peekOpen ? (peekSize + nonHandleSize) : nonHandleSize;
+
+        element.classList.toggle(
+            "mobile-drawer--content-visible",
+            state.offset > showOffset);
+
         const hidden =
             state.size -
             state.offset;
@@ -1027,22 +1074,22 @@
         switch (state.side) {
             case "bottom":
                 element.style.transform =
-                    `translate3d(-50%, ${hidden}px, 0)`;
+                    `translate3d(0, ${hidden}px, 0)`;
                 break;
 
             case "top":
                 element.style.transform =
-                    `translate3d(-50%, ${-hidden}px, 0)`;
+                    `translate3d(0, ${-hidden}px, 0)`;
                 break;
 
             case "left":
                 element.style.transform =
-                    `translate3d(${-hidden}px, -50%, 0)`;
+                    `translate3d(${-hidden}px, 0, 0)`;
                 break;
 
             case "right":
                 element.style.transform =
-                    `translate3d(${hidden}px, -50%, 0)`;
+                    `translate3d(${hidden}px, 0, 0)`;
                 break;
         }
     },

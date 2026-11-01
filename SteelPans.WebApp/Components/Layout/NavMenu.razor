@@ -22,8 +22,7 @@
 
 <div class="navbar-mobile-display">
     <MobileDrawer @ref="mobileLayout_"
-                  Side="MobileDrawer.Edge.Top"
-                  Position="50%">
+                  Side="MobileDrawer.Edge.Top">
         @NavigationOptionsFragment(backButton: true)
     </MobileDrawer>
 </div>
@@ -31,17 +30,7 @@
 @code {
     private MobileDrawer? mobileLayout_;
 
-    private bool DisableBackButton
-    {
-        get
-        {
-            var path = Navigation.ToBaseRelativePath(Navigation.Uri)
-                .Split('?', '#')[0]
-                .TrimEnd('/');
-
-            return string.IsNullOrWhiteSpace(path);
-        }
-    }
+    private bool DisableBackButton => !NavigationHistory.CanGoBack;
 
     protected override void OnInitialized()
     {

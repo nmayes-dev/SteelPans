@@ -1,14 +1,15 @@
 ﻿.mobile-drawer {
-    --lip-size_default: 14px;
+    --lip-size_default: 10px;
     --lip-size: var(--lip-size_arg, var(--lip-size_default));
     --handle-size: calc(0.5 * var(--lip-size));
-    --tap-open-size_default: 10px;
+    --non-handle-size: calc(var(--lip-size) - var(--handle-size));
+    --tap-open-size_default: 12px;
     --tap-open-size: var(--tap-open-size_arg, var(--tap-open-size_default));
     --drawer-width_default: max-content;
     --drawer-width: var(--drawer-width_arg, var(--drawer-width_default));
-    --drawer-position: 50%;
+    --drawer-position: var(--drawer-position_arg, 50%);
     --extra-offset: 4px;
-    --drawer-padding: 6px;
+    --drawer-padding: 8px;
     --page-padding: 8px;
     position: fixed;
     z-index: 1000;
@@ -18,9 +19,19 @@
     touch-action: none;
     transition: transform 220ms ease-out, width 220ms ease-out, height 220ms ease-out, opacity 220ms ease-out;
     will-change: transform, width, height;
+    cursor: grab;
+    touch-action: none;
     pointer-events: auto;
     opacity: 1;
 }
+
+    .mobile-drawer:active {
+        cursor: grabbing;
+    }
+
+    .mobile-drawer--open {
+        cursor: default;
+    }
 
 /* Initialization */
 
@@ -62,7 +73,7 @@
 .mobile-drawer--right {
     height: var(--drawer-width);
     max-height: calc(100vh - (2 * var(--page-padding)));
-    top: var(--drawer-position-actual);
+    top: var(--drawer-position);
     max-width: 100vw;
 }
 
@@ -103,44 +114,42 @@
 
 .mobile-drawer__lip {
     display: flex;
-    cursor: grab;
-    touch-action: none;
 }
-
-    .mobile-drawer__lip:active {
-        cursor: grabbing;
-    }
 
 .mobile-drawer--bottom .mobile-drawer__lip,
 .mobile-drawer--top .mobile-drawer__lip {
     justify-content: center;
-    flex: 0 0 var(--lip-size);
+    min-height: var(--lip-size);
 }
 
 .mobile-drawer--left .mobile-drawer__lip,
 .mobile-drawer--right .mobile-drawer__lip {
     align-items: center;
-    flex: 0 0 var(--lip-size);
+    min-width: var(--lip-size);
 }
 
 .mobile-drawer--bottom .mobile-drawer__lip {
     align-items: flex-start;
     border-radius: 12px 12px 0 0;
+    margin-bottom: calc(-1 * var(--non-handle-size));
 }
 
 .mobile-drawer--top .mobile-drawer__lip {
     align-items: flex-end;
     border-radius: 0 0 12px 12px;
+    margin-top: calc(-1 * var(--non-handle-size));
 }
 
 .mobile-drawer--left .mobile-drawer__lip {
     justify-content: flex-end;
     border-radius: 0 12px 12px 0;
+    margin-left: calc(-1 * var(--non-handle-size));
 }
 
 .mobile-drawer--right .mobile-drawer__lip {
     justify-content: flex-start;
     border-radius: 12px 0 0 12px;
+    margin-right: calc(-1 * var(--non-handle-size));
 }
 
 /* Handle */
@@ -169,12 +178,23 @@
 .mobile-drawer__content {
     overflow: auto;
     overscroll-behavior: contain;
-    cursor: grab;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease-out;
 }
 
-    .mobile-drawer__content:active {
-        cursor: grabbing;
-    }
+
+.mobile-drawer--fully-open .mobile-drawer__content {
+    pointer-events: auto;
+}
+
+.mobile-drawer--content-visible .mobile-drawer__content {
+    opacity: 1;
+}
+
+.mobile-drawer--no-transition .mobile-drawer__content {
+    transition: none;
+}
 
 .mobile-drawer--closed .mobile-drawer__content ::deep .nav-item {
     pointer-events: none;

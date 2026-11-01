@@ -3,8 +3,7 @@
 @inject SafeJSInteropService JS
 
 <div @ref="drawer_"
-     class="@DrawerClass"
-     style="--drawer-position: @Position;">
+     class="@DrawerClass">
     <div class="mobile-drawer__lip">
         <div class="mobile-drawer__handle"></div>
     </div>
@@ -34,9 +33,6 @@
 
     [Parameter]
     public int? ResponsiveThreshold { get; set; }
-
-    [Parameter]
-    public string Position { get; set; } = "50%";
 
     [Parameter]
     public bool InitiallyOpen { get; set; }

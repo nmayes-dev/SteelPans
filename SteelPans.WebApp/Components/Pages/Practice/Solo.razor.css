@@ -54,8 +54,8 @@
     background: transparent;
     color: #475569;
     font: inherit;
-    font-size: clamp(0.62rem, 1.8vw, 0.8rem);
-    font-weight: 700;
+    font-size: clamp(0.62rem, 1.5vw, 0.8rem);
+    font-weight: 600;
     text-transform: none;
     letter-spacing: normal;
     cursor: pointer;

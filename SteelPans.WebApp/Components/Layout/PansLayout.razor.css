@@ -145,6 +145,7 @@
     display: grid;
     place-items: center;
     box-sizing: border-box;
+    z-index: 2;
     overflow: hidden;
 }
 
@@ -154,7 +155,7 @@
     flex-direction: column;
     justify-content: space-between;
     inset: 0;
-    z-index: 10;
+    z-index: 1;
     pointer-events: none;
 }
 

@@ -12,7 +12,6 @@ public sealed class NavigationHistoryService : IDisposable
     private readonly IDisposable locationChangingRegistration_;
 
     private string currentUri_;
-    private bool navigatingBack_;
     private string? pendingBackUri_;
 
     public NavigationHistoryService(
@@ -27,6 +26,7 @@ public sealed class NavigationHistoryService : IDisposable
         navigation_.LocationChanged += OnLocationChanged;
     }
 
+    private bool NavigatingBack => pendingBackUri_ is not null;
     public bool CanGoBack => history_.Count > 0;
 
     public IDisposable RegisterLeaveGuard(Func<Task<bool>> canLeaveAsync)
@@ -56,14 +56,12 @@ public sealed class NavigationHistoryService : IDisposable
         if (string.Equals(currentUri_, targetUri, StringComparison.Ordinal))
             return;
 
-        navigatingBack_ = string.Equals(targetUri, history_.FirstOrDefault(), StringComparison.Ordinal);
         if (!leaveGuards_.TryGetValue(currentUri_, out var canLeaveAsync))
             return;
 
         if (!await canLeaveAsync())
         {
             logger_.LogInformation("Navigation away from {Uri} to {TargetUri} was blocked by a leave guard", currentUri_, targetUri);
-            navigatingBack_ = false;
             pendingBackUri_ = null;
             context.PreventNavigation();
         }
@@ -75,10 +73,9 @@ public sealed class NavigationHistoryService : IDisposable
         if (string.Equals(currentUri_, newUri, StringComparison.Ordinal))
             return;
 
-        if (navigatingBack_)
+        if (NavigatingBack)
         {
-            if (pendingBackUri_ is not null
-                && string.Equals(newUri, pendingBackUri_, StringComparison.Ordinal)
+            if (string.Equals(newUri, pendingBackUri_, StringComparison.Ordinal)
                 && history_.TryPeek(out var previousUri)
                 && string.Equals(NormalizeUri(previousUri), pendingBackUri_, StringComparison.Ordinal))
             {

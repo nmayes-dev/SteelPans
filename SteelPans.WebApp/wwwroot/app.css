@@ -192,12 +192,13 @@ h4 {
 
 .sp-app-grid {
     display: grid;
-    gap: 1rem;
+    gap: clamp(0.4rem, 1vw, 1rem);
     min-height: 0;
 }
 
 .sp-app-grid--two {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+    grid-template-rows: min-content;
     align-items: stretch;
 }
 
@@ -240,7 +241,6 @@ h4 {
 
     .sp-app-field input,
     .sp-app-field select {
-        min-height: 2.5rem;
         border: 1px solid rgba(0, 0, 0, 0.18);
         border-radius: 0.6rem;
         padding: 0.45rem 0.65rem;
@@ -318,6 +318,7 @@ h4 {
 .sp-app-list {
     display: grid;
     gap: 0.75rem;
+    grid-template-columns: 1fr;
     min-height: 0;
 }
 

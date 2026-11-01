@@ -9,34 +9,9 @@
     container-type: inline-size;
 }
 
-.midi-files-home__header h1,
-.midi-upload-page__header h1,
-.midi-file-page__header h1,
-.midi-files-home__header p,
-.midi-upload-page__header p,
-.midi-file-page__header p {
-    overflow-wrap: anywhere;
-}
-
-.midi-files-home__card,
-.midi-upload-page__card,
-.midi-file-page__card,
-.midi-file-page__grid {
-    min-width: 0;
-    min-height: 0;
-}
-
-.midi-files-home__card-header > *,
-.midi-files__section-header > * {
-    min-width: 0;
-}
-
-.midi-files-home__card-header h2,
-.midi-files__section-header h2,
-.midi-files__preview h3,
-.midi-files__preview p {
-    margin: 0;
-    overflow-wrap: anywhere;
+.midi-files-home__header p {
+    font-size: clamp(0.7rem, 0.8vw, 1rem);
+    opacity: 0.7;
 }
 
 .midi-files-home__card {
@@ -50,14 +25,14 @@
 }
 
     .midi-files-home__card-header h2 {
-        font-size: 1.2rem;
+        font-size: clamp(1rem, 1vw, 1.2rem);
         font-weight: bold;
     }
 
 .midi-files-home__list {
     margin-top: 0.1rem;
-    padding: clamp(0.5rem, 0.9vw, 0.8rem);
-    gap: clamp(0.45rem, 0.6vw, 0.75rem);
+    padding: clamp(0.4rem, 0.9vw, 0.8rem);
+    gap: clamp(0.25rem, 0.6vw, 0.75rem);
 }
 
 .midi-files-home__file {
@@ -96,31 +71,33 @@
     }
 
 .midi-files-home__copy {
-    display: flex;
-    flex: 1;
+    display: grid;
+    width: 100%;
+    grid-template-columns: max-content auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    gap: 0.45rem;
     min-width: 0;
 }
 
     .midi-files-home__copy strong {
-        flex: 1;
         min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        width: 100%;
         white-space: nowrap;
+        font-size: clamp(0.75rem, 1vw, 1.2rem);
     }
 
     .midi-files-home__copy small {
-        flex: 0 1 auto;
+        width: 100%;
         min-width: 0;
-        margin-left: auto;
+        max-width: 100%;
         overflow: hidden;
-        text-overflow: ellipsis;
         white-space: nowrap;
+        text-overflow: ellipsis;
+        direction: rtl;
         text-align: right;
+        justify-self: end;
         opacity: 0.7;
+        font-size: clamp(0.6rem, 0.8vw, 1rem);
     }
 
 @media (hover: none) {
@@ -196,22 +173,6 @@
         padding-bottom: 0.25rem;
     }
 
-    .midi-files-home__actions,
-    .midi-upload-page__actions,
-    .midi-file-page__actions,
-    .midi-file-page__card > .sp-app-button {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), 1fr));
-        width: 100%;
-    }
-
-        .midi-files-home__actions .sp-app-button,
-        .midi-upload-page__actions .sp-app-button,
-        .midi-file-page__actions .sp-app-button,
-        .midi-file-page__card > .sp-app-button {
-            width: 100%;
-        }
-
     .midi-file-page__grid,
     .midi-upload-page__controls {
         grid-template-columns: 1fr;
@@ -223,19 +184,8 @@
 
     .midi-files-home__list {
         padding-right: clamp(0.6rem, 0.9vw, 0.9rem);
+        grid-template-columns: 1fr;
     }
-
-    .midi-files-home__copy {
-        gap: 0rem;
-    }
-
-        .midi-files-home__copy strong {
-            font-size: 1.1rem;
-        }
-
-        .midi-files-home__copy small {
-            font-size: 0.75rem;
-        }
 
     .midi-files-home__file .sp-app-list-item__actions,
     .midi-file-page__share .sp-app-list-item__actions {
@@ -262,5 +212,12 @@
 
     .midi-files-home__copy {
         display: grid;
+    }
+}
+
+
+@media (max-height: 400px) and (min-width: 700px) {
+    .midi-files-home__list {
+        grid-template-columns: 1fr 1fr;
     }
 }

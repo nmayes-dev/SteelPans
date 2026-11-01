@@ -118,11 +118,11 @@ else
                             bool isAssigned = MidiService.Playback.Assignments.Any(x => x.TrackId == track.Id);
                             if (isAssigned)
                             {
-                                <option value="@track.Id">@track.DisplayInfo</option>
+                                <option value="@track.Id">@track.TrackLabel</option>
                             }
                             else
                             {
-                                <option hidden disabled value="@track.Id">@track.DisplayInfo</option>
+                                <option hidden disabled value="@track.Id">@track.TrackLabel</option>
                             }
                         }
                     </select>

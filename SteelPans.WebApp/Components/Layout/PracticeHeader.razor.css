@@ -2,13 +2,13 @@
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
-    padding: 0 clamp(0.4rem, 0.6vw, 0.6rem);
+    padding: 0 clamp(0.25rem, 0.6vw, 0.6rem);
+    border-radius: clamp(0.75rem, 1vw, 1rem);
 }
 
 
 
 .practice-header__midi-controls {
-    flex: 1 1 auto;
     width: 100%;
     min-width: 0;
     overflow: clip;
@@ -17,7 +17,7 @@
     opacity: 1;
     pointer-events: auto;
     transition: opacity 250ms ease, transform 350ms ease, max-height 350ms ease;
-    padding: clamp(0.25rem, 0.55vw, 0.55rem) clamp(0.6rem, 1.2vw, 0.9rem) clamp(0.32rem, 0.75vw, 0.55rem);
+    padding: clamp(0.25rem, 0.55vw, 0.55rem) clamp(0.6rem, 1.2vw, 0.9rem) clamp(0.25rem, 0.75vw, 0.55rem);
 }
 
 .practice-header__midi-controls--empty {
