@@ -14,15 +14,19 @@ jobs:
       - name: Deploy Prod
         if: github.ref == 'refs/heads/master'
         run: |
-          cd "$PANS_DEPLOY_PATH"
+          cd "$PANS_PROD_DEPLOY_PATH"
           ./restart.sh prod
         env:
-          PANS_DEPLOY_PATH: ${{ vars.PANS_DEPLOY_PATH }}
+          PANS_PROD_DEPLOY_PATH: ${{ vars.PANS_PROD_DEPLOY_PATH }}
 
       - name: Deploy Dev
         if: github.ref == 'refs/heads/develop'
         run: |
-          cd "$PANS_DEPLOY_PATH"
+          cd "$PANS_PROD_DEPLOY_PATH"
+          ./restart.sh test
+          
+          cd "$PANS_DEV_DEPLOY_PATH"
           ./restart.sh dev
         env:
-          PANS_DEPLOY_PATH: ${{ vars.PANS_DEPLOY_PATH }}
+          PANS_PROD_DEPLOY_PATH: ${{ vars.PANS_PROD_DEPLOY_PATH }}
+          PANS_DEV_DEPLOY_PATH: ${{ vars.PANS_DEV_DEPLOY_PATH }}
