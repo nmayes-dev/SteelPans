@@ -21,7 +21,8 @@ body {
 }
 
 .page {
-    height: 100vh;
+    height: 100vh; /* Fallback */
+    height: 100dvh;
     min-height: 0;
     display: flex;
     flex-direction: column;
