@@ -1,13 +1,14 @@
-﻿@implements IDisposable
+﻿@implements IAsyncDisposable
 @inherits OverlayComponentBase
-@inject IJSRuntime JS
+@inject SafeJSInteropService JS
 @inject ModalPopupService Modals
+@inject ILogger<Toolbar> Logger
 
 <CascadingValue Value="this" IsFixed="true">
     @ChildContent
 </CascadingValue>
 
-<div class="@ToolbarClass" @ref="toolbar_" @onfocusin="OnFocusInAsync" @onfocusout="@OnFocusOutAsync">
+<div class="@ToolbarClass" @ref="toolbar_" data-open="@(state_ != State.Closed ? "true" : "false")">
     <div class="toolbar__surface">
         <div class="toolbar__header"
              role="button"

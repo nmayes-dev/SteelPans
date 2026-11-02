@@ -6,6 +6,7 @@
 @inject ModalPopupService Modals
 @inject TaskRunnerService Tasks
 @inject IJSRuntime JS
+@inject ILogger<Band> Logger
 
 <PageTitle>Band</PageTitle>
 
@@ -21,8 +22,6 @@ else
         @if (MidiService.Playback.AvailablePans.Count > 0)
         {
             <PracticeHeader />
-
-            <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
 
             <section class="band-page__content">
                 <PansLayout Pans="@MidiService.Playback.ActivePans" >

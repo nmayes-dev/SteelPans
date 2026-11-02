@@ -1,7 +1,9 @@
 ﻿const SELECTORS = {
     item: ".pans-display__item",
     svg: ".sp-app-svg",
-    copy: ".pans-display__item-copy",
+    panContainer: ".pans-display__item-container",
+    base: "#Base",
+    copy: ".pan-display__item-overlay-bottom",
     leftGroup: ".pans-display__item-copy-group--left",
     rightGroup: ".pans-display__item-copy-group--right",
     label: ".pans-display__item-copy-label",
@@ -18,7 +20,7 @@ const DEFAULTS = {
     startupFinishWaitMs: 50,
 };
 
-window.panLayout = {
+const panLayout = {
     _layoutCache: new Map(),
     _textMeasureCanvas: null,
     _startupLogSequence: 0,
@@ -96,6 +98,22 @@ window.panLayout = {
 
         this.attachDragHandlers(container);
 
+        // The pan item dimensions transition, so measure again when the
+        // rendered SVG reaches its final size.
+        container._panLayoutTransitionEnd = event => {
+            if (!event.target?.matches?.(SELECTORS.item) ||
+                (event.propertyName !== "width" && event.propertyName !== "height")) {
+                return;
+            }
+
+            const state = container._panLayoutState;
+            if (!state) return;
+
+            cancelAnimationFrame(state.textFitRaf);
+            state.textFitRaf = requestAnimationFrame(() => this.fitAllPanText(container));
+        };
+        container.addEventListener("transitionend", container._panLayoutTransitionEnd);
+
         container._panGridObserver = new ResizeObserver((entries) => {
             const rect = entries[0]?.contentRect;
 
@@ -137,6 +155,11 @@ window.panLayout = {
         this.cancelPendingDrag(container);
         this.endDrag(container, { commit: false });
         this.detachDragHandlers(container);
+
+        if (container._panLayoutTransitionEnd) {
+            container.removeEventListener("transitionend", container._panLayoutTransitionEnd);
+            delete container._panLayoutTransitionEnd;
+        }
 
         container._panGridObserver?.disconnect();
         container._panMutationObserver?.disconnect();
@@ -202,6 +225,7 @@ window.panLayout = {
                Layout must be committed before measurement.
                A second RAF guarantees DOM geometry is updated.
             */
+            cancelAnimationFrame(state.textFitRaf);
             state.textFitRaf = requestAnimationFrame(() => {
                 if (!state.startupComplete) {
                     this.logStartup(container, "text-fit RAF running");
@@ -1241,11 +1265,15 @@ window.panLayout = {
 
     notifyReordered(container) {
         const ids = this.getItems(container)
-            .map(item => item.dataset.panId)
+            .map(item =>
+                item.querySelector("[data-pan-id]")?.dataset.panId)
             .filter(Boolean);
 
         const dotNetRef = this.getState(container).dotNetRef;
-        dotNetRef?.invokeMethodAsync?.("NotifyPansReordered", ids);
+
+        dotNetRef?.invokeMethodAsync?.(
+            "NotifyPansReordered",
+            ids);
     },
 
     getGaps(element) {
@@ -1440,58 +1468,36 @@ window.panLayout = {
         if (!parts) return null;
 
         const itemRect = item.getBoundingClientRect();
-        const copyRect = parts.copy.getBoundingClientRect();
+        if (itemRect.width <= 0) return null;
 
-        if (itemRect.width <= 0 || copyRect.height <= 0) {
-            return null;
-        }
+        const panContainer = item.querySelector(SELECTORS.panContainer);
+        const containerRect = panContainer?.getBoundingClientRect() ?? itemRect;
+        const base = parts.svg.querySelector(SELECTORS.base);
+        const baseRect = base?.getBoundingClientRect();
 
-        const style = getComputedStyle(parts.copy);
-        const gaps = this.getGaps(parts.copy);
+        // Exclude the bottom overlay's horizontal padding from the space
+        // available to the two labels.
+        const copyStyle = getComputedStyle(parts.copy);
+        const paddingLeft = parseFloat(copyStyle.paddingLeft) || 0;
+        const paddingRight = parseFloat(copyStyle.paddingRight) || 0;
+        const paddingBottom = parseFloat(copyStyle.paddingBottom) || 0;
+        const paddingTop = parseFloat(copyStyle.paddingTop) || 0;
+        const contentWidth = Math.max(0, parts.copy.getBoundingClientRect().width - paddingLeft - paddingRight);
 
-        const leftInset = parseFloat(style.left) || 0;
-        const rightInset = parseFloat(style.right) || 0;
-        const gap = gaps.column || gaps.row || 0;
+        // getBoundingClientRect() gives the evaluated SVG group dimensions in
+        // CSS pixels, including the SVG's viewBox scaling and transforms.
+        const fillsHeight = baseRect && baseRect.height > 0 &&
+            baseRect.height >= containerRect.height - paddingBottom - paddingTop - 1;
 
-        const fallbackAvailable =
-            Math.max(0, (itemRect.width - leftInset - rightInset - gap) / 2);
-
-        const clearance =
-            this.numberFromDataset(container, "panTextClearance", 6);
-
-        const y = copyRect.top + copyRect.height / 2;
-
-        const panBounds =
-            this.getEstimatedPanBoundsAtY(parts.svg, y);
-
-        const svgLeft = panBounds.left - itemRect.left;
-        const svgRight = panBounds.right - itemRect.left;
-
-        const leftAvailable = Math.max(
-            0,
-            svgLeft - leftInset - clearance
-        );
-
-        const rightAvailable = Math.max(
-            0,
-            itemRect.width - rightInset - svgRight - clearance
-        );
-
-        const minimumReadableWidth = Math.min(72, fallbackAvailable);
+        // When the pan fills the available height, reserve its rendered width
+        // in the middle. Otherwise, each label can use half the content width.
+        const availableWidth = fillsHeight
+            ? Math.max(0, (contentWidth - baseRect.width) / 2)
+            : contentWidth / 2;
 
         return this.measureCopyFit([
-            {
-                group: parts.leftGroup,
-                availableWidth: leftAvailable > 0
-                    ? Math.min(leftAvailable, fallbackAvailable)
-                    : minimumReadableWidth
-            },
-            {
-                group: parts.rightGroup,
-                availableWidth: rightAvailable > 0
-                    ? Math.min(rightAvailable, fallbackAvailable)
-                    : minimumReadableWidth
-            }
+            { group: parts.leftGroup, availableWidth },
+            { group: parts.rightGroup, availableWidth }
         ]);
     },
 
@@ -1512,7 +1518,6 @@ window.panLayout = {
         const resolved = groups
             .map(({ group, availableWidth }) => ({
                 group,
-                label: group?.querySelector(SELECTORS.label),
                 value: group?.querySelector(SELECTORS.value),
                 availableWidth: Math.max(0, availableWidth)
             }))
@@ -1535,7 +1540,6 @@ window.panLayout = {
             )
         );
 
-        const minSize = 7;
         let fittedSize = baseSize;
 
         for (const item of resolved) {
@@ -1544,25 +1548,12 @@ window.panLayout = {
                 this.getFittedFontSize(
                     item.value,
                     item.availableWidth,
-                    baseSize,
-                    minSize
+                    baseSize
                 )
             );
-
-            if (item.label) {
-                fittedSize = Math.min(
-                    fittedSize,
-                    this.getFittedFontSize(
-                        item.label,
-                        item.availableWidth,
-                        baseSize * 0.72,
-                        6
-                    ) / 0.72
-                );
-            }
         }
 
-        return Math.max(minSize, fittedSize);
+        return fittedSize;
     },
 
     getBaseFontSize(element, cacheKey) {
@@ -1573,17 +1564,17 @@ window.panLayout = {
         return Number(element.dataset[cacheKey]);
     },
 
-    getFittedFontSize(element, availableWidth, baseSize, minSize) {
-        if (!element || availableWidth <= 0) return minSize;
+    getFittedFontSize(element, availableWidth, baseSize) {
+        if (!element || availableWidth <= 0) return 0;
 
         const text = element.textContent?.trim() ?? "";
         if (!text) return baseSize;
 
         const measuredWidth = this.measureTextWidth(text, getComputedStyle(element), baseSize);
+        const visible = Math.min(availableWidth / measuredWidth, 1.0);
+        const scale = visible < 0.5 ? 0 : visible;
 
-        return measuredWidth <= availableWidth
-            ? baseSize
-            : Math.max(minSize, baseSize * availableWidth / measuredWidth);
+        return baseSize * scale;
     },
 
     measureTextWidth(text, style, fontSize) {
@@ -1744,3 +1735,71 @@ window.panLayout = {
         }, 0);
     }
 };
+
+// Named exports for Blazor JS module interop.
+export const logStartup = (...args) => panLayout.logStartup(...args);
+export const warnStartup = (...args) => panLayout.warnStartup(...args);
+export const observe = (...args) => panLayout.observe(...args);
+export const disconnect = (...args) => panLayout.disconnect(...args);
+export const requestUpdateAfterResizeSettles = (...args) => panLayout.requestUpdateAfterResizeSettles(...args);
+export const requestUpdate = (...args) => panLayout.requestUpdate(...args);
+export const completeStartupLayout = (...args) => panLayout.completeStartupLayout(...args);
+export const waitForStartupPanLayout = (...args) => panLayout.waitForStartupPanLayout(...args);
+export const getActiveTransitionAnimations = (...args) => panLayout.getActiveTransitionAnimations(...args);
+export const getState = (...args) => panLayout.getState(...args);
+export const update = (...args) => panLayout.update(...args);
+export const fitAllPanText = (...args) => panLayout.fitAllPanText(...args);
+export const applyLayout = (...args) => panLayout.applyLayout(...args);
+export const toPercent = (...args) => panLayout.toPercent(...args);
+export const getItems = (...args) => panLayout.getItems(...args);
+export const attachDragHandlers = (...args) => panLayout.attachDragHandlers(...args);
+export const detachDragHandlers = (...args) => panLayout.detachDragHandlers(...args);
+export const onPointerMove = (...args) => panLayout.onPointerMove(...args);
+export const clearPanBodyHover = (...args) => panLayout.clearPanBodyHover(...args);
+export const isNoDragStartTarget = (...args) => panLayout.isNoDragStartTarget(...args);
+export const isPointerInsidePanCircle = (...args) => panLayout.isPointerInsidePanCircle(...args);
+export const isPointerInsideSvgCircle = (...args) => panLayout.isPointerInsideSvgCircle(...args);
+export const onPointerDown = (...args) => panLayout.onPointerDown(...args);
+export const onPendingPointerMove = (...args) => panLayout.onPendingPointerMove(...args);
+export const onPendingPointerUp = (...args) => panLayout.onPendingPointerUp(...args);
+export const cancelPendingDrag = (...args) => panLayout.cancelPendingDrag(...args);
+export const startDrag = (...args) => panLayout.startDrag(...args);
+export const onDragPointerMove = (...args) => panLayout.onDragPointerMove(...args);
+export const onDragPointerUp = (...args) => panLayout.onDragPointerUp(...args);
+export const moveDrag = (...args) => panLayout.moveDrag(...args);
+export const endDrag = (...args) => panLayout.endDrag(...args);
+export const findNearestDropEdge = (...args) => panLayout.findNearestDropEdge(...args);
+export const findAdjacentDropItem = (...args) => panLayout.findAdjacentDropItem(...args);
+export const getAdjacencyMetrics = (...args) => panLayout.getAdjacencyMetrics(...args);
+export const getOverlapSpan = (...args) => panLayout.getOverlapSpan(...args);
+export const getOverlapSize = (...args) => panLayout.getOverlapSize(...args);
+export const distanceToSpan = (...args) => panLayout.distanceToSpan(...args);
+export const setDropIndicator = (...args) => panLayout.setDropIndicator(...args);
+export const installDragBlockers = (...args) => panLayout.installDragBlockers(...args);
+export const removeDragBlockers = (...args) => panLayout.removeDragBlockers(...args);
+export const notifyReordered = (...args) => panLayout.notifyReordered(...args);
+export const getGaps = (...args) => panLayout.getGaps(...args);
+export const numberFromDataset = (...args) => panLayout.numberFromDataset(...args);
+export const getPanAspect = (...args) => panLayout.getPanAspect(...args);
+export const findBestLayout = (...args) => panLayout.findBestLayout(...args);
+export const createRows = (...args) => panLayout.createRows(...args);
+export const layoutRowsForScale = (...args) => panLayout.layoutRowsForScale(...args);
+export const rowsMeetHeightRatio = (...args) => panLayout.rowsMeetHeightRatio(...args);
+export const rowsFillWidth = (...args) => panLayout.rowsFillWidth(...args);
+export const scoreLayout = (...args) => panLayout.scoreLayout(...args);
+export const getLayoutPartitions = (...args) => panLayout.getLayoutPartitions(...args);
+export const findFallbackLayout = (...args) => panLayout.findFallbackLayout(...args);
+export const measurePanTextSize = (...args) => panLayout.measurePanTextSize(...args);
+export const getTextFitParts = (...args) => panLayout.getTextFitParts(...args);
+export const measureCopyFit = (...args) => panLayout.measureCopyFit(...args);
+export const getBaseFontSize = (...args) => panLayout.getBaseFontSize(...args);
+export const getFittedFontSize = (...args) => panLayout.getFittedFontSize(...args);
+export const measureTextWidth = (...args) => panLayout.measureTextWidth(...args);
+export const getEstimatedPanBoundsAtY = (...args) => panLayout.getEstimatedPanBoundsAtY(...args);
+export const samplePanBoundsAtY = (...args) => panLayout.samplePanBoundsAtY(...args);
+export const getPanHitElements = (...args) => panLayout.getPanHitElements(...args);
+export const clearLayoutCaches = (...args) => panLayout.clearLayoutCaches(...args);
+export const pointHitsAnyElement = (...args) => panLayout.pointHitsAnyElement(...args);
+export const getRowBalancePenalty = (...args) => panLayout.getRowBalancePenalty(...args);
+export const getLonelyRowPenalty = (...args) => panLayout.getLonelyRowPenalty(...args);
+export const getHeightVariancePenalty = (...args) => panLayout.getHeightVariancePenalty(...args);

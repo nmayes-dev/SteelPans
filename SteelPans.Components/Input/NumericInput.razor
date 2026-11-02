@@ -1,5 +1,5 @@
 ﻿@implements IAsyncDisposable
-@inject IJSRuntime JS
+@inject SafeJSInteropService JS
 
 <div class="number-input">
     <input @ref="inputRef_"
@@ -62,6 +62,11 @@
     private int step_ => Step ?? 1;
 
     private ElementReference inputRef_;
+    private DotNetObjectReference<NumericInput>? dotNetRef_;
+    private IJSObjectReference? module_;
+
+    private bool disposed_;
+
     private string currentValue_ = string.Empty;
     private CancellationTokenSource? repeatCts_;
 
@@ -72,25 +77,40 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
-            await JS.InvokeVoidAsync("filters.numeric", inputRef_);
+        if (!firstRender || disposed_)
+            return;
+
+
+        dotNetRef_ = DotNetObjectReference.Create(this);
+
+        var module = await JS.ImportModuleAsync<NumericInput>();
+        if (disposed_)
+        {
+            await module.DisposeAsync();
+            return;
+        }
+
+        module_ = module;
+        await module_.InvokeVoidAsync("initialize", inputRef_);
     }
 
     private async Task HandleInput(ChangeEventArgs e)
     {
+        ArgumentNullException.ThrowIfNull(module_);
+
         var raw = e.Value?.ToString() ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(raw))
         {
             currentValue_ = Value.ToString();
-            await JS.InvokeVoidAsync("filters.setValue", inputRef_, currentValue_);
+            await module_.InvokeVoidAsync("setValue", inputRef_, currentValue_);
             return;
         }
 
         if (!int.TryParse(raw, out var value))
         {
             currentValue_ = Value.ToString();
-            await JS.InvokeVoidAsync("filters.setValue", inputRef_, currentValue_);
+            await module_.InvokeVoidAsync("setValue", inputRef_, currentValue_);
             return;
         }
 
@@ -165,7 +185,8 @@
             await ValueChanged.InvokeAsync(value);
 
         // ensure DOM reflects clamped value
-        await JS.InvokeVoidAsync("filters.setValue", inputRef_, currentValue_);
+        ArgumentNullException.ThrowIfNull(module_);
+        await module_.InvokeVoidAsync("setValue", inputRef_, currentValue_);
     }
 
     private int Clamp(int value)
@@ -179,5 +200,36 @@
         return value;
     }
 
-    public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    public void Dispose()
+    {
+        if (disposed_)
+            return;
+
+        disposed_ = true;
+
+        dotNetRef_?.Dispose();
+        dotNetRef_ = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (disposed_)
+            return;
+
+        try
+        {
+            if (module_ is not null)
+            {
+                await module_.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // A Blazor Server circuit can disconnect before disposal completes.
+        }
+        finally
+        {
+            Dispose();
+        }
+    }
 }

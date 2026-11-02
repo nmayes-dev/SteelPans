@@ -48,6 +48,7 @@ public sealed class SteelPanSvgService
 
     private readonly IWebHostEnvironment env_;
     private readonly SteelPanLoaderService panLoader_;
+    private readonly ILogger<SteelPanSvgService> logger_;
 
     private IReadOnlyDictionary<string, string> fileCache_ =
         new Dictionary<string, string>(StringComparer.Ordinal);
@@ -63,10 +64,14 @@ public sealed class SteelPanSvgService
     private IReadOnlyDictionary<string, (string NoteFragment, string LabelFragment)> noteFragmentCache_ =
         new Dictionary<string, (string NoteFragment, string LabelFragment)>(StringComparer.Ordinal);
 
-    public SteelPanSvgService(IWebHostEnvironment env, SteelPanLoaderService panLoader)
+    public SteelPanSvgService(
+        IWebHostEnvironment env,
+        SteelPanLoaderService panLoader,
+        ILogger<SteelPanSvgService> logger)
     {
         env_ = env;
         panLoader_ = panLoader;
+        logger_ = logger;
     }
 
     public async Task InitializeAsync()
@@ -77,6 +82,11 @@ public sealed class SteelPanSvgService
         masterDocCache_ = BuildMasterDocumentCache(fileCache_);
         skeletonCache_ = BuildSkeletonCache(masterDocCache_);
         noteFragmentCache_ = BuildNoteFragmentCache(panBuildInfos, masterDocCache_);
+
+        logger_.LogInformation(
+            "Initialized steel pan SVG cache with {SvgFileCount} SVG files and {NoteFragmentCount} note fragments",
+            fileCache_.Count,
+            noteFragmentCache_.Count);
     }
 
     public Task<string> LoadPanAsync(SteelPan pan, string componentId)

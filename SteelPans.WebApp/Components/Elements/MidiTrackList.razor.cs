@@ -12,15 +12,13 @@ public partial class MidiTrackList
     [Parameter]
     public IReadOnlyList<MidiTrackInfo>? Tracks { get; set; }
 
-    [Parameter]
-    public IReadOnlyList<GroupFileDto>? Files { get; set; }
-
 
     protected override void OnInitialized()
     {
-        if (Tracks is null && Files is null)
-            throw new InvalidOperationException("Must provide either track list or file list");
+        if (Tracks is null)
+            Tracks = MidiService.Playback.Tracks;
 
+        ArgumentNullException.ThrowIfNull(Tracks, "Must provide either track list or file list");
         MidiService.Playback.AssignmentsChanged += OnUpdateAsync;
     }
 
@@ -30,11 +28,6 @@ public partial class MidiTrackList
             return Task.CompletedTask;
 
         return InvokeAsync(StateHasChanged);
-    }
-
-    private async Task LoadGroupMidiFileAsync(GroupFileDto file)
-    {
-        await MidiService.Playback.LoadGroupMidiFile(file.Id);
     }
 
     private async Task OnTrackButtonPressedAsync(MidiTrackInfo track)

@@ -22,20 +22,7 @@ public class MidiTrackSummary
     public int BeatUnit { get; init; } = 4;
     public double DurationSeconds { get; init; }
 
-    public string DisplayInfo
-    {
-        get
-        {
-            var baseName = string.IsNullOrWhiteSpace(Name)
-                ? $"Track {Index + 1}"
-                : Name;
-
-            var noteCount = $" ({NoteCount} notes)";
-            return $"{baseName}{noteCount}";
-        }
-    }
-
-    public string TrackLabel => Name ?? $"Track {Index}";
+    public string TrackLabel => Name ?? $"Track {Index + 1}";
 }
 
 public sealed class MidiTrackInfo : MidiTrackSummary

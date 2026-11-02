@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Components;
 using SteelPans.Shared.Music;
+using SteelPans.WebApp.Services;
 
 namespace SteelPans.WebApp.Components.Pages.Practice;
 
@@ -8,12 +9,13 @@ public partial class Band : IAsyncDisposable
     [SupplyParameterFromQuery(Name = "file")]
     public Guid? FileId { get; set; }
 
+
+
     private bool loadingFile_;
     private bool loadedFileFromQuery_;
 
     protected override Task OnInitializedAsync()
     {
-        MidiService.Playback.MidiFileLoaded += OnPlaybackStateChangedAsync;
         MidiService.Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
         MidiService.Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
 
@@ -50,7 +52,6 @@ public partial class Band : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        MidiService.Playback.MidiFileLoaded -= OnPlaybackStateChangedAsync;
         MidiService.Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
         MidiService.Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
         return ValueTask.CompletedTask;

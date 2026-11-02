@@ -6,19 +6,21 @@
 @implements IAsyncDisposable
 
 <div class="page">
-    <div class="sidebar">
+    <div class="sidebar" aria-label="Main navigation">
         <NavMenu />
     </div>
 
-    <main>
-        <article class="content">
-            @Body
-        </article>
+    <main class="content">
+        @Body
     </main>
 
-    <aside>
+    <div class="modals">
         <ModalLayout />
-    </aside>
+    </div>
+
+    <div class="message-popup">
+        <MessagePopup />
+    </div>
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>

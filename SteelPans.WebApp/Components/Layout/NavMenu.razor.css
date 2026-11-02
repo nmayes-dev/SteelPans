@@ -75,6 +75,8 @@
         display: grid;
         grid-template-columns: auto minmax(0, 1fr);
         column-gap: clamp(0.45rem, 2.2vw, 0.75rem);
+        padding: 0 clamp(0.6rem, 0.8vw, 1rem);
+        font-size: calc(0.9 * var(--layout-nav-icon-size));
         align-items: center;
         line-height: 1.1;
         width: 100%;
@@ -102,6 +104,7 @@
         --overlay__background-color_arg: rgba(5, 39, 103, 0.94);
         --overlay__header-title-color_arg: rgba(255, 255, 255, 0.82);
         --overlay__button-size-arg: calc(1.1 * var(--layout-nav-toggler-size));
+        --drawer-position_arg: 80%;
     }
 
     .nav {

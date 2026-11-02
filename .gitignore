@@ -6,6 +6,7 @@ publish/
 
 Properties/
 
+logs/
 temp/
 
 Logs/
@@ -20,3 +21,5 @@ SteelPans.PythonUtils/
 **.env
 
 **/appsettings.Development.json
+
+**.user

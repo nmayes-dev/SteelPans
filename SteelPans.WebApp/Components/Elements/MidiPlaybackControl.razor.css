@@ -3,5 +3,5 @@
 }
 
 .midi-playback-control div:last-child {
-    margin-top: -0.35rem;
+    margin-top: max(-0.4rem, min(-0.75vh, -0.75vw));
 }

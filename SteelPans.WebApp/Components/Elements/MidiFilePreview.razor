@@ -8,17 +8,35 @@
 <div class="sp-app-card sp-app-card--wide midi-file-preview @(IsPreviewOpen ? "" : "midi-file-preview--closed")">
     <div class="midi-file-preview-header">
         <span><strong>Tracks</strong> - @file_?.OriginalFileName</span>
-        <button class="midi-file-preview-close"
-                @onclick="ClosePreviewAsync">
-            <span class="bi bi-x-lg"></span>
-        </button>
+
+        <div class="midi-file-preview-header__actions">
+            @if (!disabled_)
+            {
+                <button class="sp-app-button sp-app-button--primary midi-file-preview-save"
+                        type="button"
+                        title="Save assignments"
+                        aria-label="Save assignments"
+                        @onclick="SaveAssignmentsAsync"
+                        disabled="@(Tasks.Busy || !dirty_)">
+                    <span class="bi bi-floppy" aria-hidden="true"></span>
+                </button>
+            }
+
+            <button class="midi-file-preview-close"
+                    type="button"
+                    title="Close"
+                    aria-label="Close preview"
+                    @onclick="ClosePreviewAsync">
+                <span class="bi bi-x-lg" aria-hidden="true"></span>
+            </button>
+        </div>
     </div>
     <div class="midi-file-preview-files">
         <div class="sp-app-table-wrap">
             <table class="sp-app-table">
                 <thead>
                     <tr>
-                        <th>Track</th>
+                        <th>#</th>
                         <th>Name</th>
                         <th>Pan</th>
                         <th>Label</th>
@@ -69,16 +87,6 @@
             </table>
         </div>
     </div>
-
-    @if (!disabled_)
-    {
-        <button class="sp-app-button sp-app-button--primary"
-                type="button"
-                @onclick="SaveAssignmentsAsync"
-                disabled="@Tasks.Busy">
-            Save
-        </button>
-    }
 </div>
 
 @code {
@@ -101,7 +109,7 @@
     [Parameter]
     public bool AllowEdit { get; set; }
 
-
+    private bool dirty_ = false;
     private bool disabled_ => file_?.OwnerId != UserState.Id && !AllowEdit;
     private bool CanEditTrack => file_?.OwnerId == UserState.Id && AllowEdit;
 
@@ -157,18 +165,25 @@
             return;
 
         var current = assignments_[trackId];
+        if (current.PanType == panType)
+            return;
+
         assignments_[trackId] = current with { PanType = panType };
+        dirty_ = true;
     }
 
     private void SetLabel(Guid trackId, string? value)
     {
         var current = assignments_[trackId];
-        assignments_[trackId] = current with
-        {
-            Label = string.IsNullOrWhiteSpace(value)
+        var newLabel = string.IsNullOrWhiteSpace(value)
                 ? $"Track {current.TrackIndex}"
-                : value.Trim()
-        };
+                : value.Trim();
+
+        if (current.Label == newLabel)
+            return;
+
+        assignments_[trackId] = current with { Label = newLabel };
+        dirty_ = true;
     }
 
     private async Task SaveAssignmentsAsync()
@@ -186,6 +201,7 @@
                         .OrderBy(x => x.TrackIndex)
                         .ToList()));
 
+            dirty_ = false;
             return "Assignments saved.";
         });
 
@@ -214,6 +230,7 @@
                     x.TrackName ?? $"Track {x.TrackIndex}"));
 
         IsPreviewOpen = true;
+        dirty_ = false;
     }
 
     private async Task OnRealtimeMidiAssignmentsChangedAsync(Guid fileId)

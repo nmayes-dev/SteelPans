@@ -6,7 +6,7 @@
     z-index: 5;
     bottom: var(--preview-bottom-offset);
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr);
     gap: 0;
     min-width: 0;
     width: calc(100cqw - 2 * var(--preview-inset));
@@ -15,6 +15,7 @@
     overflow: hidden;
     overscroll-behavior: contain;
     background: linear-gradient(180deg, #e2e8f0 0%, #cbd5f5 100%);
+    padding-bottom: 0;
     transform: translateY(0);
     transition: transform 500ms ease-out, opacity 250ms ease-out;
 }
@@ -40,6 +41,30 @@
         overflow-wrap: anywhere;
     }
 
+.midi-file-preview-header__actions {
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    gap: 0.35rem;
+}
+
+.midi-file-preview .midi-file-preview-save {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: var(--preview-button-size);
+    height: var(--preview-button-size);
+    min-height: 0;
+    padding: 0;
+    margin: 0;
+    border-radius: 50%;
+    font-size: clamp(0.9rem, 0.75rem + 0.4cqw, 1.25rem);
+}
+
+.midi-file-preview .midi-file-preview-save:disabled {
+    cursor: not-allowed;
+}
+
 .midi-file-preview__meta {
     min-width: 0;
     margin: 0;
@@ -58,46 +83,84 @@
 
 .midi-file-preview-files {
     min-height: 0;
-    overflow: auto;
+    overflow: hidden;
+}
+
+.midi-file-preview .sp-app-table-wrap {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
     overscroll-behavior: contain;
 }
 
 .midi-file-preview .sp-app-table {
+    --table-padding-x: clamp(0.35rem, 0.2rem + 0.5cqw, 1rem);
+    --table-padding-y: clamp(0.25rem, 0.15rem + 0.3cqw, 0.75rem);
+    --table-control-padding-x: clamp(0.3rem, 0.15rem + 0.4cqw, 0.75rem);
+    --table-control-padding-y: clamp(0.15rem, 0.1rem + 0.2cqw, 0.4rem);
+    display: grid;
     width: 100%;
+    height: 100%;
+    min-height: 0;
     table-layout: fixed;
+    overflow: hidden;
     font-size: clamp(0.75rem, 0.55rem + 0.4cqw, 1rem);
 }
 
-    .midi-file-preview .sp-app-table th,
-    .midi-file-preview .sp-app-table td {
-        padding: clamp(0.25rem, 0.15rem + 0.3cqw, 0.75rem) clamp(0.35rem, 0.2rem + 0.5cqw, 1rem);
+    .midi-file-preview .sp-app-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
     }
 
-        .midi-file-preview .sp-app-table th:first-child,
-        .midi-file-preview .sp-app-table td:first-child {
-            width: clamp(2rem, 1rem + 2cqw, 4rem);
-        }
+    .midi-file-preview .sp-app-table tr {
+        display: grid;
+        grid-template-columns: auto minmax(0, 2fr) minmax(0, 3fr) minmax(0, 3fr) minmax(0, 3fr);
+        align-items: center;
+        width: 100%;
+    }
 
-        .midi-file-preview .sp-app-table th:nth-child(2),
-        .midi-file-preview .sp-app-table td:nth-child(2) {
-            width: clamp(6rem, 16cqw, 16rem);
+    .midi-file-preview .sp-app-table tbody {
+        overflow: auto;
+    }
+
+    .midi-file-preview .sp-app-table tr td {
+        display: flex;
+        align-items: center;
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        text-wrap: nowrap;
+    }
+
+    .midi-file-preview .sp-app-table th,
+    .midi-file-preview .sp-app-table td {
+        padding: var(--table-padding-y) var(--table-padding-x);
+    }
+
+        .midi-file-preview .sp-app-table th:nth-child(3),
+        .midi-file-preview .sp-app-table th:nth-child(4),
+        .midi-file-preview .sp-app-table th:nth-child(5) {
+            padding-left: calc(var(--table-control-padding-x) + var(--table-control-padding-x));
         }
 
     .midi-file-preview .sp-app-table select,
-    .midi-file-preview .sp-app-table input {
+    .midi-file-preview .sp-app-table input,
+    .midi-file-preview .sp-app-table a {
         min-height: clamp(1.9rem, 1.6rem + 0.6cqw, 2.5rem);
-        padding: clamp(0.15rem, 0.1rem + 0.2cqw, 0.4rem) clamp(0.3rem, 0.15rem + 0.4cqw, 0.75rem);
+        padding: var(--table-control-padding-y) var(--table-control-padding-x);
         font-size: inherit;
     }
 
 .midi-file-preview--actions {
     display: flex;
-    gap: 0.25rem;
+    gap: 0.5rem;
+    width: 100%;
 }
 
 .midi-file-preview .sp-app-button {
+    flex: 1 1 0px;
     min-height: 0;
     padding: 0.45rem 0.7rem;
     font-size: 0.85em;
-    margin-top: 0.25rem;
 }

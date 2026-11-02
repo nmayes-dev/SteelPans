@@ -84,7 +84,7 @@ else if (MidiService.Playback.Assignments.Count == 0)
                     <div class="practice-page__load">
                         <BackButton FallbackUrl="/play" Class="sp-app-button sp-app-button--secondary" />
                         <ExpandingOverlay Title="Add Pans" Text="Tracks" ExpandDirection="ExpandingOverlay.Direction.Right" ClosedIconClass="x-lg">
-                            <MidiTrackList Tracks="MidiService.Playback.Tracks" />
+                            <MidiTrackList />
                         </ExpandingOverlay>
                     </div>
                 </NotAuthorized>
@@ -118,11 +118,11 @@ else
                             bool isAssigned = MidiService.Playback.Assignments.Any(x => x.TrackId == track.Id);
                             if (isAssigned)
                             {
-                                <option value="@track.Id">@track.DisplayInfo</option>
+                                <option value="@track.Id">@track.TrackLabel</option>
                             }
                             else
                             {
-                                <option hidden disabled value="@track.Id">@track.DisplayInfo</option>
+                                <option hidden disabled value="@track.Id">@track.TrackLabel</option>
                             }
                         }
                     </select>
@@ -140,8 +140,7 @@ else
                 <TopLeftContent Context="assignedPan">
                     <div class="practice-page__practice-controls">
                         <ExpandingOverlay ExpandDirection="ExpandingOverlay.Direction.Right"
-                                          ClosedIconClass="gear-fill"
-                                          Title="Settings">
+                                          ClosedIconClass="gear-fill">
                             <div class="practice-page__track-controls-settings">
                                 <CountInControl />
                                 <label class="practice-page__solo-control">
@@ -155,8 +154,7 @@ else
                 <TopRightContent Context="assignPan">
                     <div class="practice-page__pan-controls">
                         <ExpandingOverlay ExpandDirection="ExpandingOverlay.Direction.Left"
-                                          ClosedIconClass="sliders2-vertical"
-                                          Title="Mixer">
+                                          ClosedIconClass="sliders2-vertical">
                             <VolumeMixer />
                         </ExpandingOverlay>
                     </div>

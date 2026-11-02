@@ -1,0 +1,176 @@
+@inject MessagePopupService Notifier
+@implements IDisposable
+
+<div class="sp-popup-host">
+    @if (current_ is not null)
+    {
+        <div @key="current_.Id"
+             class="@GetPopupClass(current_.Kind)"
+             role="@(current_.Kind == MessageKind.Message ? "status" : "alert")">
+
+            <i class="@GetIconClass(current_.Kind)"
+               aria-hidden="true"></i>
+
+            <span class="sp-popup__message">
+                @current_.Message
+            </span>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly TimeSpan ExitDuration = TimeSpan.FromMilliseconds(180);
+
+    private MessageNotification? current_;
+    private CancellationTokenSource? displayCts_;
+
+    private bool hiding_;
+    private bool disposed_;
+
+    protected override void OnInitialized()
+    {
+        Notifier.Requested += DisplayAsync;
+        Notifier.ClearRequested += ClearAsync;
+    }
+
+    private async Task RunNotificationAsync(MessageNotification notification, CancellationTokenSource cts)
+    {
+        try
+        {
+            await Task.Delay(notification.Duration, cts.Token);
+
+            // Begin the exit animation.
+            cts.Token.ThrowIfCancellationRequested();
+
+            await InvokeAsync(() =>
+            {
+                if (cts.IsCancellationRequested)
+                    return;
+
+                hiding_ = true;
+                StateHasChanged();
+            });
+
+            // Remove after the animation completes.
+            await Task.Delay(ExitDuration, cts.Token);
+
+            await InvokeAsync(() =>
+            {
+                if (cts.IsCancellationRequested)
+                    return;
+
+                current_ = null;
+                StateHasChanged();
+            });
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            // Notification was cancelled.
+        }
+        finally
+        {
+            if (ReferenceEquals(displayCts_, cts))
+                displayCts_ = null;
+
+            cts.Dispose();
+        }
+    }
+
+    private async Task DisplayAsync(MessageNotification notification)
+    {
+        if (disposed_)
+            return;
+
+        // Cancel the previous notification.
+        displayCts_?.Cancel();
+
+        var cts = new CancellationTokenSource();
+        displayCts_ = cts;
+
+        current_ = notification;
+        hiding_ = false;
+
+        await InvokeAsync(StateHasChanged);
+
+        // Run without waiting for the notification to disappear.
+        _ = RunNotificationAsync(notification, cts);
+    }
+
+
+    private async Task ClearAsync(Guid? id)
+    {
+        if (disposed_ || current_ is null)
+            return;
+
+        // Only clear the requested notification.
+        // A null ID means clear all.
+        if (id.HasValue && current_.Id != id.Value)
+            return;
+
+        // Already being dismissed.
+        if (hiding_)
+            return;
+
+        // Cancel the original display timer.
+        displayCts_?.Cancel();
+
+        var cts = new CancellationTokenSource();
+        displayCts_ = cts;
+
+        hiding_ = true;
+        StateHasChanged();
+
+        try
+        {
+            // Allow the exit animation to finish.
+            await Task.Delay(ExitDuration, cts.Token);
+
+            current_ = null;
+            hiding_ = false;
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) when (cts.IsCancellationRequested)
+        {
+            // Another notification replaced this one.
+        }
+        finally
+        {
+            if (ReferenceEquals(displayCts_, cts))
+                displayCts_ = null;
+
+            cts.Dispose();
+        }
+    }
+
+    private string GetPopupClass(MessageKind kind)
+    {
+        var kindClass = kind switch
+        {
+            MessageKind.Warning => "warning",
+            MessageKind.Error => "error",
+            _ => "message"
+        };
+
+        return $"sp-popup sp-popup--{kindClass}" +
+               (hiding_ ? " sp-popup--hiding" : "");
+    }
+
+    private static string GetIconClass(MessageKind kind)
+    {
+        return kind switch
+        {
+            MessageKind.Warning => "bi bi-exclamation-triangle-fill",
+            MessageKind.Error => "bi bi-x-octagon-fill",
+            _ => "bi bi-info-circle-fill"
+        };
+    }
+
+    public void Dispose()
+    {
+        disposed_ = true;
+
+        Notifier.Requested -= DisplayAsync;
+        Notifier.ClearRequested -= ClearAsync;
+        displayCts_?.Cancel();
+    }
+}

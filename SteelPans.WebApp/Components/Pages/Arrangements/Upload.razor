@@ -12,16 +12,9 @@
     <div class="sp-app-page__header midi-upload-page__header">
         <h1>Upload MIDI File</h1>
         <p>Preview a MIDI file locally before uploading it to your account.</p>
-
-        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
-        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(Tasks.Message) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Message</p>
     </div>
 
-    <div class="midi-upload-page__actions">
-        <BackButton FallbackUrl="/arrangements" />
-    </div>
-
-    <div class="sp-app-card sp-app-form midi-upload-page__card">
+    <div class="sp-app-card midi-upload-page__card">
         <div class="sp-app-form__row midi-upload-page__controls">
             <div class="sp-app-field">
                 <label for="midi-file">MIDI File</label>
@@ -109,7 +102,7 @@
 
         if (uploaded is not null)
         {
-            _ = Task.Delay(1500).ContinueWith(_ => Nav.NavigateTo($"/arrangements/{uploaded.Id}"));
+            Nav.NavigateTo($"/arrangements/{uploaded.Id}");
         }
     }
 

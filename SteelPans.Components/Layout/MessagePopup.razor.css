@@ -1,0 +1,88 @@
+﻿.sp-popup-host {
+    position: fixed;
+    bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));
+    left: 1rem;
+    right: 1rem;
+    z-index: 10000;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+}
+
+.sp-popup {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: max-content;
+    max-width: min(34rem, 100%);
+    padding: 0.85rem 1.25rem;
+    border-radius: 0.75rem;
+    color: #fff;
+    font-size: 0.925rem;
+    font-weight: 500;
+    line-height: 1.4;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+    animation: sp-popup-enter 180ms ease-out both;
+}
+
+    .sp-popup i {
+        flex-shrink: 0;
+        font-size: 1.15rem;
+    }
+
+.sp-popup__message {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: pre-line;
+}
+
+/* Modes */
+
+.sp-popup--message {
+    background-color: #263544;
+}
+
+.sp-popup--warning {
+    background-color: #965b0c;
+}
+
+.sp-popup--error {
+    background-color: #ae2936;
+}
+
+/* Animations */
+
+.sp-popup--hiding {
+    animation: sp-popup-exit 180ms ease-in both;
+}
+
+@keyframes sp-popup-enter {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes sp-popup-exit {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    to {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sp-popup,
+    .sp-popup--hiding {
+        animation: none;
+    }
+}

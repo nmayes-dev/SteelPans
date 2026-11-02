@@ -6,23 +6,27 @@ namespace SteelPans.WebApp.Services;
 public sealed class NavigationHistoryService : IDisposable
 {
     private readonly NavigationManager navigation_;
+    private readonly ILogger<NavigationHistoryService> logger_;
     private readonly Stack<string> history_ = new();
     private readonly Dictionary<string, Func<Task<bool>>> leaveGuards_ = new(StringComparer.Ordinal);
     private readonly IDisposable locationChangingRegistration_;
 
     private string currentUri_;
-    private bool navigatingBack_;
     private string? pendingBackUri_;
 
-    public NavigationHistoryService(NavigationManager navigation)
+    public NavigationHistoryService(
+        NavigationManager navigation,
+        ILogger<NavigationHistoryService> logger)
     {
         navigation_ = navigation;
+        logger_ = logger;
         currentUri_ = NormalizeUri(navigation.Uri);
 
         locationChangingRegistration_ = navigation_.RegisterLocationChangingHandler(OnLocationChangingAsync);
         navigation_.LocationChanged += OnLocationChanged;
     }
 
+    private bool NavigatingBack => pendingBackUri_ is not null;
     public bool CanGoBack => history_.Count > 0;
 
     public IDisposable RegisterLeaveGuard(Func<Task<bool>> canLeaveAsync)
@@ -31,6 +35,7 @@ public sealed class NavigationHistoryService : IDisposable
 
         var uri = NormalizeUri(navigation_.Uri);
         leaveGuards_[uri] = canLeaveAsync;
+        logger_.LogDebug("Registered navigation leave guard for {Uri}", uri);
         return new LeaveGuardRegistration(this, uri, canLeaveAsync);
     }
 
@@ -41,6 +46,7 @@ public sealed class NavigationHistoryService : IDisposable
             : navigation_.ToAbsoluteUri(fallbackUrl).ToString();
 
         pendingBackUri_ = NormalizeUri(target);
+        logger_.LogDebug("Navigating back from {CurrentUri} to {TargetUri}", currentUri_, pendingBackUri_);
         navigation_.NavigateTo(target);
     }
 
@@ -50,13 +56,12 @@ public sealed class NavigationHistoryService : IDisposable
         if (string.Equals(currentUri_, targetUri, StringComparison.Ordinal))
             return;
 
-        navigatingBack_ = string.Equals(targetUri, history_.FirstOrDefault(), StringComparison.Ordinal);
         if (!leaveGuards_.TryGetValue(currentUri_, out var canLeaveAsync))
             return;
 
         if (!await canLeaveAsync())
         {
-            navigatingBack_ = false;
+            logger_.LogInformation("Navigation away from {Uri} to {TargetUri} was blocked by a leave guard", currentUri_, targetUri);
             pendingBackUri_ = null;
             context.PreventNavigation();
         }
@@ -68,10 +73,9 @@ public sealed class NavigationHistoryService : IDisposable
         if (string.Equals(currentUri_, newUri, StringComparison.Ordinal))
             return;
 
-        if (navigatingBack_)
+        if (NavigatingBack)
         {
-            if (pendingBackUri_ is not null
-                && string.Equals(newUri, pendingBackUri_, StringComparison.Ordinal)
+            if (string.Equals(newUri, pendingBackUri_, StringComparison.Ordinal)
                 && history_.TryPeek(out var previousUri)
                 && string.Equals(NormalizeUri(previousUri), pendingBackUri_, StringComparison.Ordinal))
             {
@@ -83,6 +87,7 @@ public sealed class NavigationHistoryService : IDisposable
             history_.Push(currentUri_);
         }
 
+        logger_.LogDebug("Navigation changed from {PreviousUri} to {CurrentUri}", currentUri_, newUri);
         pendingBackUri_ = null;
         currentUri_ = newUri;
     }
@@ -90,7 +95,10 @@ public sealed class NavigationHistoryService : IDisposable
     private void UnregisterLeaveGuard(string uri, Func<Task<bool>> canLeaveAsync)
     {
         if (leaveGuards_.TryGetValue(uri, out var registered) && ReferenceEquals(registered, canLeaveAsync))
+        {
             leaveGuards_.Remove(uri);
+            logger_.LogDebug("Unregistered navigation leave guard for {Uri}", uri);
+        }
     }
 
     private static string NormalizeUri(string uri)

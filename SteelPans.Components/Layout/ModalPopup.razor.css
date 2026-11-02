@@ -32,14 +32,13 @@
     border-radius: 1rem;
     box-shadow: 0 1.5rem 3rem rgba(15, 23, 42, 0.2);
     pointer-events: auto;
-    padding: clamp(0.5rem, 1vw, 1.25rem) clamp(0.3rem, 0.75vw, 1rem) clamp(0.25rem, 0.5vw, 0.75rem);
+    padding: clamp(0.5rem, 0.7vw, 0.9rem) clamp(0.5rem, 0.75vw, 1rem);
 }
 
 .modal-popup__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.6rem;
 }
 
 .modal-popup--draggable .modal-popup__header {
@@ -53,7 +52,7 @@
 }
 
 .modal-popup__title {
-    font-size: 1.2rem;
+    font-size: clamp(1rem, 1vw, 1.2rem);
     font-weight: 700;
     line-height: 1.2;
     color: #0f172a;

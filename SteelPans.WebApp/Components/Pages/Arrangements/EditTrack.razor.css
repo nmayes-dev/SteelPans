@@ -1,6 +1,6 @@
 .record-track-page {
     --record-page-gap: clamp(0.45rem, 1.4vw, 0.85rem);
-    --record-card-gap: clamp(0.45rem, 1.2vw, 0.75rem);
+    --record-card-gap: clamp(0.25rem, 1vw, 0.75rem);
     --record-control-gap: clamp(0.4rem, 1vw, 0.6rem);
     --record-overlay-padding: clamp(0.35rem, 1.5vw, 0.75rem);
     gap: var(--record-page-gap);
@@ -10,19 +10,17 @@
 
 .record-track-page__setup {
     display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     gap: var(--record-card-gap);
     min-width: 0;
     overflow: visible;
-    justify-content: end;
     align-items: center;
     padding: clamp(0.15rem, 0.25vw, 0.35rem) clamp(0.3rem, 0.5vw, 0.6rem);
 }
 
     .record-track-page__setup input {
         border-radius: clamp(0.45rem, 0.3rem + 0.4cqw, 0.65rem);
-        padding-left: 0.65rem;
-        font-size: 1.2rem;
+        padding-left: 0.35rem;
     }
 
 .record-track-page__settings {
@@ -118,13 +116,34 @@
     }
 
 .record-track-page__controls {
+    display: flex;
+    min-width: 0;
+    width: 100%;
 }
 
     .record-track-page__controls .sp-app-button {
-        height: 100%;
-        width: max-content;
-        white-space: nowrap;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        aspect-ratio: 1 / 1;
+        border-radius: 50%;
+        scale: 0.9;
     }
+
+        .record-track-page__controls .sp-app-button:disabled {
+            cursor: not-allowed;
+        }
+
+        .record-track-page__controls .sp-app-button .bi {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            scale: 1.25;
+        }
+
+        .record-track-page__controls .sp-app-button .bi-record-fill {
+            color: red;
+        }
 
 .record-track-page__pan-card {
     display: grid;

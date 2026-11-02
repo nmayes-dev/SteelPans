@@ -13,9 +13,6 @@
     <div class="sp-app-page__header midi-file-page__header">
         <h1>@title_</h1>
         <p>@subtitle_</p>
-
-        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
-        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(Tasks.Message) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Message</p>
     </div>
 
     <div class="midi-file-page__actions">
@@ -128,7 +125,7 @@
     private string title_ => File?.Title ?? "MIDI File";
 
     private const string LoadingFileSubtitle = "Loading file...";
-    private const string NoFileSubtitle = "File not found.";
+    private const string NoFileSubtitle = "File not found, redirecting...";
     private string noFileSubtitle_ = LoadingFileSubtitle;
 
     private string subtitle_ => File is null ? noFileSubtitle_ : $"{File.OriginalFileName} · {File.SizeBytes.ToFileSize()} · {File.UploadedAt.ToLocalTime().ToString("g")}";
@@ -147,9 +144,6 @@
             return;
 
         await UpdateNotFoundSubtitleAsync();
-
-        if (filePreview_ is not null && FileId != Guid.Empty)
-            await filePreview_.OpenPreviewAsync(FileId);
     }
 
     private async Task UpdateNotFoundSubtitleAsync()
@@ -161,6 +155,7 @@
         {
             noFileSubtitle_ = NoFileSubtitle;
             await InvokeAsync(StateHasChanged);
+            await Task.Delay(1000).ContinueWith(t => Nav.NavigateTo("/arrangements"));
         });
     }
 

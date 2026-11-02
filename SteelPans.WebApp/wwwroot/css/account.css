@@ -72,7 +72,6 @@
 .account-form {
     display: grid;
     gap: clamp(0.4rem, 1vw, 0.8rem);
-    padding: 0 0.25rem;
 }
 
 .account-field {
@@ -132,10 +131,11 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: clamp(0.4rem, 0.6vw, 0.72rem) clamp(0.65rem, 0.9vw, 1rem);
+    padding: clamp(0.2rem, 0.3vw, 0.62rem) clamp(0.65rem, 0.7vw, 0.8rem);
     border: 1px solid transparent;
     border-radius: 0.95rem;
     font: inherit;
+    font-size: clamp(0.9rem, 0.9vw, 1.1rem);
     font-weight: 800;
     line-height: 1;
     cursor: pointer;

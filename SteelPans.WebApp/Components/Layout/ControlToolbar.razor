@@ -1,4 +1,4 @@
-﻿    @inject MidiManagerService MidiService
+﻿@inject MidiManagerService MidiService
 @inject NavigationManager Nav
 @inject ModalPopupService Modals
 @inject DbService Db
@@ -28,7 +28,7 @@
                                     <ToolbarElement Text="@group.Summary.Name"
                                                     IconClass="bi-people">
                                         <ChildContent>
-                                            <MidiTrackList Files="@group.Files" />
+                                            <MidiFileList Files="@group.Files" />
                                         </ChildContent>
                                     </ToolbarElement>
                                 }
@@ -67,7 +67,7 @@
                             Hidden=@(!ShowTrackList)
                             CanExpand="true">
                 <ChildContent>
-                    <MidiTrackList Tracks="@MidiService.Playback.Tracks" />
+                    <MidiTrackList />
                 </ChildContent>
             </ToolbarElement>
         </SubMenu>
@@ -113,7 +113,7 @@
     }
 </Toolbar>
 
-    @code {
+@code {
     private Toolbar? toolbar_;
 
     private ToolbarElement? trackList_;

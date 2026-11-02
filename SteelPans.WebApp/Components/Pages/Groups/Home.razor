@@ -10,9 +10,6 @@
     <div class="sp-app-page__header groups-home__header">
         <h1>Groups</h1>
         <p>Manage ensemble groups, invite members, and control shared MIDI access.</p>
-
-        <p class="sp-app-alert sp-app-alert--error @(!string.IsNullOrWhiteSpace(Tasks.Error) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Error</p>
-        <p class="sp-app-alert sp-app-alert--success @(!string.IsNullOrWhiteSpace(Tasks.Message) ? "sp-app-alert--visible" : "sp-app-alert--hidden")">@Tasks.Message</p>
     </div>
 
     <div class="groups-home__actions">

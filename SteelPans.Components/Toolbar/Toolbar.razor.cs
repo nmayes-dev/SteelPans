@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
+using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
 using SteelPans.Components.Layout;
 using SteelPans.Components.Services;
@@ -68,22 +69,40 @@ public partial class Toolbar : OverlayComponentBase
     private string ToolbarClass => $"toolbar{ToolbarSideClass}{StateClass}";
 
     private ElementReference toolbar_;
+    private IJSObjectReference? outsideClickModule_;
+    private IJSObjectReference? outsideClickListener_;
+    private DotNetObjectReference<Toolbar>? dotNetRef_;
 
-    private async Task OnFocusInAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        await base.OnAfterRenderAsync(firstRender);
 
+        if (!firstRender)
+            return;
+
+        dotNetRef_ = DotNetObjectReference.Create(this);
+
+        outsideClickModule_ = await JS.ImportModuleAsync<Toolbar>();
+        outsideClickListener_ = await outsideClickModule_.InvokeAsync<IJSObjectReference>(
+            "observeOutsidePointerDown",
+            toolbar_,
+            dotNetRef_
+        );
     }
 
-    private async Task OnFocusOutAsync()
+    [JSInvokable]
+    public Task OnOutsidePointerDownAsync()
     {
-        //await Task.Yield();
+        return InvokeAsync(async () =>
+        {
+            if (state_ == State.Closed)
+                return;
 
-        //var focusIsInside = await JS.InvokeAsync<bool>("elementContainsActiveElement", toolbar_);
-        //if (focusIsInside)
-        //    return;
-
-        //await RequestCloseAsync();
+            await RequestCloseAsync();
+            StateHasChanged();
+        });
     }
+
 
     internal void RegisterElement(ToolbarElement element, bool root)
     {
@@ -117,7 +136,7 @@ public partial class Toolbar : OverlayComponentBase
     }
 
     public async Task OpenElementAsync(ToolbarElement element, bool modal = false)
-    {   
+    {
         if (element.Disabled || element.HasSubMenu)
             return;
 
@@ -207,6 +226,32 @@ public partial class Toolbar : OverlayComponentBase
         state_ = State.Closed;
         ActiveElement = null;
     }
+
+
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (outsideClickListener_ is not null)
+            {
+                await outsideClickListener_.InvokeVoidAsync("dispose");
+                await outsideClickListener_.DisposeAsync();
+            }
+
+            if (outsideClickModule_ is not null)
+                await outsideClickModule_.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        finally
+        {
+            dotNetRef_?.Dispose();
+            Dispose();
+        }
+    }
+
 
     public override void Dispose()
     {

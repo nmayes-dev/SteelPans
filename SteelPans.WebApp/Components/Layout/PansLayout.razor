@@ -1,4 +1,5 @@
 @implements IAsyncDisposable
+
 @inject MidiManagerService MidiService
 @inject ModalPopupService Modals
 @inject UserStateService UserState
@@ -27,6 +28,7 @@
                                 @TopLeftContent(assignedPan)
                             }
                         </div>
+
                         <div class="pans-display__item-overlay-right">
                             @if (TopRightContent is not null)
                             {
@@ -34,6 +36,7 @@
                             }
                         </div>
                     </div>
+
                     <div class="pan-display__item-overlay-bottom">
                         <div class="pans-display__item-copy-group pans-display__item-copy-group--left">
                             <div class="pans-display__item-type">
@@ -47,7 +50,6 @@
                             </div>
                         </div>
                     </div>
-
                 </div>
             </section>
         }
@@ -70,10 +72,14 @@
     [Parameter]
     public bool Locked { get; set; }
 
-    private bool startingUp_;
     private ElementReference assignedPansElement_;
+
+    private IJSObjectReference? module_;
     private DotNetObjectReference<PansLayout>? dotNetReference_;
+
+    private bool startingUp_;
     private bool panLayoutObserved_;
+    private bool disposed_;
 
     protected override void OnInitialized()
     {
@@ -82,77 +88,166 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender)
+        if (disposed_)
             return;
 
-        dotNetReference_ = DotNetObjectReference.Create(this);
-        await InitialiseLayoutAsync();
+        if (firstRender)
+        {
+            dotNetReference_ = DotNetObjectReference.Create(this);
+
+            var module = await JS.ImportModuleAsync<PansLayout>();
+
+            if (disposed_)
+            {
+                await module.DisposeAsync();
+                return;
+            }
+
+            module_ = module;
+        }
+
+        await SynchronizeLayoutAsync();
+    }
+
+    private async Task SynchronizeLayoutAsync()
+    {
+        if (disposed_ || module_ is null)
+            return;
+
+        var hasPans = Pans.Count > 0;
+
+        if (hasPans)
+        {
+            await InitialiseLayoutAsync();
+        }
+        else
+        {
+            await RemoveLayoutAsync();
+        }
     }
 
     private async Task InitialiseLayoutAsync()
     {
-        if (startingUp_ || panLayoutObserved_ || !MidiService.Playback.ActivePans.Any())
+        if (disposed_ ||
+            startingUp_ ||
+            panLayoutObserved_ ||
+            module_ is null ||
+            Pans.Count == 0)
+        {
             return;
+        }
 
         startingUp_ = true;
 
-        await JS.InvokeVoidAsync(
-            "panLayout.observe",
-            assignedPansElement_,
-            dotNetReference_,
-            Environment.IsDevelopment());
+        try
+        {
+            await module_.InvokeVoidAsync(
+                "observe",
+                assignedPansElement_,
+                dotNetReference_,
+                Environment.IsDevelopment());
 
-        panLayoutObserved_ = true;
+            panLayoutObserved_ = true;
+        }
+        catch
+        {
+            startingUp_ = false;
+            throw;
+        }
     }
 
     private async Task RemoveLayoutAsync()
     {
-        if (startingUp_ || !panLayoutObserved_ || MidiService.Playback.ActivePans.Any())
+        if (disposed_ ||
+            !panLayoutObserved_ ||
+            module_ is null)
+        {
             return;
+        }
 
-        await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
+        await module_.InvokeVoidAsync(
+            "disconnect",
+            assignedPansElement_);
+
         panLayoutObserved_ = false;
+        startingUp_ = false;
     }
 
     [JSInvokable]
     public async Task NotifyPansReordered(IReadOnlyList<string> panIds)
     {
-        if (!OnPansReordered.HasDelegate)
+        if (disposed_ || !OnPansReordered.HasDelegate)
             return;
 
         var orderedIds = panIds
-            .Select(id => Guid.TryParse(id, out var guid) ? guid : (Guid?)null)
+            .Select(id => Guid.TryParse(id, out var guid)
+                ? guid
+                : (Guid?)null)
             .Where(id => id.HasValue)
             .Select(id => id!.Value)
             .ToArray();
 
-        await OnPansReordered.InvokeAsync(orderedIds);
+        await InvokeAsync(async () =>
+        {
+            if (!disposed_)
+                await OnPansReordered.InvokeAsync(orderedIds);
+        });
     }
-
 
     [JSInvokable]
-    public async Task NotifyStartupComplete()
+    public Task NotifyStartupComplete()
     {
-        startingUp_ = false;
+        return InvokeAsync(() =>
+        {
+            if (disposed_)
+                return;
+
+            startingUp_ = false;
+        });
     }
 
-    private async Task OnAssignmentsChangedAsync(MidiEventArgs.AssignmentsChanged args)
+    private Task OnAssignmentsChangedAsync(
+        MidiEventArgs.AssignmentsChanged args)
     {
-        switch (args.Operation)
-        {
-            case PlaybackAssignmentChangeOperation.Add:
-                await InitialiseLayoutAsync();
-                break;
-
-        }
+        return InvokeAsync(StateHasChanged);
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (panLayoutObserved_)
-            await JS.InvokeVoidAsync("panLayout.disconnect", assignedPansElement_);
+        if (disposed_)
+            return;
+
+        disposed_ = true;
 
         MidiService.Playback.AssignmentsChanged -= OnAssignmentsChangedAsync;
-        dotNetReference_?.Dispose();
+
+        try
+        {
+            if (module_ is not null)
+            {
+                if (panLayoutObserved_)
+                {
+                    await module_.InvokeVoidAsync(
+                        "disconnect",
+                        assignedPansElement_);
+                }
+
+                await module_.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // The Blazor Server circuit has disconnected.
+        }
+        finally
+        {
+            panLayoutObserved_ = false;
+            startingUp_ = false;
+
+            dotNetReference_?.Dispose();
+            dotNetReference_ = null;
+
+            module_ = null;
+        }
     }
 }

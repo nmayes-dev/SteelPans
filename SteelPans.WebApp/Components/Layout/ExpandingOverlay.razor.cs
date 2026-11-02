@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components;
+using Microsoft.JSInterop;
 
 namespace SteelPans.WebApp.Components.Layout;
 
@@ -47,7 +48,17 @@ public partial class ExpandingOverlay
 
     private string OverlayClass => $"overlay{StateClass}{DirectionClass}";
 
+    private ElementReference overlay_;
+    private IJSObjectReference? module_;
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        module_ = await JS.ImportModuleAsync<ExpandingOverlay>();
+        await module_.InvokeVoidAsync("initialize", overlay_);
+    }
     private async Task ToggleStateAsync()
     {
         if (IsOpen)
@@ -60,4 +71,19 @@ public partial class ExpandingOverlay
         }
     }
 
+    public async ValueTask DisposeAsync()
+    {
+        if (module_ is null)
+            return;
+
+        try
+        {
+            await module_.InvokeVoidAsync("dispose", overlay_);
+            await module_.DisposeAsync();
+        }
+        catch (JSDisconnectedException)
+        {
+            // The Blazor circuit has disconnected.
+        }
+    }
 }

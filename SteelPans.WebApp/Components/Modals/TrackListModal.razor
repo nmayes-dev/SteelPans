@@ -1,0 +1,20 @@
+﻿@inject MidiManagerService MidiService
+
+<ModalPopup TPayload="IReadOnlyList<MidiTrackInfo>"
+            Id="TrackList"
+            Title="Assign Tracks"
+            OnOpen="OnOpen"
+            BlockEnterKey="true">
+    <MidiTrackList Tracks="tracks_" />
+</ModalPopup>
+
+@code {
+    private IReadOnlyList<MidiTrackInfo>? tracks_;
+
+    private void OnOpen(IReadOnlyList<MidiTrackInfo>? tracks)
+    {
+        tracks_ = tracks ?? MidiService.Playback.Tracks;
+        ArgumentNullException.ThrowIfNull(tracks_);
+    }
+
+}

@@ -57,6 +57,13 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
     [Parameter]
     public Func<Task<bool>> CanOpen { get; set; } = () => Task.FromResult(true);
 
+    [Parameter]
+    public bool BlockEscapeKey { get; set; }
+    [Parameter]
+    public bool BlockEnterKey { get; set; }
+
+    private bool HasButtons => CloseButton is not null || ConfirmButton is not null;
+
     public object? Payload => payload_;
 
     private TPayload? payload_;
@@ -100,7 +107,7 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
 
     protected override void OnInitialized()
     {
-        if (CloseButton is null && ConfirmButton is null && !ShowCloseButton && CloseOnBackdropClick)
+        if (!HasButtons && !ShowCloseButton && CloseOnBackdropClick)
         {
             throw new InvalidOperationException("This modal will be unable to close");
         }
@@ -121,11 +128,11 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
 
     private bool AcceptEscape(KeyboardEventData e)
     {
-        return isOpen_ && e.Key == "Escape" && !e.IsEditableTarget;
+        return isOpen_ && e.Key == "Escape" && !e.IsEditableTarget && !BlockEscapeKey;
     }
     private bool AcceptEnter(KeyboardEventData e)
     {
-        return isOpen_ && e.Key == "Enter" && !e.IsEditableTarget;
+        return isOpen_ && e.Key == "Enter" && !e.IsEditableTarget && !BlockEnterKey;
     }
     private void AddKeyCallbacks()
     {
@@ -158,6 +165,9 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
     public virtual async Task OpenAsync(object? payload = null, ModalOptions? options = null)
     {
         if (!await CanOpen())
+            return;
+
+        if (isOpen_)
             return;
 
         payload_ = GetTypedPayload(payload);

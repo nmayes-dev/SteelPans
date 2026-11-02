@@ -38,7 +38,13 @@ public sealed class DebugBrowserLauncher : IDisposable
     {
         try
         {
-            var url = app.Configuration["ASPNETCORE_URLS"]?
+            var launchUrl = app.Configuration["LAUNCH_URL"]?
+                .Split(';', StringSplitOptions.RemoveEmptyEntries)
+                .FirstOrDefault(x => x.StartsWith(
+                    "https://",
+                    StringComparison.OrdinalIgnoreCase));
+
+            var url = launchUrl ?? app.Configuration["ASPNETCORE_URLS"]?
                 .Split(';', StringSplitOptions.RemoveEmptyEntries)
                 .FirstOrDefault(x => x.StartsWith(
                     "https://",

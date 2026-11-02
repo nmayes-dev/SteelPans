@@ -69,22 +69,17 @@
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
     touch-action: manipulation;
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-rows: var(--toolbar-header-height) 0;
+    display: flex;
+    flex-direction: column;
     width: max-content;
     min-width: var(--toolbar__button-size);
     max-width: var(--toolbar__button-size);
-    height: max-content;
+    height: auto;
     min-height: var(--toolbar__button-size);
     max-height: var(--toolbar__button-size);
     background: var(--toolbar__background-color);
     border-radius: var(--toolbar__button-radius);
     transition: min-width var(--med-short-transition) ease, min-height var(--med-short-transition) ease-out, border-radius var(--med-transition) ease;
-}
-
-.toolbar--open .toolbar__surface {
-    grid-template-rows: var(--toolbar-header-height) 1fr;
 }
 
 .toolbar--menu-open .toolbar__surface {
@@ -114,12 +109,11 @@
 
 .toolbar__menu,
 .toolbar__panel {
-    grid-row: 2;
-    grid-column: 1;
     width: 100%;
     min-width: 0;
-    height: 100%;
+    height: 0;
     min-height: 0;
+    flex: 0 0 0;
     padding: 0;
     border-radius: 0 0 var(--toolbar__border-radius) var(--toolbar__border-radius);
     visibility: hidden;
@@ -130,7 +124,7 @@
 }
 
 .toolbar__panel {
-    display: grid;
+    display: block;
     pointer-events: none;
 }
 
@@ -141,6 +135,8 @@
 
 .toolbar--menu-open .toolbar__menu,
 .toolbar--panel-open .toolbar__panel {
+    flex: 1 1 auto;
+    height: auto;
     border: 1px solid var(--toolbar__border-color);
     border-top: none;
     pointer-events: auto;
@@ -151,7 +147,8 @@
 }
 
 .toolbar--panel-open .toolbar__panel {
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     border-bottom-left-radius: inherit;
     border-bottom-right-radius: inherit;
 }
@@ -178,9 +175,8 @@
 ========================================= */
 
 .toolbar__header {
-    grid-row: 1;
-    grid-column: 1;
     display: flex;
+    flex: 0 0 var(--toolbar-header-height);
     align-items: center;
     padding: 0;
     width: 100%;
@@ -611,7 +607,6 @@
 ========================================= */
 
 .toolbar__panel-content {
-    grid-area: 1 / 1;
     width: 100%;
     height: 0;
     opacity: 0;
@@ -621,8 +616,8 @@
 
 .toolbar__panel-content-active {
     opacity: 1;
-    height: 100%;
-    overflow: auto;
+    height: auto;
+    overflow: visible;
     padding: clamp(0.35rem, 0.5vw, 0.75rem) clamp(0.3rem, 0.75vw, 1rem);
 }
 
