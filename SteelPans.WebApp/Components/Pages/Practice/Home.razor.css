@@ -33,7 +33,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    height: min(max(6.5vh, 5vw), 100%);
+    height: min(max(5.5vh, 6vw), 3.2rem);
     aspect-ratio: 1 / 1;
     border-radius: 0.9rem;
     background-image: linear-gradient(180deg, rgba(5, 39, 103, 0.5) 0%, #3a0647a0 70%);

@@ -1,7 +1,9 @@
 ﻿const SELECTORS = {
     item: ".pans-display__item",
     svg: ".sp-app-svg",
-    copy: ".pans-display__item-copy",
+    panContainer: ".pans-display__item-container",
+    base: "#Base",
+    copy: ".pan-display__item-overlay-bottom",
     leftGroup: ".pans-display__item-copy-group--left",
     rightGroup: ".pans-display__item-copy-group--right",
     label: ".pans-display__item-copy-label",
@@ -96,6 +98,22 @@ const panLayout = {
 
         this.attachDragHandlers(container);
 
+        // The pan item dimensions transition, so measure again when the
+        // rendered SVG reaches its final size.
+        container._panLayoutTransitionEnd = event => {
+            if (!event.target?.matches?.(SELECTORS.item) ||
+                (event.propertyName !== "width" && event.propertyName !== "height")) {
+                return;
+            }
+
+            const state = container._panLayoutState;
+            if (!state) return;
+
+            cancelAnimationFrame(state.textFitRaf);
+            state.textFitRaf = requestAnimationFrame(() => this.fitAllPanText(container));
+        };
+        container.addEventListener("transitionend", container._panLayoutTransitionEnd);
+
         container._panGridObserver = new ResizeObserver((entries) => {
             const rect = entries[0]?.contentRect;
 
@@ -137,6 +155,11 @@ const panLayout = {
         this.cancelPendingDrag(container);
         this.endDrag(container, { commit: false });
         this.detachDragHandlers(container);
+
+        if (container._panLayoutTransitionEnd) {
+            container.removeEventListener("transitionend", container._panLayoutTransitionEnd);
+            delete container._panLayoutTransitionEnd;
+        }
 
         container._panGridObserver?.disconnect();
         container._panMutationObserver?.disconnect();
@@ -202,6 +225,7 @@ const panLayout = {
                Layout must be committed before measurement.
                A second RAF guarantees DOM geometry is updated.
             */
+            cancelAnimationFrame(state.textFitRaf);
             state.textFitRaf = requestAnimationFrame(() => {
                 if (!state.startupComplete) {
                     this.logStartup(container, "text-fit RAF running");
@@ -1444,58 +1468,36 @@ const panLayout = {
         if (!parts) return null;
 
         const itemRect = item.getBoundingClientRect();
-        const copyRect = parts.copy.getBoundingClientRect();
+        if (itemRect.width <= 0) return null;
 
-        if (itemRect.width <= 0 || copyRect.height <= 0) {
-            return null;
-        }
+        const panContainer = item.querySelector(SELECTORS.panContainer);
+        const containerRect = panContainer?.getBoundingClientRect() ?? itemRect;
+        const base = parts.svg.querySelector(SELECTORS.base);
+        const baseRect = base?.getBoundingClientRect();
 
-        const style = getComputedStyle(parts.copy);
-        const gaps = this.getGaps(parts.copy);
+        // Exclude the bottom overlay's horizontal padding from the space
+        // available to the two labels.
+        const copyStyle = getComputedStyle(parts.copy);
+        const paddingLeft = parseFloat(copyStyle.paddingLeft) || 0;
+        const paddingRight = parseFloat(copyStyle.paddingRight) || 0;
+        const paddingBottom = parseFloat(copyStyle.paddingBottom) || 0;
+        const paddingTop = parseFloat(copyStyle.paddingTop) || 0;
+        const contentWidth = Math.max(0, parts.copy.getBoundingClientRect().width - paddingLeft - paddingRight);
 
-        const leftInset = parseFloat(style.left) || 0;
-        const rightInset = parseFloat(style.right) || 0;
-        const gap = gaps.column || gaps.row || 0;
+        // getBoundingClientRect() gives the evaluated SVG group dimensions in
+        // CSS pixels, including the SVG's viewBox scaling and transforms.
+        const fillsHeight = baseRect && baseRect.height > 0 &&
+            baseRect.height >= containerRect.height - paddingBottom - paddingTop - 1;
 
-        const fallbackAvailable =
-            Math.max(0, (itemRect.width - leftInset - rightInset - gap) / 2);
-
-        const clearance =
-            this.numberFromDataset(container, "panTextClearance", 6);
-
-        const y = copyRect.top + copyRect.height / 2;
-
-        const panBounds =
-            this.getEstimatedPanBoundsAtY(parts.svg, y);
-
-        const svgLeft = panBounds.left - itemRect.left;
-        const svgRight = panBounds.right - itemRect.left;
-
-        const leftAvailable = Math.max(
-            0,
-            svgLeft - leftInset - clearance
-        );
-
-        const rightAvailable = Math.max(
-            0,
-            itemRect.width - rightInset - svgRight - clearance
-        );
-
-        const minimumReadableWidth = Math.min(72, fallbackAvailable);
+        // When the pan fills the available height, reserve its rendered width
+        // in the middle. Otherwise, each label can use half the content width.
+        const availableWidth = fillsHeight
+            ? Math.max(0, (contentWidth - baseRect.width) / 2)
+            : contentWidth / 2;
 
         return this.measureCopyFit([
-            {
-                group: parts.leftGroup,
-                availableWidth: leftAvailable > 0
-                    ? Math.min(leftAvailable, fallbackAvailable)
-                    : minimumReadableWidth
-            },
-            {
-                group: parts.rightGroup,
-                availableWidth: rightAvailable > 0
-                    ? Math.min(rightAvailable, fallbackAvailable)
-                    : minimumReadableWidth
-            }
+            { group: parts.leftGroup, availableWidth },
+            { group: parts.rightGroup, availableWidth }
         ]);
     },
 
@@ -1516,7 +1518,6 @@ const panLayout = {
         const resolved = groups
             .map(({ group, availableWidth }) => ({
                 group,
-                label: group?.querySelector(SELECTORS.label),
                 value: group?.querySelector(SELECTORS.value),
                 availableWidth: Math.max(0, availableWidth)
             }))
@@ -1539,7 +1540,6 @@ const panLayout = {
             )
         );
 
-        const minSize = 7;
         let fittedSize = baseSize;
 
         for (const item of resolved) {
@@ -1548,25 +1548,12 @@ const panLayout = {
                 this.getFittedFontSize(
                     item.value,
                     item.availableWidth,
-                    baseSize,
-                    minSize
+                    baseSize
                 )
             );
-
-            if (item.label) {
-                fittedSize = Math.min(
-                    fittedSize,
-                    this.getFittedFontSize(
-                        item.label,
-                        item.availableWidth,
-                        baseSize * 0.72,
-                        6
-                    ) / 0.72
-                );
-            }
         }
 
-        return Math.max(minSize, fittedSize);
+        return fittedSize;
     },
 
     getBaseFontSize(element, cacheKey) {
@@ -1577,17 +1564,17 @@ const panLayout = {
         return Number(element.dataset[cacheKey]);
     },
 
-    getFittedFontSize(element, availableWidth, baseSize, minSize) {
-        if (!element || availableWidth <= 0) return minSize;
+    getFittedFontSize(element, availableWidth, baseSize) {
+        if (!element || availableWidth <= 0) return 0;
 
         const text = element.textContent?.trim() ?? "";
         if (!text) return baseSize;
 
         const measuredWidth = this.measureTextWidth(text, getComputedStyle(element), baseSize);
+        const visible = Math.min(availableWidth / measuredWidth, 1.0);
+        const scale = visible < 0.5 ? 0 : visible;
 
-        return measuredWidth <= availableWidth
-            ? baseSize
-            : Math.max(minSize, baseSize * availableWidth / measuredWidth);
+        return baseSize * scale;
     },
 
     measureTextWidth(text, style, fontSize) {

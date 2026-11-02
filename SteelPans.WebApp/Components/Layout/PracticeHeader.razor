@@ -2,7 +2,9 @@
 @inject MidiManagerService MidiService
 
 <section class="sp-app-section practice-header__controls">
-    <ControlToolbar />
+    <div>
+        <ControlToolbar />
+    </div>
 
     <div class="practice-header__midi-controls @(MidiService.Playback.IsMidiLoaded ? "practice-header__midi-controls--visible" : "practice-header__midi-controls--empty")">
         @if (MidiService.Playback.IsMidiLoaded)

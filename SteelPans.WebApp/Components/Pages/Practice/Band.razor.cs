@@ -16,7 +16,6 @@ public partial class Band : IAsyncDisposable
 
     protected override Task OnInitializedAsync()
     {
-        MidiService.Playback.MidiFileLoaded += OnMidiFileLoadedAsync;
         MidiService.Playback.MidiFileUnloaded += OnPlaybackStateChangedAsync;
         MidiService.Playback.AssignmentsChanged += OnPlaybackStateChangedAsync;
 
@@ -42,15 +41,6 @@ public partial class Band : IAsyncDisposable
         }
     }
 
-    private Task OnMidiFileLoadedAsync(MidiEventArgs.FileLoaded args)
-    {
-        if (!args.Tracks.Any() || args.Assignments.Any())
-            return Task.CompletedTask;
-
-        Logger.LogInformation("Opening modal");
-        return Modals.OpenAsync("TrackList");
-    }
-
     private Task OnPlaybackStateChangedAsync<TArgs>(TArgs _)
     {
         return InvokeAsync(StateHasChanged);
@@ -62,7 +52,6 @@ public partial class Band : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
-        MidiService.Playback.MidiFileLoaded -= OnMidiFileLoadedAsync;
         MidiService.Playback.MidiFileUnloaded -= OnPlaybackStateChangedAsync;
         MidiService.Playback.AssignmentsChanged -= OnPlaybackStateChangedAsync;
         return ValueTask.CompletedTask;

@@ -54,6 +54,7 @@
     min-width: 0;
     min-height: 0;
     padding: 0.1rem 0;
+    border-radius: clamp(0.4rem, 1vw, 1rem);
     overflow: visible;
     cursor: default;
     touch-action: none;
@@ -145,7 +146,7 @@
     display: grid;
     place-items: center;
     box-sizing: border-box;
-    z-index: 2;
+    z-index: 20;
     overflow: hidden;
 }
 
@@ -155,7 +156,6 @@
     flex-direction: column;
     justify-content: space-between;
     inset: 0;
-    z-index: 1;
     pointer-events: none;
 }
 
@@ -166,18 +166,22 @@
     justify-content: space-between;
 }
 
+.pan-display__item-overlay-top {
+    z-index: 30;
+}
+
 .pan-display__item-overlay-bottom {
     --pan-copy-value-font-size: clamp(0.48rem, 0.78vw, 0.74rem);
     --pan-copy-label-scale: 0.72;
-    --pan-copy-inline-inset: clamp(0.45rem, 1.45em, 0.95rem);
-    --pan-copy-block-inset: clamp(0.18rem, 0.7em, 0.5rem);
+    --pan-copy-inline-inset: clamp(0.2rem, 0.75vw, 0.95rem);
+    --pan-copy-block-inset: clamp(0.12rem, 0.7vw, 0.5rem);
     padding: var(--pan-copy-block-inset) var(--pan-copy-inline-inset);
     display: flex;
     justify-content: space-between;
     align-items: end;
-    gap: clamp(0.4rem, 1.25em, 0.9rem);
     font-size: var(--pan-copy-value-font-size);
     line-height: 1.05;
+    z-index: 10;
 }
 
 .pans-display__item-copy-group {
@@ -186,6 +190,7 @@
     min-width: 0;
     max-width: var(--pan-copy-group-width, calc((100cqw - 2rem) / 2));
     gap: 0.2rem;
+    transition: max-width 200ms ease;
 }
 
 .pans-display__item-copy-group--left {

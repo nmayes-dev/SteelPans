@@ -167,6 +167,9 @@ public partial class ModalPopup<TPayload> : OverlayComponentBase, IModalPopup
         if (!await CanOpen())
             return;
 
+        if (isOpen_)
+            return;
+
         payload_ = GetTypedPayload(payload);
         options_ = options;
 

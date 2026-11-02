@@ -7,14 +7,18 @@
     color: #0f172a;
     font-family: "Bravura", "Petaluma", "Noto Music", "Segoe UI Symbol", serif;
     font-size: clamp(0.7rem, 1vw, 1.25rem);
-    padding: 0 clamp(0.25rem, 0.5vw, 0.65rem);
+    padding-right: clamp(0.2rem, 0.5vw, 0.65rem);
+    padding-left: clamp(0.3rem, 0.75vw, 0.65rem);
 }
 
-    .note-division__select:focus-visible {
-        outline: 0.16rem solid rgba(37, 99, 235, 0.22);
-        outline-offset: 0.1rem;
+    .note-division__select:open {
+        outline: 0.2rem solid rgba(37, 99, 235, 0.32);
     }
 
     .note-division__select:disabled {
         opacity: 0.65;
+    }
+
+    .note-division__select option {
+        font-size: clamp(0.9rem, 1vw, 1.2rem);
     }

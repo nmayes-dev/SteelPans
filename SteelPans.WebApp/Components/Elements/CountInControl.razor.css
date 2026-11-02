@@ -12,7 +12,8 @@
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     width: clamp(3rem, 3rem + 2.4vw + 0.5vh, 8.8rem);
-    gap: clamp(0.1rem, 0.3vw, 0.5rem);
+    height: 100%;
+    gap: clamp(0.1rem, 0.25vw, 0.5rem);
     align-items: center;
 }
 
